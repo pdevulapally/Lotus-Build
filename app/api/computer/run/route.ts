@@ -226,18 +226,35 @@ function parseStreamingFiles(content: string): GeneratedFile[] {
   return files
 }
 
-async function parseGenerateResponse(res: Response): Promise<GeneratedFile[]> {
+async function parseGenerateResponse(
+  res: Response,
+  onFileDetected?: (path: string) => Promise<void>
+): Promise<GeneratedFile[]> {
   const contentType = res.headers.get("content-type") || ""
   const reader = res.body?.getReader()
   if (!reader) throw new Error("No response body")
 
   let text = ""
   const decoder = new TextDecoder()
+  const discoveredPaths = new Set<string>()
 
   while (true) {
     const { done, value } = await reader.read()
     if (done) break
-    text += decoder.decode(value, { stream: true })
+    const chunk = decoder.decode(value, { stream: true })
+    text += chunk
+
+    // Incremental file detection
+    const matches = text.matchAll(/===FILE:\s*(.*?)===/g)
+    for (const match of matches) {
+      const path = match[1]?.trim()
+      if (path && !discoveredPaths.has(path)) {
+        discoveredPaths.add(path)
+        if (onFileDetected) {
+          await onFileDetected(path)
+        }
+      }
+    }
   }
 
   text += decoder.decode()
@@ -977,6 +994,7 @@ function buildAgentGenerationPrompt(params: {
   prompt: string
   planText: string
   webEvidence: WebEvidence[]
+  isEdit?: boolean
 }) {
   const contextSections = [
     params.planText.trim()
@@ -984,6 +1002,9 @@ function buildAgentGenerationPrompt(params: {
       : "",
     params.webEvidence.length
       ? `Agent web context:\n${formatWebEvidenceList(params.webEvidence)}`
+      : "",
+    params.isEdit
+      ? "IMPORTANT: This is an edit to an existing project. ONLY output the files that need to change. Do NOT output unchanged files. Your changes will be merged surgically."
       : "",
   ].filter(Boolean)
 
@@ -1022,9 +1043,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 })
     }
 
-    const data = docSnap.data() as { ownerId?: string; prompt?: unknown; model?: unknown; timeline?: unknown }
+    const data = docSnap.data() as { ownerId?: string; prompt?: unknown; model?: unknown; timeline?: unknown; projectId?: string }
     if (data.ownerId !== uid) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 })
+    }
+
+    let projectFiles: GeneratedFile[] = []
+    if (data.projectId) {
+      const projectSnap = await adminDb.collection("projects").doc(data.projectId).get()
+      if (projectSnap.exists) {
+        projectFiles = projectSnap.data()?.files || []
+      }
     }
 
     const storedPrompt = typeof data.prompt === "string" ? data.prompt.trim() : ""
@@ -1124,12 +1153,13 @@ export async function POST(req: Request) {
         system: `
 You are an expert product and software planning agent.
 
-Your job is to take a user prompt and produce a clear execution plan.
+Your job is to evaluate the user request and decide if an explicit execution plan is needed.
+- For simple requests (e.g., color changes, minor bug fixes, updating text, single component tweaks), output EXACTLY: SKIP_PLAN
+- For complex requests (e.g., building a new app, adding a complex feature, architectural changes), produce a clear, structured, and concise execution plan.
 
 Rules:
 - No code
 - No assumptions about tools
-- No fake capabilities
 - Focus on real-world steps
 - Keep it structured and concise
 `,
@@ -1144,14 +1174,26 @@ Rules:
       planText =
         extractTextFromAnthropicContent(response.content) || "No plan generated."
 
-      await appendRunEvent({
-        id: crypto.randomUUID(),
-        title: "Planning execution",
-        description: planText,
-        status: "complete",
-        kind: "planning",
-        createdAt: new Date().toISOString(),
-      })
+      if (planText.trim() === "SKIP_PLAN") {
+        planText = ""
+        await appendRunEvent({
+          id: crypto.randomUUID(),
+          title: "Planning execution",
+          description: "Simple task, skipped plan drafting.",
+          status: "skipped",
+          kind: "planning",
+          createdAt: new Date().toISOString(),
+        })
+      } else {
+        await appendRunEvent({
+          id: crypto.randomUUID(),
+          title: "Planning execution",
+          description: planText,
+          status: "complete",
+          kind: "planning",
+          createdAt: new Date().toISOString(),
+        })
+      }
     } catch (err) {
       console.error("Computer planning failed:", err)
       await appendRunEvent({
@@ -1563,6 +1605,7 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
       prompt,
       planText,
       webEvidence: usableWebEvidence,
+      isEdit: projectFiles.length > 0,
     })
     let generatedFiles: GeneratedFile[] = []
 
@@ -1570,6 +1613,16 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
       let genData: unknown = null
       let generationFailed = false
       let generationError = ""
+
+      const generatingEventId = crypto.randomUUID()
+      await appendRunEvent({
+        id: generatingEventId,
+        title: "Generating code",
+        description: "Starting build process...",
+        status: "complete",
+        kind: "code",
+        createdAt: new Date().toISOString(),
+      })
 
       try {
         const controller = new AbortController()
@@ -1586,6 +1639,8 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
             body: JSON.stringify({
               prompt: generationPrompt,
               model: builderModel,
+              existingFiles: projectFiles,
+              creationMode: "build",
             }),
             signal: controller.signal,
           })
@@ -1593,12 +1648,66 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
           clearTimeout(timeout)
         }
 
-        generatedFiles = await parseGenerateResponse(genRes)
+        let lastEventId: string | null = null
+
+        generatedFiles = await parseGenerateResponse(genRes, async (path) => {
+          const newEventId = crypto.randomUUID()
+          lastEventId = newEventId
+          
+          await appendRunEvent({
+            id: newEventId,
+            title: `Generating ${path}`,
+            description: undefined,
+            status: "running",
+            kind: "code",
+            createdAt: new Date().toISOString(),
+          })
+        })
+
+        // Surgical merge: Combine newly generated/edited files with existing project files
+        if (projectFiles.length > 0 && generatedFiles.length > 0) {
+          const fileMap = new Map<string, string>()
+          projectFiles.forEach(f => fileMap.set(f.path, f.content))
+          generatedFiles.forEach(f => fileMap.set(f.path, f.content))
+          generatedFiles = Array.from(fileMap.entries()).map(([path, content]) => ({ path, content }))
+        }
+
+        if (data.projectId && generatedFiles.length > 0) {
+          await adminDb.collection("projects").doc(data.projectId).update({
+            files: generatedFiles,
+            updatedAt: new Date()
+          })
+        }
+
         genData = { files: generatedFiles }
+
+        // Mark all dynamic file generation events as complete
+        try {
+          await adminDb.runTransaction(async (tx) => {
+            const s = await tx.get(docRef)
+            const d = s.data() || {}
+            if (d.currentRunId !== runId) return
+            const t = Array.isArray(d.timeline) ? [...d.timeline] : []
+            let changed = false
+            for (let i = 0; i < t.length; i++) {
+              if (t[i].status === "running" && t[i].title.startsWith("Generating ")) {
+                t[i] = { ...t[i], status: "complete" }
+                changed = true
+              }
+            }
+            if (changed) {
+              tx.update(docRef, { timeline: t, updatedAt: new Date() })
+            }
+          })
+        } catch (e) {
+          console.error("Failed to cleanup file events:", e)
+        }
 
         if (!genRes.ok || generatedFiles.length === 0) {
           generationFailed = true
         } else {
+          // Build a comma-separated list of file paths for the UI to display
+          const filePaths = generatedFiles.map((f) => f.path).join(",")
           await appendRunEvent({
             id: crypto.randomUUID(),
             title: "Code generated",
@@ -1606,6 +1715,10 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
             status: "complete",
             kind: "code",
             createdAt: new Date().toISOString(),
+            metadata: {
+              fileCount: generatedFiles.length,
+              filePaths,
+            },
           })
 
           // Persist generated project for reuse (only if session not already linked)

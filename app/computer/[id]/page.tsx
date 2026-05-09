@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { doc, onSnapshot, updateDoc } from "firebase/firestore"
@@ -9,7 +9,10 @@ import {
   Activity,
   ArrowLeft,
   BookOpen,
+  Brain,
   Check,
+  ChevronRight,
+  Code2,
   Copy,
   Database,
   ExternalLink,
@@ -23,14 +26,22 @@ import {
   Monitor,
   Pencil,
   Rocket,
+  Search,
   ShieldAlert,
+  Terminal,
+  Wrench,
+  X,
+  Zap,
 } from "lucide-react"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { AnimatedAIInput } from "@/components/ui/animated-ai-input"
 import { Button } from "@/components/ui/button"
+import { TokenLimitDialog } from "@/components/project/token-limit-dialog"
 import { TextShimmer } from "@/components/prompt-kit/text-shimmer"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/contexts/auth-context"
 import { db } from "@/lib/firebase"
+import { DeployTerminal } from "@/components/project/deploy-terminal"
 
 // ─── Types (unchanged) ────────────────────────────────────────────────────────
 
@@ -75,6 +86,7 @@ type DeployState = {
   provider: DeployProvider | null
   busy: boolean
   step: string
+  logs: string[]
   error: string | null
   siteUrl: string | null
   adminUrl: string | null
@@ -119,6 +131,30 @@ const STATUS_DOT: Record<ComputerSessionStatus, string> = {
   complete: "bg-green-500",
 }
 
+type KindConfig = {
+  icon: React.ElementType
+  bg: string
+  border: string
+  iconColor: string
+  label: string
+}
+
+const KIND_CONFIG: Record<string, KindConfig> = {
+  understanding: { icon: Brain,     bg: "bg-violet-50",  border: "border-violet-200", iconColor: "text-violet-500", label: "Understanding" },
+  research:      { icon: Search,    bg: "bg-blue-50",    border: "border-blue-200",   iconColor: "text-blue-500",   label: "Research"      },
+  browser:       { icon: Globe2,    bg: "bg-sky-50",     border: "border-sky-200",    iconColor: "text-sky-500",    label: "Browser"       },
+  planning:      { icon: Activity,  bg: "bg-amber-50",   border: "border-amber-200",  iconColor: "text-amber-500",  label: "Planning"      },
+  code:          { icon: Code2,     bg: "bg-emerald-50", border: "border-emerald-200",iconColor: "text-emerald-500",label: "Coding"        },
+  sandbox:       { icon: Terminal,  bg: "bg-zinc-50",    border: "border-zinc-200",   iconColor: "text-zinc-500",   label: "Sandbox"       },
+  fix:           { icon: Wrench,    bg: "bg-orange-50",  border: "border-orange-200", iconColor: "text-orange-500", label: "Fixing"        },
+  security:      { icon: ShieldAlert,bg: "bg-red-50",   border: "border-red-200",    iconColor: "text-red-500",    label: "Security"      },
+  user:          { icon: MessageSquare,bg:"bg-zinc-50",  border: "border-zinc-200",   iconColor: "text-zinc-400",   label: "User"          },
+}
+
+function getKindCfg(kind?: string): KindConfig {
+  return KIND_CONFIG[kind ?? ""] ?? { icon: Zap, bg: "bg-zinc-50", border: "border-zinc-200", iconColor: "text-zinc-400", label: "" }
+}
+
 const TRANSCRIPT_PHASES = [
   { key: "understanding" as const, label: "Assess"    },
   { key: "research"      as const, label: "Research"  },
@@ -142,7 +178,7 @@ const EVENT_TITLES: Record<string, string> = {
   "Research failed":      "Research failed",
   "Research skipped":     "Research skipped",
   "Browser decision":     "Choosing whether to inspect",
-  "Browser live":         "Firecrawl browser live",
+  "Browser live":         "browser live",
   "Browser fallback":     "Collecting page context",
   "Page inspected":       "Page inspected",
   "Browser insight":      "Browser insight",
@@ -227,10 +263,28 @@ function getBrowserProviderLabel(provider?: string) {
   return "Remote Browser"
 }
 
+function isTokenLimitError(message?: string | null) {
+  return /insufficient tokens|out of credits|token limit|no credits/i.test(message || "")
+}
+
+function getRunErrorMessage(message: string) {
+  return isTokenLimitError(message)
+    ? "You have used all credits for this cycle. Upgrade your plan to continue."
+    : message
+}
+
+function getTokenLimitEvent(events: ComputerTimelineEvent[]) {
+  return events.find((event) =>
+    event.status === "error" &&
+    (isTokenLimitError(event.description) || isTokenLimitError(event.title))
+  )
+}
+
 const INITIAL_DEPLOY_STATE: DeployState = {
   provider: null,
   busy: false,
   step: "",
+  logs: [],
   error: null,
   siteUrl: null,
   adminUrl: null,
@@ -314,7 +368,7 @@ function DeployButton({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-10 z-30 w-[280px] rounded-2xl border border-[#e0dbd1] bg-[#fffdf8] p-2.5 shadow-[0_18px_60px_-24px_rgba(0,0,0,0.45)]">
+        <div className="absolute right-0 top-10 z-30 w-[480px] max-w-[calc(100vw-2rem)] rounded-2xl border border-[#e0dbd1] bg-[#fffdf8] p-3 shadow-[0_18px_60px_-24px_rgba(0,0,0,0.45)]">
           <div className="px-1 pb-2">
             <p className="text-[12px] font-semibold text-zinc-900">Publish this project</p>
             <p className="mt-0.5 text-[11px] leading-relaxed text-zinc-500">
@@ -347,15 +401,20 @@ function DeployButton({
               {state.error && (
                 <p className="mt-1.5 text-[11px] leading-relaxed text-red-600">{state.error}</p>
               )}
+                <DeployTerminal 
+                  logs={state.logs}
+                  currentStep={state.step}
+                  className="mt-1.5"
+                />
               {state.siteUrl && (
                 <a
                   href={state.siteUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="mt-1.5 inline-flex max-w-full items-center gap-1 text-[11px] font-semibold text-zinc-900 hover:underline"
+                  className="mt-2.5 inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-500 py-2 text-[11px] font-bold text-white shadow-sm transition-all hover:bg-emerald-600 active:scale-[0.98]"
                 >
-                  <span className="truncate">{state.siteUrl}</span>
-                  <ExternalLink className="h-3 w-3 shrink-0" />
+                  <span>Open live site</span>
+                  <ExternalLink className="h-3 w-3" />
                 </a>
               )}
             </div>
@@ -626,77 +685,90 @@ function PlanDescription({ text }: { text: string }) {
 
 // ─── Feed item ────────────────────────────────────────────────────────────────
 
+const PROSE_EVENTS = ["Understanding insight", "Research insight", "Browser insight", "Build approach"]
+
 function FeedItem({ event, isLatest }: { event: ComputerTimelineEvent; isLatest: boolean }) {
   const isComplete = event.status === "complete"
   const isError    = event.status === "error"
   const isRunning  = event.status === "running"
   const isSkipped  = event.status === "skipped"
   const title      = getEventTitle(event)
+  const description = isTokenLimitError(event.description)
+    ? "You have used all credits for this cycle."
+    : event.description
 
   // Plan card — rendered only once when planning completes
   if (event.title === "Planning execution" && isComplete && event.description) {
     return (
       <div className="my-3 rounded-2xl border border-[#e0dbd1] bg-white px-4 py-3.5 shadow-sm">
-        <p className="mb-1.5 text-[9.5px] font-semibold uppercase tracking-[0.18em] text-zinc-400">Plan drafted</p>
+        <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">Plan drafted</p>
         <PlanDescription text={event.description} />
       </div>
     )
   }
 
-  const PROSE_EVENTS = ["Understanding insight", "Research insight", "Browser insight", "Build approach"]
-  if (PROSE_EVENTS.includes(event.title) && event.description) {
+  const isProse = PROSE_EVENTS.includes(event.title) && event.description
+
+  if (isProse) {
     return (
-      <div className="my-2 rounded-2xl border border-[#e8e3da] bg-[#faf8f4] px-3.5 py-3">
-        <p className="mb-1 text-[9.5px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
-          {title}
-        </p>
-        <p className="text-[12.5px] leading-relaxed text-zinc-600">
-          {event.description}
-        </p>
-      </div>
+      <Collapsible defaultOpen className="my-2 group/collapsible">
+        <CollapsibleTrigger className="flex w-full items-start gap-1.5 outline-none text-left">
+          <div className="mt-1 flex h-3 w-3 shrink-0 items-center justify-center">
+            <ChevronRight className="h-2.5 w-2.5 text-zinc-400 transition-transform group-data-[state=open]/collapsible:rotate-90" />
+          </div>
+          {isRunning ? (
+            <TextShimmer className="text-[11px] font-semibold uppercase tracking-[0.14em] bg-gradient-to-r from-zinc-400 via-zinc-950 to-zinc-400" duration={2}>
+              {title}
+            </TextShimmer>
+          ) : (
+            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
+              {title}
+            </span>
+          )}
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-2 ml-1.5 border-l-2 border-[#e8e3da] pl-3">
+          <p className="text-[13.5px] leading-relaxed text-zinc-600">
+            {event.description}
+          </p>
+        </CollapsibleContent>
+      </Collapsible>
     )
   }
 
-  // Completed / errored
-  if (isComplete || isError || isSkipped) {
-    return (
-      <div className="flex items-baseline gap-2.5 py-[3px]">
-        <svg className="mt-[1px] h-[11px] w-[11px] shrink-0" viewBox="0 0 11 11" fill="none"
-          stroke={isError ? "#f87171" : "#d4d4d8"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="2,5.5 4.5,8 9,3" />
-        </svg>
-        <span className={cn("text-[13px] leading-relaxed", isError ? "text-red-600" : "text-zinc-800")}>
-          {title}
-        </span>
-        {event.description && isError && (
-          <span className="ml-1 truncate text-[10.5px] text-red-400">{event.description}</span>
+  return (
+    <div className="flex items-start gap-2.5 py-1.5 w-full overflow-hidden">
+      <div className="flex h-5 w-4 shrink-0 items-center justify-center">
+        {isComplete || isSkipped ? (
+          <svg className="h-3 w-3" viewBox="0 0 11 11" fill="none" stroke="#71717a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="2,5.5 4.5,8 9,3" />
+          </svg>
+        ) : isError ? (
+          <X className="h-3 w-3 text-red-500" />
+        ) : isRunning ? (
+          <div className="relative flex h-1.5 w-1.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-zinc-900 opacity-20" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-zinc-900" />
+          </div>
+        ) : (
+          <div className="h-1 w-1 rounded-full bg-zinc-300" />
         )}
       </div>
-    )
-  }
-
-  // Active / pending
-  return (
-    <div className="flex items-baseline gap-2.5 py-[3px]">
-      {isLatest && isRunning ? (
-        <TextShimmer className="shrink-0 bg-gradient-to-r from-zinc-500 via-zinc-950 to-zinc-500 font-mono text-[13px] font-semibold" duration={1.45}>
-          →
-        </TextShimmer>
-      ) : (
-        <span className={cn("shrink-0 font-mono text-[13px]", isRunning ? "text-zinc-900" : "text-zinc-400")}>→</span>
-      )}
-      {isLatest && isRunning ? (
-        <TextShimmer className="bg-gradient-to-r from-zinc-500 via-zinc-950 to-zinc-500 font-mono text-[13px] font-semibold" duration={1.45}>
-          {title}
-        </TextShimmer>
-      ) : (
-        <span className={cn("font-mono text-[13px]", isRunning ? "text-zinc-900" : "text-zinc-400")}>{title}</span>
-      )}
-      {event.description && !isError && (
-        <span className="min-w-0 truncate font-mono text-[11px] text-zinc-300">
-          {event.description.split("\n")[0]}
-        </span>
-      )}
+      <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2">
+        {isRunning ? (
+          <TextShimmer className="bg-gradient-to-r from-zinc-400 via-zinc-950 to-zinc-400 text-[14px] font-medium" duration={2}>
+            {title}
+          </TextShimmer>
+        ) : (
+          <span className={cn("text-[14px] leading-relaxed", isError ? "text-red-600" : "text-zinc-800")}>
+            {title}
+          </span>
+        )}
+        {description && (
+          <span className={cn("min-w-0 truncate text-[11.5px]", isError ? "text-red-400" : "text-zinc-300")}>
+            {description.split("\n")[0]}
+          </span>
+        )}
+      </div>
     </div>
   )
 }
@@ -1129,7 +1201,7 @@ function TabBtn({ active, onClick, icon, label, dot }: {
 export default function ComputerPage() {
   const params = useParams()
   const id = typeof params?.id === "string" ? params.id : Array.isArray(params?.id) ? params.id[0] : ""
-  const { user, loading: authLoading, getOptionalAuthHeader } = useAuth()
+  const { user, userData, remainingTokens, loading: authLoading, getOptionalAuthHeader } = useAuth()
   // ── State (all unchanged) ─────────────────────────────────────────────────
   const [session,           setSession]           = useState<ComputerSessionResponse | null>(null)
   const [loading,           setLoading]           = useState(true)
@@ -1153,6 +1225,7 @@ export default function ComputerPage() {
   const [titleDraft,        setTitleDraft]        = useState("")
   const [titleSaving,       setTitleSaving]       = useState(false)
   const [titleError,        setTitleError]        = useState<string | null>(null)
+  const [tokenLimitModalOpen, setTokenLimitModalOpen] = useState(false)
   const hasStartedRef = useRef(false)
 
   // ── Firestore listener (unchanged) ────────────────────────────────────────
@@ -1178,7 +1251,7 @@ export default function ComputerPage() {
       () => { setSession(null); setError("Failed to load session."); setLoading(false) }
     )
     return () => unsub()
-  }, [authLoading, id, user])
+  }, [authLoading, id, user, setError, setLoading, setSession])
 
   useEffect(() => {
     const projectId = session?.projectId
@@ -1212,7 +1285,7 @@ export default function ComputerPage() {
       })
     })
     return () => unsub()
-  }, [session?.projectId])
+  }, [session?.projectId, setProjectIntegration])
 
   useEffect(() => {
     const projectId = session?.projectId
@@ -1250,17 +1323,30 @@ export default function ComputerPage() {
     return () => {
       cancelled = true
     }
-  }, [getOptionalAuthHeader, session?.projectId])
+  }, [getOptionalAuthHeader, session?.projectId, setEnvValues])
 
   const firstPrompt        = useMemo(() => session?.prompt?.trim(), [session?.prompt])
   const browserInspection  = useMemo(() => session ? getLatestBrowserInspection(session.timeline) : null, [session])
+  const tokenLimitEvent    = useMemo(() => session ? getTokenLimitEvent(session.timeline) : undefined, [session])
   const visibleCount       = session?.timeline.filter((e) => e.title !== "Session created").length ?? 0
+  const isBuildTokenBlocked = Boolean(userData && remainingTokens <= 0)
+
+  const showTokenLimit = useCallback(() => {
+    setRunError("You have used all credits for this cycle. Upgrade your plan to continue.")
+    setTokenLimitModalOpen(true)
+  }, [])
 
   useEffect(() => {
     if (!isEditingTitle && session?.prompt) {
       setTitleDraft(session.prompt)
     }
-  }, [session?.prompt, isEditingTitle])
+  }, [session?.prompt, isEditingTitle, setTitleDraft])
+
+  useEffect(() => {
+    if (!tokenLimitEvent) return
+    setRunError("You have used all credits for this cycle. Upgrade your plan to continue.")
+    setTokenLimitModalOpen(true)
+  }, [tokenLimitEvent, setRunError, setTokenLimitModalOpen])
 
   const sessionTitle = useMemo(() => {
     const raw = (firstPrompt || "").trim()
@@ -1271,12 +1357,17 @@ export default function ComputerPage() {
     return titleText.length > 72 ? `${titleText.slice(0, 72).trim()}...` : titleText
   }, [firstPrompt])
 
-  useEffect(() => { if (visibleCount > 0) setOptimisticStart(false) }, [visibleCount])
-  useEffect(() => { if (browserInspection && !session?.previewUrl) setActiveTab("browser") }, [browserInspection, session?.previewUrl])
+  useEffect(() => { if (visibleCount > 0) setOptimisticStart(false) }, [visibleCount, setOptimisticStart])
+  useEffect(() => { if (browserInspection && !session?.previewUrl) setActiveTab("browser") }, [browserInspection, session?.previewUrl, setActiveTab])
 
   // ── Auto-run (unchanged) ──────────────────────────────────────────────────
   useEffect(() => {
     if (!session || session.status !== "idle" || hasStartedRef.current) return
+    if (!userData) return
+    if (isBuildTokenBlocked) {
+      showTokenLimit()
+      return
+    }
     hasStartedRef.current = true
     setRunError(null); setOptimisticStart(true)
     void (async () => {
@@ -1291,16 +1382,22 @@ export default function ComputerPage() {
         if (!res.ok && res.status !== 409) throw new Error(data.error || "Could not start run")
       } catch (err) {
         hasStartedRef.current = false; setOptimisticStart(false)
-        setRunError(err instanceof Error ? err.message : "Could not start run")
+        const message = err instanceof Error ? err.message : "Could not start run"
+        if (isTokenLimitError(message)) setTokenLimitModalOpen(true)
+        setRunError(getRunErrorMessage(message))
       }
     })()
-  }, [getOptionalAuthHeader, session])
+  }, [getOptionalAuthHeader, isBuildTokenBlocked, session, showTokenLimit, userData, setRunError, setOptimisticStart])
 
   // ── handleRun (unchanged) ─────────────────────────────────────────────────
-  const handleRun = async (value: string) => {
+  const handleRun = useCallback(async (value: string) => {
     const t = value.trim(); if (!t) return
     setLocalMessages((c) => [...c, { role: "user", content: t }])
     if (!session || isStartingRun) return
+    if (isBuildTokenBlocked) {
+      showTokenLimit()
+      return
+    }
     setIsStartingRun(true); setRunError(null)
     try {
       const auth = await getOptionalAuthHeader()
@@ -1311,17 +1408,25 @@ export default function ComputerPage() {
       })
       const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }
       if (!res.ok || !data.ok) throw new Error(data.error || "Could not start run")
-    } catch (err) { setRunError(err instanceof Error ? err.message : "Could not start run") }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not start run"
+      if (isTokenLimitError(message)) setTokenLimitModalOpen(true)
+      setRunError(getRunErrorMessage(message))
+    }
     finally { setIsStartingRun(false) }
-  }
+  }, [getOptionalAuthHeader, isBuildTokenBlocked, isStartingRun, session, showTokenLimit])
 
   const handleEditStart  = (i: number, c: string) => { setEditingMsgIndex(i); setEditText(c) }
   const handleEditCancel = () => { setEditingMsgIndex(null); setEditText("") }
-  const handleEditSubmit = async (index: number) => {
+  const handleEditSubmit = useCallback(async (index: number) => {
     const t = editText.trim(); if (!t) return
     setEditingMsgIndex(null); setEditText("")
     setLocalMessages((c) => index < 0 ? [] : [...c.slice(0, index), { role: "user", content: t }])
     if (!session || isStartingRun) return
+    if (isBuildTokenBlocked) {
+      showTokenLimit()
+      return
+    }
     setIsStartingRun(true); setRunError(null)
     try {
       const auth = await getOptionalAuthHeader()
@@ -1332,11 +1437,15 @@ export default function ComputerPage() {
       })
       const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }
       if (!res.ok || !data.ok) throw new Error(data.error || "Could not start run")
-    } catch (err) { setRunError(err instanceof Error ? err.message : "Could not start run") }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not start run"
+      if (isTokenLimitError(message)) setTokenLimitModalOpen(true)
+      setRunError(getRunErrorMessage(message))
+    }
     finally { setIsStartingRun(false) }
-  }
+  }, [editText, getOptionalAuthHeader, isBuildTokenBlocked, isStartingRun, session, showTokenLimit])
 
-  const startNetlifyConnection = async () => {
+  const startNetlifyConnection = useCallback(async () => {
     if (!session?.projectId) return
     const auth = await getOptionalAuthHeader()
     const returnTo = encodeURIComponent(`/computer/${session.id}`)
@@ -1348,9 +1457,9 @@ export default function ComputerPage() {
       throw new Error(data.error || "Could not start Netlify connection")
     }
     window.location.href = data.url
-  }
+  }, [getOptionalAuthHeader, session?.id, session?.projectId])
 
-  const handleDeploy = async (provider: DeployProvider) => {
+  const handleDeploy = useCallback(async (provider: DeployProvider) => {
     if (!session?.projectId || deployState.busy) return
 
     setDeployOpen(true)
@@ -1358,6 +1467,7 @@ export default function ComputerPage() {
       provider,
       busy: true,
       step: "Starting",
+      logs: [],
       error: null,
       siteUrl: null,
       adminUrl: null,
@@ -1413,7 +1523,10 @@ export default function ComputerPage() {
           }
 
           if (payload.type === "log" && payload.message) {
-            setDeployState((current) => ({ ...current, step: payload.message || current.step }))
+            setDeployState((current) => ({ 
+              ...current, 
+              logs: [...current.logs, payload.message || ""] 
+            }))
           }
 
           if (payload.type === "error") {
@@ -1421,7 +1534,7 @@ export default function ComputerPage() {
             setDeployState((current) => ({
               ...current,
               error: getDeployErrorMessage(payload.error),
-              step: "Needs connection",
+              step: failedWithNetlifyConnection ? "Needs connection" : "Failed",
             }))
           }
 
@@ -1449,9 +1562,9 @@ export default function ComputerPage() {
     } finally {
       setDeployState((current) => ({ ...current, busy: false }))
     }
-  }
+  }, [deployState.busy, getOptionalAuthHeader, session?.projectId, startNetlifyConnection])
 
-  const handleGithubSync = async () => {
+  const handleGithubSync = useCallback(async () => {
     if (!session?.projectId || integrationBusy) return
     setIntegrationBusy("github")
     setIntegrationMessage("Syncing project files to GitHub...")
@@ -1483,9 +1596,9 @@ export default function ComputerPage() {
     } finally {
       setIntegrationBusy(null)
     }
-  }
+  }, [getOptionalAuthHeader, integrationBusy, session?.id, session?.projectId])
 
-  const handleSupabaseSetup = async () => {
+  const handleSupabaseSetup = useCallback(async () => {
     if (!session?.projectId || integrationBusy) return
     setIntegrationBusy("supabase")
     setIntegrationMessage("Preparing Supabase for this website...")
@@ -1534,9 +1647,9 @@ export default function ComputerPage() {
     } finally {
       setIntegrationBusy(null)
     }
-  }
+  }, [getOptionalAuthHeader, integrationBusy, session?.projectId])
 
-  const handleEnvAdd = (key: string, value: string) => {
+  const handleEnvAdd = useCallback((key: string, value: string) => {
     const name = key.trim()
     if (!name) return
     setProjectIntegration((current) => ({
@@ -1544,9 +1657,9 @@ export default function ComputerPage() {
       envVarNames: Array.from(new Set([...(current?.envVarNames || []), name])),
     }))
     setEnvValues((current) => ({ ...current, [name]: value }))
-  }
+  }, [])
 
-  const handleEnvSave = async () => {
+  const handleEnvSave = useCallback(async () => {
     if (!session?.projectId || integrationBusy) return
     setIntegrationBusy("env")
     setIntegrationMessage("Saving encrypted environment variables...")
@@ -1602,7 +1715,7 @@ export default function ComputerPage() {
     } finally {
       setIntegrationBusy(null)
     }
-  }
+  }, [envValues, getOptionalAuthHeader, integrationBusy, projectIntegration?.files, session?.id, session?.projectId])
 
   useEffect(() => {
     if (!session?.projectId) return
@@ -1621,7 +1734,7 @@ export default function ComputerPage() {
 
     window.addEventListener("message", onMessage)
     return () => window.removeEventListener("message", onMessage)
-  }, [session?.projectId])
+  }, [session?.projectId, handleSupabaseSetup])
 
   if (loading) return <LoadingShell />
   if (error || !session) return <ErrorState message={error ?? "Session not found or access denied."} />
@@ -1785,13 +1898,25 @@ export default function ComputerPage() {
 
           {/* Input */}
           <div className="shrink-0 border-t border-[#ede8e0] bg-[#faf9f5] p-3 sm:p-4">
-            {runError && (
+            {isBuildTokenBlocked && (
+              <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
+                <p className="text-sm font-medium text-amber-900">You have used all credits for this cycle.</p>
+                <p className="mt-0.5 text-xs text-amber-800">
+                  Upgrade your plan to continue running the computer agent.
+                  {" "}
+                  <Link href="/pricing" className="font-semibold underline underline-offset-2">
+                    View plans
+                  </Link>
+                </p>
+              </div>
+            )}
+            {runError && !isBuildTokenBlocked && (
               <div className="mb-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2.5">
-                <p className="text-[11.5px] text-red-700">{runError}</p>
+                <p className="text-[11.5px] text-red-700">{getRunErrorMessage(runError)}</p>
               </div>
             )}
             <AnimatedAIInput mode="chat" compact isLoading={isStartingRun}
-              onSubmit={handleRun} placeholder="Message the agent..." submitLabel="Run" />
+              onSubmit={handleRun} placeholder="Message the agent..." submitLabel="Run" disabled={isBuildTokenBlocked} />
           </div>
         </div>
 
@@ -1861,6 +1986,12 @@ export default function ComputerPage() {
           ))}
         </div>
       </nav>
+
+      <TokenLimitDialog
+        open={tokenLimitModalOpen}
+        onOpenChange={setTokenLimitModalOpen}
+        description="This workspace has no credits left in the current cycle. Upgrade to continue running the computer agent."
+      />
     </div>
   )
 }

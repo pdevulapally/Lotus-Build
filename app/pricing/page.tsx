@@ -317,6 +317,9 @@ export default function PricingPage() {
                         Recommended
                       </div>
                     )}
+                    <div className={cn("mb-4", recommended ? "text-white" : "text-zinc-900")}>
+                      {planKey === "free" ? <img src="/Images/leaf-svgrepo-com.svg" className="h-8 w-8" alt="Starter" /> : planKey === "pro" ? <img src="/Images/lotus-flower-svgrepo-com.svg" className="h-8 w-8" alt="Pro" /> : <img src="/Images/enterprise-svgrepo-com.svg" className="h-8 w-8" alt="Enterprise" />}
+                    </div>
                     <h2
                       className={cn(
                         "text-[18px] font-bold tracking-tight",

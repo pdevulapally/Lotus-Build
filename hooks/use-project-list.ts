@@ -18,6 +18,7 @@ export type ProjectListItem = {
   sandboxUrl?: string
   workspaceId?: string
   workspaceName?: string
+  kind?: "project" | "computer"
 }
 
 type UseProjectListOptions = {
@@ -50,18 +51,28 @@ export function useProjectList({
     }
 
     if (scope === "user") {
-      // Merge legacy and current ownership fields without requiring a composite index.
-      const byId = new Map<string, ProjectListItem>()
+      const byIdOwner = new Map<string, ProjectListItem>()
+      const byIdUser = new Map<string, ProjectListItem>()
+      const byIdEditor = new Map<string, ProjectListItem>()
+      const byIdComputer = new Map<string, ProjectListItem>()
       let ownerLoaded = false
       let userLoaded = false
       let editorLoaded = false
+      let computerLoaded = false
       let ownerErr: string | null = null
       let userErr: string | null = null
       let editorErr: string | null = null
+      let computerErr: string | null = null
 
       const maybeCommit = () => {
-        if (!ownerLoaded || !userLoaded || !editorLoaded || cancelled) return
-        const merged = Array.from(byId.values()).sort((a, b) => {
+        if (!ownerLoaded || !userLoaded || !editorLoaded || !computerLoaded || cancelled) return
+        const mergedMap = new Map<string, ProjectListItem>()
+        for (const p of byIdOwner.values()) mergedMap.set(p.id, p)
+        for (const p of byIdUser.values()) mergedMap.set(p.id, p)
+        for (const p of byIdEditor.values()) mergedMap.set(p.id, p)
+        for (const p of byIdComputer.values()) mergedMap.set(p.id, p)
+        
+        const merged = Array.from(mergedMap.values()).sort((a, b) => {
           const aTs =
             (typeof a.updatedAt?.toDate === "function" ? a.updatedAt.toDate().getTime() : new Date(a.updatedAt || a.createdAt || 0).getTime()) || 0
           const bTs =
@@ -69,22 +80,24 @@ export function useProjectList({
           return bTs - aTs
         })
         setProjects(merged)
-        setError(ownerErr || userErr || editorErr)
+        setError(ownerErr || userErr || editorErr || computerErr)
         setLoading(false)
       }
 
       const qOwner = query(collection(db, "projects"), where("ownerId", "==", uid))
       const qUser = query(collection(db, "projects"), where("userId", "==", uid))
       const qEditor = query(collection(db, "projects"), where("editorIds", "array-contains", uid))
+      const qComputer = query(collection(db, "computerSessions"), where("ownerId", "==", uid))
 
       const unsubOwner = onSnapshot(
         qOwner,
         (snap) => {
           if (cancelled) return
           ownerLoaded = true
+          byIdOwner.clear()
           snap.forEach((docSnap) => {
             const data = docSnap.data() as any
-            byId.set(docSnap.id, {
+            byIdOwner.set(docSnap.id, {
               id: docSnap.id,
               prompt: data.prompt || "",
               model: data.model,
@@ -94,6 +107,7 @@ export function useProjectList({
               updatedAt: data.updatedAt,
               sandboxUrl: data.sandboxUrl,
               workspaceId: data.workspaceId,
+              kind: "project",
             })
           })
           maybeCommit()
@@ -111,9 +125,10 @@ export function useProjectList({
         (snap) => {
           if (cancelled) return
           userLoaded = true
+          byIdUser.clear()
           snap.forEach((docSnap) => {
             const data = docSnap.data() as any
-            byId.set(docSnap.id, {
+            byIdUser.set(docSnap.id, {
               id: docSnap.id,
               prompt: data.prompt || "",
               model: data.model,
@@ -123,6 +138,7 @@ export function useProjectList({
               updatedAt: data.updatedAt,
               sandboxUrl: data.sandboxUrl,
               workspaceId: data.workspaceId,
+              kind: "project",
             })
           })
           maybeCommit()
@@ -140,9 +156,10 @@ export function useProjectList({
         (snap) => {
           if (cancelled) return
           editorLoaded = true
+          byIdEditor.clear()
           snap.forEach((docSnap) => {
             const data = docSnap.data() as any
-            byId.set(docSnap.id, {
+            byIdEditor.set(docSnap.id, {
               id: docSnap.id,
               prompt: data.prompt || "",
               model: data.model,
@@ -152,6 +169,7 @@ export function useProjectList({
               updatedAt: data.updatedAt,
               sandboxUrl: data.sandboxUrl,
               workspaceId: data.workspaceId,
+              kind: "project",
             })
           })
           maybeCommit()
@@ -164,10 +182,40 @@ export function useProjectList({
         }
       )
 
+      const unsubComputer = onSnapshot(
+        qComputer,
+        (snap) => {
+          if (cancelled) return
+          computerLoaded = true
+          byIdComputer.clear()
+          snap.forEach((docSnap) => {
+            const data = docSnap.data() as any
+            byIdComputer.set(docSnap.id, {
+              id: docSnap.id,
+              prompt: data.prompt || "",
+              model: data.model,
+              status: (data.status as ProjectStatus) || "pending",
+              visibility: "private",
+              createdAt: data.createdAt,
+              updatedAt: data.updatedAt,
+              kind: "computer",
+            })
+          })
+          maybeCommit()
+        },
+        (err) => {
+          if (cancelled) return
+          computerLoaded = true
+          computerErr = err?.message || "Failed to load computer sessions"
+          maybeCommit()
+        }
+      )
+
       unsub = () => {
         unsubOwner()
         unsubUser()
         unsubEditor()
+        unsubComputer()
       }
       return () => {
         cancelled = true

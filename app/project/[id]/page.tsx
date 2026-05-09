@@ -76,6 +76,8 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import Link from "next/link"
+import { DeployTerminal } from "@/components/project/deploy-terminal"
+import { getNetlifyBuildLogUrl } from "@/lib/netlify"
 import { cn } from "@/lib/utils"
 import {
   ResizableHandle,
@@ -94,6 +96,7 @@ import { ProjectErrorBoundary, ChatMessage, ResponsivePreview, BrowserNavigator,
 import type { AgentTimelineItem } from "@/components/project/agent-timeline-panel"
 import { DynamicAgentTimeline } from "@/components/project/dynamic-agent-timeline"
 import { useTypewriter } from "@/components/project/useTypewriter"
+import { TokenLimitDialog } from "@/components/project/token-limit-dialog"
 import type { ThinkingStep } from "@/components/project/agent-thinking-stream"
 import { completeThinkingStep } from "@/lib/extract-thinking-steps"
 import { WebsiteSettingsPanel } from "@/components/project/website-settings-panel"
@@ -118,6 +121,10 @@ import { normalizeProject } from "@/lib/project-shape"
 let sandboxRunIdCounter = 0
 // Prevents auto-preview from running twice when effect runs twice (e.g. Strict Mode remount)
 let lastAutoPreviewKey: string | null = null
+
+function getPreviewFilesSignature(projectId: string, files: GeneratedFile[]) {
+  return `${projectId}:${files.map((file) => `${file.path}:${file.content.length}`).join("|")}`
+}
 
 type BackendOrchestrationStage =
   | "idle"
@@ -698,12 +705,15 @@ function ProjectContent() {
         throw new Error(json?.error || "Failed to prepare preview")
       }
       const nextPreviewUrl = String(json.previewUrl)
+      const nextSandboxId = typeof json.sandboxId === "string" ? json.sandboxId : undefined
+      setProject((prev) => (prev ? { ...prev, sandboxUrl: nextPreviewUrl, sandboxId: nextSandboxId ?? prev.sandboxId } : prev))
       setEnsuredPreviewUrl(nextPreviewUrl)
       setPreviewPath("/")
       setPreviewPathDraft("/")
       setPreviewReloadNonce(Date.now())
       setPreviewKey((k) => k + 1)
       setPreviewEnsureFailures(0)
+      setBuildError(null)
       return nextPreviewUrl
     } catch (e) {
       setPreviewEnsureFailures((prev) => prev + 1)
@@ -1521,7 +1531,6 @@ function ProjectContent() {
 
           if (payload.type === "log") {
             const nextLine = String(payload.message || "")
-            if (/CommandExitError|exit\s+status\s+1/i.test(nextLine)) continue
             setDeployLogs((prev) => {
               const next = [...prev, nextLine]
               return next.length > 500 ? next.slice(next.length - 500) : next
@@ -2411,10 +2420,12 @@ function ProjectContent() {
       const hasBlueprintPlan = project.planningStatus === "approved" || project.planningStatus === "plan-generated"
       const planDescription = hasBlueprintPlan && project.blueprint ? `Approved plan:\n${blueprintToText(project.blueprint)}` : ""
       const hasDBHint = promptSuggestsSupabaseBackend(prompt)
+      const isEdit = project.files && project.files.length > 0
       const generationPrompt = [
         prompt,
         planDescription,
         hasDBHint ? "The user intent indicates a database-backed web app with auth and storage needs. Prioritize Supabase integration if relevant." : "",
+        isEdit ? "IMPORTANT: This is an edit to an existing project. ONLY output the files that need to change. Do NOT output unchanged files. Your changes will be merged surgically." : "",
       ]
         .filter(Boolean)
         .join("\n\n")
@@ -2901,11 +2912,16 @@ function ProjectContent() {
           clearClientTimeout()
           
           const url = data.url
+          const sandboxId = typeof data.sandboxId === "string" ? data.sandboxId : undefined
+          lastAutoPreviewKey = getPreviewFilesSignature(projectId, files)
           
           // Update Firestore
-          updateDoc(projectRef, { sandboxUrl: url }).catch(console.error)
+          updateDoc(projectRef, {
+            sandboxUrl: url,
+            ...(sandboxId ? { sandboxId } : {}),
+          }).catch(console.error)
           
-          setProject((prev) => (prev ? { ...prev, sandboxUrl: url } : prev))
+          setProject((prev) => (prev ? { ...prev, sandboxUrl: url, sandboxId: sandboxId ?? prev.sandboxId } : prev))
           setEnsuredPreviewUrl(url)
           setPreviewPath("/")
           setPreviewPathDraft("/")
@@ -3031,10 +3047,12 @@ function ProjectContent() {
   const handleRestartPreview = useCallback(() => {
     if (!project?.files || !canEdit || isSandboxLoading) return
     setPreviewRefreshHint(null)
-    // Clear URL so UI shows build timeline; force new sandbox so we get a fresh env and tunnel (avoids "Closed Port")
     setProject((prev) => (prev ? { ...prev, sandboxUrl: undefined } : prev))
-    createSandbox(project.files, { forceNewSandbox: true })
-  }, [project?.files, canEdit, isSandboxLoading, createSandbox])
+    setEnsuredPreviewUrl(null)
+    ensurePreviewEnvironment(true).catch(() => {
+      // friendly loading/error handling is shown in preview panel
+    })
+  }, [project?.files, canEdit, isSandboxLoading, ensurePreviewEnvironment])
 
   const handleFixWithAI = useCallback(async () => {
     if (!project || !canEdit || isFixing || isGenerating || !buildError) return
@@ -3091,21 +3109,29 @@ function ProjectContent() {
   // Ensure preview runtime exists and recover silently if expired/missing
   useEffect(() => {
     if (!project) return
+    if (!user) return
     if (!project.files || project.files.length === 0) return
     if (isSandboxLoading || isGenerating || isPreparingPreview) return
     if (supabaseProvisioningInProgress) return
-    if (ensuredPreviewUrl) return
 
-    const signature = `${project.id}:${project.files.length}:${project.files[0]?.path || ""}:${project.files[project.files.length - 1]?.path || ""}`
-    const key = `${projectId}:${signature}`
+    const key = getPreviewFilesSignature(projectId, project.files)
     if (lastAutoPreviewKey === key) return
     lastAutoPreviewKey = key
-    lastAutoPreviewSignatureRef.current = signature
+    lastAutoPreviewSignatureRef.current = key
 
     ensurePreviewEnvironment(false).catch(() => {
       // only surface after repeated failures
     })
-  }, [project, projectId, isSandboxLoading, isGenerating, isPreparingPreview, ensuredPreviewUrl, ensurePreviewEnvironment])
+  }, [
+    project,
+    projectId,
+    user,
+    isSandboxLoading,
+    isGenerating,
+    isPreparingPreview,
+    supabaseProvisioningInProgress,
+    ensurePreviewEnvironment,
+  ])
 
   const handleSendMessage = async (submittedValue?: string, submittedModel?: string) => {
     const nextMessage = (submittedValue ?? chatInput).trim()
@@ -4579,26 +4605,7 @@ function ProjectContent() {
         </div>
       </div>
 
-      <Dialog open={tokenLimitModalOpen} onOpenChange={setTokenLimitModalOpen}>
-        <DialogContent className="max-w-md border-zinc-200 bg-white">
-          <DialogHeader>
-            <DialogTitle className="text-zinc-900">You’re out of credits</DialogTitle>
-            <DialogDescription className="text-zinc-600">
-              This workspace has no credits left in the current cycle. Upgrade to continue generating website updates.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" className="border-zinc-300 text-zinc-700" onClick={() => setTokenLimitModalOpen(false)}>
-              Close
-            </Button>
-            <Link href="/pricing">
-              <Button type="button" className="bg-[#1f1f1f] text-white hover:bg-black" onClick={() => setTokenLimitModalOpen(false)}>
-                Upgrade Plan
-              </Button>
-            </Link>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <TokenLimitDialog open={tokenLimitModalOpen} onOpenChange={setTokenLimitModalOpen} />
 
       <AlertDialog
         open={visualEditConfirmAction !== null}
@@ -4762,36 +4769,11 @@ function ProjectContent() {
                       : "Publish with Netlify"}
                   </Button>
                   {(isDeploying || deployLogs.length > 0 || deployStep) && (
-                    <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-[#111111] shadow-inner">
-                      <div className="flex items-center justify-between gap-3 border-b border-zinc-800 bg-[#171717] px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-400">Build Log</p>
-                        </div>
-                        {deployStep ? <p className="text-[11px] font-mono text-zinc-500">[{deployStep}]</p> : null}
-                      </div>
-                      <div className="max-h-48 overflow-auto bg-[#111111] p-3 font-mono text-[11px] leading-6 text-zinc-300">
-                        {deployLogs.length === 0 ? (
-                          <p className="text-zinc-500">$ Starting publish...</p>
-                        ) : (
-                          deployLogs.slice(-120).map((line, i) => (
-                            <p
-                              key={`netlify-log-${i}`}
-                              className={cn(
-                                "whitespace-pre-wrap break-words",
-                                /\berror\b|failed|ERR!/i.test(line) && "text-red-300",
-                                /\bwarn\b|warning|EBADENGINE/i.test(line) && "text-amber-300",
-                                /added \d+ packages|success|complete|published|ready/i.test(line) && "text-emerald-300",
-                                /^\s*>/.test(line) && "text-sky-300",
-                                !/\berror\b|failed|ERR!|warn|warning|EBADENGINE|added \d+ packages|success|complete|published|ready|^\s*>/i.test(line) && "text-zinc-300"
-                              )}
-                            >
-                              <span className="mr-2 text-zinc-600">$</span>
-                              {line}
-                            </p>
-                          ))
-                        )}
-                      </div>
-                    </div>
+                    <DeployTerminal 
+                      logs={deployLogs}
+                      currentStep={deployStep}
+                      className="mt-4"
+                    />
                   )}
                 </div>
               </div>

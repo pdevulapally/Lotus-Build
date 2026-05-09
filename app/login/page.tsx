@@ -23,7 +23,7 @@ export default function LoginPage() {
   const searchParams = useSearchParams()
   const redirect = searchParams.get("redirect") || "/"
   const { signInWithGoogle, signInWithGithub, signInWithEmail, sendPasswordResetEmail, user, loading } = useAuth()
-  
+
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -372,4 +372,3 @@ export default function LoginPage() {
     </div>
   )
 }
-

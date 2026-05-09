@@ -78,12 +78,20 @@ file content
 
 If you do not follow this format, the output will be rejected.
 
-Always generate at least:
+INTELLIGENT EDITING MODE:
+- If current project files are provided, analyze the user request.
+- Determine if a full rebuild or a targeted edit is needed.
+- FOR TARGETED EDITS: Only output the files that need to change. If a file is unchanged, DO NOT output it. I will merge your changes into the existing project.
+- FOR FULL BUILDS (New projects or major structural changes): Ensure all core files exist.
+
+REQUIRED FILES (Only for new projects or if missing):
 - index.html
 - package.json
+- tailwind.config.ts (REQUIRED for Tailwind compilation)
+- postcss.config.js (REQUIRED for PostCSS processing)
 - src/App.tsx
-- src/main.tsx
-- src/index.css
+- src/main.tsx (MUST import './index.css' at the top)
+- src/index.css (MUST start with @tailwind base; @tailwind components; @tailwind utilities;)
 
 TECH STACK:
 - Generate a Vite + React + TypeScript app.
@@ -627,12 +635,8 @@ export default {
     })
   }
 
-  // Inject missing src/index.css with proper Tailwind imports
-  if (!paths.has("src/index.css")) {
-    injected.push({
-      path: "src/index.css",
-      content: `@import 'tailwindcss';
-
+  const TAILWIND_DIRECTIVES = `@tailwind base;\n@tailwind components;\n@tailwind utilities;\n`
+  const DEFAULT_INDEX_CSS = `${TAILWIND_DIRECTIVES}
 :root {
   --radius: 12px;
   --radius-lg: 16px;
@@ -641,36 +645,29 @@ export default {
 
 body {
   font-family: system-ui, -apple-system, sans-serif;
-}
-
-@layer base {
-  * {
-    @apply border-border;
-  }
-  
-  body {
-    @apply bg-background text-foreground;
-  }
 }`
-    })
+
+  // Inject missing src/index.css, or prepend @tailwind directives if they're absent
+  const indexCssIdx = injected.findIndex(f => f.path === "src/index.css")
+  if (indexCssIdx === -1) {
+    injected.push({ path: "src/index.css", content: DEFAULT_INDEX_CSS })
+  } else if (!injected[indexCssIdx].content.includes("@tailwind")) {
+    injected[indexCssIdx] = {
+      ...injected[indexCssIdx],
+      content: `${TAILWIND_DIRECTIVES}\n${injected[indexCssIdx].content}`,
+    }
   }
 
   // Ensure src/main.tsx imports index.css
   const mainTsxIndex = injected.findIndex(f => f.path === "src/main.tsx")
-  if (mainTsxIndex !== -1) {
-    const mainContent = injected[mainTsxIndex].content
-    if (!mainContent.includes("import './index.css'") && !mainContent.includes('import "./index.css"')) {
-      // Add import at the top after React imports
-      const lines = mainContent.split('\n')
-      let insertIdx = 0
-      for (let i = 0; i < lines.length; i++) {
-        if (lines[i].includes("import React") || lines[i].includes("import react")) {
-          insertIdx = i + 1
-        }
-      }
-      lines.splice(insertIdx, 0, "import './index.css'")
-      injected[mainTsxIndex].content = lines.join('\n')
+  if (mainTsxIndex !== -1 && !injected[mainTsxIndex].content.includes("index.css")) {
+    const lines = injected[mainTsxIndex].content.split('\n')
+    let insertIdx = 0
+    for (let i = 0; i < lines.length; i++) {
+      if (/import\s+.*react/i.test(lines[i])) insertIdx = i + 1
     }
+    lines.splice(insertIdx, 0, "import './index.css'")
+    injected[mainTsxIndex] = { ...injected[mainTsxIndex], content: lines.join('\n') }
   }
 
   return injected
@@ -976,6 +973,25 @@ async function streamWithResolvedProvider(params: {
     assertValidFileBlockOutput(output)
   }
 
+  // Ensure CSS infrastructure exists — same safety net applied on the Nvidia path
+  const parsedBlocks = parseFileBlocks(output)
+  const allKnownPaths = new Set([
+    ...parsedBlocks.map(f => f.path),
+    ...(params.existingFiles?.map(f => f.path) || [])
+  ])
+
+  const needsCssFix =
+    !allKnownPaths.has("tailwind.config.ts") ||
+    !allKnownPaths.has("postcss.config.js") ||
+    !allKnownPaths.has("src/index.css") ||
+    (parsedBlocks.some(f => f.path === "src/index.css") && !parsedBlocks.find(f => f.path === "src/index.css")?.content.includes("@tailwind")) ||
+    (parsedBlocks.some(f => f.path === "src/main.tsx") && !parsedBlocks.find(f => f.path === "src/main.tsx")?.content.includes("index.css"))
+
+  if (needsCssFix) {
+    const fixedBlocks = injectMissingCssFiles(parsedBlocks)
+    output = fixedBlocks.map(f => `===FILE: ${f.path}===\n${f.content}\n===END_FILE===`).join('\n')
+  }
+
   params.state.streamedLength += output.length
   params.controller.enqueue(params.encoder.encode(output))
 }
@@ -1134,10 +1150,12 @@ DEPENDENCIES (CRITICAL):
 - If you use react-icons, add "react-icons": "^5.0.0" to package.json dependencies AND import only from react-icons/fa or react-icons/fa6 — these are the most stable subpackages.
 - NEVER use HiOutlineMenu, HiOutlineBars3 or any Hi* icon — they are unreliable across versions.
 - PREFER lucide-react for ALL icons. It is always available and has zero subpackage issues. Only use react-icons when lucide-react does not have what you need.
+- NEVER hallucinate lucide-react icon names. 'RocketLaunch' does not exist, use 'Rocket'.
 - If you import lucide-react, add "lucide-react": "^0.400.0" to dependencies if not already present.
 - If you use framer-motion, add "framer-motion": "^11.0.0" to dependencies.
 - Check the existing package.json first. Only add packages that are truly needed and don't already exist.
 - NEVER use packages that don't exist on npm (e.g., @shadcn/ui).
+- For the favicon in index.html, ALWAYS use an inline SVG: <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>"> to prevent 404 errors.
 
 CRITICAL: Do NOT regenerate the entire project. Output ONLY:
 1. One AGENT_MESSAGE (see below).
@@ -1214,7 +1232,7 @@ Generate files in this order (ALL MANDATORY):
 5. index.html
 6. src/main.tsx - MUST import './index.css'
 7. src/App.tsx
-8. src/index.css - ALWAYS (must include @import 'tailwindcss' and custom properties)
+8. src/index.css - ALWAYS (must include @tailwind base; @tailwind components; @tailwind utilities; directives and custom properties)
 9. src/components/*.tsx - Any necessary components
 10. src/lib/*.ts - Utility functions if needed
 
@@ -1239,10 +1257,12 @@ Dependencies requirements (MUST follow):
 - If you use react-icons, add "react-icons": "^5.0.0" to package.json dependencies AND import only from react-icons/fa or react-icons/fa6 — these are the most stable subpackages.
 - NEVER use HiOutlineMenu, HiOutlineBars3 or any Hi* icon — they are unreliable across versions.
 - PREFER lucide-react for ALL icons. It is always available and has zero subpackage issues. Only use react-icons when lucide-react does not have what you need.
+- NEVER hallucinate lucide-react icon names. 'RocketLaunch' does not exist, use 'Rocket'.
 - If you import lucide-react, add "lucide-react": "^0.400.0" to dependencies if not already present.
 - If you use Tailwind CSS, include tailwindcss, postcss, and autoprefixer in devDependencies.
 - Do not reference any package in code unless it exists in package.json.
 - NEVER use packages that don't exist on npm (e.g., @shadcn/ui is not a real package).
+- For the favicon in index.html, ALWAYS use an inline SVG: <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>"> to prevent 404 errors.
 
 Ensure the dev server binds to 0.0.0.0 and uses a known port (prefer port 3000). If you use Vite, configure it accordingly.
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { collection, deleteDoc, doc, onSnapshot, query, where } from "firebase/firestore"
@@ -10,32 +10,25 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { db } from "@/lib/firebase"
 import {
-  Activity,
-  AlertTriangle,
   ArrowLeft,
-  BarChart3,
-  CalendarDays,
-  CheckCircle2,
-  Clock,
-  Coins,
-  CreditCard,
-  FolderOpen,
-  Layers,
   Loader2,
-  LogOut,
   Mail,
-  Settings,
-  ShieldCheck,
   Sparkles,
   Trash2,
-  TrendingUp,
   XCircle,
-  Zap,
 } from "lucide-react"
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import { getAgentRunLimitForPlan } from "@/lib/agent-quotas"
 
 type ProjectStatus = "pending" | "generating" | "complete" | "error"
+type SettingsPageKey = "account" | "billing" | "usage" | "projects"
+
+const SETTINGS_PAGES: Array<{ key: SettingsPageKey; label: string }> = [
+  { key: "account", label: "Account" },
+  { key: "billing", label: "Billing" },
+  { key: "usage", label: "Usage" },
+  { key: "projects", label: "Projects" },
+]
 
 type ProjectAnalyticsItem = {
   id: string
@@ -43,7 +36,24 @@ type ProjectAnalyticsItem = {
   model?: string
   status: ProjectStatus
   createdAt?: any
+  updatedAt?: any
 }
+
+type ContributionActivityItem = {
+  createdAt?: any
+  updatedAt?: any
+  activityDates?: any[]
+}
+
+type ContributionDay = {
+  date: Date
+  key: string
+  count: number
+  level: 0 | 1 | 2 | 3 | 4
+  isPadding?: boolean
+}
+
+type ContributionWeek = ContributionDay[]
 
 function toDate(value: any): Date | null {
   if (!value) return null
@@ -60,15 +70,238 @@ function statusDot(status: ProjectStatus) {
   return <span className="h-1.5 w-1.5 rounded-full bg-zinc-300 shrink-0" />
 }
 
+function dateKey(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+function startOfLocalDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date)
+  next.setDate(next.getDate() + days)
+  return next
+}
+
+function getContributionLevel(count: number, max: number): ContributionDay["level"] {
+  if (count <= 0 || max <= 0) return 0
+  const ratio = count / max
+  if (ratio >= 0.8) return 4
+  if (ratio >= 0.55) return 3
+  if (ratio >= 0.3) return 2
+  return 1
+}
+
+function buildContributionCalendar(items: ContributionActivityItem[]) {
+  const today = startOfLocalDay(new Date())
+  const firstDay = addDays(today, -364)
+  const firstGridDay = addDays(firstDay, -firstDay.getDay())
+  const lastGridDay = addDays(today, 6 - today.getDay())
+  const counts = new Map<string, number>()
+
+  items.forEach((item) => {
+    const itemDates = [item.createdAt, item.updatedAt, ...(item.activityDates || [])]
+    const validDates = itemDates.map(toDate).filter((date): date is Date => {
+      if (!date) return false
+      const day = startOfLocalDay(date)
+      return day >= firstDay && day <= today
+    })
+    validDates.forEach((date) => {
+      const key = dateKey(startOfLocalDay(date))
+      counts.set(key, (counts.get(key) || 0) + 1)
+    })
+  })
+
+  const max = Math.max(0, ...Array.from(counts.values()))
+  const weeks: ContributionWeek[] = []
+  let cursor = firstGridDay
+
+  while (cursor <= lastGridDay) {
+    const week: ContributionWeek = []
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(cursor)
+      const key = dateKey(day)
+      const count = counts.get(key) || 0
+      const isPadding = day < firstDay || day > today
+      week.push({
+        date: day,
+        key,
+        count: isPadding ? 0 : count,
+        level: isPadding ? 0 : getContributionLevel(count, max),
+        isPadding,
+      })
+      cursor = addDays(cursor, 1)
+    }
+    weeks.push(week)
+  }
+
+  const total = Array.from(counts.values()).reduce((sum, count) => sum + count, 0)
+  return { weeks, total }
+}
+
+function getContributionColor(level: ContributionDay["level"], isPadding?: boolean) {
+  if (isPadding) return "bg-transparent border-transparent"
+  if (level === 0) return "bg-zinc-100 border-zinc-200"
+  if (level === 1) return "bg-emerald-100 border-emerald-200"
+  if (level === 2) return "bg-emerald-300 border-emerald-300"
+  if (level === 3) return "bg-emerald-500 border-emerald-500"
+  return "bg-emerald-800 border-emerald-800"
+}
+
+function ContributionCalendar({ items, loading }: { items: ContributionActivityItem[]; loading: boolean }) {
+  const { weeks, total } = useMemo(() => buildContributionCalendar(items), [items])
+  const monthLabels = useMemo(() => {
+    return weeks.reduce<Array<{ label: string; index: number }>>((labels, week, index) => {
+      const firstRealDay = week.find((day) => !day.isPadding)
+      if (!firstRealDay) return labels
+      const label = firstRealDay.date.toLocaleDateString(undefined, { month: "short" })
+      if (labels[labels.length - 1]?.label !== label) labels.push({ label, index })
+      return labels
+    }, [])
+  }, [weeks])
+
+  return (
+    <section className="mb-6 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-zinc-900">
+            {loading ? "Loading activity..." : `${total.toLocaleString()} contribution${total === 1 ? "" : "s"} in the last year`}
+          </h2>
+          <p className="mt-1 text-xs text-zinc-500">Project builds, edits, and computer-agent activity from your workspace.</p>
+        </div>
+        <Link href="/projects" className="text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-900">
+          View projects
+        </Link>
+      </div>
+
+      <div className="overflow-x-auto pb-1 [scrollbar-width:thin]">
+        <div className="min-w-[720px]">
+          <div className="relative ml-8 mb-1 h-5">
+            {monthLabels.map(({ label, index }) => (
+              <span
+                key={`${label}-${index}`}
+                className="absolute text-[11px] text-zinc-500"
+                style={{ left: `${index * 16}px` }}
+              >
+                {label}
+              </span>
+            ))}
+          </div>
+
+          <div className="flex gap-2">
+            <div className="grid h-[104px] grid-rows-7 gap-1 pt-[16px] text-[11px] text-zinc-500">
+              <span />
+              <span>Mon</span>
+              <span />
+              <span>Wed</span>
+              <span />
+              <span>Fri</span>
+              <span />
+            </div>
+
+            <div className="flex gap-1">
+              {weeks.map((week, weekIndex) => (
+                <div key={weekIndex} className="grid grid-rows-7 gap-1">
+                  {week.map((day) => (
+                    <div
+                      key={day.key}
+                      className={`h-3 w-3 rounded-[3px] border transition-transform hover:scale-125 ${getContributionColor(day.level, day.isPadding)}`}
+                      title={
+                        day.isPadding
+                          ? undefined
+                          : `${day.count} contribution${day.count === 1 ? "" : "s"} on ${day.date.toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })}`
+                      }
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-4 flex items-center justify-between gap-4 text-xs text-zinc-500">
+            <span>Based on real project activity</span>
+            <div className="flex items-center gap-1.5">
+              <span>Less</span>
+              {[0, 1, 2, 3, 4].map((level) => (
+                <span key={level} className={`h-3 w-3 rounded-[3px] border ${getContributionColor(level as ContributionDay["level"])}`} />
+              ))}
+              <span>More</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function SettingsSection({
+  id,
+  title,
+  children,
+}: {
+  id: string
+  title: string
+  children: ReactNode
+}) {
+  return (
+    <section id={id} className="scroll-mt-24 pb-12">
+      <h2 className="mb-7 text-[15px] font-semibold text-zinc-950">{title}</h2>
+      <div className="divide-y divide-zinc-200/80 border-y border-zinc-200/80">
+        {children}
+      </div>
+    </section>
+  )
+}
+
+function SettingsRow({
+  label,
+  description,
+  children,
+}: {
+  label: string
+  description?: string
+  children: ReactNode
+}) {
+  return (
+    <div className="grid gap-3 py-4 sm:grid-cols-[minmax(180px,0.75fr)_minmax(0,1fr)] sm:items-center">
+      <div>
+        <p className="text-sm text-zinc-950">{label}</p>
+        {description && <p className="mt-1 max-w-sm text-xs leading-relaxed text-zinc-500">{description}</p>}
+      </div>
+      <div className="min-w-0 sm:justify-self-end">{children}</div>
+    </div>
+  )
+}
+
+function ReadOnlyField({ value }: { value: string }) {
+  return (
+    <div className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800 shadow-sm sm:w-72">
+      <span className="block truncate">{value}</span>
+    </div>
+  )
+}
+
 function SettingsContent() {
   const router = useRouter()
   const { user, userData, currentWorkspace, workspaces, loading, signOut } = useAuth()
   const [projectsData, setProjectsData] = useState<ProjectAnalyticsItem[]>([])
   const [projectsLoading, setProjectsLoading] = useState(true)
+  const [computerActivityData, setComputerActivityData] = useState<ContributionActivityItem[]>([])
+  const [computerActivityLoading, setComputerActivityLoading] = useState(true)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleteConfirmText, setDeleteConfirmText] = useState("")
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [deleteError, setDeleteError] = useState("")
+  const [activePage, setActivePage] = useState<SettingsPageKey>("account")
+  const [portalLoading, setPortalLoading] = useState(false)
 
   useEffect(() => {
     if (!user?.uid) {
@@ -88,6 +321,7 @@ function SettingsContent() {
           model: data.model || "GPT-4-1 Mini",
           status: (data.status as ProjectStatus) || "pending",
           createdAt: data.createdAt,
+          updatedAt: data.updatedAt,
         })
       })
       next.sort((a, b) => (toDate(b.createdAt)?.getTime() ?? 0) - (toDate(a.createdAt)?.getTime() ?? 0))
@@ -96,6 +330,38 @@ function SettingsContent() {
     }, (err) => {
       console.error("Settings analytics error:", err)
       setProjectsLoading(false)
+    })
+    return () => unsub()
+  }, [user?.uid])
+
+  useEffect(() => {
+    if (!user?.uid) {
+      setComputerActivityData([])
+      setComputerActivityLoading(false)
+      return
+    }
+
+    setComputerActivityLoading(true)
+    const q = query(collection(db, "computerSessions"), where("ownerId", "==", user.uid))
+    const unsub = onSnapshot(q, (snap) => {
+      const next: ContributionActivityItem[] = []
+      snap.forEach((d) => {
+        const data = d.data() as any
+        const timelineDates = Array.isArray(data.timeline)
+          ? data.timeline.map((event: any) => event?.createdAt).filter(Boolean)
+          : []
+
+        next.push({
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt,
+          activityDates: timelineDates,
+        })
+      })
+      setComputerActivityData(next)
+      setComputerActivityLoading(false)
+    }, (err) => {
+      console.error("Settings computer activity error:", err)
+      setComputerActivityLoading(false)
     })
     return () => unsub()
   }, [user?.uid])
@@ -118,10 +384,14 @@ function SettingsContent() {
     }
   }, [projectsData])
 
+  const contributionItems = useMemo<ContributionActivityItem[]>(() => {
+    return [...projectsData, ...computerActivityData]
+  }, [computerActivityData, projectsData])
+
   if (loading || !user || !userData) {
     return (
-      <div className="min-h-screen bg-[#f5f5f2] flex items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
+      <div className="flex min-h-screen items-center justify-center bg-[#faf9f5]">
+        <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
       </div>
     )
   }
@@ -151,9 +421,7 @@ function SettingsContent() {
     setDeleteLoading(true)
     setDeleteError("")
     try {
-      // Delete user Firestore doc
       await deleteDoc(doc(db, "users", user.uid))
-      // Delete Firebase Auth account
       await deleteUser(user)
       router.push("/")
     } catch (err: any) {
@@ -166,358 +434,320 @@ function SettingsContent() {
     }
   }
 
-  return (
-    <div className="min-h-screen bg-[#f5f5f2]">
+  const handleManageBilling = async () => {
+    if (portalLoading || !user) return
+    setPortalLoading(true)
+    try {
+      const token = await user.getIdToken()
+      const res = await fetch("/api/stripe/portal", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await res.json()
+      if (data.url) {
+        window.location.href = data.url
+      } else {
+        alert(data.error || "Failed to load billing portal")
+      }
+    } catch (err) {
+      console.error(err)
+      alert("Failed to load billing portal")
+    } finally {
+      setPortalLoading(false)
+    }
+  }
 
-      {/* ── Top bar ── */}
-      <header className="sticky top-0 z-30 border-b border-zinc-200/80 bg-[#f5f5f2]/80 backdrop-blur-md">
-        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
-          <div className="flex items-center gap-3">
+  return (
+    <div className="min-h-screen bg-[#faf9f5] text-zinc-950">
+      <div className="mx-auto grid w-full max-w-7xl gap-8 px-5 py-8 sm:px-8 md:grid-cols-[220px_minmax(0,1fr)] md:gap-12 lg:px-12 lg:py-12">
+        <aside className="md:sticky md:top-10 md:h-fit">
+          <div className="mb-7 flex items-center gap-3">
             <button
               type="button"
               onClick={() => router.back()}
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition-colors hover:text-zinc-900"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-950"
+              aria-label="Go back"
             >
-              <ArrowLeft className="h-3.5 w-3.5" />
+              <ArrowLeft className="h-4 w-4" />
             </button>
-            <Link href="/" className="text-[15px] font-semibold text-zinc-900">Lotus.build</Link>
+            <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">Settings</h1>
           </div>
-          <div className="flex items-center gap-2">
-            <Link href="/projects" className="rounded-full border border-zinc-200 bg-white px-3.5 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50">
-              Projects
-            </Link>
-            <button
-              type="button"
-              onClick={() => signOut()}
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:text-red-500"
-            >
-              <LogOut className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </div>
-      </header>
 
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10">
+          <nav className="-mx-1 space-y-1 text-sm sm:mx-0">
+            {SETTINGS_PAGES.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => setActivePage(item.key)}
+                className={`block w-full whitespace-nowrap rounded-lg px-3 py-2 text-left transition-colors ${
+                  activePage === item.key
+                    ? "bg-[#efeee9] text-zinc-950"
+                    : "text-zinc-600 hover:bg-[#efeee9] hover:text-zinc-950"
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </nav>
+        </aside>
 
-        {/* ── Profile hero ── */}
-        <div className="mb-6 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
-          <div className="h-20 bg-[linear-gradient(135deg,#f0efe9_0%,#e8e6de_100%)]" />
-          <div className="px-5 pb-5 sm:px-6 sm:pb-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div className="flex items-end gap-4">
-                <Avatar className="-mt-10 h-16 w-16 rounded-2xl border-2 border-white shadow-md sm:h-20 sm:w-20">
-                  <AvatarImage src={userData.photoURL || undefined} alt={userData.displayName || "User"} />
-                  <AvatarFallback className="rounded-2xl bg-zinc-100 text-lg font-semibold text-zinc-700">
-                    {getInitials(userData.displayName, userData.email)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="pb-0.5">
-                  <h1 className="text-xl font-semibold text-zinc-900">{userData.displayName || "Account"}</h1>
-                  <div className="mt-0.5 flex items-center gap-1.5 text-sm text-zinc-500">
-                    <Mail className="h-3.5 w-3.5" />
-                    {userData.email}
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-700">
-                  <Sparkles className="h-3 w-3" />
-                  {userData.planName || "Free"} plan
-                </span>
-                {createdAt && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs text-zinc-500">
-                    <CalendarDays className="h-3 w-3" />
-                    Since {createdAt.toLocaleDateString(undefined, { month: "short", year: "numeric" })}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Stat row ── */}
-        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {[
-            { label: "Total projects", value: projectsLoading ? "—" : analytics.total, icon: FolderOpen },
-            { label: "This month", value: projectsLoading ? "—" : analytics.monthProjects, icon: TrendingUp },
-            { label: "Success rate", value: projectsLoading ? "—" : `${analytics.successRate}%`, icon: CheckCircle2 },
-            { label: "Tokens left", value: remainingClamped.toLocaleString(), icon: Coins },
-          ].map(({ label, value, icon: Icon }) => (
-            <div key={label} className="rounded-2xl border border-zinc-200 bg-white p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-zinc-500">{label}</p>
-                <Icon className="h-3.5 w-3.5 text-zinc-400" />
-              </div>
-              <p className="mt-2 text-2xl font-semibold tracking-tight text-zinc-900">{value}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_340px]">
-
-          {/* ── Left column ── */}
-          <div className="space-y-6">
-
-            {/* Token usage */}
-            <div className="rounded-2xl border border-zinc-200 bg-white p-5 sm:p-6">
-              <div className="mb-5 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-100">
-                    <Zap className="h-4 w-4 text-zinc-600" />
-                  </div>
-                  <div>
-                    <h2 className="text-sm font-semibold text-zinc-900">Token usage</h2>
-                    <p className="text-xs text-zinc-500">Current billing period</p>
-                  </div>
-                </div>
-                {isFreePlan && (
-                  <Link href="/pricing" className="rounded-full bg-zinc-900 px-3.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-zinc-700">
-                    Upgrade
-                  </Link>
-                )}
-              </div>
-
-              <div className="mb-3 flex items-end justify-between">
-                <div>
-                  <span className="text-3xl font-bold text-zinc-900">{tokenPct}%</span>
-                  <span className="ml-2 text-sm text-zinc-500">used</span>
-                </div>
-                <span className="text-xs text-zinc-400">
-                  {userData.tokenUsage.used.toLocaleString()} / {tokensLimit.toLocaleString()}
-                </span>
-              </div>
-
-              <div className="h-2.5 w-full overflow-hidden rounded-full bg-zinc-100">
-                <div
-                  className={`h-full rounded-full transition-all ${tokenPct >= 90 ? "bg-red-500" : tokenPct >= 60 ? "bg-amber-500" : "bg-zinc-800"}`}
-                  style={{ width: `${tokenPct}%` }}
-                />
-              </div>
-
-              <div className="mt-4 grid grid-cols-3 gap-3">
-                <div className="rounded-xl bg-zinc-50 p-3">
-                  <p className="text-[11px] uppercase tracking-wide text-zinc-400">Remaining</p>
-                  <p className="mt-1 text-sm font-semibold text-zinc-800">{remainingClamped.toLocaleString()}</p>
-                </div>
-                <div className="rounded-xl bg-zinc-50 p-3">
-                  <p className="text-[11px] uppercase tracking-wide text-zinc-400">Daily avg</p>
-                  <p className="mt-1 text-sm font-semibold text-zinc-800">{dailyAvg.toLocaleString()}</p>
-                </div>
-                <div className="rounded-xl bg-zinc-50 p-3">
-                  <p className="text-[11px] uppercase tracking-wide text-zinc-400">Days left</p>
-                  <p className="mt-1 text-sm font-semibold text-zinc-800">{daysLeft}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Agent usage */}
-            <div className="rounded-2xl border border-zinc-200 bg-white p-5 sm:p-6">
-              <div className="mb-4 flex items-center gap-2.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-100">
-                  <Layers className="h-4 w-4 text-zinc-600" />
-                </div>
-                <div>
-                  <h2 className="text-sm font-semibold text-zinc-900">Agent runs</h2>
-                  <p className="text-xs text-zinc-500">
-                    {userData.agentUsage?.periodEnd
-                      ? `Resets ${new Date(userData.agentUsage.periodEnd).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
-                      : "Resets each billing period"}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-2xl font-bold text-zinc-900">{agentUsed}</span>
-                  <span className="ml-1.5 text-sm text-zinc-500">of {agentRunLimit} used</span>
-                </div>
-                <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-medium text-zinc-600">
-                  {agentRemaining} remaining
-                </span>
-              </div>
-              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-zinc-100">
-                <div
-                  className="h-full rounded-full bg-zinc-800 transition-all"
-                  style={{ width: `${agentRunLimit > 0 ? Math.min(100, Math.round((agentUsed / agentRunLimit) * 100)) : 0}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Project analytics */}
-            <div className="rounded-2xl border border-zinc-200 bg-white p-5 sm:p-6">
-              <div className="mb-5 flex items-center gap-2.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-100">
-                  <BarChart3 className="h-4 w-4 text-zinc-600" />
-                </div>
-                <div>
-                  <h2 className="text-sm font-semibold text-zinc-900">Build analytics</h2>
-                  <p className="text-xs text-zinc-500">Project status breakdown</p>
-                </div>
-              </div>
-
-              {projectsLoading ? (
-                <div className="flex items-center gap-2 text-sm text-zinc-400">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Loading...
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {[
-                    { label: "Completed", value: analytics.complete, total: analytics.total, color: "bg-emerald-500" },
-                    { label: "Generating", value: analytics.generating, total: analytics.total, color: "bg-blue-500" },
-                    { label: "Failed", value: analytics.error, total: analytics.total, color: "bg-red-400" },
-                  ].map((item) => {
-                    const pct = item.total > 0 ? Math.round((item.value / item.total) * 100) : 0
-                    return (
-                      <div key={item.label}>
-                        <div className="mb-1.5 flex items-center justify-between text-xs">
-                          <span className="text-zinc-600">{item.label}</span>
-                          <span className="font-medium text-zinc-700">{item.value} <span className="font-normal text-zinc-400">({pct}%)</span></span>
-                        </div>
-                        <div className="h-1.5 overflow-hidden rounded-full bg-zinc-100">
-                          <div className={`h-full rounded-full ${item.color}`} style={{ width: `${pct}%` }} />
+        <main className="min-w-0 pb-16 lg:max-w-4xl">
+          {activePage === "account" && (
+            <>
+              <SettingsSection id="profile" title="Profile">
+                <div className="py-5">
+                  <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+                    <div className="h-20 bg-[linear-gradient(135deg,#f0efe9_0%,#e8e6de_100%)]" />
+                    <div className="px-5 pb-5 sm:px-6">
+                      <div className="flex items-end gap-4">
+                        <Avatar className="-mt-10 h-16 w-16 rounded-2xl border-2 border-white shadow-md sm:h-20 sm:w-20">
+                          <AvatarImage src={userData.photoURL || undefined} alt={userData.displayName || "User"} />
+                          <AvatarFallback className="rounded-2xl bg-zinc-100 text-lg font-semibold text-zinc-700">
+                            {getInitials(userData.displayName, userData.email)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0 pb-1">
+                          <h3 className="truncate text-xl font-semibold text-zinc-950">{userData.displayName || "Account"}</h3>
                         </div>
                       </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* ── Right column ── */}
-          <div className="space-y-6">
-
-            {/* Account details */}
-            <div className="rounded-2xl border border-zinc-200 bg-white p-5">
-              <div className="mb-4 flex items-center gap-2.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-100">
-                  <ShieldCheck className="h-4 w-4 text-zinc-600" />
-                </div>
-                <h2 className="text-sm font-semibold text-zinc-900">Account</h2>
-              </div>
-              <div className="space-y-3">
-                <div className="rounded-xl bg-zinc-50 px-3.5 py-2.5">
-                  <p className="text-[10px] uppercase tracking-wider text-zinc-400">User ID</p>
-                  <p className="mt-0.5 truncate font-mono text-xs text-zinc-700">{userData.uid}</p>
-                </div>
-                <div className="rounded-xl bg-zinc-50 px-3.5 py-2.5">
-                  <p className="text-[10px] uppercase tracking-wider text-zinc-400">Workspace</p>
-                  <p className="mt-0.5 text-sm text-zinc-800">{currentWorkspace?.name || "Personal"}</p>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-xl bg-zinc-50 px-3.5 py-2.5">
-                    <p className="text-[10px] uppercase tracking-wider text-zinc-400">Workspaces</p>
-                    <p className="mt-0.5 text-sm font-semibold text-zinc-800">{Array.isArray(workspaces) ? workspaces.length : 0}</p>
-                  </div>
-                  <div className="rounded-xl bg-zinc-50 px-3.5 py-2.5">
-                    <p className="text-[10px] uppercase tracking-wider text-zinc-400">This week</p>
-                    <p className="mt-0.5 text-sm font-semibold text-zinc-800">{analytics.weekProjects}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-
-            {/* Recent projects */}
-            <div className="rounded-2xl border border-zinc-200 bg-white p-5">
-              <div className="mb-4 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-100">
-                    <Activity className="h-4 w-4 text-zinc-600" />
+                <SettingsRow label="Email">
+                  <div className="flex w-full items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800 shadow-sm sm:w-72">
+                    <Mail className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                    <span className="truncate">{userData.email}</span>
                   </div>
-                  <h2 className="text-sm font-semibold text-zinc-900">Recent builds</h2>
+                </SettingsRow>
+                <SettingsRow label="Member since">
+                  <p className="text-sm text-zinc-600">
+                    {createdAt ? createdAt.toLocaleDateString(undefined, { month: "long", year: "numeric" }) : "Unknown"}
+                  </p>
+                </SettingsRow>
+              </SettingsSection>
+
+              <SettingsSection id="account" title="Account Details">
+                <SettingsRow label="Current workspace">
+                  <ReadOnlyField value={currentWorkspace?.name || "Personal"} />
+                </SettingsRow>
+                <SettingsRow label="Workspace count">
+                  <p className="text-sm text-zinc-600">{Array.isArray(workspaces) ? workspaces.length : 0}</p>
+                </SettingsRow>
+                <SettingsRow label="User ID" description="Useful when contacting support.">
+                  <p className="max-w-full truncate font-mono text-xs text-zinc-500 sm:max-w-72">{userData.uid}</p>
+                </SettingsRow>
+              </SettingsSection>
+
+              <SettingsSection id="security" title="Security">
+                <SettingsRow label="Sign out">
+                  <button
+                    type="button"
+                    onClick={() => signOut()}
+                    className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-950"
+                  >
+                    Sign out
+                  </button>
+                </SettingsRow>
+                <SettingsRow
+                  label="Delete account"
+                  description="Permanently delete your account, all projects, and associated data. This cannot be undone."
+                >
+                  <button
+                    type="button"
+                    onClick={() => { setDeleteDialogOpen(true); setDeleteConfirmText(""); setDeleteError("") }}
+                    className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-100"
+                  >
+                    Delete account
+                  </button>
+                </SettingsRow>
+              </SettingsSection>
+            </>
+          )}
+
+          {activePage === "billing" && (
+          <section className="pb-12">
+            <h2 className="mb-7 text-[15px] font-semibold text-zinc-950">Billing</h2>
+
+            <div className="space-y-12">
+              <div className="grid gap-5 border-b border-zinc-200/80 pb-10 sm:grid-cols-[64px_minmax(0,1fr)_auto] sm:items-start">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-900">
+                  {isFreePlan ? <img src="/Images/leaf-svgrepo-com.svg" className="h-6 w-6" alt="Starter" /> : userData.planId === "pro" ? <img src="/Images/lotus-flower-svgrepo-com.svg" className="h-6 w-6" alt="Pro" /> : <img src="/Images/enterprise-svgrepo-com.svg" className="h-6 w-6" alt="Enterprise" />}
                 </div>
-                <Link href="/projects" className="text-xs text-zinc-400 transition-colors hover:text-zinc-700">
-                  View all
+                <div>
+                  <p className="text-sm font-semibold text-zinc-950">{userData.planName || "Free"} plan</p>
+                  <p className="mt-2 text-sm text-zinc-950">{isFreePlan ? "Free workspace" : "Active subscription"}</p>
+                  <p className="mt-1 text-sm text-zinc-600">
+                    {periodEnd
+                      ? `${isFreePlan ? "Credits reset" : "Your subscription renews"} on ${periodEnd.toLocaleDateString(undefined, {
+                          month: "long",
+                          day: "numeric",
+                          year: "numeric",
+                        })}.`
+                      : "No billing cycle is available for this account."}
+                  </p>
+                </div>
+                <Link
+                  href="/pricing"
+                  className="inline-flex h-9 items-center justify-center rounded-lg border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-800 shadow-sm transition-colors hover:bg-zinc-50"
+                >
+                  {isFreePlan ? "Upgrade plan" : "Adjust plan"}
                 </Link>
               </div>
 
+              <div>
+                <h3 className="mb-7 text-[15px] font-semibold text-zinc-950">Payment</h3>
+                <div className="flex flex-col gap-4 border-b border-zinc-200/80 pb-10 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-zinc-700">
+                    {isFreePlan ? "No payment method is attached to your free plan." : "Payment details are managed from your billing portal."}
+                  </p>
+                  {isFreePlan ? (
+                    <Link
+                      href="/pricing"
+                      className="inline-flex h-9 items-center justify-center rounded-lg border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-800 shadow-sm transition-colors hover:bg-zinc-50"
+                    >
+                      Add payment
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleManageBilling}
+                      disabled={portalLoading}
+                      className="inline-flex h-9 items-center justify-center rounded-lg border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-800 shadow-sm transition-colors hover:bg-zinc-50 disabled:opacity-50"
+                    >
+                      {portalLoading ? "Loading..." : "Update"}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="mb-7 text-[15px] font-semibold text-zinc-950">Invoices</h3>
+                <div className="flex flex-col gap-4 border-b border-zinc-200/80 pb-10 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-zinc-700">
+                    {isFreePlan ? "Invoices are available after a paid subscription is active." : "View your invoices and billing history in the billing portal."}
+                  </p>
+                  {!isFreePlan && (
+                    <button
+                      type="button"
+                      onClick={handleManageBilling}
+                      disabled={portalLoading}
+                      className="inline-flex h-9 items-center justify-center rounded-lg border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-800 shadow-sm transition-colors hover:bg-zinc-50 disabled:opacity-50"
+                    >
+                      {portalLoading ? "Loading..." : "View invoices"}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="mb-7 text-[15px] font-semibold text-zinc-950">Cancellation</h3>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-zinc-700">{isFreePlan ? "There is no active subscription to cancel." : "Manage or cancel your subscription from your billing portal."}</p>
+                  {!isFreePlan && (
+                    <button
+                      type="button"
+                      onClick={handleManageBilling}
+                      disabled={portalLoading}
+                      className="inline-flex h-9 items-center justify-center rounded-lg bg-red-600 px-3 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+                    >
+                      {portalLoading ? "Loading..." : "Cancel"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+          )}
+
+          {activePage === "usage" && (
+            <>
+              <SettingsSection id="usage" title="Usage">
+                <SettingsRow
+                  label="Build credits"
+                  description={`${userData.tokenUsage.used.toLocaleString()} of ${tokensLimit.toLocaleString()} credits used this cycle.`}
+                >
+                  <div className="w-full sm:w-80">
+                    <div className="mb-2 flex items-center justify-between text-xs text-zinc-500">
+                      <span>{remainingClamped.toLocaleString()} remaining</span>
+                      <span>{tokenPct}% used</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-zinc-200">
+                      <div
+                        className={`h-full rounded-full ${tokenPct >= 90 ? "bg-red-500" : tokenPct >= 60 ? "bg-amber-500" : "bg-zinc-950"}`}
+                        style={{ width: `${tokenPct}%` }}
+                      />
+                    </div>
+                  </div>
+                </SettingsRow>
+                <SettingsRow label="Daily average">
+                  <p className="text-sm text-zinc-600">{dailyAvg.toLocaleString()} credits</p>
+                </SettingsRow>
+                <SettingsRow label="Days left">
+                  <p className="text-sm text-zinc-600">{daysLeft}</p>
+                </SettingsRow>
+                <SettingsRow label="Agent runs">
+                  <div className="w-full sm:w-80">
+                    <div className="mb-2 flex items-center justify-between text-xs text-zinc-500">
+                      <span>{agentRemaining} remaining</span>
+                      <span>{agentUsed} / {agentRunLimit}</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-zinc-200">
+                      <div
+                        className="h-full rounded-full bg-zinc-950"
+                        style={{ width: `${agentRunLimit > 0 ? Math.min(100, Math.round((agentUsed / agentRunLimit) * 100)) : 0}%` }}
+                      />
+                    </div>
+                  </div>
+                </SettingsRow>
+              </SettingsSection>
+
+              <section id="activity" className="scroll-mt-24 pb-12">
+                <h2 className="mb-7 text-[15px] font-semibold text-zinc-950">Activity</h2>
+                <ContributionCalendar items={contributionItems} loading={projectsLoading || computerActivityLoading} />
+              </section>
+            </>
+          )}
+
+          {activePage === "projects" && (
+          <SettingsSection id="projects" title="Projects">
+            <SettingsRow label="Total projects">
+              <p className="text-sm text-zinc-600">{projectsLoading ? "Loading..." : analytics.total}</p>
+            </SettingsRow>
+            <SettingsRow label="This month">
+              <p className="text-sm text-zinc-600">{projectsLoading ? "Loading..." : analytics.monthProjects}</p>
+            </SettingsRow>
+            <SettingsRow label="Success rate">
+              <p className="text-sm text-zinc-600">{projectsLoading ? "Loading..." : `${analytics.successRate}%`}</p>
+            </SettingsRow>
+            <SettingsRow label="Recent builds">
               {projectsLoading ? (
                 <div className="flex items-center gap-2 text-sm text-zinc-400">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Loading...
+                  Loading
                 </div>
               ) : analytics.recentProjects.length === 0 ? (
-                <div className="flex flex-col items-center py-6 text-center">
-                  <FolderOpen className="h-8 w-8 text-zinc-200" />
-                  <p className="mt-2 text-sm text-zinc-400">No projects yet</p>
-                </div>
+                <p className="text-sm text-zinc-500">No projects yet</p>
               ) : (
-                <div className="space-y-1">
-                  {analytics.recentProjects.map((p) => (
-                    <Link
-                      key={p.id}
-                      href={`/project/${p.id}`}
-                      className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-zinc-50"
-                    >
+                <div className="w-full space-y-2 sm:w-96">
+                  {analytics.recentProjects.slice(0, 4).map((p) => (
+                    <Link key={p.id} href={`/project/${p.id}`} className="flex min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-zinc-100">
                       {statusDot(p.status)}
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[13px] font-medium text-zinc-800">
-                          {p.prompt?.trim() || "Untitled project"}
-                        </p>
-                        <p className="text-[11px] text-zinc-400">
-                          {toDate(p.createdAt)?.toLocaleDateString(undefined, { month: "short", day: "numeric" }) || "—"}
-                        </p>
-                      </div>
+                      <span className="min-w-0 flex-1 truncate text-sm text-zinc-700">{p.prompt?.trim() || "Untitled project"}</span>
                     </Link>
                   ))}
                 </div>
               )}
-            </div>
+            </SettingsRow>
+            <SettingsRow label="All projects">
+              <Link href="/projects" className="text-sm font-medium text-zinc-700 underline underline-offset-4 hover:text-zinc-950">
+                Open projects
+              </Link>
+            </SettingsRow>
+          </SettingsSection>
+          )}
 
-            {/* Quick links */}
-            <div className="rounded-2xl border border-zinc-200 bg-white p-5">
-              <h2 className="mb-3 text-sm font-semibold text-zinc-900">Quick links</h2>
-              <div className="space-y-1">
-                {[
-                  { label: "Billing & plans", href: "/pricing", icon: CreditCard },
-                  { label: "Your projects", href: "/projects", icon: FolderOpen },
-                  { label: "Help & docs", href: "/help", icon: Settings },
-                ].map(({ label, href, icon: Icon }) => (
-                  <Link
-                    key={href}
-                    href={href}
-                    className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
-                  >
-                    <Icon className="h-4 w-4 text-zinc-400" />
-                    {label}
-                  </Link>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => signOut()}
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-red-500 transition-colors hover:bg-red-50"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Sign out
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        {/* ── Danger zone ── */}
-        <div className="mt-6 rounded-2xl border border-red-200 bg-white p-5 sm:p-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-red-50">
-                <AlertTriangle className="h-4 w-4 text-red-500" />
-              </div>
-              <div>
-                <h2 className="text-sm font-semibold text-zinc-900">Delete account</h2>
-                <p className="mt-0.5 text-xs text-zinc-500">
-                  Permanently delete your account, all projects, and associated data. This cannot be undone.
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => { setDeleteDialogOpen(true); setDeleteConfirmText(""); setDeleteError("") }}
-              className="shrink-0 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 hover:border-red-300"
-            >
-              Delete account
-            </button>
-          </div>
-        </div>
+        </main>
       </div>
 
       {/* ── Delete confirmation dialog ── */}

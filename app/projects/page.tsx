@@ -21,6 +21,8 @@ import {
   LayoutGrid,
   List,
   ArrowUpRight,
+  Terminal,
+  AppWindow,
 } from "lucide-react"
 
 import { ProtectedRoute } from "@/components/auth/protected-route"
@@ -55,6 +57,7 @@ type ProjectSummary = {
   sandboxUrl?: string
   workspaceId?: string
   workspaceName?: string
+  kind?: "project" | "computer"
 }
 
 function toDate(value: any): Date | null {
@@ -167,13 +170,14 @@ export default function ProjectsPage() {
     return result
   }, [filtered])
 
-  const handleDeleteProject = async (e: React.MouseEvent, projectId: string) => {
+  const handleDeleteProject = async (e: React.MouseEvent, projectId: string, kind?: string) => {
     e.preventDefault()
     e.stopPropagation()
     try {
-      await deleteDoc(doc(db, "projects", projectId))
+      const collectionName = kind === "computer" ? "computerSessions" : "projects"
+      await deleteDoc(doc(db, collectionName, projectId))
     } catch (err) {
-      console.error("Failed to delete project:", err)
+      console.error(`Failed to delete ${kind || "project"}:`, err)
     }
   }
 
@@ -243,11 +247,12 @@ export default function ProjectsPage() {
                         >
                           <button
                             type="button"
-                            onClick={() => { router.push(`/project/${p.id}`); setIsSidebarOpen(false) }}
+                            onClick={() => { router.push(p.kind === "computer" ? `/computer/${p.id}` : `/project/${p.id}`); setIsSidebarOpen(false) }}
                             className="min-w-0 flex-1 px-3.5 py-3 text-left"
                           >
                             <div className="flex items-start justify-between gap-2">
-                              <span className="truncate text-[13px] font-medium leading-snug text-zinc-800">
+                              <span className="truncate text-[13px] font-medium leading-snug text-zinc-800 flex items-center gap-1.5">
+                                {p.kind === "computer" ? <Terminal className="h-3.5 w-3.5 text-zinc-400" /> : <AppWindow className="h-3.5 w-3.5 text-zinc-400" />}
                                 {projectTitle(p.prompt)}
                               </span>
                               <span className="shrink-0">{statusPill(p.status)}</span>
@@ -259,7 +264,7 @@ export default function ProjectsPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={(e) => handleDeleteProject(e, p.id)}
+                            onClick={(e) => handleDeleteProject(e, p.id, p.kind)}
                             className="flex h-full w-10 shrink-0 items-center justify-center rounded-r-xl text-zinc-300 opacity-0 transition-all hover:bg-red-50 hover:text-red-400 group-hover/item:opacity-100"
                             aria-label={`Delete ${projectTitle(p.prompt)}`}
                           >
@@ -507,11 +512,12 @@ export default function ProjectsPage() {
 
                                 <button
                                   type="button"
-                                  onClick={() => router.push(`/project/${p.id}`)}
+                                  onClick={() => router.push(p.kind === "computer" ? `/computer/${p.id}` : `/project/${p.id}`)}
                                   className="flex flex-1 flex-col p-4 text-left"
                                 >
-                                  <p className="line-clamp-2 text-[13px] font-medium leading-snug text-zinc-900">
-                                    {projectTitle(p.prompt)}
+                                  <p className="line-clamp-2 text-[13px] font-medium leading-snug text-zinc-900 flex items-center gap-1.5">
+                                    {p.kind === "computer" ? <Terminal className="h-4 w-4 shrink-0 text-zinc-400" /> : <AppWindow className="h-4 w-4 shrink-0 text-zinc-400" />}
+                                    <span>{projectTitle(p.prompt)}</span>
                                   </p>
 
                                   <div className="mt-auto pt-4 flex items-center justify-between gap-2">
@@ -529,7 +535,7 @@ export default function ProjectsPage() {
                                 <div className="absolute right-2.5 top-3.5 flex items-center gap-1 opacity-0 transition-opacity group-hover/card:opacity-100">
                                   <button
                                     type="button"
-                                    onClick={(e) => handleDeleteProject(e, p.id)}
+                                    onClick={(e) => handleDeleteProject(e, p.id, p.kind)}
                                     className="flex h-6 w-6 items-center justify-center rounded-md bg-white text-zinc-300 shadow-sm ring-1 ring-zinc-200 transition-colors hover:bg-red-50 hover:text-red-400"
                                     aria-label={`Delete ${projectTitle(p.prompt)}`}
                                   >
@@ -537,7 +543,7 @@ export default function ProjectsPage() {
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={() => router.push(`/project/${p.id}`)}
+                                    onClick={() => router.push(p.kind === "computer" ? `/computer/${p.id}` : `/project/${p.id}`)}
                                     className="flex h-6 w-6 items-center justify-center rounded-md bg-white text-zinc-400 shadow-sm ring-1 ring-zinc-200 transition-colors hover:bg-zinc-50 hover:text-zinc-700"
                                     aria-label="Open project"
                                   >
@@ -557,11 +563,12 @@ export default function ProjectsPage() {
                             >
                               <button
                                 type="button"
-                                onClick={() => router.push(`/project/${p.id}`)}
+                                onClick={() => router.push(p.kind === "computer" ? `/computer/${p.id}` : `/project/${p.id}`)}
                                 className="min-w-0 flex-1 px-4 py-3.5 text-left"
                               >
                                 <div className="flex items-center justify-between gap-3">
-                                  <span className="truncate text-[13px] font-medium text-zinc-900">
+                                  <span className="truncate text-[13px] font-medium text-zinc-900 flex items-center gap-1.5">
+                                    {p.kind === "computer" ? <Terminal className="h-4 w-4 shrink-0 text-zinc-400" /> : <AppWindow className="h-4 w-4 shrink-0 text-zinc-400" />}
                                     {projectTitle(p.prompt)}
                                   </span>
                                   <div className="flex shrink-0 items-center gap-2">
@@ -589,7 +596,7 @@ export default function ProjectsPage() {
                               </button>
                               <button
                                 type="button"
-                                onClick={(e) => handleDeleteProject(e, p.id)}
+                                onClick={(e) => handleDeleteProject(e, p.id, p.kind)}
                                 className="flex h-full w-11 shrink-0 items-center justify-center rounded-r-xl text-zinc-300 opacity-0 transition-all hover:bg-red-50 hover:text-red-400 group-hover/item:opacity-100"
                                 aria-label={`Delete ${projectTitle(p.prompt)}`}
                               >

@@ -1,6 +1,6 @@
 "use client"
 
-import { Check } from "lucide-react"
+import { Check, X, ChevronRight } from "lucide-react"
 
 import { TextShimmer } from "@/components/prompt-kit/text-shimmer"
 import { cn } from "@/lib/utils"
@@ -26,17 +26,10 @@ function getAgentTimelineSummary(steps: AgentTimelineItem[]) {
 /* ── Live pulse dot ── */
 function LiveDot() {
   return (
-    <span className="relative flex h-2 w-2 shrink-0">
-      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-zinc-400 opacity-75" />
-      <span className="relative inline-flex h-2 w-2 rounded-full bg-zinc-900" />
-    </span>
-  )
-}
-
-/* ── Spinner for Running badge ── */
-function Spinner() {
-  return (
-    <span className="inline-block h-2 w-2 animate-spin rounded-full border border-white/30 border-t-white" />
+    <div className="relative flex h-1.5 w-1.5">
+      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-zinc-900 opacity-20" />
+      <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-zinc-900" />
+    </div>
   )
 }
 
@@ -83,7 +76,7 @@ function GridIcon() {
 
 /* ─────────────────────────────────────────────
    Header panel
-───────────────────────────────────────────── */
+ ───────────────────────────────────────────── */
 function AgentRunHeader({
   steps,
   generatedFileCount,
@@ -97,20 +90,20 @@ function AgentRunHeader({
   const pct = Math.round(progress * 100)
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+    <div className="overflow-hidden rounded-2xl border border-[#e0dbd1] bg-white shadow-sm">
       {/* Top row */}
       <div className="flex items-center justify-between px-4 pt-3.5">
-        <div className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1">
+        <div className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5">
           <LiveDot />
-          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500">
+          <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-zinc-500">
             Live run
           </span>
         </div>
 
-        <div className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-zinc-400">
+        <div className="inline-flex items-center gap-1.5 text-zinc-400">
           <FilesIcon />
-          <span className="text-[10px] font-semibold text-zinc-500">
-            {generatedFileCount} files touched
+          <span className="text-[10px] font-semibold text-zinc-400">
+            {generatedFileCount} files
           </span>
         </div>
       </div>
@@ -118,11 +111,14 @@ function AgentRunHeader({
       {/* Current step name + mono detail */}
       <div className="px-4 pt-3">
         <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-400">
-          Currently running
+          Currently
         </p>
 
         {activeStep ? (
-          <TextShimmer className="bg-gradient-to-r from-zinc-950 via-zinc-500 to-zinc-950 text-[15px] font-semibold leading-snug tracking-tight">
+          <TextShimmer 
+            className="bg-gradient-to-r from-zinc-400 via-zinc-950 to-zinc-400 text-[15px] font-semibold leading-snug tracking-tight"
+            duration={2}
+          >
             {activeStep.title}
           </TextShimmer>
         ) : (
@@ -132,14 +128,14 @@ function AgentRunHeader({
         )}
 
         {(currentGeneratingFile ?? activeStep?.detail) && (
-          <p className="mt-1 font-mono text-[11px] text-zinc-400">
+          <p className="mt-1 truncate font-mono text-[10px] text-zinc-400">
             {currentGeneratingFile ?? activeStep?.detail}
           </p>
         )}
       </div>
 
       {/* Progress */}
-      <div className="mt-3 border-t border-zinc-100 px-4 py-3">
+      <div className="mt-3 border-t border-[#f3f0e9] px-4 py-3 bg-[#faf9f6]/50">
         <div className="mb-1.5 flex items-center justify-between">
           <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-400">
             Progress
@@ -149,23 +145,12 @@ function AgentRunHeader({
           </span>
         </div>
 
-        <div className="h-[3px] w-full overflow-hidden rounded-full bg-zinc-100">
+        <div className="h-[2px] w-full overflow-hidden rounded-full bg-zinc-100">
           <div
-            className="h-full rounded-full bg-zinc-900 transition-all duration-700 ease-out"
+            className="h-full rounded-full bg-zinc-900 transition-all duration-1000 ease-in-out"
             style={{ width: `${pct}%` }}
           />
         </div>
-
-        {activeStep?.accent && (
-          <div className="mt-2.5 flex flex-wrap gap-1.5">
-            <span className="inline-flex items-center rounded-md border border-[#e7dfd2] bg-[#f4f1ea] px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-[#57534e]">
-              {activeStep.accent}
-            </span>
-            <span className="inline-flex items-center rounded-md border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-zinc-500">
-              {generatedFileCount} files touched
-            </span>
-          </div>
-        )}
       </div>
     </div>
   )
@@ -173,7 +158,7 @@ function AgentRunHeader({
 
 /* ─────────────────────────────────────────────
    Individual step row
-───────────────────────────────────────────── */
+ ───────────────────────────────────────────── */
 function TimelineStep({
   step,
   isLast,
@@ -186,129 +171,47 @@ function TimelineStep({
   const isPending = step.status === "pending"
 
   return (
-    <div className="relative flex gap-2.5">
-      {/* Vertical rail */}
-      {!isLast && (
-        <div
-          className={cn(
-            "absolute left-[10px] top-[26px] bottom-[-8px] w-px",
-            isComplete ? "bg-emerald-200" : "bg-zinc-100"
-          )}
-        />
-      )}
-
+    <div className="relative flex items-start gap-2.5 py-2.5">
       {/* Marker */}
-      <div className="relative z-10 flex shrink-0 flex-col items-center pt-[3px]">
-        {isComplete && (
-          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500">
-            <Check className="h-2.5 w-2.5 stroke-[3] text-white" />
-          </div>
-        )}
-
-        {isActive && (
-          <div className="relative flex h-5 w-5 items-center justify-center rounded-full border-2 border-zinc-900 bg-zinc-900">
-            <span className="absolute inset-[-4px] animate-ping rounded-full border border-zinc-900/20" />
-            <span className="relative z-10 h-1.5 w-1.5 rounded-full bg-white" />
-          </div>
-        )}
-
-        {isPending && (
-          <div className="mt-[7px] h-2 w-2 rounded-full border-[1.5px] border-zinc-300 bg-white" />
+      <div className="flex h-5 w-4 shrink-0 items-center justify-center">
+        {isComplete ? (
+          <svg className="h-3 w-3" viewBox="0 0 11 11" fill="none" stroke="#71717a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="2,5.5 4.5,8 9,3" />
+          </svg>
+        ) : isActive ? (
+          <LiveDot />
+        ) : (
+          <div className="h-1 w-1 rounded-full bg-zinc-300" />
         )}
       </div>
 
-      {/* Step card */}
-      <div
-        className={cn(
-          "mb-2 min-w-0 flex-1 rounded-xl border px-3 py-2.5 transition-all duration-200",
-          isComplete && "border-emerald-100 bg-emerald-50/70",
-          isActive && "border-zinc-200 bg-white shadow-[0_1px_8px_rgba(0,0,0,0.06)]",
-          isPending && "border-zinc-100 bg-zinc-50/60 opacity-55"
-        )}
-      >
-        {/* Title + badge */}
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            {isActive ? (
-              <TextShimmer className="bg-gradient-to-r from-zinc-950 via-zinc-500 to-zinc-950 text-[13px] font-semibold leading-snug">
-                {step.title}
-              </TextShimmer>
-            ) : (
-              <p
-                className={cn(
-                  "text-[13px] font-semibold leading-snug",
-                  isComplete ? "text-emerald-700" : "text-zinc-400"
-                )}
-              >
-                {step.title}
-              </p>
-            )}
-          </div>
-
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <div className="flex items-baseline gap-x-2">
+          {isActive ? (
+            <TextShimmer 
+              className="bg-gradient-to-r from-zinc-400 via-zinc-950 to-zinc-400 text-[14px] font-medium" 
+              duration={2}
+            >
+              {step.title}
+            </TextShimmer>
+          ) : (
+            <span className={cn("text-[14px] leading-relaxed", isComplete ? "text-zinc-800" : "text-zinc-400")}>
+              {step.title}
+            </span>
+          )}
           {isComplete && (
-            <span className="shrink-0 rounded-[5px] bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-emerald-700">
-              Done
-            </span>
-          )}
-          {isActive && (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-[5px] bg-zinc-900 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-white">
-              <Spinner />
-              Running
-            </span>
-          )}
-          {isPending && (
-            <span className="shrink-0 rounded-[5px] bg-zinc-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-zinc-400">
-              Queued
-            </span>
+            <span className="text-[11px] font-medium text-zinc-300">Done</span>
           )}
         </div>
 
-        {/* Accent tag */}
-        {step.accent && (
-          <div className="mt-1.5">
-            <span
-              className={cn(
-                "inline-flex items-center rounded-[5px] border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em]",
-                isComplete
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                  : isActive
-                    ? "border-[#e7dfd2] bg-[#f4f1ea] text-[#57534e]"
-                    : "border-zinc-200 bg-zinc-100 text-zinc-400"
-              )}
-            >
-              {step.accent}
-            </span>
-          </div>
-        )}
-
-        {/* Description */}
         {step.description && (
-          <div className="mt-1.5">
-            {isActive ? (
-              <TextShimmer className="bg-gradient-to-r from-zinc-600 via-zinc-400 to-zinc-600 text-[11px] leading-relaxed">
-                {step.description}
-              </TextShimmer>
-            ) : (
-              <p
-                className={cn(
-                  "text-[11px] leading-relaxed",
-                  isComplete ? "text-emerald-600/80" : "text-zinc-400"
-                )}
-              >
-                {step.description}
-              </p>
-            )}
-          </div>
+          <p className={cn("text-[11.5px] leading-relaxed", isComplete ? "text-zinc-500" : "text-zinc-300")}>
+            {step.description}
+          </p>
         )}
 
-        {/* Detail / mono path */}
-        {step.detail && (
-          <p
-            className={cn(
-              "mt-1 font-mono text-[10px]",
-              isComplete ? "text-emerald-500/70" : isActive ? "text-zinc-400" : "text-zinc-300"
-            )}
-          >
+        {step.detail && isActive && (
+          <p className="mt-0.5 font-mono text-[10px] text-zinc-400 truncate">
             {step.detail}
           </p>
         )}
@@ -317,25 +220,24 @@ function TimelineStep({
   )
 }
 
-
 function AgentTimelineRail({ steps }: { steps: AgentTimelineItem[] }) {
   const completedCount = steps.filter((s) => s.status === "complete").length
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+    <div className="mt-4">
       {/* Panel header */}
-      <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-2.5">
+      <div className="flex items-center justify-between px-1 mb-2">
         <div className="flex items-center gap-1.5 text-zinc-400">
           <GridIcon />
           <span className="text-[10px] font-bold uppercase tracking-[0.14em]">Steps</span>
         </div>
-        <span className="rounded-full bg-zinc-100 px-2 py-0.5 font-mono text-[10px] font-semibold tabular-nums text-zinc-500">
-          {completedCount} / {steps.length} done
+        <span className="text-[10px] font-semibold tabular-nums text-zinc-400">
+          {completedCount} / {steps.length}
         </span>
       </div>
 
       {/* Steps */}
-      <div className="px-3.5 pb-1.5 pt-3">
+      <div className="divide-y divide-[#f3f0e9]/50">
         {steps.map((step, idx) => (
           <TimelineStep
             key={step.key}
@@ -347,7 +249,6 @@ function AgentTimelineRail({ steps }: { steps: AgentTimelineItem[] }) {
     </div>
   )
 }
-
 
 export function AgentTimelinePanel({
   steps,
@@ -369,3 +270,4 @@ export function AgentTimelinePanel({
     </div>
   )
 }
+

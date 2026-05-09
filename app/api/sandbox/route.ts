@@ -14,6 +14,7 @@ const PROJECT_DIR = "/home/user/project"
 const DEV_LOG_PATH = `${PROJECT_DIR}/.dev.log`
 const DEV_PID_PATH = `${PROJECT_DIR}/.dev.pid`
 const DEV_PORT = 3000
+const DEV_PORT_CANDIDATES = [3000, 3001, 3002, 3003, 3004, 3005]
 const SANDBOX_TTL_MS = 55 * 60 * 1000
 const MAX_WAIT_SEC = 150
 const PORT_CLEANUP_WAIT_MS = 2000
@@ -24,6 +25,7 @@ interface ReadinessCheckResult {
   reason?: string
   logs?: string
   localReady?: boolean
+  port?: number
 }
 
 function ndjson(
@@ -59,6 +61,48 @@ async function readFileMaybe(sandbox: Sandbox, path: string): Promise<string> {
     return await sandbox.files.read(path).then(r => r.toString())
   } catch {
     return ""
+  }
+}
+
+async function ensureTailwindCssFiles(sandbox: Sandbox): Promise<void> {
+  await safeMakeDir(sandbox, `${PROJECT_DIR}/src`)
+
+  if (!await readFileMaybe(sandbox, `${PROJECT_DIR}/tailwind.config.ts`)) {
+    await sandbox.files.write(`${PROJECT_DIR}/tailwind.config.ts`, `import type { Config } from 'tailwindcss'
+
+export default {
+  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  theme: { extend: {} },
+  plugins: [],
+} satisfies Config`)
+    console.log("[sandbox] Injected missing tailwind.config.ts")
+  }
+
+  if (!await readFileMaybe(sandbox, `${PROJECT_DIR}/postcss.config.js`)) {
+    await sandbox.files.write(`${PROJECT_DIR}/postcss.config.js`, `module.exports = {
+  plugins: { tailwindcss: {}, autoprefixer: {} },
+}`)
+    console.log("[sandbox] Injected missing postcss.config.js")
+  }
+
+  const indexCss = await readFileMaybe(sandbox, `${PROJECT_DIR}/src/index.css`)
+  if (!indexCss) {
+    await sandbox.files.write(`${PROJECT_DIR}/src/index.css`,
+      `@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\nbody { font-family: system-ui, -apple-system, sans-serif; }`)
+    console.log("[sandbox] Injected missing src/index.css")
+  } else if (!indexCss.includes("@tailwind")) {
+    await sandbox.files.write(`${PROJECT_DIR}/src/index.css`,
+      `@tailwind base;\n@tailwind components;\n@tailwind utilities;\n\n${indexCss}`)
+    console.log("[sandbox] Prepended @tailwind directives to src/index.css")
+  }
+
+  for (const mainPath of [`${PROJECT_DIR}/src/main.tsx`, `${PROJECT_DIR}/src/main.jsx`]) {
+    const mainContent = await readFileMaybe(sandbox, mainPath)
+    if (mainContent && !mainContent.includes("index.css")) {
+      await sandbox.files.write(mainPath, `import './index.css'\n${mainContent}`)
+      console.log(`[sandbox] Added CSS import to ${mainPath}`)
+      break
+    }
   }
 }
 
@@ -118,10 +162,14 @@ async function portListening(sandbox: Sandbox, port: number): Promise<boolean> {
       sandbox,
       `bash -c '
         if command -v ss >/dev/null 2>&1; then
-          ss -tln 2>/dev/null | grep -q ":${port}[^0-9]" && echo "LISTEN" && exit 0
+          ss -tln 2>/dev/null | awk "{print \\$4}" | grep -Eq "(^|:)${port}$" && echo "LISTEN" && exit 0
         fi
         if command -v lsof >/dev/null 2>&1; then
           lsof -iTCP:${port} -sTCP:LISTEN -n -P 2>/dev/null | grep -q . && echo "LISTEN" && exit 0
+        fi
+        if command -v node >/dev/null 2>&1; then
+          node -e "const net=require('net');const s=net.connect(${port},'127.0.0.1');s.setTimeout(1000);s.on('connect',()=>{console.log('LISTEN');s.destroy();});s.on('timeout',()=>{console.log('NO');s.destroy();});s.on('error',()=>console.log('NO'));"
+          exit 0
         fi
         echo "NO"
       '`,
@@ -131,6 +179,15 @@ async function portListening(sandbox: Sandbox, port: number): Promise<boolean> {
   } catch {
     return false
   }
+}
+
+async function selectDevPort(sandbox: Sandbox): Promise<number> {
+  for (const port of DEV_PORT_CANDIDATES) {
+    if (!await portListening(sandbox, port)) {
+      return port
+    }
+  }
+  return DEV_PORT
 }
 
 /** Get PID of the process listening on the given port, or empty string. */
@@ -179,13 +236,9 @@ function devLogShowsReady(log: string, port: number): boolean {
   
   const readyPatterns = [
     /ready\s+in\s+\d+/i,
-    /local:\s*http/i,
-    /localhost:\d+/i,
-    /127\.0\.0\.1:\d+/i,
     /vite.*ready/i,
     /started\sserver/i,
     /ready\s+on/i,
-    /network:\s*http/i,
   ]
   
   for (const line of lines) {
@@ -197,6 +250,27 @@ function devLogShowsReady(log: string, port: number): boolean {
     if (n.includes(`:${port}`) && (n.includes("http") || n.includes("ready"))) return true
   }
   return false
+}
+
+function getReadyPortsFromLog(log: string): number[] {
+  if (!log || !log.trim()) return []
+
+  const ports = new Set<number>()
+  const urlPattern = /https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[[^\]]+\]|[^\s:/]+):(\d{2,5})/gi
+  let match: RegExpExecArray | null
+
+  while ((match = urlPattern.exec(log))) {
+    const port = Number(match[1])
+    if (Number.isInteger(port) && port > 0 && port <= 65535) {
+      ports.add(port)
+    }
+  }
+
+  return [...ports]
+}
+
+function getReadinessPorts(log: string, requestedPort: number): number[] {
+  return [...new Set([requestedPort, ...getReadyPortsFromLog(log)])]
 }
 
 async function previewUrlResponding(
@@ -252,6 +326,9 @@ async function localHttpResponding(sandbox: Sandbox, port: number): Promise<bool
       `bash -c '
         if command -v curl >/dev/null 2>&1; then
           code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 4 http://127.0.0.1:${port}/ || echo "000")
+          if [ "$code" = "000" ] || [ "$code" = "000000" ]; then
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 4 http://localhost:${port}/ || echo "000")
+          fi
           [ "$code" != "000" ] && [ "$code" != "000000" ] && echo "OK" || echo "NO"
         else
           node -e "const http=require(\"http\");const r=http.get({host:\"127.0.0.1\",port:${port},path:\"/\",timeout:4000},(res)=>{console.log(\"OK\");res.resume();});r.on(\"error\",()=>console.log(\"NO\"));r.on(\"timeout\",()=>{r.destroy();console.log(\"NO\");});"
@@ -392,7 +469,7 @@ function inferFramework(pkg: any): "next" | "vite" | "unknown" {
   return "unknown"
 }
 
-async function ensureViteAllowedHosts(sandbox: Sandbox): Promise<void> {
+async function ensureViteAllowedHosts(sandbox: Sandbox, port: number): Promise<void> {
   const configPaths = [
     `${PROJECT_DIR}/vite.config.ts`,
     `${PROJECT_DIR}/vite.config.js`,
@@ -415,8 +492,7 @@ async function ensureViteAllowedHosts(sandbox: Sandbox): Promise<void> {
 
       const injectedServer = `server: {
     host: "0.0.0.0",
-    port: ${DEV_PORT},
-    strictPort: true,
+    port: Number(process.env.PORT) || ${port},
     allowedHosts: true,
     hmr: { overlay: false },
   }`
@@ -438,7 +514,7 @@ async function ensureViteAllowedHosts(sandbox: Sandbox): Promise<void> {
             ? `${inner.replace(/\n/g, "\n    ").replace(/,?\s*$/, ",")}\n    `
             : ""
 
-          return `server: {\n    ${normalizedInner}host: "0.0.0.0",\n    port: ${DEV_PORT},\n    strictPort: true,\n    allowedHosts: true,\n    hmr: { overlay: false },\n  }`
+          return `server: {\n    ${normalizedInner}host: "0.0.0.0",\n    port: Number(process.env.PORT) || ${port},\n    allowedHosts: true,\n    hmr: { overlay: false },\n  }`
         })
       } else if (/export\s+default\s+defineConfig\s*\(\s*\{/.test(content)) {
         patched = content.replace(/export\s+default\s+defineConfig\s*\(\s*\{/, (match) => `${match}\n  ${injectedServer},`)
@@ -466,8 +542,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: "0.0.0.0",
-    port: ${DEV_PORT},
-    strictPort: true,
+    port: Number(process.env.PORT) || ${port},
     allowedHosts: true,
     hmr: { overlay: false },
   },
@@ -478,7 +553,7 @@ export default defineConfig({
   }
 }
 
-function buildDevStartScript(framework: "next" | "vite" | "unknown"): string {
+function buildDevStartScript(framework: "next" | "vite" | "unknown", port: number): string {
   const lines: string[] = [
     "#!/bin/bash",
     "set +e",
@@ -489,20 +564,21 @@ function buildDevStartScript(framework: "next" | "vite" | "unknown"): string {
     `echo "START: Framework detected: ${framework}" >> "${DEV_LOG_PATH}"`,
     "export FORCE_COLOR=1",
     "export NODE_OPTIONS='--no-warnings'",
+    `export PORT=${port}`,
   ]
 
   if (framework === "next") {
     lines.push(
-      `echo "START: Launching Next.js dev server on port ${DEV_PORT}..." >> "${DEV_LOG_PATH}"`,
-      `nohup npx next dev -H 0.0.0.0 -p ${DEV_PORT} > "${DEV_LOG_PATH}" 2>&1 &`,
+      `echo "START: Launching Next.js dev server on port ${port}..." >> "${DEV_LOG_PATH}"`,
+      `nohup npx next dev -H 0.0.0.0 -p ${port} > "${DEV_LOG_PATH}" 2>&1 &`,
       `echo $! > "${DEV_PID_PATH}"`,
       "disown",
       `echo "START: Next.js launched with PID $(cat "${DEV_PID_PATH}")" >> "${DEV_LOG_PATH}"`,
     )
   } else if (framework === "vite") {
     lines.push(
-      `echo "START: Launching Vite dev server on port ${DEV_PORT}..." >> "${DEV_LOG_PATH}"`,
-      `nohup npx vite --host 0.0.0.0 --port ${DEV_PORT} --strictPort > "${DEV_LOG_PATH}" 2>&1 &`,
+      `echo "START: Launching Vite dev server on port ${port}..." >> "${DEV_LOG_PATH}"`,
+      `nohup npx vite --host 0.0.0.0 --port ${port} > "${DEV_LOG_PATH}" 2>&1 &`,
       `echo $! > "${DEV_PID_PATH}"`,
       "disown",
       `echo "START: Vite launched with PID $(cat "${DEV_PID_PATH}")" >> "${DEV_LOG_PATH}"`,
@@ -511,7 +587,7 @@ function buildDevStartScript(framework: "next" | "vite" | "unknown"): string {
     // Unknown - try Vite first, then Next.js, then generic
     lines.push(
       `echo "START: Unknown framework, attempting Vite first..." >> "${DEV_LOG_PATH}"`,
-      `nohup npx vite --host 0.0.0.0 --port ${DEV_PORT} --strictPort > "${DEV_LOG_PATH}" 2>&1 &`,
+      `nohup npx vite --host 0.0.0.0 --port ${port} > "${DEV_LOG_PATH}" 2>&1 &`,
       "PID=$!",
       "sleep 1",
       `if kill -0 $PID 2>/dev/null; then`,
@@ -520,7 +596,7 @@ function buildDevStartScript(framework: "next" | "vite" | "unknown"): string {
       `  echo "START: Vite started with PID $PID" >> "${DEV_LOG_PATH}"`,
       `else`,
       `  echo "START: Vite failed, trying Next.js..." >> "${DEV_LOG_PATH}"`,
-      `  nohup npx next dev -H 0.0.0.0 -p ${DEV_PORT} > "${DEV_LOG_PATH}" 2>&1 &`,
+      `  nohup npx next dev -H 0.0.0.0 -p ${port} > "${DEV_LOG_PATH}" 2>&1 &`,
       `  PID=$!`,
       `  echo $PID > "${DEV_PID_PATH}"`,
       `  disown $PID`,
@@ -561,47 +637,76 @@ async function validateNodeModules(sandbox: Sandbox): Promise<boolean> {
 
 async function checkServerReady(
   sandbox: Sandbox,
-  port: number,
+  requestedPort: number,
   framework: "next" | "vite" | "unknown"
 ): Promise<ReadinessCheckResult> {
   const devLog = await readTail(sandbox, DEV_LOG_PATH, 100)
-  const logReady = devLogShowsReady(devLog, port)
-  const portReady = await portListening(sandbox, port)
-  const localReady = await localHttpResponding(sandbox, port)
-  
-  console.log(`[checkServerReady] framework=${framework}, logReady=${logReady}, portReady=${portReady}, localReady=${localReady}`)
+  const ports = getReadinessPorts(devLog, requestedPort)
+  const signals = await Promise.all(ports.map(async (port) => {
+    const logReady = devLogShowsReady(devLog, port)
+    const portReady = await portListening(sandbox, port)
+    const localReady = await localHttpResponding(sandbox, port)
+    return { port, logReady, portReady, localReady }
+  }))
 
-  if (localReady) {
-    return { ready: true, reason: "local-http-responding", logs: devLog, localReady: true }
+  console.log(
+    `[checkServerReady] framework=${framework}, ` +
+    signals.map(s => `port=${s.port}:logReady=${s.logReady},portReady=${s.portReady},localReady=${s.localReady}`).join(" | ")
+  )
+
+  const localSignal = signals.find(signal => signal.localReady)
+  if (localSignal) {
+    return {
+      ready: true,
+      reason: "local-http-responding",
+      logs: devLog,
+      localReady: true,
+      port: localSignal.port,
+    }
   }
   
+  const serverSignals = signals
+    .filter(signal => signal.portReady || signal.logReady)
+    .sort((a, b) => Number(b.portReady) - Number(a.portReady))
+  if (serverSignals.length === 0) {
+    return { ready: false, logs: devLog }
+  }
+
   // Try URL check
-  const urlCheck = await previewUrlResponding(sandbox, port)
-  
-  // Do not trust URL reachability alone; require at least one server signal.
-  if (urlCheck.responding && (portReady || logReady)) {
-    return { ready: true, reason: "url-responding-with-signal", logs: devLog, localReady }
+  for (const signal of serverSignals) {
+    const urlCheck = await previewUrlResponding(sandbox, signal.port)
+
+    // Do not trust URL reachability alone; require at least one server signal.
+    if (urlCheck.responding) {
+      return {
+        ready: true,
+        reason: "url-responding-with-signal",
+        logs: devLog,
+        localReady: signal.localReady,
+        port: signal.port,
+      }
+    }
   }
   
   // For Next.js: sometimes needs more time
-  if (framework === "next" && portReady) {
-    if (logReady) {
-      // Give it a bit more time
-      await new Promise(r => setTimeout(r, 500))
-      const recheck = await previewUrlResponding(sandbox, port)
-      if (recheck.responding) {
-        return { ready: true, reason: "next-delayed", logs: devLog }
-      }
+  const nextSignal = serverSignals.find(signal => signal.portReady && signal.logReady)
+  if (framework === "next" && nextSignal) {
+    // Give it a bit more time
+    await new Promise(r => setTimeout(r, 500))
+    const recheck = await previewUrlResponding(sandbox, nextSignal.port)
+    if (recheck.responding) {
+      return { ready: true, reason: "next-delayed", logs: devLog, port: nextSignal.port }
     }
   }
 
   // For Vite: log ready + port listening is usually sufficient
-  if (framework === "vite" && portReady && logReady) {
+  const viteSignal = serverSignals.find(signal => signal.portReady && signal.logReady)
+  if (framework === "vite" && viteSignal) {
     // Quick URL recheck
     await new Promise(r => setTimeout(r, 500))
-    const recheck = await previewUrlResponding(sandbox, port)
+    const recheck = await previewUrlResponding(sandbox, viteSignal.port)
     if (recheck.responding) {
-      return { ready: true, reason: "vite-ready", logs: devLog }
+      return { ready: true, reason: "vite-ready", logs: devLog, port: viteSignal.port }
     }
   }
   
@@ -617,8 +722,6 @@ async function cleanupPort(sandbox: Sandbox, port: number): Promise<void> {
       [ -f "${DEV_PID_PATH}" ] && kill -9 $(cat "${DEV_PID_PATH}" 2>/dev/null) 2>/dev/null || true
       lsof -ti tcp:${port} 2>/dev/null | xargs kill -9 2>/dev/null || true
       fuser -k -n tcp ${port} 2>/dev/null || true
-      pkill -f "vite.*--port ${port}" 2>/dev/null || true
-      pkill -f "next.*dev.*${port}" 2>/dev/null || true
       rm -f "${DEV_PID_PATH}" "${DEV_LOG_PATH}"
       true
     '`,
@@ -1202,6 +1305,14 @@ export async function POST(req: Request) {
         const framework = inferFramework(pkg)
         console.log(`[sandbox] Detected framework: ${framework}`)
 
+        // Ensure Tailwind CSS infrastructure is present before install
+        const hasTailwind = Boolean(
+          pkg?.dependencies?.tailwindcss || pkg?.devDependencies?.tailwindcss
+        )
+        if (hasTailwind && framework === "vite") {
+          await ensureTailwindCssFiles(sandbox)
+        }
+
         // Check for lock file changes
         const lockContent = 
           await readFileMaybe(sandbox, `${PROJECT_DIR}/package-lock.json`) || 
@@ -1267,22 +1378,26 @@ export async function POST(req: Request) {
           }
         }
 
+        // Clean up previous preview servers, then pick the first available preview port.
+        for (const port of DEV_PORT_CANDIDATES) {
+          await cleanupPort(sandbox, port)
+        }
+        const devPort = await selectDevPort(sandbox)
+        console.log(`[sandbox] Selected dev server port: ${devPort}`)
+
         // Configure Vite if needed
         if (framework === "vite") {
           try {
             await normalizePostcssConfigForPreview(sandbox)
-            await ensureViteAllowedHosts(sandbox)
+            await ensureViteAllowedHosts(sandbox, devPort)
           } catch (e) {
             console.warn("[sandbox] Failed to patch vite config:", e)
           }
         }
 
-        // Clean up any existing processes on the port
-        await cleanupPort(sandbox, DEV_PORT)
-
         // Create and run the dev server script (under PROJECT_DIR to avoid /tmp permission issues)
         const startScriptPath = `${PROJECT_DIR}/.start-dev.sh`
-        const startScript = buildDevStartScript(framework)
+        const startScript = buildDevStartScript(framework, devPort)
         console.log("[sandbox] Dev script:\n", startScript)
 
         await sandbox.files.write(startScriptPath, startScript)
@@ -1365,7 +1480,7 @@ export async function POST(req: Request) {
           }
 
           // Check readiness
-          const readyCheck = await checkServerReady(sandbox, DEV_PORT, framework)
+          const readyCheck = await checkServerReady(sandbox, devPort, framework)
           
           // Stream new logs
           if (readyCheck.logs && readyCheck.logs !== lastLogSent) {
@@ -1390,12 +1505,13 @@ export async function POST(req: Request) {
           }
 
           if (readyCheck.ready) {
-            const url = `https://${sandbox.getHost(DEV_PORT)}`
+            const readyPort = readyCheck.port || devPort
+            const url = `https://${sandbox.getHost(readyPort)}`
             let publicUrlReady = false
 
             for (let attempt = 0; attempt < 8; attempt++) {
               await new Promise(r => setTimeout(r, attempt === 0 ? 800 : 1200))
-              const recheck = await previewUrlResponding(sandbox, DEV_PORT)
+              const recheck = await previewUrlResponding(sandbox, readyPort)
               if (recheck.responding) {
                 publicUrlReady = true
                 break
