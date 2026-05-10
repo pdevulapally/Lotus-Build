@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { doc, onSnapshot, updateDoc } from "firebase/firestore"
@@ -83,6 +83,8 @@ type BrowserInspection = {
   baseUrl?: string
   provider?: string
   title: string
+  expiresAt?: string
+  isExpired: boolean
 }
 
 type DeployProvider = "netlify" | "vercel"
@@ -119,6 +121,12 @@ type ComputerProjectIntegration = {
 }
 
 type IntegrationAction = "github" | "supabase" | "env"
+
+type LocalMessage = {
+  role: "user" | "system"
+  content: string
+  runId?: string
+}
 
 // ─── Constants (unchanged) ────────────────────────────────────────────────────
 
@@ -232,6 +240,16 @@ function getEventTitle(event: ComputerTimelineEvent) {
   return EVENT_TITLES[event.title] || event.title
 }
 
+function isBrowserLiveViewExpired(event: ComputerTimelineEvent) {
+  const explicitExpiry = typeof event.metadata?.browserExpiresAt === "string" ? event.metadata.browserExpiresAt : ""
+  const expiryTime = explicitExpiry ? Date.parse(explicitExpiry) : NaN
+  if (Number.isFinite(expiryTime)) return Date.now() >= expiryTime
+
+  const createdTime = Date.parse(event.createdAt)
+  if (!Number.isFinite(createdTime)) return false
+  return Date.now() - createdTime > 5 * 60 * 1000
+}
+
 function getLatestBrowserInspection(events: ComputerTimelineEvent[]): BrowserInspection | null {
   const browserEvents = [...events].sort((a, b) => a.index - b.index).reverse()
   const found = browserEvents.find((e) => {
@@ -259,6 +277,8 @@ function getLatestBrowserInspection(events: ComputerTimelineEvent[]): BrowserIns
     sessionId: typeof found.metadata.browserSessionId === "string" ? found.metadata.browserSessionId : undefined,
     baseUrl:   typeof found.metadata.browserBaseUrl   === "string" ? found.metadata.browserBaseUrl   : undefined,
     provider:  typeof found.metadata.browserProvider  === "string" ? found.metadata.browserProvider  : undefined,
+    expiresAt: typeof found.metadata.browserExpiresAt === "string" ? found.metadata.browserExpiresAt : undefined,
+    isExpired: isBrowserLiveViewExpired(found),
     title:     typeof found.metadata.pageTitle === "string" && found.metadata.pageTitle.trim() ? found.metadata.pageTitle : url,
   }
 }
@@ -761,6 +781,13 @@ function getEditToolVariant(event: ComputerTimelineEvent): "edit" | "write" {
   return event.metadata?.editVariant === "edit" ? "edit" : "write"
 }
 
+function getFileContentMetadata(event: ComputerTimelineEvent) {
+  return {
+    oldContent: typeof event.metadata?.oldContent === "string" ? event.metadata.oldContent : undefined,
+    newContent: typeof event.metadata?.newContent === "string" ? event.metadata.newContent : undefined,
+  }
+}
+
 function getCommandMetadata(event: ComputerTimelineEvent) {
   const command = typeof event.metadata?.command === "string" ? event.metadata.command : ""
   if (!command.trim()) return null
@@ -796,16 +823,20 @@ function FeedItem({ event, isLatest }: { event: ComputerTimelineEvent; isLatest:
   }
 
   if (event.title === "Generating code") {
-    return <EditTool state={isError ? "completed" : isComplete ? "completed" : "waiting"} variant="write" className="my-2" />
+    if (!isRunning) return null
+    return <EditTool state="waiting" variant="write" className="my-2" />
   }
 
   const generatedFilePath = getGeneratingFilePath(event)
   if (generatedFilePath && event.kind === "code") {
+    const fileContent = getFileContentMetadata(event)
     return (
       <EditTool
         state={isRunning ? "pending" : "completed"}
         variant={getEditToolVariant(event)}
         filePath={generatedFilePath}
+        oldContent={fileContent.oldContent}
+        newContent={fileContent.newContent}
         className="my-2"
       />
     )
@@ -908,7 +939,7 @@ function UserMessageBubble({
   if (isEditing) {
     return (
       <div className="flex justify-end pb-4">
-        <div className="w-full max-w-[84%]">
+        <div className="w-full max-w-[min(84%,42rem)]">
           <div className="overflow-hidden rounded-[14px] bg-[#1f1f1f] shadow-[0_1px_2px_rgba(0,0,0,0.18)]">
           <textarea
             ref={ref} value={editText} onChange={(e) => onEditChange(e.target.value)}
@@ -930,10 +961,10 @@ function UserMessageBubble({
   }
 
   return (
-    <div className="group flex justify-end pb-4">
-      <div className="flex max-w-[84%] flex-col items-end">
-        <div className="rounded-[14px] bg-[#1f1f1f] px-3.5 py-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.18)]">
-          <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-zinc-100">{content}</p>
+    <div className="group flex w-full justify-end pb-4">
+      <div className="flex w-fit max-w-[min(84%,42rem)] min-w-0 flex-col items-end">
+        <div className="max-w-full rounded-[14px] bg-[#1f1f1f] px-3.5 py-2.5 text-right shadow-[0_1px_2px_rgba(0,0,0,0.18)]">
+          <p className="whitespace-pre-wrap break-words text-left text-[13px] leading-relaxed text-zinc-100 [overflow-wrap:anywhere]">{content}</p>
         </div>
         <div className="mt-1.5 flex items-center gap-1 pr-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
           <button
@@ -967,7 +998,7 @@ function AgentFeed({
   editingIndex, editText, onEditStart, onEditChange, onEditSubmit, onEditCancel,
 }: {
   prompt?: string; events: ComputerTimelineEvent[]
-  localMessages: Array<{ role: "user" | "system"; content: string }>
+  localMessages: LocalMessage[]
   status: ComputerSessionStatus; optimisticStart?: boolean
   editingIndex: number | null; editText: string
   onEditStart: (i: number, c: string) => void
@@ -978,6 +1009,18 @@ function AgentFeed({
   const endRef    = useRef<HTMLDivElement | null>(null)
   const isRunning = status === "running" || status === "planning"
   const visible   = events.filter((e) => e.title !== "Session created")
+  const firstRunId = visible.find((event) => event.runId)?.runId
+  const initialEvents = firstRunId ? visible.filter((event) => event.runId === firstRunId) : visible
+  const runEventsById = new Map<string, ComputerTimelineEvent[]>()
+  for (const event of visible) {
+    if (!event.runId || event.runId === firstRunId) continue
+    const runEvents = runEventsById.get(event.runId) ?? []
+    runEvents.push(event)
+    runEventsById.set(event.runId, runEvents)
+  }
+  const followUpRunIds = Array.from(runEventsById.keys())
+  const localUserCount = localMessages.filter((msg) => msg.role === "user").length
+  const unpairedRunIds = followUpRunIds.slice(localUserCount)
   const isStarting = optimisticStart && visible.length === 0
   const isEmpty   = !prompt && visible.length === 0 && localMessages.length === 0 && !isStarting
 
@@ -1023,8 +1066,8 @@ function AgentFeed({
 
       {/* Timeline events — pure stream, no group dividers */}
       <AnimatePresence initial={false}>
-        {visible.map((event, i) => {
-          const isLatest = i === visible.length - 1 && isRunning
+        {initialEvents.map((event, i) => {
+          const isLatest = i === initialEvents.length - 1 && isRunning
           return (
             <motion.div key={event.id ?? `${event.title}-${i}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.14 }}>
               <FeedItem event={event} isLatest={isLatest} />
@@ -1037,14 +1080,24 @@ function AgentFeed({
       <AnimatePresence initial={false}>
         {localMessages.map((msg, i) =>
           msg.role === "user" ? (
-            <motion.div key={`user-${i}`} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.12 }} className="pt-2">
-              <UserMessageBubble
+            <Fragment key={`user-fragment-${i}`}>
+              <motion.div key={`user-${i}`} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.12 }} className="pt-2">
+                <UserMessageBubble
                 content={msg.content} index={i} isEditing={editingIndex === i}
                 editText={editingIndex === i ? editText : ""}
                 onEditStart={onEditStart} onEditChange={onEditChange}
-                onEditSubmit={onEditSubmit} onEditCancel={onEditCancel}
-              />
-            </motion.div>
+                  onEditSubmit={onEditSubmit} onEditCancel={onEditCancel}
+                />
+              </motion.div>
+            {(runEventsById.get(msg.runId ?? followUpRunIds[localMessages.slice(0, i).filter((item) => item.role === "user").length]) ?? []).map((event, eventIndex, runEvents) => {
+              const isLatest = eventIndex === runEvents.length - 1 && isRunning
+              return (
+                <motion.div key={event.id ?? `${msg.runId}-${event.title}-${eventIndex}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.14 }}>
+                  <FeedItem event={event} isLatest={isLatest} />
+                </motion.div>
+              )
+            })}
+            </Fragment>
           ) : (
             <motion.div key={`sys-${i}`} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.12 }} className="flex justify-center py-1">
               <span className="text-[11px] text-zinc-400">{msg.content}</span>
@@ -1052,6 +1105,17 @@ function AgentFeed({
           )
         )}
       </AnimatePresence>
+
+      {unpairedRunIds.map((runId) =>
+        (runEventsById.get(runId) ?? []).map((event, eventIndex, runEvents) => {
+          const isLatest = eventIndex === runEvents.length - 1 && isRunning
+          return (
+            <motion.div key={event.id ?? `${runId}-${event.title}-${eventIndex}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.14 }}>
+              <FeedItem event={event} isLatest={isLatest} />
+            </motion.div>
+          )
+        })
+      )}
 
       {/* Running shimmer */}
       <AnimatePresence>
@@ -1163,10 +1227,12 @@ function LaptopSwitcher({ label, title, url, icon, onClick }: {
 }
 
 function WorkspaceContent({
-  session, activeTab, browserInspection, onSwitchView,
+  session, activeTab, browserInspection, isEnsuringPreview, previewEnsureError, onSwitchView,
 }: {
   session: ComputerSessionResponse; activeTab: WorkspaceTab
   browserInspection: BrowserInspection | null
+  isEnsuringPreview: boolean
+  previewEnsureError: string | null
   onSwitchView: (v: WorkspaceTab) => void
 }) {
   if (activeTab === "research") {
@@ -1174,6 +1240,37 @@ function WorkspaceContent({
   }
 
   if (activeTab === "browser" && browserInspection) {
+    if (browserInspection.isExpired) {
+      return (
+        <motion.div key="browser-expired" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}
+          className="flex h-full items-center justify-center p-8 text-center">
+          <div className="max-w-sm">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-[#e0dbd1] bg-white text-zinc-300 shadow-sm">
+              <Globe2 className="h-5 w-5" />
+            </div>
+            <p className="text-[13px] font-semibold text-zinc-700">Browser session expired</p>
+            <p className="mt-1.5 text-[12px] leading-relaxed text-zinc-400">
+              The page context was already captured for generation. Open the original site if you need to inspect it again.
+            </p>
+            <div className="mt-4 flex items-center justify-center gap-2">
+              <a href={browserInspection.url} target="_blank" rel="noreferrer"
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#e0dbd1] bg-white px-3 text-[12px] font-medium text-zinc-700 transition-colors hover:bg-[#f7f5f1]">
+                <ExternalLink className="h-3.5 w-3.5" />
+                Open original
+              </a>
+              {session.previewUrl && (
+                <button type="button" onClick={() => onSwitchView("preview")}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-zinc-900 px-3 text-[12px] font-medium text-white transition-colors hover:bg-zinc-800">
+                  <Monitor className="h-3.5 w-3.5" />
+                  Preview
+                </button>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      )
+    }
+
     return (
       <motion.div key="browser" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}
         className="flex h-full min-h-0 flex-col p-3 sm:p-4">
@@ -1214,7 +1311,7 @@ function WorkspaceContent({
         <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-[#e0dbd1] bg-white shadow-sm">
           <iframe src={session.previewUrl} className="h-full w-full"
             sandbox="allow-scripts allow-same-origin allow-forms" title="Live preview" />
-          {browserInspection && (
+          {browserInspection && !browserInspection.isExpired && (
             <LaptopSwitcher label="Browser" title={browserInspection.title} url={browserInspection.url}
               icon={<Globe2 className="h-3.5 w-3.5" />} onClick={() => onSwitchView("browser")} />
           )}
@@ -1231,6 +1328,11 @@ function WorkspaceContent({
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-[#e0dbd1] bg-white text-zinc-300 shadow-sm">
           <Monitor className="h-5 w-5" />
         </div>
+        {(isEnsuringPreview || previewEnsureError) && (
+          <p className="mb-1 text-[12px] font-medium text-zinc-500">
+            {previewEnsureError || "Restoring preview..."}
+          </p>
+        )}
         <p className="text-[13px] font-semibold text-zinc-700">
           {session.status === "running" ? "Preparing workspace…" : "Workspace will appear here."}
         </p>
@@ -1311,7 +1413,7 @@ export default function ComputerPage() {
   const [loading,           setLoading]           = useState(true)
   const [error,             setError]             = useState<string | null>(null)
   const [mobileView,        setMobileView]        = useState<MobileView>("feed")
-  const [localMessages,     setLocalMessages]     = useState<Array<{ role: "user" | "system"; content: string }>>([])
+  const [localMessages,     setLocalMessages]     = useState<LocalMessage[]>([])
   const [isStartingRun,     setIsStartingRun]     = useState(false)
   const [runError,          setRunError]          = useState<string | null>(null)
   const [optimisticStart,   setOptimisticStart]   = useState(false)
@@ -1330,7 +1432,11 @@ export default function ComputerPage() {
   const [titleSaving,       setTitleSaving]       = useState(false)
   const [titleError,        setTitleError]        = useState<string | null>(null)
   const [tokenLimitModalOpen, setTokenLimitModalOpen] = useState(false)
+  const [isEnsuringPreview, setIsEnsuringPreview] = useState(false)
+  const [previewEnsureError, setPreviewEnsureError] = useState<string | null>(null)
   const hasStartedRef = useRef(false)
+  const previousPreviewUrlRef = useRef<string | null | undefined>(undefined)
+  const previewEnsureKeyRef = useRef<string | null>(null)
 
   // ── Firestore listener (unchanged) ────────────────────────────────────────
   useEffect(() => {
@@ -1468,6 +1574,65 @@ export default function ComputerPage() {
 
   useEffect(() => { if (visibleCount > 0) setOptimisticStart(false) }, [visibleCount, setOptimisticStart])
   useEffect(() => { if (browserInspection && !session?.previewUrl) setActiveTab("browser") }, [browserInspection, session?.previewUrl, setActiveTab])
+  useEffect(() => {
+    if (!session) return
+
+    const nextPreviewUrl = session.previewUrl || null
+    const previousPreviewUrl = previousPreviewUrlRef.current
+    previousPreviewUrlRef.current = nextPreviewUrl
+
+    if (previousPreviewUrl === undefined) return
+    if (nextPreviewUrl && nextPreviewUrl !== previousPreviewUrl) {
+      setActiveTab("preview")
+      setMobileView("workspace")
+    }
+  }, [session, session?.previewUrl, setActiveTab, setMobileView])
+  useEffect(() => {
+    const projectId = session?.projectId
+    if (!projectId || !user || authLoading) return
+    if (session.status === "idle" || session.status === "planning" || session.status === "running") return
+
+    const ensureKey = `${projectId}:${session.status}`
+    if (previewEnsureKeyRef.current === ensureKey) return
+    previewEnsureKeyRef.current = ensureKey
+
+    let cancelled = false
+    setIsEnsuringPreview(true)
+    setPreviewEnsureError(null)
+
+    void (async () => {
+      try {
+        const auth = await getOptionalAuthHeader()
+        const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/ensure-preview`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...auth },
+          body: JSON.stringify({ force: false }),
+        })
+        const json = await res.json().catch(() => ({})) as { previewUrl?: string; error?: string }
+        if (!res.ok || !json.previewUrl) {
+          throw new Error(json.error || "Failed to restore preview")
+        }
+
+        if (cancelled) return
+        const nextPreviewUrl = String(json.previewUrl)
+        if (nextPreviewUrl !== session.previewUrl) {
+          await updateDoc(doc(db, "computerSessions", session.id), { previewUrl: nextPreviewUrl })
+        }
+        setActiveTab("preview")
+        setMobileView("workspace")
+      } catch (err) {
+        if (cancelled) return
+        previewEnsureKeyRef.current = null
+        setPreviewEnsureError(err instanceof Error ? err.message : "Failed to restore preview")
+      } finally {
+        if (!cancelled) setIsEnsuringPreview(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [authLoading, getOptionalAuthHeader, session, session?.projectId, session?.status, session?.previewUrl, setActiveTab, setMobileView, user])
 
   // ── Auto-run (unchanged) ──────────────────────────────────────────────────
   useEffect(() => {
@@ -2064,6 +2229,8 @@ export default function ComputerPage() {
                 <WorkspaceContent
                   session={session} activeTab={activeTab}
                   browserInspection={browserInspection}
+                  isEnsuringPreview={isEnsuringPreview}
+                  previewEnsureError={previewEnsureError}
                   onSwitchView={setActiveTab}
                 />
               </motion.div>

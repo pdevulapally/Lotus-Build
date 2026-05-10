@@ -2,6 +2,7 @@ import OpenAI from "openai"
 import { adminAuth, adminDb } from "@/lib/firebase-admin"
 import { Timestamp } from "firebase-admin/firestore"
 import { DEFAULT_PLANS } from "@/lib/firebase"
+import { normalizeGeneratedCodeContent, normalizeGeneratedCodeFiles } from "@/lib/generated-code-normalization"
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 const nvidia = new OpenAI({
@@ -99,6 +100,9 @@ TECH STACK:
 - Do NOT use external UI kits.
 - Do NOT use placeholder text like "Lorem ipsum".
 - Ensure all imports exist and every dependency appears in package.json.
+- Preserve the Lotus generated-app architecture. Do NOT switch to a standalone single HTML/CSS/JS file.
+- Never describe the output as "a single-page HTML/CSS/JS file". The correct architecture is Vite + React + TypeScript with files under src/.
+- A landing page can be a single React route/page, but it must still be implemented as React components inside the Vite project.
 
 DESIGN QUALITY BAR:
 - Produce premium, production-quality UI comparable to Linear, Notion, and Framer.
@@ -506,6 +510,22 @@ function parseFileBlocks(content: string): ParsedFileBlock[] {
   return files
 }
 
+function serializeFileBlocks(files: ParsedFileBlock[]) {
+  return files.map((file) => `===FILE: ${file.path}===\n${file.content}\n===END_FILE===`).join("\n")
+}
+
+function normalizeGeneratedFileBlocksInOutput(content: string) {
+  return content.replace(/===FILE:\s*(.*?)===([\s\S]*?)===END_FILE===/g, (block, rawPath: string, rawContent: string) => {
+    const path = rawPath.trim()
+    const fileContent = rawContent
+      .replace(/^```[a-zA-Z0-9_-]*\n?/, "")
+      .replace(/\n?```$/, "")
+      .trim()
+    const normalized = normalizeGeneratedCodeContent(path, fileContent)
+    return block.replace(rawContent, `\n${normalized}\n`)
+  })
+}
+
 function assertValidFileBlockOutput(content: string) {
   if (!content.includes("===FILE:")) {
     throw new Error("Invalid generator output: no file blocks")
@@ -754,8 +774,11 @@ Rules:
       !finalFileBlocks.some(f => f.path === "src/index.css")) {
     finalFileBlocks = injectMissingCssFiles(finalFileBlocks)
     // Reconstruct content from injected blocks
-    finalContent = finalFileBlocks.map(f => `===FILE: ${f.path}===\n${f.content}\n===END_FILE===`).join('\n')
+    finalContent = serializeFileBlocks(finalFileBlocks)
   }
+
+  finalFileBlocks = normalizeGeneratedCodeFiles(finalFileBlocks)
+  finalContent = serializeFileBlocks(finalFileBlocks)
 
   return {
     finalContent,
@@ -993,7 +1016,9 @@ async function streamWithResolvedProvider(params: {
 
   if (needsCssFix) {
     const fixedBlocks = injectMissingCssFiles(parsedBlocks)
-    output = fixedBlocks.map(f => `===FILE: ${f.path}===\n${f.content}\n===END_FILE===`).join('\n')
+    output = serializeFileBlocks(normalizeGeneratedCodeFiles(fixedBlocks))
+  } else {
+    output = normalizeGeneratedFileBlocksInOutput(output)
   }
 
   params.state.streamedLength += output.length
@@ -1143,6 +1168,8 @@ PRODUCTION STANDARD (FOLLOW-UP):
 - Keep all existing content — only change what was asked.
 - If adding new sections, they must match the visual language of existing sections exactly.
 - Never introduce placeholder content in follow-up edits.
+- Preserve the existing project architecture and file structure. Do NOT convert an existing React/Vite project into standalone HTML/CSS/JS.
+- Never say you are building "a single-page HTML/CSS/JS file" in the agent message. Describe the actual targeted React/Vite change.
 
 UI STANDARD: When adding or changing UI, keep it modern and polished—distinctive typography, intentional colors, generous spacing, subtle motion (Framer Motion). Avoid generic "AI slop" aesthetics. Match or elevate the existing design language.
 
@@ -1154,7 +1181,7 @@ DEPENDENCIES (CRITICAL):
 - If you use react-icons, add "react-icons": "^5.0.0" to package.json dependencies AND import only from react-icons/fa or react-icons/fa6 — these are the most stable subpackages.
 - NEVER use HiOutlineMenu, HiOutlineBars3 or any Hi* icon — they are unreliable across versions.
 - PREFER lucide-react for ALL icons. It is always available and has zero subpackage issues. Only use react-icons when lucide-react does not have what you need.
-- NEVER hallucinate lucide-react icon names. 'RocketLaunch' does not exist, use 'Rocket'.
+- NEVER hallucinate lucide-react icon names. 'RocketLaunch' does not exist, use 'Rocket'. Use exact lucide casing: 'Github' not 'GitHub', 'Linkedin' not 'LinkedIn', 'Youtube' not 'YouTube'.
 - If you import lucide-react, add "lucide-react": "^0.400.0" to dependencies if not already present.
 - If you use framer-motion, add "framer-motion": "^11.0.0" to dependencies.
 - Check the existing package.json first. Only add packages that are truly needed and don't already exist.
@@ -1181,6 +1208,7 @@ Use this exact streaming format for every file you output:
 
 AGENT MESSAGE (required): First, output exactly one conversational reply in this format on a single line (no newlines inside):
 ===AGENT_MESSAGE=== Your brief friendly reply, e.g. "I'll add a dark mode toggle to the header." Keep it to 1-3 sentences. ===END_AGENT_MESSAGE===
+The AGENT_MESSAGE must accurately reflect the architecture. Never claim you will create a standalone HTML/CSS/JS file. Say "React/Vite page", "React components", or "targeted project update" when relevant.
 Then immediately output the file blocks. No other text between ===END_AGENT_MESSAGE=== and the first ===FILE===.
 
 BACKEND DETECTION: If the user's request clearly implies a need for a backend, database, or persistent data, output at the very end (after all ===END_FILE=== blocks):
@@ -1236,6 +1264,13 @@ QUALITY BAR:
 ---
 
 You are an expert React developer. Generate a complete, working Vite + React + TypeScript application based on the user's request.
+
+ARCHITECTURE (NON-NEGOTIABLE):
+- Build within the Lotus generated-app architecture: Vite + React + TypeScript.
+- Do NOT create or describe a standalone single-page HTML/CSS/JS file.
+- Do NOT collapse the project into inline CSS/scripts in index.html.
+- index.html is only the Vite shell. The application UI belongs in src/App.tsx and reusable React components under src/components.
+- A "single page" website means a single React page/route inside the Vite app, not a standalone HTML document.
 
 PRODUCTION-GRADE OUTPUT (MANDATORY — NO EXCEPTIONS):
 - You are building real websites for real businesses. Every output must be production-ready, not a demo.
@@ -1311,7 +1346,7 @@ Dependencies requirements (MUST follow):
 - If you use react-icons, add "react-icons": "^5.0.0" to package.json dependencies AND import only from react-icons/fa or react-icons/fa6 — these are the most stable subpackages.
 - NEVER use HiOutlineMenu, HiOutlineBars3 or any Hi* icon — they are unreliable across versions.
 - PREFER lucide-react for ALL icons. It is always available and has zero subpackage issues. Only use react-icons when lucide-react does not have what you need.
-- NEVER hallucinate lucide-react icon names. 'RocketLaunch' does not exist, use 'Rocket'.
+- NEVER hallucinate lucide-react icon names. 'RocketLaunch' does not exist, use 'Rocket'. Use exact lucide casing: 'Github' not 'GitHub', 'Linkedin' not 'LinkedIn', 'Youtube' not 'YouTube'.
 - If you import lucide-react, add "lucide-react": "^0.400.0" to dependencies if not already present.
 - If you use Tailwind CSS, include tailwindcss, postcss, and autoprefixer in devDependencies.
 - Do not reference any package in code unless it exists in package.json.
@@ -1325,6 +1360,7 @@ Create organized folder structures with components in /src/components, utilities
 
 AGENT MESSAGE (required): First, output exactly one conversational reply in this format on a single line (no newlines inside):
 ===AGENT_MESSAGE=== Your brief friendly reply to the user, e.g. "I'll help you build Cookie Clicker - a mobile app where the user can press on a cookie and a score will increment. When incremented, the new score should be displayed for users on any device. I'll add animations when the cookie is pressed." Keep it to 1-3 sentences. ===END_AGENT_MESSAGE===
+The AGENT_MESSAGE must accurately describe a Vite + React implementation. Never say you will create a standalone HTML/CSS/JS file.
 Then immediately output the file blocks. Do not include any other text between ===END_AGENT_MESSAGE=== and the first ===FILE===.
 
 QUALITY BAR: Before finalising output, ask yourself: "Would a real business owner pay a design agency for this?" If no — redesign it. The output must be distinctive, professional, and domain-appropriate. Never ship AI slop.

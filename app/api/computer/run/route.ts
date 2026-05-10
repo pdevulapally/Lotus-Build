@@ -21,6 +21,11 @@ const runRequestSchema = z.object({
   prompt: z.string().trim().max(12000).optional(),
 })
 
+const MAX_TIMELINE_FILE_CONTENT_CHARS = 40000
+const MAX_TIMELINE_DIFF_CONTENT_CHARS = 120000
+const FIRECRAWL_BROWSER_TTL_SECONDS = 60 * 60
+const FIRECRAWL_BROWSER_ACTIVITY_TTL_SECONDS = 30 * 60
+
 type FirecrawlSearchResult = {
   title?: unknown
   url?: unknown
@@ -37,12 +42,56 @@ type GeneratedFile = {
   content: string
 }
 
+async function persistGeneratedFilesForSession(
+  docRef: DocumentReference,
+  files: GeneratedFile[]
+) {
+  if (!files.length) return
+
+  const snap = await docRef.get()
+  const projectId = snap.data()?.projectId
+  if (typeof projectId !== "string" || !projectId.trim()) return
+
+  await adminDb.collection("projects").doc(projectId).update({
+    files,
+    updatedAt: new Date(),
+  })
+}
+
+function getTimelineFileContent(content: string | undefined, budget: { remaining: number }) {
+  if (typeof content !== "string") return undefined
+  if (content.length > MAX_TIMELINE_FILE_CONTENT_CHARS) return undefined
+  if (content.length > budget.remaining) return undefined
+  budget.remaining -= content.length
+  return content
+}
+
+function buildFileEventMetadata(params: {
+  file: GeneratedFile
+  existingFile?: GeneratedFile
+  isEdit: boolean
+  budget: { remaining: number }
+}) {
+  const newContent = getTimelineFileContent(params.file.content, params.budget)
+  const oldContent = params.isEdit
+    ? getTimelineFileContent(params.existingFile?.content, params.budget)
+    : undefined
+
+  return {
+    filePath: params.file.path,
+    editVariant: params.isEdit ? "edit" : "write",
+    ...(newContent !== undefined ? { newContent } : {}),
+    ...(oldContent !== undefined ? { oldContent } : {}),
+  }
+}
+
 type RemoteBrowserInspection = {
   summary: string
   liveUrl: string
   sessionId: string
   baseUrl: string
   pageTitle: string
+  expiresAt: string
   evidence: WebEvidence
 }
 
@@ -64,6 +113,16 @@ type AgentWebPlan = {
   reason: string
 }
 
+type ComputerRunProfile = {
+  hasExistingProject: boolean
+  intent: AgentWebIntent
+  urls: string[]
+  shouldUseWebTools: boolean
+  shouldDraftPlan: boolean
+  shouldShowDetailedNarration: boolean
+  reason: string
+}
+
 type WebEvidenceProvider = "firecrawl" | "tinyfish"
 
 type WebEvidence = {
@@ -78,6 +137,7 @@ type WebEvidence = {
   textContent?: string
   links?: Array<{ text: string; href: string }>
   images?: Array<{ alt: string; src: string }>
+  visualBrief?: string[]
   styleHints?: {
     colors?: string[]
     fonts?: string[]
@@ -87,6 +147,22 @@ type WebEvidence = {
   screenshotSummary?: string
   fallbackReason?: string
 }
+
+const FRONTEND_DESIGN_SKILL = `
+CLAUDE FRONTEND DESIGN SKILL — mandatory for new frontend generation:
+- Before coding, choose one clear aesthetic direction and commit to it. Examples: brutally minimal, luxury/refined, editorial/magazine, art deco/geometric, organic/natural, industrial/utilitarian, playful/toy-like, retro-futuristic, brutalist/raw. Do not drift into generic SaaS.
+- State the design through implementation, not prose: distinctive typography, purposeful palette, spatial composition, imagery, motion, and interaction details must all support the chosen direction.
+- Typography must be characterful. Avoid Inter, Roboto, Arial, system-ui, and Space Grotesk as defaults. Pair a distinctive display font with a refined body font using real Google Fonts imports.
+- Use CSS custom properties for the palette, surfaces, borders, shadows, type scale, and motion timings.
+- Choose one dominant color story and one sharp accent. Purple/violet/indigo gradients are banned unless the user or reference explicitly requires them.
+- Avoid predictable templates: no generic "Features / How it Works / Testimonials / Pricing" landing page unless those sections are specifically appropriate and requested.
+- Avoid decorative code preview cards, fake dashboards, generic neon AI glows, stock hero compositions, placeholder copy, and repeated card grids.
+- Build an actual page for the requested domain. Copy must be specific to the business/audience and should sound like a real brand, not a template.
+- Composition must have a memorable idea: asymmetry, editorial rhythm, controlled density, dramatic negative space, layered imagery, geometric systems, or another deliberate visual hook.
+- Motion should be restrained but high-impact: page-load reveals, hover states, and key transitions. Use Framer Motion when available.
+- Backgrounds should have atmosphere appropriate to the domain: texture, grain, geometric pattern, layered transparencies, lighting, or material depth. Never leave a flat default background unless the aesthetic is intentionally minimal.
+- Production-grade means responsive, accessible contrast, real hover/focus states, no overflow bugs, no broken imports, and no dummy placeholders.
+`.trim()
 
 async function appendEvent(
   docRef: DocumentReference,
@@ -369,6 +445,7 @@ function summarizeWebEvidence(evidence: WebEvidence) {
     evidence.sections?.length
       ? `Sections:\n${evidence.sections.slice(0, 12).map((section) => `- ${section.heading || section.tag}: ${section.text}`).join("\n")}`
       : "",
+    evidence.visualBrief?.length ? `Visual brief:\n${evidence.visualBrief.slice(0, 30).map((item) => `- ${item}`).join("\n")}` : "",
     evidence.styleHints
       ? `Style hints: ${[
           evidence.styleHints.colors?.length ? `colors ${evidence.styleHints.colors.join(", ")}` : "",
@@ -401,6 +478,27 @@ function extractUrls(text: string) {
   ).slice(0, 3)
 }
 
+function isInspectableExternalUrl(rawUrl: string) {
+  try {
+    const url = new URL(rawUrl)
+    const hostname = url.hostname.toLowerCase()
+    return !(
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "0.0.0.0" ||
+      hostname === "::1" ||
+      hostname.endsWith(".local") ||
+      url.pathname.startsWith("/computer/")
+    )
+  } catch {
+    return false
+  }
+}
+
+function extractInspectableUrls(text: string) {
+  return extractUrls(text).filter(isInspectableExternalUrl)
+}
+
 function inferWebIntent(prompt: string): AgentWebIntent {
   const normalized = prompt.toLowerCase()
   if (/\b(clone|copy|recreate|replicate|remake|duplicate)\b/.test(normalized)) return "clone"
@@ -418,6 +516,38 @@ function shouldResearchDesignInspiration(prompt: string, intent: AgentWebIntent)
     intent === "build" ||
     /\b(website|site|landing page|homepage|web app|saas|startup|brand|portfolio|agency|restaurant|shop|store)\b/.test(normalized)
   )
+}
+
+function getComputerRunProfile(prompt: string, hasExistingProject: boolean): ComputerRunProfile {
+  const urls = extractInspectableUrls(prompt)
+  const inferredIntent = inferWebIntent(prompt)
+  const intent = hasExistingProject && inferredIntent === "unknown" ? "edit" : inferredIntent
+  const needsExternalContext =
+    urls.length > 0 ||
+    intent === "clone" ||
+    intent === "reference" ||
+    intent === "research"
+  const shouldUseWebTools =
+    needsExternalContext ||
+    (!hasExistingProject && shouldResearchDesignInspiration(prompt, intent))
+  const shouldDraftPlan =
+    !hasExistingProject ||
+    intent === "build" ||
+    needsExternalContext
+
+  return {
+    hasExistingProject,
+    intent,
+    urls,
+    shouldUseWebTools,
+    shouldDraftPlan,
+    shouldShowDetailedNarration: !hasExistingProject || shouldUseWebTools || shouldDraftPlan,
+    reason: hasExistingProject
+      ? shouldUseWebTools
+        ? "Existing project edit with explicit outside context."
+        : "Existing project follow-up can be handled as a targeted edit."
+      : "Fresh project run should gather enough context before generation.",
+  }
 }
 
 function buildDesignInspirationQuery(prompt: string) {
@@ -616,6 +746,7 @@ function parseFirecrawlExecuteResult(payload: Record<string, unknown>, sourceUrl
       textContent?: unknown
       links?: unknown
       images?: unknown
+      visualBrief?: unknown
       styleHints?: unknown
     }
     const title = typeof parsed.title === "string" ? parsed.title.trim() : ""
@@ -640,6 +771,7 @@ function parseFirecrawlExecuteResult(payload: Record<string, unknown>, sourceUrl
       alt: typeof image.alt === "string" ? image.alt.slice(0, 160) : "",
       src: typeof image.src === "string" ? image.src.slice(0, 500) : "",
     })).filter((image) => image.src)
+    const visualBrief = toStringArray(parsed.visualBrief, 40)
     const rawStyleHints = parsed.styleHints && typeof parsed.styleHints === "object"
       ? parsed.styleHints as Record<string, unknown>
       : {}
@@ -659,6 +791,7 @@ function parseFirecrawlExecuteResult(payload: Record<string, unknown>, sourceUrl
       ...(textContent ? { textContent } : {}),
       ...(links.length ? { links } : {}),
       ...(images.length ? { images } : {}),
+      ...(visualBrief.length ? { visualBrief } : {}),
       ...(colors.length || fonts.length || backgroundColor || textColor
         ? { styleHints: { ...(colors.length ? { colors } : {}), ...(fonts.length ? { fonts } : {}), ...(backgroundColor ? { backgroundColor } : {}), ...(textColor ? { textColor } : {}) } }
         : {}),
@@ -686,8 +819,8 @@ async function runFirecrawlBrowserInspection(params: {
       Authorization: `Bearer ${params.apiKey}`,
     },
     body: JSON.stringify({
-      ttl: 300,
-      activityTtl: 180,
+      ttl: FIRECRAWL_BROWSER_TTL_SECONDS,
+      activityTtl: FIRECRAWL_BROWSER_ACTIVITY_TTL_SECONDS,
       streamWebView: true,
     }),
     signal: params.signal,
@@ -736,6 +869,50 @@ const sections = await page.$$eval("header, nav, main, section, article, footer"
 }));
 const links = await page.$$eval("a[href]", nodes => nodes.slice(0, 40).map(node => ({ text: (node.textContent || "").replace(/\\s+/g, " ").trim().slice(0, 120), href: node.href })));
 const images = await page.$$eval("img[src]", nodes => nodes.slice(0, 30).map(node => ({ alt: node.alt || "", src: node.currentSrc || node.src })));
+const visualBrief = await page.evaluate(() => {
+  const fmt = (value) => String(value || "").replace(/\\s+/g, " ").trim();
+  const viewport = { width: window.innerWidth, height: window.innerHeight };
+  const describeNode = (node, label) => {
+    if (!node) return null;
+    const rect = node.getBoundingClientRect();
+    const styles = window.getComputedStyle(node);
+    const text = fmt(node.textContent).slice(0, 220);
+    return [
+      label + ": " + node.tagName.toLowerCase(),
+      text ? "text=" + JSON.stringify(text) : "",
+      "x=" + Math.round(rect.x) + " y=" + Math.round(rect.y) + " w=" + Math.round(rect.width) + " h=" + Math.round(rect.height),
+      "display=" + styles.display,
+      "position=" + styles.position,
+      "font=" + styles.fontFamily + " " + styles.fontSize + "/" + styles.lineHeight + " weight " + styles.fontWeight,
+      "color=" + styles.color,
+      "bg=" + styles.backgroundColor,
+      "radius=" + styles.borderRadius,
+      "shadow=" + styles.boxShadow,
+    ].filter(Boolean).join(" | ");
+  };
+  const selectors = [
+    ["nav", "navigation"],
+    ["header", "header"],
+    ["main", "main"],
+    ["h1", "primary headline"],
+    ["h2", "secondary headline"],
+    ["button, a[role='button'], .button", "primary action"],
+    ["img, picture, video, canvas, svg", "visual asset"],
+    ["section", "section"],
+    [".card, [class*='card'], article", "card/panel"],
+  ];
+  const details = [
+    "viewport: " + viewport.width + "x" + viewport.height,
+    "body background: " + window.getComputedStyle(document.body).background,
+  ];
+  selectors.forEach(([selector, label]) => {
+    Array.from(document.querySelectorAll(selector)).slice(0, label === "section" ? 8 : 4).forEach((node, index) => {
+      const item = describeNode(node, label + " " + (index + 1));
+      if (item) details.push(item);
+    });
+  });
+  return details.slice(0, 40);
+});
 const styleHints = await page.evaluate(() => {
   const body = window.getComputedStyle(document.body);
   const colorCounts = new Map();
@@ -757,7 +934,7 @@ const styleHints = await page.evaluate(() => {
     textColor: body.color,
   };
 });
-JSON.stringify({ title, description, domOutline, sections, textContent: textContent.replace(/\\s+/g, " ").slice(0, 6000), links, images, styleHints });
+JSON.stringify({ title, description, domOutline, sections, textContent: textContent.replace(/\\s+/g, " ").slice(0, 6000), links, images, visualBrief, styleHints });
 `.trim()
 
   const executeRes = await fetch(`https://api.firecrawl.dev/v2/browser/${encodeURIComponent(sessionId)}/execute`, {
@@ -792,6 +969,7 @@ JSON.stringify({ title, description, domOutline, sections, textContent: textCont
     sessionId,
     baseUrl: getOrigin(liveUrl),
     pageTitle: evidence.title || params.targetUrl,
+    expiresAt: new Date(Date.now() + FIRECRAWL_BROWSER_TTL_SECONDS * 1000).toISOString(),
     evidence,
   }
 }
@@ -877,10 +1055,13 @@ async function runFirecrawlScrapeFallback(params: {
   }
 }
 
-function buildHeuristicWebPlan(prompt: string): AgentWebPlan {
-  const urls = extractUrls(prompt)
-  const intent = inferWebIntent(prompt)
-  const needsDesignInspiration = urls.length === 0 && shouldResearchDesignInspiration(prompt, intent)
+function buildHeuristicWebPlan(prompt: string, profile?: ComputerRunProfile): AgentWebPlan {
+  const urls = extractInspectableUrls(prompt)
+  const intent = profile?.intent || inferWebIntent(prompt)
+  const needsDesignInspiration =
+    !profile?.hasExistingProject &&
+    urls.length === 0 &&
+    shouldResearchDesignInspiration(prompt, intent)
   const needsSearch = urls.length === 0 && (intent === "research" || needsDesignInspiration)
   const shouldInspect = urls.length > 0
   const actions: AgentWebAction[] = []
@@ -901,12 +1082,14 @@ function buildHeuristicWebPlan(prompt: string): AgentWebPlan {
         ? needsDesignInspiration
           ? "The prompt would benefit from design inspiration before generation."
           : "The prompt asks for external research."
-        : "No specific web context is required.",
+        : profile?.hasExistingProject
+          ? "This is a targeted edit to an existing project, so web tools are not required."
+          : "No specific web context is required.",
   }
 }
 
-function parseAgentWebPlan(text: string, prompt: string): AgentWebPlan {
-  const fallback = buildHeuristicWebPlan(prompt)
+function parseAgentWebPlan(text: string, prompt: string, profile?: ComputerRunProfile): AgentWebPlan {
+  const fallback = buildHeuristicWebPlan(prompt, profile)
   const parsed = extractJson(text) as Partial<AgentWebPlan> | null
   if (!parsed) return fallback
 
@@ -914,9 +1097,9 @@ function parseAgentWebPlan(text: string, prompt: string): AgentWebPlan {
     ? parsed.actions.map(normalizeAgentWebAction).filter((action): action is AgentWebAction => Boolean(action))
     : []
   const targetUrls = Array.isArray(parsed.targetUrls)
-    ? parsed.targetUrls.filter((url): url is string => typeof url === "string" && url.startsWith("http")).slice(0, 3)
+    ? parsed.targetUrls.filter((url): url is string => typeof url === "string" && isInspectableExternalUrl(url)).slice(0, 3)
     : []
-  const promptUrls = extractUrls(prompt)
+  const promptUrls = extractInspectableUrls(prompt)
   const mergedTargetUrls = Array.from(new Set([...promptUrls, ...targetUrls])).slice(0, 3)
   const intent = normalizeAgentWebIntent(parsed.intent) || fallback.intent
   const searchQuery = typeof parsed.searchQuery === "string" && parsed.searchQuery.trim()
@@ -946,8 +1129,12 @@ function parseAgentWebPlan(text: string, prompt: string): AgentWebPlan {
   }
 }
 
-async function createAgentWebPlan(prompt: string, planText: string): Promise<AgentWebPlan> {
-  const heuristic = buildHeuristicWebPlan(prompt)
+async function createAgentWebPlan(prompt: string, planText: string, profile?: ComputerRunProfile): Promise<AgentWebPlan> {
+  const heuristic = buildHeuristicWebPlan(prompt, profile)
+  if (profile && !profile.shouldUseWebTools) {
+    return heuristic
+  }
+
   try {
     const response = await createComputerAgentMessage(anthropic, {
       max_tokens: 250,
@@ -966,6 +1153,7 @@ Available actions:
 Rules:
 - Return ONLY JSON.
 - Detected URLs strongly favor inspect_page and collect_dom.
+- Localhost, 127.0.0.1, .local, and Lotus /computer/ URLs are internal app/runtime URLs. Never inspect them with browser tools.
 - Clone/reference URLs require page inspection.
 - Research/latest/current/competitor requests may use search_web.
 - New website/app builds without URLs should usually use search_web, then inspect_page and collect_dom for design inspiration before generation.
@@ -984,12 +1172,12 @@ Format:
       messages: [
         {
           role: "user",
-          content: `User request:\n${prompt}\n\nPlanning context:\n${planText || "none"}\n\nHeuristic default:\n${JSON.stringify(heuristic)}`,
+          content: `User request:\n${prompt}\n\nPlanning context:\n${planText || "none"}\n\nRun profile:\n${profile ? JSON.stringify(profile) : "none"}\n\nHeuristic default:\n${JSON.stringify(heuristic)}`,
         },
       ],
     }, { enableMcp: false })
 
-    return parseAgentWebPlan(extractTextFromAnthropicContent(response.content), prompt)
+    return parseAgentWebPlan(extractTextFromAnthropicContent(response.content), prompt, profile)
   } catch (err) {
     console.error("Computer web plan failed:", err)
     return heuristic
@@ -1002,11 +1190,12 @@ function buildAgentGenerationPrompt(params: {
   webEvidence: WebEvidence[]
   isEdit?: boolean
 }) {
+  const hasWebEvidence = params.webEvidence.length > 0
   const contextSections = [
     params.planText.trim()
       ? `Agent plan:\n${params.planText.trim()}`
       : "",
-    params.webEvidence.length
+    hasWebEvidence
       ? `Agent web context:\n${formatWebEvidenceList(params.webEvidence)}`
       : "",
     params.isEdit
@@ -1014,14 +1203,33 @@ function buildAgentGenerationPrompt(params: {
       : "",
   ].filter(Boolean)
 
-  if (!contextSections.length) return params.prompt
+  if (params.isEdit && !contextSections.length) return params.prompt
 
-  return `Build the app requested by the user using the agent context below.
+  const taskVerb = params.isEdit ? "Edit the existing app" : "Build the app"
+  const evidenceDirective = hasWebEvidence
+    ? `
+REFERENCE / DOM RECONSTRUCTION RULES:
+- Treat Agent web context as a strict visual design brief, not loose inspiration.
+- Use the captured DOM outline, sections, visual brief, style hints, image list, and text content to reconstruct the reference's real structure and density.
+- Preserve the reference's spatial rhythm: hero proportions, navigation placement, content density, card/panel treatment, image usage, whitespace, border radius, shadows, and button geometry.
+- If visualBrief includes element dimensions or positions, use them to guide responsive layout ratios and hierarchy.
+- Reuse real image URLs from the evidence when suitable and safe. Do not replace a product/place/person reference with vague dark atmospheric imagery.
+- Do not add generic sections that were not present in the reference unless the user explicitly requested them.
+`.trim()
+    : `
+NO REFERENCE CONTEXT:
+- Invent a distinctive concept from the user's domain. Do not produce a generic startup template.
+- Choose one memorable visual hook before coding and make the implementation express it through layout, typography, color, imagery/texture, and motion.
+`.trim()
+
+  return `${taskVerb} requested by the user using the agent context below.
 
 User request:
 ${params.prompt}
 
-${contextSections.join("\n\n")}
+${contextSections.length ? `${contextSections.join("\n\n")}\n\n` : ""}${FRONTEND_DESIGN_SKILL}
+
+${evidenceDirective}
 
 DESIGN SPECIFICATION — treat the web context above as a hard design brief, not optional context:
 - Extract the exact color palette, fonts, spacing density, and layout structure from the inspected pages. Reproduce them via CSS custom properties. Do not substitute generic Tailwind defaults.
@@ -1051,6 +1259,8 @@ ABSOLUTE BANS:
 - Inter or Space Grotesk as the only font.
 - Flat solid backgrounds with no atmosphere.
 - Placeholder copy anywhere in the output.
+- Repeating the exact same Lotus self-promotional template.
+- "Build websites faster, smarter..." style generic AI-builder hero copy unless the user specifically asks for that wording.
 
 If the request is to clone or recreate a website, build a frontend-only recreation with maintainable React/Tailwind, responsive layout, and local-only interactions. Do not clone backend behavior, authentication, payments, private data, or remote scripts unless explicitly asked.`
 }
@@ -1091,6 +1301,7 @@ export async function POST(req: Request) {
 
     const storedPrompt = typeof data.prompt === "string" ? data.prompt.trim() : ""
     const prompt = parsed.data.prompt?.trim() || storedPrompt || "No prompt provided"
+    const runProfile = getComputerRunProfile(prompt, projectFiles.length > 0)
     const builderModel = typeof data.model === "string" && data.model.trim()
       ? data.model.trim()
       : "GPT-4-1 Mini"
@@ -1139,36 +1350,38 @@ export async function POST(req: Request) {
 
     await appendRunEvent({
       id: crypto.randomUUID(),
-      title: "Understanding request",
-      description: undefined,
+      title: runProfile.hasExistingProject ? "Reading request" : "Understanding request",
+      description: runProfile.hasExistingProject ? runProfile.reason : undefined,
       status: "complete",
       kind: "understanding",
       createdAt: new Date().toISOString(),
     })
 
-    const understandingNarration = await createComputerAgentMessage(anthropic, {
-      max_tokens: 160,
-      temperature: 0.3,
-      system: "You are an autonomous agent narrating your reasoning. First person. 2-3 sentences. Plain text. No markdown.",
-      messages: [{
-        role: "user",
-        content: `User request: ${prompt}\n\nIn 2-3 sentences, explain what you understand this request to be and what your first instinct is for how to approach it.`
-      }]
-    }).catch(() => null)
+    if (runProfile.shouldShowDetailedNarration) {
+      const understandingNarration = await createComputerAgentMessage(anthropic, {
+        max_tokens: 160,
+        temperature: 0.3,
+        system: "You are an autonomous agent narrating your reasoning. First person. 2-3 sentences. Plain text. No markdown.",
+        messages: [{
+          role: "user",
+          content: `User request: ${prompt}\n\nRun profile: ${JSON.stringify(runProfile)}\n\nIn 2-3 sentences, explain what you understand this request to be and what your first instinct is for how to approach it.`
+        }]
+      }).catch(() => null)
 
-    const understandingText = understandingNarration
-      ? extractTextFromAnthropicContent(understandingNarration.content)
-      : null
+      const understandingText = understandingNarration
+        ? extractTextFromAnthropicContent(understandingNarration.content)
+        : null
 
-    if (understandingText) {
-      await appendRunEvent({
-        id: crypto.randomUUID(),
-        title: "Understanding insight",
-        description: understandingText,
-        status: "complete",
-        kind: "understanding",
-        createdAt: new Date().toISOString(),
-      })
+      if (understandingText) {
+        await appendRunEvent({
+          id: crypto.randomUUID(),
+          title: "Understanding insight",
+          description: understandingText,
+          status: "complete",
+          kind: "understanding",
+          createdAt: new Date().toISOString(),
+        })
+      }
     }
 
     let planText = ""
@@ -1177,7 +1390,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, message: "Run no longer active" })
     }
 
-    try {
+    if (!runProfile.shouldDraftPlan) {
+      await appendRunEvent({
+        id: crypto.randomUUID(),
+        title: "Planning execution",
+        description: "Targeted edit, skipped plan drafting.",
+        status: "skipped",
+        kind: "planning",
+        createdAt: new Date().toISOString(),
+      })
+    } else try {
       const response = await createComputerAgentMessage(anthropic, {
         max_tokens: 500,
         temperature: 0.2,
@@ -1197,7 +1419,7 @@ Rules:
         messages: [
           {
             role: "user",
-            content: `User request: ${prompt}`,
+            content: `User request: ${prompt}\n\nRun profile:\n${JSON.stringify(runProfile)}`,
           },
         ],
       })
@@ -1237,16 +1459,18 @@ Rules:
       })
     }
 
-    const webPlan = await createAgentWebPlan(prompt, planText)
+    const webPlan = await createAgentWebPlan(prompt, planText, runProfile)
 
-    await appendRunEvent({
-      id: crypto.randomUUID(),
-      title: "Web plan",
-      description: `${webPlan.reason}\nActions: ${webPlan.actions.join(", ")}`,
-      status: "complete",
-      kind: "planning",
-      createdAt: new Date().toISOString(),
-    })
+    if (runProfile.shouldUseWebTools) {
+      await appendRunEvent({
+        id: crypto.randomUUID(),
+        title: "Web plan",
+        description: `${webPlan.reason}\nActions: ${webPlan.actions.join(", ")}`,
+        status: "complete",
+        kind: "planning",
+        createdAt: new Date().toISOString(),
+      })
+    }
 
     if (!(await isActiveRun(docRef, runId))) {
       return NextResponse.json({ ok: false, message: "Run no longer active" })
@@ -1257,7 +1481,7 @@ Rules:
     const webEvidence: WebEvidence[] = []
     let searchResults: Array<{ title: string; url: string; description?: string }> = []
 
-    if (webPlan.actions.includes("skip")) {
+    if (runProfile.shouldUseWebTools && webPlan.actions.includes("skip")) {
       await appendRunEvent({
         id: crypto.randomUUID(),
         title: "Web skipped",
@@ -1394,6 +1618,7 @@ Rules:
             browserSessionId: inspection.sessionId || null,
             browserBaseUrl: inspection.baseUrl || null,
             browserProvider: "firecrawl",
+            browserExpiresAt: inspection.expiresAt,
             pageTitle: inspection.pageTitle || targetUrl,
           },
         })
@@ -1518,7 +1743,9 @@ Rules:
     // — Generation decision phase —
     let generationDecision: GenerationDecision = { shouldGenerate: true, reason: "builder_run" }
 
-    try {
+    if (runProfile.hasExistingProject && !runProfile.shouldUseWebTools) {
+      generationDecision = { shouldGenerate: true, reason: "targeted_edit" }
+    } else try {
       const generationDecisionRes = await createComputerAgentMessage(anthropic, {
         temperature: 0,
         max_tokens: 120,
@@ -1577,6 +1804,7 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
       createdAt: new Date().toISOString(),
     })
 
+    if (runProfile.shouldShowDetailedNarration) {
     const buildNarration = await createComputerAgentMessage(anthropic, {
       max_tokens: 160,
       temperature: 0.3,
@@ -1600,6 +1828,7 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
         kind: "code",
         createdAt: new Date().toISOString(),
       })
+    }
     }
 
     if (!(await isActiveRun(docRef, runId))) {
@@ -1657,7 +1886,7 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
 
         let lastEventId: string | null = null
 
-        generatedFiles = await parseGenerateResponse(genRes, async (path) => {
+        const generatedPatchFiles = await parseGenerateResponse(genRes, async (path) => {
           const newEventId = crypto.randomUUID()
           lastEventId = newEventId
           
@@ -1674,6 +1903,7 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
             },
           })
         })
+        generatedFiles = generatedPatchFiles
 
         // Surgical merge: Combine newly generated/edited files with existing project files
         if (projectFiles.length > 0 && generatedFiles.length > 0) {
@@ -1699,13 +1929,41 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
             const d = s.data() || {}
             if (d.currentRunId !== runId) return
             const t = Array.isArray(d.timeline) ? [...d.timeline] : []
+            const existingByPath = new Map(projectFiles.map((file) => [file.path, file]))
+            const patchByPath = new Map(generatedPatchFiles.map((file) => [file.path, file]))
+            const metadataBudget = { remaining: MAX_TIMELINE_DIFF_CONTENT_CHARS }
             let changed = false
             for (let i = 0; i < t.length; i++) {
               if (
                 t[i].status === "running" &&
                 (t[i].id === generatingEventId || t[i].title.startsWith("Generating "))
               ) {
-                t[i] = { ...t[i], status: "complete" }
+                const filePath = typeof t[i].metadata?.filePath === "string" ? t[i].metadata.filePath : ""
+                const patchFile = filePath ? patchByPath.get(filePath) : undefined
+                t[i] = {
+                  ...t[i],
+                  status: "complete",
+                  ...(patchFile
+                    ? {
+                        metadata: {
+                          ...(t[i].metadata || {}),
+                          ...buildFileEventMetadata({
+                            file: patchFile,
+                            existingFile: existingByPath.get(patchFile.path),
+                            isEdit: projectFiles.length > 0,
+                            budget: metadataBudget,
+                          }),
+                        },
+                      }
+                    : t[i].id === generatingEventId
+                      ? {}
+                      : {
+                          metadata: {
+                            ...(t[i].metadata || {}),
+                            diffContentOmitted: true,
+                          },
+                        }),
+                }
                 changed = true
               }
             }
@@ -1902,6 +2160,7 @@ Instructions:
 
             if (fixedFiles.length > 0) {
               generatedFiles = fixedFiles
+              await persistGeneratedFilesForSession(docRef, generatedFiles)
             }
 
             await appendRunEvent({
@@ -1964,6 +2223,8 @@ Instructions:
       let sandboxUrl: string | null = null
       let sandboxErrors = ""
       let sandboxLogs = ""
+      let postPreviewCheckFailed = false
+      let postPreviewCheckOutput = ""
 
       try {
         await appendRunEvent({
@@ -2041,6 +2302,19 @@ Instructions:
                 ? event.logs.dev.slice(0, 1000)
                 : ""
               if (devLog) sandboxLogs = devLog
+            } else if (event?.type === "quality_check") {
+              if (event.status === "error") {
+                postPreviewCheckFailed = true
+                const label = typeof event.label === "string" ? event.label : "Application check"
+                const command = typeof event.command === "string" ? event.command : ""
+                const output = typeof event.output === "string" ? event.output : ""
+                postPreviewCheckOutput = [
+                  label,
+                  command ? `Command: ${command}` : "",
+                  output,
+                ].filter(Boolean).join("\n").slice(0, 4000)
+                sandboxErrors = postPreviewCheckOutput
+              }
             } else if (event?.type === "log") {
               const chunk = typeof event.data === "string" ? event.data.trim() : ""
               if (chunk) sandboxLogs = (sandboxLogs + "\n" + chunk).slice(-2000)
@@ -2052,7 +2326,7 @@ Instructions:
 
               await appendRunEvent({
                 id: crypto.randomUUID(),
-                title: status === "running" ? "Running command" : "Command completed",
+                title: status === "running" ? "Running command" : status === "error" ? "Command failed" : "Command completed",
                 description: typeof event.message === "string" ? event.message : undefined,
                 status,
                 kind: "sandbox",
@@ -2071,7 +2345,7 @@ Instructions:
         sandboxErrors = err instanceof Error ? err.message : "Sandbox call failed"
       }
 
-      if (sandboxSuccess) {
+      if (sandboxSuccess && !postPreviewCheckFailed) {
         await appendRunEvent({
           id: crypto.randomUUID(),
           title: "Sandbox run successful",
@@ -2081,11 +2355,16 @@ Instructions:
           createdAt: new Date().toISOString(),
         })
       } else {
-        const errorDescription = (sandboxErrors || sandboxLogs || "Unknown runtime error").slice(0, 800)
+        const errorDescription = (
+          postPreviewCheckOutput ||
+          sandboxErrors ||
+          sandboxLogs ||
+          "Unknown runtime error"
+        ).slice(0, 800)
 
         await appendRunEvent({
           id: crypto.randomUUID(),
-          title: "Sandbox error",
+          title: postPreviewCheckFailed ? "Application check failed" : "Sandbox error",
           description: errorDescription,
           status: "error",
           kind: "sandbox",
@@ -2100,7 +2379,7 @@ Instructions:
             temperature: 0,
             max_tokens: 120,
             system: `
-Decide if runtime errors should be fixed.
+Decide if generated application errors should be fixed.
 
 Return ONLY JSON.
 
@@ -2113,7 +2392,7 @@ Format:
             messages: [
               {
                 role: "user",
-                content: `Runtime error:\n${sandboxErrors || sandboxLogs}\n\nOriginal prompt:\n${prompt}`,
+                content: `Application error:\n${postPreviewCheckOutput || sandboxErrors || sandboxLogs}\n\nOriginal prompt:\n${prompt}`,
               },
             ],
           }, { enableMcp: false })
@@ -2131,13 +2410,14 @@ Format:
         }
 
         if (shouldFix && generatedFiles.length > 0) {
-          const runtimeFixPrompt = `Fix runtime errors in this codebase.
+          const runtimeFixPrompt = `Fix the generated application in this codebase.
 
 Error:
-${sandboxErrors || sandboxLogs}
+${postPreviewCheckOutput || sandboxErrors || sandboxLogs}
 
 Rules:
 - Fix only the root issue
+- Resolve the failing runtime, lint, type, or build check
 - Do NOT rewrite entire project
 - Keep changes minimal`
 
@@ -2169,6 +2449,7 @@ Rules:
 
             if (runtimeFixedFiles.length > 0) {
               generatedFiles = runtimeFixedFiles
+              await persistGeneratedFilesForSession(docRef, generatedFiles)
             }
 
             await appendRunEvent({

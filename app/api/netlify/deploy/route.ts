@@ -3,6 +3,7 @@ import { NextResponse } from "next/server"
 import { Sandbox } from "@e2b/code-interpreter"
 import { adminDb } from "@/lib/firebase-admin"
 import { getUserNetlifyToken, requireUserUid } from "@/lib/server-auth"
+import { normalizeGeneratedCodeFiles } from "@/lib/generated-code-normalization"
 import { Buffer } from "buffer"
 
 export const runtime = "nodejs"
@@ -195,7 +196,7 @@ export async function POST(req: Request) {
           return
         }
 
-        project.files = normalizeSourceImports(project.files)
+        project.files = normalizeSourceImports(normalizeGeneratedCodeFiles(project.files))
 
         // Ensure netlify.toml exists for clarity/portability (even though we're deploying dist output directly)
         const hasNetlifyToml = project.files.some((f: any) => f?.path === "netlify.toml")

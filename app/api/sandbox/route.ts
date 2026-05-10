@@ -2,6 +2,7 @@ import { Sandbox } from "@e2b/code-interpreter"
 import { adminDb } from "@/lib/firebase-admin"
 import { requireUserUid } from "@/lib/server-auth"
 import { decryptEnvVars } from "@/lib/encrypt-env"
+import { normalizeGeneratedCodeFiles } from "@/lib/generated-code-normalization"
 import crypto from "crypto"
 
 export const runtime = "nodejs"
@@ -479,6 +480,156 @@ function inferFramework(pkg: any): "next" | "vite" | "unknown" {
   if (deps?.next) return "next"
   if (deps?.vite) return "vite"
   return "unknown"
+}
+
+type QualityCheckCommand = {
+  step: string
+  label: string
+  command: string
+  timeoutMs: number
+}
+
+type QualityCheckFailure = {
+  label: string
+  command: string
+  output: string
+}
+
+function hasPackageDependency(pkg: any, name: string): boolean {
+  return Boolean(pkg?.dependencies?.[name] || pkg?.devDependencies?.[name])
+}
+
+function getPackageScript(pkg: any, name: string): string {
+  const script = pkg?.scripts?.[name]
+  return typeof script === "string" ? script.trim() : ""
+}
+
+async function getQualityCheckCommands(sandbox: Sandbox, pkg: any): Promise<QualityCheckCommand[]> {
+  const commands: QualityCheckCommand[] = []
+  const lintScript = getPackageScript(pkg, "lint")
+  const typecheckScript = getPackageScript(pkg, "typecheck")
+  const buildScript = getPackageScript(pkg, "build")
+  const hasTsconfig = Boolean(await readFileMaybe(sandbox, `${PROJECT_DIR}/tsconfig.json`))
+
+  if (lintScript) {
+    commands.push({
+      step: "lint",
+      label: "Lint check",
+      command: `cd ${PROJECT_DIR} && npm run lint 2>&1`,
+      timeoutMs: 120000,
+    })
+  }
+
+  if (typecheckScript) {
+    commands.push({
+      step: "typecheck",
+      label: "Type check",
+      command: `cd ${PROJECT_DIR} && npm run typecheck 2>&1`,
+      timeoutMs: 120000,
+    })
+  } else if (hasTsconfig && hasPackageDependency(pkg, "typescript") && !/\btsc\b/.test(buildScript)) {
+    commands.push({
+      step: "typecheck",
+      label: "Type check",
+      command: `cd ${PROJECT_DIR} && npx tsc --noEmit --pretty false 2>&1`,
+      timeoutMs: 120000,
+    })
+  }
+
+  if (buildScript) {
+    commands.push({
+      step: "build",
+      label: "Build check",
+      command: `cd ${PROJECT_DIR} && npm run build 2>&1`,
+      timeoutMs: 180000,
+    })
+  }
+
+  return commands
+}
+
+function compactCommandOutput(stdout?: string, stderr?: string): string {
+  const output = `${stdout || ""}\n${stderr || ""}`
+    .replace(/\u001b\[[0-9;]*m/g, "")
+    .trim()
+
+  return output.slice(-4000)
+}
+
+async function runPreviewQualityChecks(
+  sandbox: Sandbox,
+  pkg: any,
+  send: (obj: any) => void,
+): Promise<QualityCheckFailure | null> {
+  const checks = await getQualityCheckCommands(sandbox, pkg)
+  if (checks.length === 0) return null
+
+  for (const check of checks) {
+    send({
+      type: "step",
+      step: check.step,
+      status: "running",
+      message: check.label,
+      command: check.command,
+    })
+
+    try {
+      const result = await cmd(sandbox, check.command, check.timeoutMs)
+      const output = compactCommandOutput(result.stdout, result.stderr)
+      const failed = typeof result.exitCode === "number" && result.exitCode !== 0
+
+      send({
+        type: "step",
+        step: check.step,
+        status: failed ? "error" : "success",
+        message: failed ? `${check.label} failed` : `${check.label} passed`,
+        command: check.command,
+        output,
+      })
+
+      if (failed) {
+        const failure = {
+          label: check.label,
+          command: check.command,
+          output: output || `${check.label} failed with exit code ${result.exitCode}`,
+        }
+
+        send({
+          type: "quality_check",
+          status: "error",
+          label: failure.label,
+          command: failure.command,
+          output: failure.output,
+        })
+
+        return failure
+      }
+    } catch (error) {
+      const output = error instanceof Error ? error.message : `${check.label} failed`
+      const failure = { label: check.label, command: check.command, output }
+
+      send({
+        type: "step",
+        step: check.step,
+        status: "error",
+        message: `${check.label} failed`,
+        command: check.command,
+        output,
+      })
+      send({
+        type: "quality_check",
+        status: "error",
+        label: failure.label,
+        command: failure.command,
+        output: failure.output,
+      })
+
+      return failure
+    }
+  }
+
+  send({ type: "quality_check", status: "success" })
+  return null
 }
 
 async function ensureViteAllowedHosts(sandbox: Sandbox, port: number): Promise<void> {
@@ -1098,7 +1249,7 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json()
-    files = body?.files
+    files = Array.isArray(body?.files) ? normalizeGeneratedCodeFiles(body.files) : body?.files
     sandboxId = body?.sandboxId
     projectId = typeof body?.projectId === "string" && body.projectId.trim() ? body.projectId.trim() : undefined
     if (body && typeof body.injectVisualEdit === "boolean") injectVisualEdit = body.injectVisualEdit
@@ -1573,7 +1724,12 @@ export async function POST(req: Request) {
               warning = "Preview is slow to start — you may want to simplify the project"
             }
 
-            emitSuccess(url, sandbox.sandboxId, warning)
+            const qualityFailure = await runPreviewQualityChecks(sandbox, pkg, send)
+            const successWarning = qualityFailure
+              ? `${qualityFailure.label} found issues after the preview started.`
+              : warning
+
+            emitSuccess(url, sandbox.sandboxId, successWarning)
             return
           }
 

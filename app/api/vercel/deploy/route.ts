@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { adminDb } from "@/lib/firebase-admin"
 import { requireUserUid } from "@/lib/server-auth"
+import { normalizeGeneratedCodeFiles } from "@/lib/generated-code-normalization"
 
 export const runtime = "nodejs"
 
@@ -102,7 +103,7 @@ export async function POST(req: Request) {
         send({ type: "step", step: "starting", status: "running", message: "Starting deployment..." })
         send({ type: "log", message: "Uploading files..." })
 
-        const normalizedFiles = normalizeSourceImports(project.files)
+        const normalizedFiles = normalizeSourceImports(normalizeGeneratedCodeFiles(project.files))
 
         const files = normalizedFiles.map((f: any) => ({
           file: f.path,
