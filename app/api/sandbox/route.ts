@@ -18,7 +18,6 @@ const DEV_PORT = 3000
 const DEV_PORT_CANDIDATES = [3000, 3001, 3002, 3003, 3004, 3005]
 const SANDBOX_TTL_MS = 55 * 60 * 1000
 const MAX_WAIT_SEC = 150
-const PORT_CLEANUP_WAIT_MS = 2000
 const LOG_POLL_INTERVAL_MS = 800
 
 interface ReadinessCheckResult {
@@ -145,6 +144,9 @@ function getFatalDevError(devLogs: string): { reason: string; category: "build" 
   if (/Cannot find module|ERR_MODULE_NOT_FOUND|Module not found/i.test(logs)) {
     return { reason: "missing-module", category: "deps" }
   }
+  if (/Failed to resolve import/i.test(logs)) {
+    return { reason: "missing-import", category: "build" }
+  }
   return null
 }
 
@@ -194,29 +196,6 @@ async function selectDevPort(sandbox: Sandbox): Promise<number> {
   return DEV_PORT
 }
 
-/** Get PID of the process listening on the given port, or empty string. */
-async function getListeningPid(sandbox: Sandbox, port: number): Promise<string> {
-  try {
-    const result = await cmd(
-      sandbox,
-      `bash -c '
-        if command -v lsof >/dev/null 2>&1; then
-          lsof -ti tcp:${port} -sTCP:LISTEN 2>/dev/null | head -1
-          exit 0
-        fi
-        if command -v ss >/dev/null 2>&1; then
-          ss -tlnp 2>/dev/null | grep ":${port}[^0-9]" | head -1 | sed -n "s/.*pid=\\([0-9]*\\).*/\\1/p"
-          exit 0
-        fi
-      '`,
-      5000
-    )
-    const pid = (result.stdout || "").trim()
-    return pid && /^\d+$/.test(pid) ? pid : ""
-  } catch {
-    return ""
-  }
-}
 
 function normalizeLogLine(line: string): string {
   return line.replace(/\s+/g, " ").trim().toLowerCase()
@@ -235,7 +214,6 @@ function isSandboxNotFoundError(error: unknown): boolean {
 
 function devLogShowsReady(log: string, port: number): boolean {
   if (!log || !log.trim()) return false
-  const normalized = normalizeLogLine(log)
   const lines = log.split(/\r?\n/)
   
   const readyPatterns = [
@@ -371,7 +349,7 @@ const SANDBOX_DEPENDENCY_VERSION_OVERRIDES: Record<string, string> = {
   "vite": "^5.4.11",
   "@vitejs/plugin-react": "^4.3.4",
   "lucide-react": "^0.577.0",
-  "framer-motion": "^12.36.0",
+  "framer-motion": "^11.0.0",
 }
 
 async function normalizePackageJsonDependenciesForPreview(sandbox: Sandbox): Promise<any> {
@@ -482,155 +460,6 @@ function inferFramework(pkg: any): "next" | "vite" | "unknown" {
   return "unknown"
 }
 
-type QualityCheckCommand = {
-  step: string
-  label: string
-  command: string
-  timeoutMs: number
-}
-
-type QualityCheckFailure = {
-  label: string
-  command: string
-  output: string
-}
-
-function hasPackageDependency(pkg: any, name: string): boolean {
-  return Boolean(pkg?.dependencies?.[name] || pkg?.devDependencies?.[name])
-}
-
-function getPackageScript(pkg: any, name: string): string {
-  const script = pkg?.scripts?.[name]
-  return typeof script === "string" ? script.trim() : ""
-}
-
-async function getQualityCheckCommands(sandbox: Sandbox, pkg: any): Promise<QualityCheckCommand[]> {
-  const commands: QualityCheckCommand[] = []
-  const lintScript = getPackageScript(pkg, "lint")
-  const typecheckScript = getPackageScript(pkg, "typecheck")
-  const buildScript = getPackageScript(pkg, "build")
-  const hasTsconfig = Boolean(await readFileMaybe(sandbox, `${PROJECT_DIR}/tsconfig.json`))
-
-  if (lintScript) {
-    commands.push({
-      step: "lint",
-      label: "Lint check",
-      command: `cd ${PROJECT_DIR} && npm run lint 2>&1`,
-      timeoutMs: 120000,
-    })
-  }
-
-  if (typecheckScript) {
-    commands.push({
-      step: "typecheck",
-      label: "Type check",
-      command: `cd ${PROJECT_DIR} && npm run typecheck 2>&1`,
-      timeoutMs: 120000,
-    })
-  } else if (hasTsconfig && hasPackageDependency(pkg, "typescript") && !/\btsc\b/.test(buildScript)) {
-    commands.push({
-      step: "typecheck",
-      label: "Type check",
-      command: `cd ${PROJECT_DIR} && npx tsc --noEmit --pretty false 2>&1`,
-      timeoutMs: 120000,
-    })
-  }
-
-  if (buildScript) {
-    commands.push({
-      step: "build",
-      label: "Build check",
-      command: `cd ${PROJECT_DIR} && npm run build 2>&1`,
-      timeoutMs: 180000,
-    })
-  }
-
-  return commands
-}
-
-function compactCommandOutput(stdout?: string, stderr?: string): string {
-  const output = `${stdout || ""}\n${stderr || ""}`
-    .replace(/\u001b\[[0-9;]*m/g, "")
-    .trim()
-
-  return output.slice(-4000)
-}
-
-async function runPreviewQualityChecks(
-  sandbox: Sandbox,
-  pkg: any,
-  send: (obj: any) => void,
-): Promise<QualityCheckFailure | null> {
-  const checks = await getQualityCheckCommands(sandbox, pkg)
-  if (checks.length === 0) return null
-
-  for (const check of checks) {
-    send({
-      type: "step",
-      step: check.step,
-      status: "running",
-      message: check.label,
-      command: check.command,
-    })
-
-    try {
-      const result = await cmd(sandbox, check.command, check.timeoutMs)
-      const output = compactCommandOutput(result.stdout, result.stderr)
-      const failed = typeof result.exitCode === "number" && result.exitCode !== 0
-
-      send({
-        type: "step",
-        step: check.step,
-        status: failed ? "error" : "success",
-        message: failed ? `${check.label} failed` : `${check.label} passed`,
-        command: check.command,
-        output,
-      })
-
-      if (failed) {
-        const failure = {
-          label: check.label,
-          command: check.command,
-          output: output || `${check.label} failed with exit code ${result.exitCode}`,
-        }
-
-        send({
-          type: "quality_check",
-          status: "error",
-          label: failure.label,
-          command: failure.command,
-          output: failure.output,
-        })
-
-        return failure
-      }
-    } catch (error) {
-      const output = error instanceof Error ? error.message : `${check.label} failed`
-      const failure = { label: check.label, command: check.command, output }
-
-      send({
-        type: "step",
-        step: check.step,
-        status: "error",
-        message: `${check.label} failed`,
-        command: check.command,
-        output,
-      })
-      send({
-        type: "quality_check",
-        status: "error",
-        label: failure.label,
-        command: failure.command,
-        output: failure.output,
-      })
-
-      return failure
-    }
-  }
-
-  send({ type: "quality_check", status: "success" })
-  return null
-}
 
 async function ensureViteAllowedHosts(sandbox: Sandbox, port: number): Promise<void> {
   const configPaths = [
@@ -1708,13 +1537,26 @@ export async function POST(req: Request) {
 
             console.log(`[sandbox] Server ready! Reason: ${readyCheck.reason}, publicUrlReady=${publicUrlReady}`)
             
-            // Get final logs
+            // Get final logs — also brief delay to catch Vite lazy-resolution errors
+            await new Promise(r => setTimeout(r, 2500))
             const finalLogs = await readTail(sandbox, DEV_LOG_PATH, 300)
             if (finalLogs && finalLogs !== lastLogSent) {
               const newLogs = lastLogSent ? finalLogs.slice(lastLogSent.length) : finalLogs
               if (newLogs?.trim()) {
                 send({ type: "log", step: "dev", stream: "stdout", data: newLogs })
               }
+            }
+
+            // Check for Vite import resolution errors that appear after the server starts
+            const fatalAfterReady = getFatalDevError(finalLogs)
+            if (fatalAfterReady) {
+              emitTerminalError({
+                error: `Dev server started but has build errors: ${fatalAfterReady.reason}`,
+                logs: { dev: finalLogs },
+                failureCategory: fatalAfterReady.category,
+                failureReason: fatalAfterReady.reason,
+              })
+              return
             }
 
             // Add warning if it took a long time
@@ -1724,12 +1566,7 @@ export async function POST(req: Request) {
               warning = "Preview is slow to start — you may want to simplify the project"
             }
 
-            const qualityFailure = await runPreviewQualityChecks(sandbox, pkg, send)
-            const successWarning = qualityFailure
-              ? `${qualityFailure.label} found issues after the preview started.`
-              : warning
-
-            emitSuccess(url, sandbox.sandboxId, successWarning)
+            emitSuccess(url, sandbox.sandboxId, warning)
             return
           }
 

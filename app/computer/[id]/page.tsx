@@ -47,6 +47,7 @@ import { cn } from "@/lib/utils"
 import { useAuth } from "@/contexts/auth-context"
 import { db } from "@/lib/firebase"
 import { DeployTerminal } from "@/components/project/deploy-terminal"
+import { QuestionTool, type QuestionConfig, type QuestionAnswer } from "@/components/computer/question-tool"
 
 // ─── Types (unchanged) ────────────────────────────────────────────────────────
 
@@ -56,7 +57,7 @@ type ComputerTimelineEvent = {
   id?: string
   title: string
   status: "pending" | "running" | "complete" | "error" | "skipped"
-  kind?: "understanding" | "research" | "browser" | "planning" | "code" | "sandbox" | "fix" | "security" | "user"
+  kind?: "understanding" | "research" | "browser" | "planning" | "code" | "sandbox" | "fix" | "security" | "user" | "question"
   createdAt: string
   description?: string
   runId?: string
@@ -699,6 +700,63 @@ function PlanDescription({ text }: { text: string }) {
 
 // ─── Feed item ────────────────────────────────────────────────────────────────
 
+function SupabaseQuestionCard({ onSetup, onDecline }: { onSetup: () => void; onDecline?: () => void }) {
+  const [dismissed, setDismissed] = useState(false)
+  const [setting, setSetting] = useState(false)
+
+  if (dismissed) return null
+
+  const handleSetup = async () => {
+    setSetting(true)
+    try {
+      await onSetup()
+    } finally {
+      setSetting(false)
+    }
+  }
+
+  const handleDecline = () => {
+    setDismissed(true)
+    onDecline?.()
+  }
+
+  return (
+    <div className="my-3 overflow-hidden rounded-[10px] border border-[#e0dbd1] bg-[#f3f1ec] shadow-sm">
+      <div className="flex h-8 items-center justify-between pl-3 pr-2.5">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <Database className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
+          <span className="truncate text-xs text-zinc-500">Backend detected</span>
+        </div>
+      </div>
+      <div className="border-t border-[#e0dbd1] bg-white px-3 py-3">
+        <p className="text-sm font-medium text-zinc-900">This app needs a database</p>
+        <p className="mt-1 text-xs text-zinc-500">
+          Connect Supabase to add auth, persistent storage, and a live backend — automatically wired into your code.
+        </p>
+        <div className="mt-3 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleSetup}
+            disabled={setting}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-zinc-700 disabled:opacity-60"
+          >
+            {setting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Database className="h-3 w-3" />}
+            {setting ? "Setting up..." : "Set up Supabase"}
+          </button>
+          <button
+            type="button"
+            onClick={handleDecline}
+            disabled={setting}
+            className="inline-flex items-center rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-800 disabled:opacity-60"
+          >
+            Not now
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function getPlanFileName(event: ComputerTimelineEvent) {
   const rawId = event.id?.trim()
   if (!rawId) return "plan-working.md"
@@ -795,7 +853,7 @@ function getCommandMetadata(event: ComputerTimelineEvent) {
   return { command, output }
 }
 
-function FeedItem({ event, isLatest }: { event: ComputerTimelineEvent; isLatest: boolean }) {
+function FeedItem({ event, isLatest, onSupabaseSetup, onSupabaseDecline, onClarificationAnswer }: { event: ComputerTimelineEvent; isLatest: boolean; onSupabaseSetup?: () => void; onSupabaseDecline?: () => void; onClarificationAnswer?: (answer: string) => void }) {
   const isComplete = event.status === "complete"
   const isError    = event.status === "error"
   const isRunning  = event.status === "running"
@@ -804,6 +862,37 @@ function FeedItem({ event, isLatest }: { event: ComputerTimelineEvent; isLatest:
   const description = isTokenLimitError(event.description)
     ? "You have used all credits for this cycle."
     : event.description
+
+  // Supabase question card
+  if (event.metadata?.questionType === "supabase") {
+    return <SupabaseQuestionCard onSetup={onSupabaseSetup ?? (() => {})} onDecline={onSupabaseDecline} />
+  }
+
+  // Dynamic clarification questions
+  if (event.metadata?.questionType === "clarification" && typeof event.metadata?.questions === "string") {
+    let questions: QuestionConfig[] = []
+    try { questions = JSON.parse(event.metadata.questions as string) } catch {}
+    if (questions.length > 0) {
+      return (
+        <QuestionTool
+          questions={questions}
+          allowSkip
+          submitLabel="Send"
+          nextLabel="Next"
+          skipLabel="Skip"
+          className="my-3"
+          onSubmitAnswer={(answer: QuestionAnswer) => {
+            if (!onClarificationAnswer) return
+            if (answer.kind === "skip") { onClarificationAnswer("skip"); return }
+            const parts: string[] = []
+            if (answer.selectedIds?.length) parts.push(answer.selectedIds.join(", "))
+            if (answer.text) parts.push(answer.text)
+            onClarificationAnswer(parts.join(" — ") || "skip")
+          }}
+        />
+      )
+    }
+  }
 
   // Plan card — rendered only once when planning completes
   if (event.title === "Planning execution" && isComplete && event.description) {
@@ -996,6 +1085,7 @@ function UserMessageBubble({
 function AgentFeed({
   prompt, events, localMessages, status, optimisticStart,
   editingIndex, editText, onEditStart, onEditChange, onEditSubmit, onEditCancel,
+  onSupabaseSetup, onSupabaseDecline, onClarificationAnswer,
 }: {
   prompt?: string; events: ComputerTimelineEvent[]
   localMessages: LocalMessage[]
@@ -1005,6 +1095,9 @@ function AgentFeed({
   onEditChange: (t: string) => void
   onEditSubmit: (i: number) => void
   onEditCancel: () => void
+  onSupabaseSetup?: () => void
+  onSupabaseDecline?: () => void
+  onClarificationAnswer?: (answer: string) => void
 }) {
   const endRef    = useRef<HTMLDivElement | null>(null)
   const isRunning = status === "running" || status === "planning"
@@ -1070,7 +1163,7 @@ function AgentFeed({
           const isLatest = i === initialEvents.length - 1 && isRunning
           return (
             <motion.div key={event.id ?? `${event.title}-${i}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.14 }}>
-              <FeedItem event={event} isLatest={isLatest} />
+              <FeedItem event={event} isLatest={isLatest} onSupabaseSetup={onSupabaseSetup} onSupabaseDecline={onSupabaseDecline} onClarificationAnswer={onClarificationAnswer} />
             </motion.div>
           )
         })}
@@ -1093,7 +1186,7 @@ function AgentFeed({
               const isLatest = eventIndex === runEvents.length - 1 && isRunning
               return (
                 <motion.div key={event.id ?? `${msg.runId}-${event.title}-${eventIndex}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.14 }}>
-                  <FeedItem event={event} isLatest={isLatest} />
+                  <FeedItem event={event} isLatest={isLatest} onSupabaseSetup={onSupabaseSetup} onSupabaseDecline={onSupabaseDecline} onClarificationAnswer={onClarificationAnswer} />
                 </motion.div>
               )
             })}
@@ -1111,7 +1204,7 @@ function AgentFeed({
           const isLatest = eventIndex === runEvents.length - 1 && isRunning
           return (
             <motion.div key={event.id ?? `${runId}-${event.title}-${eventIndex}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.14 }}>
-              <FeedItem event={event} isLatest={isLatest} />
+              <FeedItem event={event} isLatest={isLatest} onSupabaseSetup={onSupabaseSetup} onSupabaseDecline={onSupabaseDecline} onClarificationAnswer={onClarificationAnswer} />
             </motion.div>
           )
         })
@@ -1437,6 +1530,7 @@ export default function ComputerPage() {
   const hasStartedRef = useRef(false)
   const previousPreviewUrlRef = useRef<string | null | undefined>(undefined)
   const previewEnsureKeyRef = useRef<string | null>(null)
+  const prevSessionStatusRef = useRef<ComputerSessionStatus | null>(null)
 
   // ── Firestore listener (unchanged) ────────────────────────────────────────
   useEffect(() => {
@@ -1589,8 +1683,15 @@ export default function ComputerPage() {
   }, [session, session?.previewUrl, setActiveTab, setMobileView])
   useEffect(() => {
     const projectId = session?.projectId
+    const prevStatus = prevSessionStatusRef.current
+    prevSessionStatusRef.current = session?.status ?? null
+
     if (!projectId || !user || authLoading) return
     if (session.status === "idle" || session.status === "planning" || session.status === "running") return
+
+    // Skip ensure-preview when the run just completed and already set a previewUrl.
+    // The sandbox is fresh — no need to recreate it immediately.
+    if (prevStatus === "running" && session.previewUrl) return
 
     const ensureKey = `${projectId}:${session.status}`
     if (previewEnsureKeyRef.current === ensureKey) return
@@ -1931,6 +2032,37 @@ export default function ComputerPage() {
     }
   }, [getOptionalAuthHeader, integrationBusy, session?.projectId])
 
+  // Used by the in-run Supabase question card: OAuth if needed, then tell the server to proceed
+  const handleSupabaseYes = useCallback(async () => {
+    if (!session?.id || !session?.projectId || integrationBusy) return
+    setIntegrationBusy("supabase")
+    setIntegrationMessage("Checking Supabase connection...")
+    try {
+      const auth = await getOptionalAuthHeader()
+      const connectionRes = await fetch("/api/supabase/check-connection", { headers: auth })
+      const connection = await connectionRes.json().catch(() => ({})) as { connected?: boolean }
+      if (!connection.connected) {
+        const authRes = await fetch(`/api/integrations/supabase/authorize?builderProjectId=${encodeURIComponent(session.projectId)}`, { headers: auth })
+        const authJson = await authRes.json().catch(() => ({})) as { url?: string; error?: string }
+        if (!authRes.ok || !authJson.url) throw new Error(authJson.error || "Failed to start Supabase connection")
+        window.open(authJson.url, "supabase-oauth", "width=560,height=760,menubar=no,toolbar=no")
+        setIntegrationMessage("Complete Supabase connection — setup will continue automatically.")
+        return
+      }
+      await updateDoc(doc(db, "computerSessions", session.id), { supabaseAnswer: "yes" })
+      setIntegrationMessage("Setting up Supabase backend...")
+    } catch (err) {
+      setIntegrationMessage(err instanceof Error ? err.message : "Supabase setup failed")
+    } finally {
+      setIntegrationBusy(null)
+    }
+  }, [getOptionalAuthHeader, integrationBusy, session?.id, session?.projectId])
+
+  const handleSupabaseNo = useCallback(async () => {
+    if (!session?.id) return
+    await updateDoc(doc(db, "computerSessions", session.id), { supabaseAnswer: "no" }).catch(() => {})
+  }, [session?.id])
+
   const handleEnvAdd = useCallback((key: string, value: string) => {
     const name = key.trim()
     if (!name) return
@@ -1999,6 +2131,13 @@ export default function ComputerPage() {
     }
   }, [envValues, getOptionalAuthHeader, integrationBusy, projectIntegration?.files, session?.id, session?.projectId])
 
+  const handleClarificationAnswer = useCallback(async (answer: string) => {
+    if (!session?.id) return
+    await updateDoc(doc(db, "computerSessions", session.id), {
+      clarificationAnswer: answer,
+    }).catch(() => {})
+  }, [session?.id])
+
   useEffect(() => {
     if (!session?.projectId) return
 
@@ -2010,13 +2149,19 @@ export default function ComputerPage() {
         setIntegrationMessage(data.message || "Supabase connection failed.")
         return
       }
-      setIntegrationMessage("Supabase connected. Provisioning this website...")
-      void handleSupabaseSetup()
+      // If a run is active with a pending Supabase question, let the server handle setup
+      if (session.status === "running") {
+        setIntegrationMessage("Supabase connected. Continuing setup...")
+        void handleSupabaseYes()
+      } else {
+        setIntegrationMessage("Supabase connected. Provisioning this website...")
+        void handleSupabaseSetup()
+      }
     }
 
     window.addEventListener("message", onMessage)
     return () => window.removeEventListener("message", onMessage)
-  }, [session?.projectId, handleSupabaseSetup])
+  }, [session?.projectId, session?.status, handleSupabaseSetup, handleSupabaseYes])
 
   if (loading) return <LoadingShell />
   if (error || !session) return <ErrorState message={error ?? "Session not found or access denied."} />
@@ -2168,6 +2313,9 @@ export default function ComputerPage() {
               editingIndex={editingMsgIndex} editText={editText}
               onEditStart={handleEditStart} onEditChange={setEditText}
               onEditSubmit={handleEditSubmit} onEditCancel={handleEditCancel}
+              onSupabaseSetup={handleSupabaseYes}
+              onSupabaseDecline={handleSupabaseNo}
+              onClarificationAnswer={handleClarificationAnswer}
             />
           </div>
 

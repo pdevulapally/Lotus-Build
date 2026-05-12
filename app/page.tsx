@@ -1,4 +1,5 @@
 import { Navbar } from "@/components/ui/navbar"
+import { CookieBanner } from "@/components/cookie-banner"
 import { LenisProvider } from "@/components/providers/lenis-provider"
 import { CreateAfterLogin } from "@/components/create-after-login"
 import { FooterSection } from "@/components/sections/footer-section"
@@ -132,6 +133,7 @@ export default function Home() {
         </section>
         <FooterSection />
       </main>
+      <CookieBanner />
     </LenisProvider>
   )
 }

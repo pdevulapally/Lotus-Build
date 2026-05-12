@@ -1,8 +1,8 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Manrope } from "next/font/google"
-import { Analytics } from "@vercel/analytics/next"
 import { AuthProvider } from "@/contexts/auth-context"
+import { ConsentAnalytics } from "@/components/consent-analytics"
 import "./globals.css"
 
 const manrope = Manrope({
@@ -150,7 +150,7 @@ export default function RootLayout({
         <AuthProvider>
           {children}
         </AuthProvider>
-        <Analytics />
+        <ConsentAnalytics />
       </body>
     </html>
   )

@@ -103,7 +103,7 @@ type AgentWebAction =
   | "generate_frontend"
   | "skip"
 
-type AgentWebIntent = "clone" | "reference" | "research" | "build" | "edit" | "unknown"
+type AgentWebIntent = "inspiration" | "reference" | "research" | "build" | "edit" | "unknown"
 
 type AgentWebPlan = {
   actions: AgentWebAction[]
@@ -212,6 +212,25 @@ async function isActiveRun(docRef: DocumentReference, runId: string) {
   return data?.currentRunId === runId
 }
 
+async function updateTimelineEvent(
+  docRef: DocumentReference,
+  runId: string,
+  eventId: string,
+  patch: Partial<ComputerTimelineEvent>
+) {
+  await adminDb.runTransaction(async (tx) => {
+    const snap = await tx.get(docRef)
+    const d = snap.data() || {}
+    if (d.currentRunId !== runId) return
+    const timeline = Array.isArray(d.timeline) ? [...d.timeline] : []
+    const idx = timeline.findIndex((e) => e.id === eventId)
+    if (idx !== -1) {
+      timeline[idx] = { ...timeline[idx], ...patch }
+      tx.update(docRef, { timeline, updatedAt: new Date() })
+    }
+  })
+}
+
 function normalizeFirecrawlSearchResults(rawResults: unknown): Array<{ title: string; url: string; description?: string }> {
   const results = Array.isArray(rawResults) ? rawResults : []
   return results
@@ -304,7 +323,7 @@ function parseStreamingFiles(content: string): GeneratedFile[] {
 async function parseGenerateResponse(
   res: Response,
   onFileDetected?: (path: string) => Promise<void>
-): Promise<GeneratedFile[]> {
+): Promise<{ files: GeneratedFile[]; suggestsBackend: boolean }> {
   const contentType = res.headers.get("content-type") || ""
   const reader = res.body?.getReader()
   if (!reader) throw new Error("No response body")
@@ -344,6 +363,7 @@ async function parseGenerateResponse(
     throw new Error(text || `Generation failed with ${res.status}`)
   }
 
+  const suggestsBackend = text.includes("===META: suggestsBackend=true===")
   const { contentWithoutAgent } = extractAgentMessage(text)
   const files = parseStreamingFiles(contentWithoutAgent)
   if (!files.length) {
@@ -351,7 +371,81 @@ async function parseGenerateResponse(
     throw new Error("No files generated - parser failed")
   }
 
-  return files
+  return { files, suggestsBackend }
+}
+
+type ClarificationQuestionOption = { id: string; label: string; description?: string }
+type ClarificationQuestion = {
+  kind: "single" | "multi" | "text"
+  title: string
+  description?: string
+  options?: ClarificationQuestionOption[]
+  allowCustom?: boolean
+  customPlaceholder?: string
+  placeholder?: string
+}
+type ClarificationDecision = {
+  needsClarification: boolean
+  questions: ClarificationQuestion[] | null
+}
+
+function parseClarificationDecision(text: string): ClarificationDecision {
+  const parsed = extractJson(text) as Partial<ClarificationDecision> | null
+  if (parsed && typeof parsed.needsClarification === "boolean") {
+    return {
+      needsClarification: parsed.needsClarification,
+      questions: Array.isArray(parsed.questions) ? parsed.questions.slice(0, 3) : null,
+    }
+  }
+  return { needsClarification: false, questions: null }
+}
+
+async function waitForClarification(
+  docRef: DocumentReference,
+  runId: string,
+  timeoutMs = 5 * 60 * 1000
+): Promise<{ answer: string } | "skipped" | "inactive"> {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    const snap = await docRef.get()
+    const data = snap.data()
+    if (data?.currentRunId !== runId) return "inactive"
+    const answer = data?.clarificationAnswer
+    if (typeof answer === "string" && answer.trim() && answer !== "skip") return { answer: answer.trim() }
+    if (answer === "skip") return "skipped"
+    await new Promise((r) => setTimeout(r, 2000))
+  }
+  return "skipped"
+}
+
+function promptNeedsBackend(prompt: string): boolean {
+  const lower = prompt.toLowerCase()
+  const keywords = [
+    "sell", "shop", "store", "cart", "checkout", "order", "payment",
+    "ecommerce", "e-commerce", "booking", "reservation", "subscription",
+    "inventory", "product catalog", "add to cart", "buy", "purchase",
+    "user account", "sign up", "register", "login", "auth",
+    "database", "backend", "api", "crud",
+    "dashboard", "admin panel", "analytics", "restaurant", "menu order",
+  ]
+  return keywords.some((k) => lower.includes(k))
+}
+
+async function waitForSupabaseAnswer(
+  docRef: DocumentReference,
+  runId: string,
+  timeoutMs = 3 * 60 * 1000
+): Promise<"yes" | "no" | "inactive"> {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    const snap = await docRef.get()
+    const data = snap.data()
+    if (data?.currentRunId !== runId) return "inactive"
+    const answer = data?.supabaseAnswer
+    if (answer === "yes" || answer === "no") return answer
+    await new Promise((r) => setTimeout(r, 2000))
+  }
+  return "no"
 }
 
 type FailureClassification = {
@@ -501,8 +595,8 @@ function extractInspectableUrls(text: string) {
 
 function inferWebIntent(prompt: string): AgentWebIntent {
   const normalized = prompt.toLowerCase()
-  if (/\b(clone|copy|recreate|replicate|remake|duplicate)\b/.test(normalized)) return "clone"
-  if (/\b(reference|inspired by|like this|similar to|use this site)\b/.test(normalized)) return "reference"
+  if (/\b(clone|copy|recreate|replicate|remake|duplicate|inspiration|inspire|inspired by|like this|similar to)\b/.test(normalized)) return "inspiration"
+  if (/\b(reference|use this site)\b/.test(normalized)) return "reference"
   if (/\b(research|competitor|latest|current|today|market|examples?)\b/.test(normalized)) return "research"
   if (/\b(update|change|edit|modify|improve)\b/.test(normalized)) return "edit"
   if (/\b(build|create|make|generate)\b/.test(normalized)) return "build"
@@ -524,7 +618,7 @@ function getComputerRunProfile(prompt: string, hasExistingProject: boolean): Com
   const intent = hasExistingProject && inferredIntent === "unknown" ? "edit" : inferredIntent
   const needsExternalContext =
     urls.length > 0 ||
-    intent === "clone" ||
+    intent === "inspiration" ||
     intent === "reference" ||
     intent === "research"
   const shouldUseWebTools =
@@ -570,7 +664,7 @@ function normalizeAgentWebAction(value: unknown): AgentWebAction | null {
 
 function normalizeAgentWebIntent(value: unknown): AgentWebIntent {
   const intent = typeof value === "string" ? value.trim() : ""
-  const intents: AgentWebIntent[] = ["clone", "reference", "research", "build", "edit", "unknown"]
+  const intents: AgentWebIntent[] = ["inspiration", "reference", "research", "build", "edit", "unknown"]
   return intents.includes(intent as AgentWebIntent) ? intent as AgentWebIntent : "unknown"
 }
 
@@ -1165,7 +1259,7 @@ Format:
   "actions": ["..."],
   "targetUrls": ["https://..."],
   "searchQuery": "query or empty string",
-  "intent": "clone|reference|research|build|edit|unknown",
+  "intent": "inspiration|reference|research|build|edit|unknown",
   "reason": "short reason"
 }
 `,
@@ -1188,9 +1282,11 @@ function buildAgentGenerationPrompt(params: {
   prompt: string
   planText: string
   webEvidence: WebEvidence[]
+  intent?: AgentWebIntent
   isEdit?: boolean
 }) {
   const hasWebEvidence = params.webEvidence.length > 0
+  const isInspiration = params.intent === "inspiration"
   const contextSections = [
     params.planText.trim()
       ? `Agent plan:\n${params.planText.trim()}`
@@ -1207,9 +1303,18 @@ function buildAgentGenerationPrompt(params: {
 
   const taskVerb = params.isEdit ? "Edit the existing app" : "Build the app"
   const evidenceDirective = hasWebEvidence
-    ? `
+    ? isInspiration
+      ? `
+INSPIRATION RULES (draw from — do not copy verbatim):
+- Use the captured DOM outline, sections, style hints, and text content as creative inspiration, not a strict spec.
+- Match the general visual direction (color palette, typography feel, layout density) but adapt it into a fresh, original React/Tailwind implementation.
+- Preserve the structure of key sections (hero, features, pricing, footer) but you may improve the copy, spacing, and visual execution.
+- Reuse real image URLs from the evidence where suitable. Do not invent broken image paths.
+- Do not add generic placeholder sections that were not present in the reference.
+`.trim()
+      : `
 REFERENCE / DOM RECONSTRUCTION RULES:
-- Treat Agent web context as a strict visual design brief, not loose inspiration.
+- Treat Agent web context as a strict visual design brief.
 - Use the captured DOM outline, sections, visual brief, style hints, image list, and text content to reconstruct the reference's real structure and density.
 - Preserve the reference's spatial rhythm: hero proportions, navigation placement, content density, card/panel treatment, image usage, whitespace, border radius, shadows, and button geometry.
 - If visualBrief includes element dimensions or positions, use them to guide responsive layout ratios and hierarchy.
@@ -1262,7 +1367,7 @@ ABSOLUTE BANS:
 - Repeating the exact same Lotus self-promotional template.
 - "Build websites faster, smarter..." style generic AI-builder hero copy unless the user specifically asks for that wording.
 
-If the request is to clone or recreate a website, build a frontend-only recreation with maintainable React/Tailwind, responsive layout, and local-only interactions. Do not clone backend behavior, authentication, payments, private data, or remote scripts unless explicitly asked.`
+If the request is to recreate or draw inspiration from a website, build a frontend-only React/Tailwind implementation with responsive layout and local-only interactions. Do not reproduce backend behavior, authentication, payments, private data, or third-party scripts unless explicitly asked.`
 }
 
 export async function POST(req: Request) {
@@ -1300,7 +1405,7 @@ export async function POST(req: Request) {
     }
 
     const storedPrompt = typeof data.prompt === "string" ? data.prompt.trim() : ""
-    const prompt = parsed.data.prompt?.trim() || storedPrompt || "No prompt provided"
+    let prompt = parsed.data.prompt?.trim() || storedPrompt || "No prompt provided"
     const runProfile = getComputerRunProfile(prompt, projectFiles.length > 0)
     const builderModel = typeof data.model === "string" && data.model.trim()
       ? data.model.trim()
@@ -1381,6 +1486,81 @@ export async function POST(req: Request) {
           kind: "understanding",
           createdAt: new Date().toISOString(),
         })
+      }
+    }
+
+    // — Clarification check: ask if prompt is too vague (skip for edits) —
+    if (!runProfile.hasExistingProject) {
+      try {
+        const clarificationRes = await createComputerAgentMessage(anthropic, {
+          max_tokens: 500,
+          temperature: 0,
+          system: `You analyze user prompts for a web/app builder and decide if the request is too vague to build meaningfully.
+
+ONLY ask for clarification when the request is genuinely ambiguous — e.g. single words, "make me an app", "build a website", "create something cool", or domain+nothing (e.g. "a todo app" is fine, but "an app" is not).
+
+Do NOT ask when:
+- The request has enough domain, purpose, or content context to produce a reasonable result
+- The request mentions a specific type, industry, or feature
+- A URL is present in the prompt
+
+If clarification IS needed, generate 1–3 focused QuestionConfig objects. Keep question titles short, options practical (max 5 per question). At least one question must have kind "single" or "multi" with options.
+
+Return ONLY valid JSON, no markdown:
+{
+  "needsClarification": boolean,
+  "questions": [
+    {
+      "kind": "single" | "multi" | "text",
+      "title": string,
+      "description"?: string,
+      "options"?: [{ "id": string, "label": string, "description"?: string }],
+      "allowCustom"?: boolean,
+      "customPlaceholder"?: string
+    }
+  ] | null
+}`,
+          messages: [{
+            role: "user",
+            content: `User request: "${prompt.slice(0, 400)}"`,
+          }],
+        }, { enableMcp: false })
+
+        const clarificationDecision = parseClarificationDecision(
+          extractTextFromAnthropicContent(clarificationRes.content)
+        )
+
+        if (clarificationDecision.needsClarification && clarificationDecision.questions?.length) {
+          const questionEventId = crypto.randomUUID()
+          await appendRunEvent({
+            id: questionEventId,
+            title: "Clarification needed",
+            description: "A few quick questions before I start building.",
+            status: "complete",
+            kind: "question",
+            createdAt: new Date().toISOString(),
+            metadata: {
+              questionType: "clarification",
+              questions: JSON.stringify(clarificationDecision.questions),
+            },
+          })
+
+          await docRef.update({ clarificationAnswer: null })
+
+          const clarificationResult = await waitForClarification(docRef, runId)
+
+          if (clarificationResult === "inactive") {
+            return NextResponse.json({ ok: false, message: "Run superseded during clarification" })
+          }
+
+          if (clarificationResult !== "skipped") {
+            prompt = `${prompt}\n\nUser clarification: ${clarificationResult.answer}`
+          }
+
+          await docRef.update({ clarificationAnswer: null })
+        }
+      } catch (err) {
+        console.error("Clarification check failed:", err)
       }
     }
 
@@ -1841,6 +2021,7 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
       prompt,
       planText,
       webEvidence: usableWebEvidence,
+      intent: webPlan.intent,
       isEdit: projectFiles.length > 0,
     })
     let generatedFiles: GeneratedFile[] = []
@@ -1862,7 +2043,7 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
 
       try {
         const controller = new AbortController()
-        const timeout = setTimeout(() => controller.abort(), 90000)
+        const timeout = setTimeout(() => controller.abort(), 300000)
         let genRes: Response
 
         try {
@@ -1876,7 +2057,7 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
               prompt: generationPrompt,
               model: builderModel,
               existingFiles: projectFiles,
-              creationMode: "build",
+              intent: webPlan.intent,
             }),
             signal: controller.signal,
           })
@@ -1886,10 +2067,10 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
 
         let lastEventId: string | null = null
 
-        const generatedPatchFiles = await parseGenerateResponse(genRes, async (path) => {
+        const { files: generatedPatchFiles, suggestsBackend: genSuggestsBackend } = await parseGenerateResponse(genRes, async (path) => {
           const newEventId = crypto.randomUUID()
           lastEventId = newEventId
-          
+
           await appendRunEvent({
             id: newEventId,
             title: `Generating ${path}`,
@@ -2040,6 +2221,106 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
               createdAt: new Date().toISOString(),
             })
           }
+
+          // — Backend detection: suggest Supabase if the generated app needs a database —
+          if (genSuggestsBackend || promptNeedsBackend(prompt)) {
+            try {
+              const currentSessionSnap = await docRef.get()
+              const currentSessionData = currentSessionSnap.data() || {}
+              const currentProjectId = currentSessionData?.projectId
+              let alreadyHasSupabase = false
+              if (currentProjectId) {
+                const projectSnap = await adminDb.collection("projects").doc(currentProjectId).get()
+                alreadyHasSupabase = Boolean(projectSnap.data()?.supabaseProjectRef)
+              }
+              if (!alreadyHasSupabase) {
+                await appendRunEvent({
+                  id: crypto.randomUUID(),
+                  title: "Backend detected",
+                  description: "This app needs a database. Would you like to set up Supabase?",
+                  status: "complete",
+                  kind: "question",
+                  createdAt: new Date().toISOString(),
+                  metadata: { questionType: "supabase" },
+                })
+                await docRef.update({ supabaseAnswer: null })
+
+                const supabaseRes = await waitForSupabaseAnswer(docRef, runId)
+                if (supabaseRes === "inactive") {
+                  return NextResponse.json({ ok: false, error: "Session superseded during Supabase prompt" }, { status: 409 })
+                }
+
+                if (supabaseRes === "yes" && currentProjectId) {
+                  const supabaseSetupEventId = crypto.randomUUID()
+                  await appendRunEvent({
+                    id: supabaseSetupEventId,
+                    title: "Connecting Supabase",
+                    description: "Setting up your database and wiring it into the code...",
+                    status: "running",
+                    kind: "code",
+                    createdAt: new Date().toISOString(),
+                    metadata: { supabaseSetup: true },
+                  })
+                  try {
+                    const autoSetupRes = await fetch(`${baseUrl}/api/integrations/supabase/auto-setup`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json", Authorization: authHeader },
+                      body: JSON.stringify({ projectId: currentProjectId, createProject: true }),
+                    })
+                    const autoSetup = await autoSetupRes.json().catch(() => ({})) as { projectRef?: string; error?: string; supabaseUrl?: string; supabaseAnonKey?: string }
+
+                    if (!autoSetupRes.ok || !autoSetup.projectRef) {
+                      const errMsg = autoSetup.error || "Supabase setup failed"
+                      if (errMsg.includes("OAuth") || errMsg.includes("connection required") || autoSetupRes.status === 401) {
+                        await updateTimelineEvent(docRef, runId, supabaseSetupEventId, {
+                          title: "Supabase not connected",
+                          description: "Connect your Supabase account from the settings panel, then run again to wire in the backend.",
+                          status: "error",
+                        })
+                      } else {
+                        throw new Error(errMsg)
+                      }
+                    } else {
+                      const provisionRes = await fetch(`${baseUrl}/api/integrations/supabase/provision`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", Authorization: authHeader },
+                        body: JSON.stringify({ projectId: currentProjectId }),
+                      })
+                      const provision = await provisionRes.json().catch(() => ({})) as { provisioned?: boolean; error?: string }
+
+                      if (provision.provisioned) {
+                        // Re-read updated files from Firestore (provision saves them there)
+                        const updatedProjectSnap = await adminDb.collection("projects").doc(currentProjectId).get()
+                        const updatedFiles = updatedProjectSnap.data()?.files
+                        if (Array.isArray(updatedFiles) && updatedFiles.length > 0) {
+                          generatedFiles = updatedFiles
+                          genData = { files: generatedFiles }
+                        }
+                      }
+
+                      await updateTimelineEvent(docRef, runId, supabaseSetupEventId, {
+                        title: "Supabase connected",
+                        description: `Database schema created and backend wired into your code${autoSetup.projectRef ? ` (${autoSetup.projectRef})` : ""}.`,
+                        status: "complete",
+                        metadata: { supabaseProjectRef: autoSetup.projectRef, supabaseSetup: true },
+                      })
+                    }
+                  } catch (setupErr) {
+                    console.error("Server-side Supabase setup failed:", setupErr)
+                    await updateTimelineEvent(docRef, runId, supabaseSetupEventId, {
+                      title: "Supabase setup failed",
+                      description: setupErr instanceof Error ? setupErr.message : "Could not set up Supabase",
+                      status: "error",
+                    }).catch(() => {})
+                  }
+                }
+
+                await docRef.update({ supabaseAnswer: null }).catch(() => {})
+              }
+            } catch (err) {
+              console.error("Backend detection check failed:", err)
+            }
+          }
         }
       } catch (err) {
         console.error("Computer generation failed:", err)
@@ -2156,7 +2437,7 @@ Instructions:
               clearTimeout(timeout)
             }
 
-            const fixedFiles = await parseGenerateResponse(fixRes)
+            const { files: fixedFiles } = await parseGenerateResponse(fixRes)
 
             if (fixedFiles.length > 0) {
               generatedFiles = fixedFiles
@@ -2445,7 +2726,7 @@ Rules:
               clearTimeout(timeout)
             }
 
-            const runtimeFixedFiles = await parseGenerateResponse(runtimeFixRes)
+            const { files: runtimeFixedFiles } = await parseGenerateResponse(runtimeFixRes)
 
             if (runtimeFixedFiles.length > 0) {
               generatedFiles = runtimeFixedFiles

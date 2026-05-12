@@ -34,6 +34,7 @@ export type ComputerTimelineEventKind =
   | "fix"
   | "security"
   | "user"
+  | "question"
 
 export interface ComputerTimelineEvent {
   id: string

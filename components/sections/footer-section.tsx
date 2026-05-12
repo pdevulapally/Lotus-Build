@@ -34,9 +34,9 @@ export function FooterSection() {
             <div>
               <p className="text-sm font-medium text-zinc-900">Legal</p>
               <div className="mt-3 space-y-2 text-sm text-zinc-600">
-                <Link href="#" className="block hover:text-zinc-900">Terms</Link>
-                <Link href="#" className="block hover:text-zinc-900">Privacy</Link>
-                <Link href="#" className="block hover:text-zinc-900">Security</Link>
+                <Link href="/terms" className="block hover:text-zinc-900">Terms</Link>
+                <Link href="/privacy" className="block hover:text-zinc-900">Privacy</Link>
+                <Link href="/privacy#security" className="block hover:text-zinc-900">Security</Link>
               </div>
             </div>
           </div>

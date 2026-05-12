@@ -2,7 +2,8 @@ import OpenAI from "openai"
 import { adminAuth, adminDb } from "@/lib/firebase-admin"
 import { Timestamp } from "firebase-admin/firestore"
 import { DEFAULT_PLANS } from "@/lib/firebase"
-import { normalizeGeneratedCodeContent, normalizeGeneratedCodeFiles } from "@/lib/generated-code-normalization"
+import { normalizeGeneratedCodeFiles } from "@/lib/generated-code-normalization"
+import { chargeTokensForGeneration } from "@/lib/charge-tokens"
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 const nvidia = new OpenAI({
@@ -55,6 +56,7 @@ type Provider = "openai" | "nvidia"
 type StreamState = {
   usageInfo: any
   streamedLength: number
+  closed: boolean
 }
 
 const FILE_SELECTION_LIMIT = 8
@@ -100,6 +102,7 @@ TECH STACK:
 - Do NOT use external UI kits.
 - Do NOT use placeholder text like "Lorem ipsum".
 - Ensure all imports exist and every dependency appears in package.json.
+- CRITICAL COMPLETENESS CHECK: Every file you import in any generated file MUST also be generated in this response. If App.tsx imports "./components/Checkout", you MUST output src/components/Checkout.tsx. No import can reference a file that does not exist in your output. Before finishing, scan every import statement and verify the target file is included.
 - Preserve the Lotus generated-app architecture. Do NOT switch to a standalone single HTML/CSS/JS file.
 - Never describe the output as "a single-page HTML/CSS/JS file". The correct architecture is Vite + React + TypeScript with files under src/.
 - A landing page can be a single React route/page, but it must still be implemented as React components inside the Vite project.
@@ -514,17 +517,6 @@ function serializeFileBlocks(files: ParsedFileBlock[]) {
   return files.map((file) => `===FILE: ${file.path}===\n${file.content}\n===END_FILE===`).join("\n")
 }
 
-function normalizeGeneratedFileBlocksInOutput(content: string) {
-  return content.replace(/===FILE:\s*(.*?)===([\s\S]*?)===END_FILE===/g, (block, rawPath: string, rawContent: string) => {
-    const path = rawPath.trim()
-    const fileContent = rawContent
-      .replace(/^```[a-zA-Z0-9_-]*\n?/, "")
-      .replace(/\n?```$/, "")
-      .trim()
-    const normalized = normalizeGeneratedCodeContent(path, fileContent)
-    return block.replace(rawContent, `\n${normalized}\n`)
-  })
-}
 
 function assertValidFileBlockOutput(content: string) {
   if (!content.includes("===FILE:")) {
@@ -946,67 +938,52 @@ async function streamWithResolvedProvider(params: {
     }
   }
 
-  const streamCompletionToText = async (completion: Awaited<ReturnType<typeof createOpenAICompletion>>) => {
-    let output = ""
-
+  const streamTokens = async (completion: Awaited<ReturnType<typeof createOpenAICompletion>>) => {
+    let buffered = ""
     for await (const chunk of completion) {
       if ((chunk as any).usage) params.state.usageInfo = (chunk as any).usage
-      if ((chunk as any).choices && (chunk as any).choices[0]?.usage) {
-        params.state.usageInfo = (chunk as any).choices[0].usage
+      const content = chunk.choices?.[0]?.delta?.content
+      if (!content) continue
+      buffered += content
+      if (!params.state.closed) {
+        try { params.controller.enqueue(params.encoder.encode(content)) }
+        catch { params.state.closed = true }
       }
-      const content = chunk.choices[0]?.delta?.content
-      if (content) output += content
     }
-
-    return output
+    return buffered
   }
 
-  let completion
   let basePrompt = params.userMessageContent
-
   if (params.userMessageContent.includes("\n\nCurrent project files")) {
     basePrompt = params.userMessageContent.split("\n\nCurrent project files")[0]
   }
 
+  let completion
   try {
     completion = await createOpenAICompletion(params.userMessageContent)
   } catch (err: any) {
     if (err?.message === "MODEL_TIMEOUT" && params.existingFiles?.length) {
       const retrySeedFiles = selectRelevantFiles(params.existingFiles, params.userMessageContent)
-      const reducedCount = Math.max(2, Math.ceil(retrySeedFiles.length / 2))
       const reducedFiles = trimPromptFilesToBudget(
         params.userMessageContent,
-        retrySeedFiles.slice(0, reducedCount)
+        retrySeedFiles.slice(0, Math.max(2, Math.ceil(retrySeedFiles.length / 2)))
       )
-      const retryUserMessage = buildFollowUpUserMessage(
-        basePrompt,
-        reducedFiles
-      )
-      completion = await createOpenAICompletion(retryUserMessage)
+      completion = await createOpenAICompletion(buildFollowUpUserMessage(basePrompt, reducedFiles))
     } else {
       throw err
     }
   }
 
-  let output = await streamCompletionToText(completion)
+  const output = await streamTokens(completion)
+  params.state.streamedLength += output.length
 
-  try {
-    assertValidFileBlockOutput(output)
-  } catch {
-    const retryCompletion = await createOpenAICompletion(
-      `${params.userMessageContent}\n\n${STRICT_FILE_FORMAT_RETRY_PROMPT}`
-    )
-    output = await streamCompletionToText(retryCompletion)
-    assertValidFileBlockOutput(output)
-  }
-
-  // Ensure CSS infrastructure exists — same safety net applied on the Nvidia path
+  // Append any missing CSS infrastructure as extra file blocks at the end of the stream.
+  // parseGenerateResponse in the computer agent buffers the full stream, so these are included.
   const parsedBlocks = parseFileBlocks(output)
   const allKnownPaths = new Set([
     ...parsedBlocks.map(f => f.path),
     ...(params.existingFiles?.map(f => f.path) || [])
   ])
-
   const needsCssFix =
     !allKnownPaths.has("tailwind.config.ts") ||
     !allKnownPaths.has("postcss.config.js") ||
@@ -1016,13 +993,12 @@ async function streamWithResolvedProvider(params: {
 
   if (needsCssFix) {
     const fixedBlocks = injectMissingCssFiles(parsedBlocks)
-    output = serializeFileBlocks(normalizeGeneratedCodeFiles(fixedBlocks))
-  } else {
-    output = normalizeGeneratedFileBlocksInOutput(output)
+    const newFiles = fixedBlocks.filter(b => !parsedBlocks.find(p => p.path === b.path))
+    if (newFiles.length && !params.state.closed) {
+      try { params.controller.enqueue(params.encoder.encode(serializeFileBlocks(normalizeGeneratedCodeFiles(newFiles)))) }
+      catch { params.state.closed = true }
+    }
   }
-
-  params.state.streamedLength += output.length
-  params.controller.enqueue(params.encoder.encode(output))
 }
 
 async function runBuilderRuntime(params: {
@@ -1053,7 +1029,8 @@ export async function POST(req: Request) {
     model?: string
     idToken?: string
     existingFiles?: { path: string; content: string }[]
-    cloneContext?: { title: string; description: string; markdown: string; sourceUrl: string }
+    intent?: string
+    inspirationContext?: { title: string; description: string; markdown: string; sourceUrl: string }
   } | null
   if (!body || typeof body !== "object") {
     return Response.json({ error: "Invalid JSON body" }, { status: 400 })
@@ -1063,6 +1040,7 @@ export async function POST(req: Request) {
     model = DEFAULT_MODEL,
     idToken,
     existingFiles,
+    intent,
   } = body
 
   // authenticate user via Firebase ID token (body) or Authorization Bearer token (header)
@@ -1363,6 +1341,13 @@ AGENT MESSAGE (required): First, output exactly one conversational reply in this
 The AGENT_MESSAGE must accurately describe a Vite + React implementation. Never say you will create a standalone HTML/CSS/JS file.
 Then immediately output the file blocks. Do not include any other text between ===END_AGENT_MESSAGE=== and the first ===FILE===.
 
+COMPLETENESS VERIFICATION (MANDATORY before output):
+1. Every import path in every file resolves to a file you also generate (or an npm package in package.json).
+2. Every component used in JSX is defined — either in the same file or in a generated file.
+3. Every asset path (images, fonts, icons) either uses a CDN URL or is generated as a file.
+4. No file references another file that is not in your output.
+If any check fails, generate the missing file before finishing.
+
 QUALITY BAR: Before finalising output, ask yourself: "Would a real business owner pay a design agency for this?" If no — redesign it. The output must be distinctive, professional, and domain-appropriate. Never ship AI slop.
 
 BACKEND DETECTION: If the user's request clearly implies a need for a backend, database, or persistent data (e.g. user accounts, login/signup, saving data, todos, forms that persist, dashboards with data, CRUD, API, auth), then at the very end of your response output exactly this line on its own line (after all ===END_FILE=== blocks):
@@ -1385,24 +1370,26 @@ OPEN-SOURCE MODEL RELIABILITY RULES (MANDATORY):
   4. package.json includes every dependency used.
   5. No file is omitted if another file depends on it.`
 
+  const isInspiration = intent === "inspiration"
   const systemPrompt = isFollowUp ? systemPromptFollowUp : systemPromptNew
   const finalSystemPrompt = provider === "nvidia"
     ? `${systemPrompt}\n\n${nvidiaReliabilityPrompt}`
     : systemPrompt
 
-  // Build user message: for follow-up include current files so the model can edit them
-  const clonePrefix = body.cloneContext
-    ? `REFERENCE SITE TO CLONE:\nURL: ${body.cloneContext.sourceUrl}\nTitle: ${body.cloneContext.title}\nDescription: ${body.cloneContext.description}\n\nSite content:\n${body.cloneContext.markdown}\n\nUse the above as the content and structural reference. Recreate it as a modern React app matching the layout, sections, copy, and visual hierarchy. Do not copy CSS — rebuild with Tailwind.\n\n`
+  // Build user message — inspiration mode prepends the reference site context
+  const inspirationPrefix = body.inspirationContext
+    ? `REFERENCE SITE FOR INSPIRATION:\nURL: ${body.inspirationContext.sourceUrl}\nTitle: ${body.inspirationContext.title}\nDescription: ${body.inspirationContext.description}\n\nSite content:\n${body.inspirationContext.markdown}\n\n${isInspiration ? "Use the above as the content and layout inspiration. Recreate the same sections, copy, and visual hierarchy as a modern React app with Tailwind. Match the design intent closely without copying styles verbatim." : "Use the above only as reference context. Build a fresh, inspired design."}\n\n`
     : ""
 
   const userMessageContent = isFollowUp
-    ? buildFollowUpUserMessage(clonePrefix + prompt, promptFiles)
-    : `Create a Vite + React + TypeScript application: ${clonePrefix}${prompt}`
+    ? buildFollowUpUserMessage(inspirationPrefix + prompt, promptFiles)
+    : `Create a Vite + React + TypeScript application: ${inspirationPrefix}${prompt}`
 
   const encoder = new TextEncoder()
   const streamState: StreamState = {
     usageInfo: null,
     streamedLength: 0,
+    closed: false,
   }
 
   const stream = new ReadableStream({
@@ -1420,68 +1407,15 @@ OPEN-SOURCE MODEL RELIABILITY RULES (MANDATORY):
           state: streamState,
         })
 
-        // Realistic token count: API usage when present, else ~4 chars per token (OpenAI-style)
-        const promptLength = userMessageContent.length
-        const completionLength = streamState.streamedLength
-        const fallbackTokens = Math.ceil((promptLength + completionLength) / 4)
-        const tokensToCharge = streamState.usageInfo
-          ? (streamState.usageInfo.total_tokens ?? (streamState.usageInfo.prompt_tokens || 0) + (streamState.usageInfo.completion_tokens || 0))
-          : (fallbackTokens > 0 ? fallbackTokens : 0)
+        streamState.closed = true
+        try { controller.close() } catch {}
 
-        // when stream finishes, attempt to deduct tokens in a transaction
-        try {
-          if (tokensToCharge > 0) {
-              const userRef = adminDb.collection('users').doc(uid)
-              await adminDb.runTransaction(async (tx) => {
-                const snap = await tx.get(userRef)
-                if (!snap.exists) throw new Error('user-not-found')
-                const data = snap.data() as any
-                
-                // Get user's plan token limit
-                const planId = data?.planId || 'free'
-                const planTokensPerMonth = data?.tokensLimit != null ? Number(data.tokensLimit) : (DEFAULT_PLANS[planId as keyof typeof DEFAULT_PLANS]?.tokensPerMonth || DEFAULT_PLANS.free.tokensPerMonth)
-                
-                let remaining = data?.tokenUsage?.remaining
-                
-                // Migration: if tokenUsage doesn't exist but tokensLimit/tokensUsed does, use those
-                if (remaining === undefined || remaining === null) {
-                  if (data?.tokensLimit && data?.tokensUsed !== undefined) {
-                    remaining = data.tokensLimit - data.tokensUsed
-                  } else {
-                    remaining = planTokensPerMonth
-                  }
-                }
-                // Never use negative remaining (robust against bad data)
-                remaining = Math.max(0, Number(remaining))
-                
-                console.log('Transaction - User Plan:', planId, 'Plan Tokens:', planTokensPerMonth, 'Charging tokens:', tokensToCharge, 'Remaining before:', remaining)
-                
-                // Always deduct available credits for a completed generation.
-                // If actual usage is higher than remaining, consume remaining and clamp to 0.
-                if (tokensToCharge > planTokensPerMonth) {
-                  console.warn(`Generation used ${tokensToCharge} tokens while ${planId} plan monthly allowance is ${planTokensPerMonth}.`)
-                }
-                if (remaining < tokensToCharge) {
-                  console.warn(`User ${uid} has ${remaining} tokens but generation used ${tokensToCharge}; consuming remaining balance.`)
-                }
-                const actualCharge = Math.min(tokensToCharge, remaining)
-                const currentUsed = data?.tokenUsage?.used || data?.tokensUsed || 0
-                const newUsed = currentUsed + Math.max(0, actualCharge)
-                const newRemaining = Math.max(0, remaining - Math.max(0, actualCharge))
-                console.log('Transaction - New tokens - Used:', newUsed, 'Remaining:', newRemaining)
-                const updatePayload: Record<string, unknown> = {}
-                updatePayload['tokenUsage.used'] = newUsed
-                updatePayload['tokenUsage.remaining'] = newRemaining
-                tx.update(userRef, updatePayload)
-              })
-          }
-        } catch (e) {
-          console.error('Failed to charge tokens after generation:', e)
-          // note: stream already delivered; cannot retract, but we surface server log
-          // The generation already succeeded, so we log the error but don't crash
-        }
-
-        controller.close()
+        await chargeTokensForGeneration({
+          uid,
+          usageInfo: streamState.usageInfo,
+          promptChars: userMessageContent.length,
+          completionChars: streamState.streamedLength,
+        })
       } catch (err: any) {
         console.error('Stream error', err)
 
