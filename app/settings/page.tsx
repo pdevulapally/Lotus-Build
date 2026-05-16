@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input"
 import { db } from "@/lib/firebase"
 import {
   ArrowLeft,
+  Download,
+  ExternalLink,
   Loader2,
   Mail,
   Sparkles,
@@ -22,6 +24,20 @@ import { getAgentRunLimitForPlan } from "@/lib/agent-quotas"
 
 type ProjectStatus = "pending" | "generating" | "complete" | "error"
 type SettingsPageKey = "account" | "billing" | "usage" | "projects"
+
+type StripeInvoice = {
+  id: string
+  number: string | null
+  date: number
+  periodStart: number
+  periodEnd: number
+  amount: number
+  currency: string
+  status: string | null
+  pdfUrl: string | null
+  hostedUrl: string | null
+  description: string | null
+}
 
 const SETTINGS_PAGES: Array<{ key: SettingsPageKey; label: string }> = [
   { key: "account", label: "Account" },
@@ -302,6 +318,9 @@ function SettingsContent() {
   const [deleteError, setDeleteError] = useState("")
   const [activePage, setActivePage] = useState<SettingsPageKey>("account")
   const [portalLoading, setPortalLoading] = useState(false)
+  const [invoices, setInvoices] = useState<StripeInvoice[]>([])
+  const [invoicesLoading, setInvoicesLoading] = useState(false)
+  const [invoicesFetched, setInvoicesFetched] = useState(false)
 
   useEffect(() => {
     if (!user?.uid) {
@@ -365,6 +384,22 @@ function SettingsContent() {
     })
     return () => unsub()
   }, [user?.uid])
+
+  useEffect(() => {
+    const planId = userData?.planId
+    const hasPaidPlan = planId && planId !== "free"
+    if (activePage !== "billing" || invoicesFetched || !user || !hasPaidPlan) return
+    setInvoicesLoading(true)
+    user.getIdToken().then((token) =>
+      fetch("/api/stripe/invoices", { headers: { Authorization: `Bearer ${token}` } })
+    ).then((r) => r.json()).then((data) => {
+      setInvoices(data.invoices ?? [])
+      setInvoicesFetched(true)
+    }).catch(() => {
+      setInvoicesFetched(true)
+    }).finally(() => setInvoicesLoading(false))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePage, invoicesFetched, user?.uid, userData?.planId])
 
   const analytics = useMemo(() => {
     const total = projectsData.length
@@ -622,19 +657,77 @@ function SettingsContent() {
 
               <div>
                 <h3 className="mb-7 text-[15px] font-semibold text-zinc-950">Invoices</h3>
-                <div className="flex flex-col gap-4 border-b border-zinc-200/80 pb-10 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm text-zinc-700">
-                    {isFreePlan ? "Invoices are available after a paid subscription is active." : "View your invoices and billing history in the billing portal."}
-                  </p>
-                  {!isFreePlan && (
-                    <button
-                      type="button"
-                      onClick={handleManageBilling}
-                      disabled={portalLoading}
-                      className="inline-flex h-9 items-center justify-center rounded-lg border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-800 shadow-sm transition-colors hover:bg-zinc-50 disabled:opacity-50"
-                    >
-                      {portalLoading ? "Loading..." : "View invoices"}
-                    </button>
+                <div className="border-b border-zinc-200/80 pb-10">
+                  {isFreePlan ? (
+                    <p className="text-sm text-zinc-500">Invoices are available after a paid subscription is active.</p>
+                  ) : invoicesLoading ? (
+                    <div className="flex items-center gap-2 text-sm text-zinc-400">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Loading invoices…
+                    </div>
+                  ) : invoices.length === 0 ? (
+                    <p className="text-sm text-zinc-500">No invoices found for this account.</p>
+                  ) : (
+                    <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-zinc-100 bg-zinc-50">
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Invoice</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Date</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Amount</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Status</th>
+                            <th className="px-4 py-3" />
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-100">
+                          {invoices.map((inv) => {
+                            const date = new Date(inv.date * 1000).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+                            const amount = new Intl.NumberFormat("en-US", { style: "currency", currency: inv.currency.toUpperCase() }).format(inv.amount / 100)
+                            const statusColor =
+                              inv.status === "paid" ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              : inv.status === "open" ? "bg-amber-50 text-amber-700 border-amber-200"
+                              : "bg-zinc-100 text-zinc-500 border-zinc-200"
+                            return (
+                              <tr key={inv.id} className="hover:bg-zinc-50 transition-colors">
+                                <td className="px-4 py-3 font-mono text-xs text-zinc-600">{inv.number ?? inv.id.slice(-8).toUpperCase()}</td>
+                                <td className="px-4 py-3 text-zinc-700">{date}</td>
+                                <td className="px-4 py-3 font-medium text-zinc-900">{amount}</td>
+                                <td className="px-4 py-3">
+                                  <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold capitalize ${statusColor}`}>
+                                    {inv.status}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center justify-end gap-2">
+                                    {inv.pdfUrl && (
+                                      <a
+                                        href={inv.pdfUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex h-7 w-7 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 transition-colors hover:border-zinc-300 hover:text-zinc-900"
+                                        title="Download PDF"
+                                      >
+                                        <Download className="h-3.5 w-3.5" />
+                                      </a>
+                                    )}
+                                    {inv.hostedUrl && (
+                                      <a
+                                        href={inv.hostedUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex h-7 w-7 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 transition-colors hover:border-zinc-300 hover:text-zinc-900"
+                                        title="View invoice"
+                                      >
+                                        <ExternalLink className="h-3.5 w-3.5" />
+                                      </a>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   )}
                 </div>
               </div>

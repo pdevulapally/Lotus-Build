@@ -148,20 +148,18 @@ type WebEvidence = {
   fallbackReason?: string
 }
 
-const FRONTEND_DESIGN_SKILL = `
-CLAUDE FRONTEND DESIGN SKILL — mandatory for new frontend generation:
-- Before coding, choose one clear aesthetic direction and commit to it. Examples: brutally minimal, luxury/refined, editorial/magazine, art deco/geometric, organic/natural, industrial/utilitarian, playful/toy-like, retro-futuristic, brutalist/raw. Do not drift into generic SaaS.
-- State the design through implementation, not prose: distinctive typography, purposeful palette, spatial composition, imagery, motion, and interaction details must all support the chosen direction.
-- Typography must be characterful. Avoid Inter, Roboto, Arial, system-ui, and Space Grotesk as defaults. Pair a distinctive display font with a refined body font using real Google Fonts imports.
-- Use CSS custom properties for the palette, surfaces, borders, shadows, type scale, and motion timings.
-- Choose one dominant color story and one sharp accent. Purple/violet/indigo gradients are banned unless the user or reference explicitly requires them.
-- Avoid predictable templates: no generic "Features / How it Works / Testimonials / Pricing" landing page unless those sections are specifically appropriate and requested.
-- Avoid decorative code preview cards, fake dashboards, generic neon AI glows, stock hero compositions, placeholder copy, and repeated card grids.
-- Build an actual page for the requested domain. Copy must be specific to the business/audience and should sound like a real brand, not a template.
-- Composition must have a memorable idea: asymmetry, editorial rhythm, controlled density, dramatic negative space, layered imagery, geometric systems, or another deliberate visual hook.
-- Motion should be restrained but high-impact: page-load reveals, hover states, and key transitions. Use Framer Motion when available.
-- Backgrounds should have atmosphere appropriate to the domain: texture, grain, geometric pattern, layered transparencies, lighting, or material depth. Never leave a flat default background unless the aesthetic is intentionally minimal.
-- Production-grade means responsive, accessible contrast, real hover/focus states, no overflow bugs, no broken imports, and no dummy placeholders.
+const FRONTEND_TECHNICAL_REQUIREMENTS = `
+TECHNICAL QUALITY REQUIREMENTS — mandatory for all frontend generation:
+- Production-grade: responsive at 320px/768px/1280px, accessible contrast ratios, no overflow bugs, no broken imports, no dummy placeholders.
+- Implement the design brief exactly as specified — colors, fonts, sections, and standout element are non-negotiable.
+- CSS custom properties for palette, type scale, and motion timings defined in :root.
+- Framer Motion for entrance animations, scroll-triggered reveals (useInView), stagger effects on lists.
+- Every interactive element must have a hover state, focus state, and transition. No static buttons.
+- Copy must be written specifically for this business and audience. Zero lorem ipsum. Zero placeholder text. Write like a real brand, not a template.
+- Images: use real Unsplash URLs https://images.unsplash.com/photo-[ID]?w=1200&q=80&auto=format&fit=crop — choose IDs that genuinely match the content.
+- Navigation collapses to hamburger on mobile, touch targets ≥44px.
+- Components split by responsibility. Clean semantic React, named exports, no unused imports.
+- If a build brief is provided above, it is the authoritative design specification. Do not override it with personal defaults.
 `.trim()
 
 async function appendEvent(
@@ -1282,12 +1280,14 @@ function buildAgentGenerationPrompt(params: {
 }) {
   const hasWebEvidence = params.webEvidence.length > 0
   const isInspiration = params.intent === "inspiration"
+  const hasPlan = params.planText.trim().length > 0
+
   const contextSections = [
-    params.planText.trim()
-      ? `Agent plan:\n${params.planText.trim()}`
+    hasPlan
+      ? `DESIGN BRIEF (authoritative — implement every decision exactly as specified):\n${params.planText.trim()}`
       : "",
     hasWebEvidence
-      ? `Agent web context:\n${formatWebEvidenceList(params.webEvidence)}`
+      ? `Web evidence:\n${formatWebEvidenceList(params.webEvidence)}`
       : "",
     params.isEdit
       ? "IMPORTANT: This is an edit to an existing project. ONLY output the files that need to change. Do NOT output unchanged files. Your changes will be merged surgically."
@@ -1297,97 +1297,34 @@ function buildAgentGenerationPrompt(params: {
   if (params.isEdit && !contextSections.length) return params.prompt
 
   const taskVerb = params.isEdit ? "Edit the existing app" : "Build the app"
+
   const evidenceDirective = hasWebEvidence
     ? isInspiration
-      ? `
-INSPIRATION RULES (draw from — do not copy verbatim):
-- Use the captured DOM outline, sections, style hints, and text content as creative inspiration, not a strict spec.
-- Match the general visual direction (color palette, typography feel, layout density) but adapt it into a fresh, original React/Tailwind implementation.
-- Preserve the structure of key sections (hero, features, pricing, footer) but you may improve the copy, spacing, and visual execution.
+      ? `INSPIRATION RULES:
+- Use the captured DOM, sections, style hints, and text content as creative direction — not a verbatim copy.
+- Adapt the visual direction into a fresh React/Tailwind implementation.
 - Reuse real image URLs from the evidence where suitable. Do not invent broken image paths.
-- Do not add generic placeholder sections that were not present in the reference.
-`.trim()
-      : `
-REFERENCE / DOM RECONSTRUCTION RULES:
-- Treat Agent web context as a strict visual design brief.
-- Use the captured DOM outline, sections, visual brief, style hints, image list, and text content to reconstruct the reference's real structure and density.
-- Preserve the reference's spatial rhythm: hero proportions, navigation placement, content density, card/panel treatment, image usage, whitespace, border radius, shadows, and button geometry.
-- If visualBrief includes element dimensions or positions, use them to guide responsive layout ratios and hierarchy.
-- Reuse real image URLs from the evidence when suitable and safe. Do not replace a product/place/person reference with vague dark atmospheric imagery.
-- Do not add generic sections that were not present in the reference unless the user explicitly requested them.
-`.trim()
-    : `
-NO REFERENCE CONTEXT:
-- Invent a distinctive concept from the user's domain. Do not produce a generic startup template.
-- Choose one memorable visual hook before coding and make the implementation express it through layout, typography, color, imagery/texture, and motion.
-`.trim()
+- Do not add sections that were not present in the reference.`.trim()
+      : `REFERENCE RULES:
+- Treat the web evidence as a strict visual brief.
+- Reconstruct the reference's spatial rhythm: hero proportions, density, card treatment, whitespace, border radius, shadows, button geometry.
+- If style hints include specific hex colors or font names, use them directly via CSS custom properties.
+- Reuse real image URLs from the evidence. Do not replace specific imagery with generic atmospheric stock.
+- Do not add sections absent from the reference unless the user explicitly requested them.`.trim()
+    : hasPlan
+      ? `The Design Brief above is the sole visual authority. Implement it precisely.`
+      : `No reference and no brief. Reason from the user request to make specific, committed design decisions before writing any code. Do not apply category defaults — think about what would genuinely work for this exact business.`
 
-  return `${taskVerb} requested by the user using the agent context below.
+  return `${taskVerb} requested by the user.
 
 User request:
 ${params.prompt}
 
-${contextSections.length ? `${contextSections.join("\n\n")}\n\n` : ""}${FRONTEND_DESIGN_SKILL}
+${contextSections.length ? `${contextSections.join("\n\n")}\n\n` : ""}${FRONTEND_TECHNICAL_REQUIREMENTS}
 
 ${evidenceDirective}
 
-DESIGN SPECIFICATION — treat the web context above as a hard design brief, not optional context:
-- Extract the exact color palette, fonts, spacing density, and layout structure from the inspected pages. Reproduce them via CSS custom properties. Do not substitute generic Tailwind defaults.
-- If style hints include specific hex colors or font names, use them directly.
-- Match the structural density of the reference exactly. If it is dense, do not produce a sparse page. If it is minimal, do not add sections the reference does not have.
-- Copy must be domain-specific and written for the actual business. Zero placeholder text, zero "Lorem ipsum", zero "Your tagline here".
-- If multiple pages were inspected, use the strongest consistent signals across all of them.
-
-DESIGN IDENTITY — decide before writing any component:
-1. Visual personality (editorial, bold typographic, warm artisanal, sleek tech, dramatic, playful — pick one)
-2. Color system: brand color + accent + atmospheric background — not plain white or black
-3. Typography pair from Google Fonts suited to the domain
-4. One standout layout decision that makes this site distinctive
-
-TYPOGRAPHY — mandatory Google Fonts (load via @import in index.css):
-- NEVER use system-ui or Inter alone. Always pair a display font with a body font.
-- Domain pairings:
-    food/hospitality/luxury → Cormorant Garamond + DM Sans OR Marcellus + Lato
-    agency/creative/bold → Syne + Inter OR Bebas Neue + Work Sans
-    SaaS/tech/product → Plus Jakarta Sans + Inter
-    health/wellness → Fraunces + Nunito
-    e-commerce/retail → Outfit + Manrope
-    finance/legal/trust → Libre Baskerville + Source Sans 3
-    editorial/content → Playfair Display + Source Serif 4
-- Display font on h1–h3. Body font on p, nav, buttons.
-
-COLOR AND ATMOSPHERE:
-- Define --color-brand, --color-accent, --color-bg, --color-surface, --color-text in :root.
-- Background must have character: warm cream (#faf7f2), cool off-white (#f4f4f0), deep charcoal (#111110), rich dark (#1a1917).
-- Every design needs atmosphere: CSS grain texture, gradient mesh, alternating section tints, or full-bleed photography.
-- BANNED: purple/violet gradient defaults, neon glow, rainbow gradients, flat white with no texture.
-
-COPY — non-negotiable:
-- ZERO lorem ipsum. ZERO placeholder text. ZERO generic taglines.
-- ALL copy must be domain-specific, opinionated, written for a real audience.
-- Headlines: strong and specific. "London's most obsessive sourdough" not "Welcome to our bakery".
-- CTAs: action-specific. "Reserve a table" not "Contact us".
-
-LAYOUT — domain-driven, not template-driven:
-- Restaurant/food: full-bleed hero image → menu highlights with real prices → story/atmosphere → hours/location
-- Agency/creative: bold typographic hero → work samples → process → team → contact form
-- SaaS/tech: product screenshot hero → 2–3 key differentiators → social proof → pricing → CTA
-- E-commerce: product-forward hero → category grid → featured items with prices → trust signals
-- Health/wellness: calm trust-building hero → philosophy → services with descriptions → testimonials → booking
-- Section backgrounds must alternate for visual flow. Vertical padding: 80–128px on major sections.
-
-IMAGES:
-- Use real Unsplash URLs: https://images.unsplash.com/photo-[ID]?w=1200&q=80&auto=format&fit=crop
-- Match photo IDs to actual content. Every img must have a working URL.
-
-ABSOLUTE BANS:
-- Generic AI template: dark page + purple gradient + Features/Pricing/Docs nav + "Build smarter" hero.
-- Flat backgrounds with no atmosphere.
-- Placeholder copy anywhere.
-- system-ui as the only font.
-- Decorative code/preview card as a hero element unless the product IS a code tool.
-
-If the request is to recreate or draw inspiration from a website, build a frontend-only React/Tailwind implementation with responsive layout and local-only interactions. Do not reproduce backend behavior, authentication, payments, private data, or third-party scripts unless explicitly asked.`
+If the request is to recreate or draw inspiration from a website, build a frontend-only React/Tailwind implementation with responsive layout and local-only interactions. Do not reproduce backend behaviour, authentication, payments, private data, or third-party scripts unless explicitly asked.`
 }
 
 export async function POST(req: Request) {
@@ -1471,6 +1408,56 @@ export async function POST(req: Request) {
 
     if (!(await isActiveRun(docRef, runId))) {
       return NextResponse.json({ ok: false, message: "Run already superseded" })
+    }
+
+    // — Intent classification: read what the user actually wants before doing anything —
+    // Determines whether to build, have a conversation, or give advice.
+    // No keywords, no if/else — the model reads the message and decides.
+    {
+      const intentRes = await createComputerAgentMessage(anthropic, {
+        max_tokens: 300,
+        temperature: 0,
+        system: `You are the first reasoning step of an AI website builder agent. Read the user's message and decide what kind of response is appropriate.
+
+Return ONLY valid JSON — no markdown, no extra text:
+{
+  "type": "build" | "respond",
+  "reply": string | null
+}
+
+"build" — the user is asking you to create, build, generate, update, or modify a website or web application. Set reply to null.
+
+"respond" — everything else: greetings, questions, advice requests, name suggestions, general conversation, expressing uncertainty about what they want. Write a natural, genuinely helpful reply in "reply" (1–4 sentences). If they ask for name ideas, give real names. If they ask for advice, give real advice. If they are not sure what they want, ask one focused question.
+
+The user may also be on an existing project — in that case, requests like "explain this code", "what does this do", or "can you help me think through the design" are "respond" not "build".`,
+        messages: [{ role: "user", content: prompt.slice(0, 600) }],
+      }, { enableMcp: false }).catch(() => null)
+
+      const intentRaw = intentRes
+        ? extractTextFromAnthropicContent(intentRes.content)
+        : null
+      const intentParsed = intentRaw ? (extractJson(intentRaw) as { type?: string; reply?: string } | null) : null
+      const intentType = intentParsed?.type === "build" || intentParsed?.type === "respond"
+        ? intentParsed.type
+        : "build" // default to build if classification fails — better to attempt than do nothing
+
+      if (intentType === "respond") {
+        const reply = typeof intentParsed?.reply === "string" && intentParsed.reply.trim()
+          ? intentParsed.reply.trim()
+          : "I'm here to help — what would you like to build?"
+
+        await appendRunEvent({
+          id: crypto.randomUUID(),
+          title: "Response",
+          description: reply,
+          status: "complete",
+          kind: "understanding",
+          createdAt: new Date().toISOString(),
+        })
+
+        await docRef.update({ status: "complete", currentRunId: null, updatedAt: new Date() })
+        return NextResponse.json({ ok: true })
+      }
     }
 
     await appendRunEvent({
@@ -1600,93 +1587,9 @@ Return ONLY valid JSON, no markdown:
       return NextResponse.json({ ok: false, message: "Run no longer active" })
     }
 
-    if (!runProfile.shouldDraftPlan) {
-      await appendRunEvent({
-        id: crypto.randomUUID(),
-        title: "Planning execution",
-        description: "Targeted edit, skipped plan drafting.",
-        status: "skipped",
-        kind: "planning",
-        createdAt: new Date().toISOString(),
-      })
-    } else try {
-      const response = await createComputerAgentMessage(anthropic, {
-        max_tokens: 700,
-        temperature: 0.2,
-        system: `You are a senior product designer and frontend architect creating a build brief for a website or web application.
-
-For simple edits (text change, color tweak, single component fix, minor layout adjustment): output exactly SKIP_PLAN.
-
-For all other requests, produce a precise BUILD BRIEF using this structure:
-
-**Purpose & Audience**
-One sentence: what this site does and who it is for.
-
-**Domain & Tone**
-Identify the domain (restaurant, SaaS, portfolio, e-commerce, agency, health, finance, etc.) and the correct visual tone for that domain. Be specific — "warm artisanal bakery" beats "food website".
-
-**Visual Identity**
-- Color: primary brand color + accent + background tone (with specific hex values)
-- Typography: Google Fonts display/heading font + body font pair appropriate for the domain
-- Mood: 3 adjectives that define the visual character
-
-**Section Architecture**
-List exactly which sections to build, in order, with one sentence on what each must accomplish. No filler sections. Minimum 4, maximum 7 sections for a landing page.
-
-**Standout Element**
-One specific design decision that makes this site distinctive and not generic. Be concrete: "full-bleed hero image with parallax text overlay" or "large editorial headline spanning full viewport width" or "asymmetric two-column feature layout with floating stat cards".
-
-**Copy Strategy**
-Key headline (write the actual hero headline), primary CTA text, and tone of voice guide for the rest of the copy.
-
-Rules:
-- No code. No assumptions about implementation details.
-- Every decision must be justified by the domain. A bakery and a SaaS product must look completely different.
-- Be opinionated. Vague plans produce generic output.`,
-        messages: [
-          {
-            role: "user",
-            content: `User request: ${prompt}\n\nRun profile:\n${JSON.stringify(runProfile)}`,
-          },
-        ],
-      })
-
-      planText =
-        extractTextFromAnthropicContent(response.content) || "No plan generated."
-
-      if (planText.trim() === "SKIP_PLAN") {
-        planText = ""
-        await appendRunEvent({
-          id: crypto.randomUUID(),
-          title: "Planning execution",
-          description: "Simple task, skipped plan drafting.",
-          status: "skipped",
-          kind: "planning",
-          createdAt: new Date().toISOString(),
-        })
-      } else {
-        await appendRunEvent({
-          id: crypto.randomUUID(),
-          title: "Planning execution",
-          description: planText,
-          status: "complete",
-          kind: "planning",
-          createdAt: new Date().toISOString(),
-        })
-      }
-    } catch (err) {
-      console.error("Computer planning failed:", err)
-      await appendRunEvent({
-        id: crypto.randomUUID(),
-        title: "Planning failed",
-        description: "Failed to generate plan.",
-        status: "error",
-        kind: "planning",
-        createdAt: new Date().toISOString(),
-      })
-    }
-
-    const webPlan = await createAgentWebPlan(prompt, planText, runProfile)
+    // Planning now runs AFTER research so the build brief is grounded in real evidence.
+    // Pass empty planText here — web plan can derive research strategy from the prompt alone.
+    const webPlan = await createAgentWebPlan(prompt, "", runProfile)
 
     if (runProfile.shouldUseWebTools) {
       await appendRunEvent({
@@ -1962,6 +1865,105 @@ Rules:
     }
 
     const usableWebEvidence = webEvidence.filter(hasUsableEvidence)
+
+    if (!(await isActiveRun(docRef, runId))) {
+      return NextResponse.json({ ok: false, message: "Run no longer active" })
+    }
+
+    // — Post-research planning: build brief grounded in actual evidence —
+    // Runs after research so every design decision is derived from what was found,
+    // not from category defaults applied before any context is available.
+    if (!runProfile.shouldDraftPlan) {
+      await appendRunEvent({
+        id: crypto.randomUUID(),
+        title: "Planning execution",
+        description: "Targeted edit — skipped plan drafting.",
+        status: "skipped",
+        kind: "planning",
+        createdAt: new Date().toISOString(),
+      })
+    } else {
+      const evidenceSummary = usableWebEvidence.length
+        ? formatWebEvidenceList(usableWebEvidence)
+        : ""
+
+      try {
+        const planResponse = await createComputerAgentMessage(anthropic, {
+          max_tokens: 800,
+          temperature: 0.2,
+          system: `You are a senior design director and frontend architect creating a build brief for a website or web application.
+
+For simple edits (text change, color tweak, single component fix, minor layout adjustment): output exactly SKIP_PLAN.
+
+For all other requests, produce a BUILD BRIEF grounded entirely in the research evidence below. If evidence is present, extract real signals from it — actual colors observed, real typography patterns, layout approaches that appeared across multiple sources. If no evidence was gathered, reason from deep knowledge of what top design agencies actually produce for this exact type of client — not from generic category defaults.
+
+Every decision must be specific and committed. "Warm tones" is not a decision. "#f5ede0 cream background with #1a1a1a charcoal text and #c4783c terracotta accent" is a decision.
+
+BUILD BRIEF structure:
+
+**Purpose & Audience**
+One sentence: what this site does and who it is specifically for.
+
+**Visual Identity**
+- Color: brand hex + accent hex + background hex — derived from research or from what genuinely works for this specific business type
+- Typography: exact Google Fonts display font + body font — chosen for this business's character, not a category default
+- Personality: 3 specific adjectives that define the visual character
+
+**Section Architecture**
+Ordered list of exactly which sections to build, each with one sentence on what it must accomplish. No filler. Built for this domain, not a generic template.
+
+**Standout Element**
+One specific layout or composition decision that makes this site memorable and not generic. Be concrete.
+
+**Copy Direction**
+Write the actual hero headline for this specific business. Tone guide for the rest of the copy.
+
+Rules:
+- No code. No category lookup tables. No "food sites use warm colors" reasoning.
+- Derive from evidence when available. Reason from domain expertise when not.
+- Be opinionated and specific. Vague plans produce generic output.`,
+          messages: [
+            {
+              role: "user",
+              content: `User request: ${prompt}\n\nResearch evidence:\n${evidenceSummary || "No web evidence gathered — reason from domain expertise."}`,
+            },
+          ],
+        })
+
+        const rawPlan = extractTextFromAnthropicContent(planResponse.content) || ""
+
+        if (rawPlan.trim() === "SKIP_PLAN") {
+          await appendRunEvent({
+            id: crypto.randomUUID(),
+            title: "Planning execution",
+            description: "Simple task — skipped plan drafting.",
+            status: "skipped",
+            kind: "planning",
+            createdAt: new Date().toISOString(),
+          })
+        } else {
+          planText = rawPlan
+          await appendRunEvent({
+            id: crypto.randomUUID(),
+            title: "Planning execution",
+            description: planText,
+            status: "complete",
+            kind: "planning",
+            createdAt: new Date().toISOString(),
+          })
+        }
+      } catch (err) {
+        console.error("Computer planning failed:", err)
+        await appendRunEvent({
+          id: crypto.randomUUID(),
+          title: "Planning failed",
+          description: "Failed to generate plan.",
+          status: "error",
+          kind: "planning",
+          createdAt: new Date().toISOString(),
+        })
+      }
+    }
 
     if (!(await isActiveRun(docRef, runId))) {
       return NextResponse.json({ ok: false, message: "Run no longer active" })
