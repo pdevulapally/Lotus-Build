@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+﻿import { useState, useEffect, useRef, useMemo } from "react";
 import { Check, Loader2, X, ChevronRight, ChevronDown, Terminal, Clock, Sparkles, Settings2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -6,7 +6,7 @@ import { TextShimmer } from "@/components/prompt-kit/text-shimmer";
 
 export type StepStatus = "idle" | "running" | "success" | "failed";
 
-/** NDJSON activity log parser — dark terminal colour scheme */
+/** NDJSON activity log parser â€” dark terminal colour scheme */
 function TerminalOutput({ logsTail }: { logsTail: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const lines = logsTail
@@ -57,8 +57,8 @@ function TerminalOutput({ logsTail }: { logsTail: string }) {
                   isRunning && "text-zinc-400"
                 )}
               >
-                {isSuccess && "✓ "}
-                {isFailed && "✗ "}
+                {isSuccess && "âœ“ "}
+                {isFailed && "âœ— "}
                 [{step}]
                 {msg ? ` ${msg}` : ""}
               </span>
@@ -94,7 +94,7 @@ function TerminalOutput({ logsTail }: { logsTail: string }) {
           return (
             <div key={i} className="flex items-start gap-2 text-green-400">
               <span className="shrink-0 select-none text-zinc-500">$</span>
-              <span>✓ Preview ready</span>
+              <span>âœ“ Preview ready</span>
             </div>
           );
         }
@@ -270,7 +270,7 @@ export function BuildTimeline({
           </div>
         </div>
 
-        {/* Steps — flowing log stream, no box-per-step */}
+        {/* Steps â€” flowing log stream, no box-per-step */}
         <div className="relative px-4 py-3">
           {/* Thin vertical connector line */}
           {steps.length > 0 && (
@@ -376,7 +376,7 @@ export function BuildTimeline({
           </div>
         )}
 
-        {/* Terminal — dark theme, open by default when logs exist */}
+        {/* Terminal â€” dark theme, open by default when logs exist */}
         <div className="border-t border-zinc-200">
           {/* Terminal header with scanline sweep animation */}
           <button
@@ -474,7 +474,7 @@ export function BuildTimeline({
                 <button
                   onClick={onFixWithAI}
                   disabled={isFixing}
-                  className="flex w-full items-center justify-center gap-2 rounded-md border border-zinc-900 bg-zinc-900 px-3 py-2 text-xs font-medium text-white shadow-sm transition-all hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex w-full items-center justify-center gap-2 rounded-md border border-zinc-900 bg-zinc-900 px-3 py-2 text-xs font-medium text-white shadow-sm transition-all hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isFixing ? (
                     <>

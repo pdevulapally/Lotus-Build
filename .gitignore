@@ -31,3 +31,9 @@ next-env.d.ts
 .an/
 
 firestore.rules
+
+.kiro
+specs 
+sandbox-dependency-versions
+.config.kiro
+bugfix.md

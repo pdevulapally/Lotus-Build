@@ -1338,7 +1338,7 @@ function ProjectContent() {
               <Button
                 type="button"
                 size="sm"
-                className="h-9 rounded-lg bg-zinc-900 px-4 text-sm text-white hover:bg-black"
+                className="h-9 rounded-lg bg-zinc-900 px-4 text-sm text-white hover:bg-zinc-800"
                 onClick={async () => {
                   try {
                     const idToken = await user?.getIdToken()
@@ -3697,7 +3697,7 @@ function ProjectContent() {
           <h1 className="text-xl font-semibold text-zinc-900 mb-2">This project is private</h1>
           <p className="text-zinc-500 text-sm mb-6">Sign in to request access or open your own project.</p>
           <Link href={`/login?redirect=${encodeURIComponent(`/project/${projectId}`)}`}>
-            <Button className="bg-zinc-900 text-white hover:bg-black border-0">Sign in</Button>
+            <Button className="bg-zinc-900 text-white hover:bg-zinc-800 border-0">Sign in</Button>
           </Link>
         </div>
       </div>
@@ -3792,7 +3792,7 @@ function ProjectContent() {
             <Button type="button" size="sm" variant="outline" className="hidden h-9 rounded-lg border-zinc-300 bg-white px-3 text-zinc-700 hover:bg-zinc-100 lg:inline-flex" onClick={() => setWebsiteSettingsOpen(true)}>
               Website Settings
             </Button>
-            <Button type="button" size="sm" className="h-9 rounded-lg bg-[#1f1f1f] px-3 text-white hover:bg-black" onClick={() => setDeployOpen(true)}>
+            <Button type="button" size="sm" className="h-9 rounded-lg bg-[#1f1f1f] px-3 text-white hover:bg-zinc-800" onClick={() => setDeployOpen(true)}>
               Go Live
             </Button>
             </div>
@@ -4192,7 +4192,7 @@ function ProjectContent() {
                         <Button
                           type="button"
                           size="sm"
-                          className="h-8 bg-zinc-900 text-white hover:bg-black"
+                          className="h-8 bg-zinc-900 text-white hover:bg-zinc-800"
                           onClick={() => handleEditSubmit(editingDraft)}
                           disabled={!editingDraft.trim()}
                         >
@@ -4279,7 +4279,7 @@ function ProjectContent() {
                             <Button
                               type="button"
                               size="sm"
-                              className="h-8 bg-zinc-900 text-white hover:bg-black"
+                              className="h-8 bg-zinc-900 text-white hover:bg-zinc-800"
                               onClick={() => handleEditSubmit(editingDraft)}
                               disabled={!editingDraft.trim()}
                             >
@@ -4651,7 +4651,7 @@ function ProjectContent() {
               Keep editing
             </AlertDialogCancel>
             <AlertDialogAction
-              className="bg-zinc-900 text-white hover:bg-black"
+              className="bg-zinc-900 text-white hover:bg-zinc-800"
               onClick={() => {
                 const nextAction = visualEditConfirmAction
                 setVisualEditConfirmAction(null)
@@ -4756,7 +4756,7 @@ function ProjectContent() {
                         </Button>
                         <Button
                           type="button"
-                          className="min-h-[40px] flex-1 rounded-xl bg-zinc-900 text-white hover:bg-black"
+                          className="min-h-[40px] flex-1 rounded-xl bg-zinc-900 text-white hover:bg-zinc-800"
                           onClick={async () => {
                             try {
                               if (navigator.share) {
@@ -4779,7 +4779,7 @@ function ProjectContent() {
                   )}
                   <Button
                     type="button"
-                    className="min-h-[44px] w-full rounded-xl bg-[#1f1f1f] text-white hover:bg-black"
+                    className="min-h-[44px] w-full rounded-xl bg-[#1f1f1f] text-white hover:bg-zinc-800"
                     onClick={netlifyConnected ? handleDeployToNetlify : handleConnectNetlify}
                     disabled={isDeploying || netlifyConnected === null}
                   >
@@ -4847,7 +4847,7 @@ function ProjectContent() {
                         </Button>
                         <Button
                           type="button"
-                          className="min-h-[40px] flex-1 rounded-xl bg-zinc-900 text-white hover:bg-black"
+                          className="min-h-[40px] flex-1 rounded-xl bg-zinc-900 text-white hover:bg-zinc-800"
                           onClick={async () => {
                             try {
                               if (navigator.share) {
@@ -4889,7 +4889,7 @@ function ProjectContent() {
                       />
                       <Button
                         type="button"
-                        className="mt-2 w-full bg-[#1f1f1f] text-white hover:bg-black"
+                        className="mt-2 w-full bg-[#1f1f1f] text-white hover:bg-zinc-800"
                         onClick={handleSaveVercelToken}
                         disabled={!vercelTokenInput.trim() || isVercelDeploying}
                       >

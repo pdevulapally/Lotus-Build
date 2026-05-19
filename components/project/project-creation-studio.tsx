@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { ArrowLeft } from "lucide-react"
@@ -157,9 +157,9 @@ function SuggestedReplies(props: {
               type="button"
               onClick={onSubmitSelection}
               disabled={isSubmitting}
-              className="rounded-full bg-[#1f1f1f] px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-black disabled:opacity-50"
+              className="rounded-full bg-[#1f1f1f] px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:opacity-50"
             >
-              {isSubmitting ? "Continuing..." : "Continue →"}
+              {isSubmitting ? "Continuing..." : "Continue â†’"}
             </button>
           ) : null}
         </div>
@@ -324,7 +324,7 @@ function ConversationThread(props: {
                     type="button"
                     onClick={() => void onBuildFromPlan()}
                     disabled={!canEdit || isDisabled}
-                    className="h-10 rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-black disabled:opacity-50"
+                    className="h-10 rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
                   >
                     Build from plan
                   </Button>

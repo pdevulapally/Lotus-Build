@@ -459,16 +459,16 @@ export default function TermsPage() {
             </p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {[
-                { name: "OpenAI &amp; Anthropic", desc: "AI model providers powering code generation and agent features" },
+                { name: "OpenAI & Anthropic", desc: "AI model providers powering code generation and agent features" },
                 { name: "Firebase / Google Cloud", desc: "Authentication, database, and infrastructure" },
                 { name: "Stripe", desc: "Payment processing and subscription management" },
                 { name: "GitHub", desc: "Version control and code repository integration" },
                 { name: "Supabase", desc: "Database provisioning and backend integration" },
-                { name: "Vercel &amp; Netlify", desc: "Application deployment and hosting" },
+                { name: "Vercel & Netlify", desc: "Application deployment and hosting" },
                 { name: "E2B", desc: "Sandboxed code execution environments" },
               ].map(({ name, desc }) => (
                 <div key={name} className="rounded-lg border border-zinc-200 bg-white p-3">
-                  <p className="text-sm font-medium text-zinc-800" dangerouslySetInnerHTML={{ __html: name }} />
+                  <p className="text-sm font-medium text-zinc-800">{name}</p>
                   <p className="mt-0.5 text-xs text-zinc-500">{desc}</p>
                 </div>
               ))}

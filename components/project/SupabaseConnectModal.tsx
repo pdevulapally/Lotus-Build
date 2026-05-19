@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -27,7 +27,7 @@ export function SupabaseConnectModal({ open, loading, error, onClose, onConnect 
           <Button type="button" variant="outline" onClick={onClose} className="border-zinc-300">
             Cancel
           </Button>
-          <Button type="button" onClick={onConnect} className="bg-zinc-900 text-white hover:bg-black" disabled={loading}>
+          <Button type="button" onClick={onConnect} className="bg-zinc-900 text-white hover:bg-zinc-800" disabled={loading}>
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Connect Supabase
           </Button>

@@ -33,7 +33,6 @@ import {
   ShieldAlert,
   Terminal,
   Wrench,
-  X,
   Zap,
 } from "lucide-react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
@@ -253,33 +252,23 @@ function isBrowserLiveViewExpired(event: ComputerTimelineEvent) {
 
 function getLatestBrowserInspection(events: ComputerTimelineEvent[]): BrowserInspection | null {
   const browserEvents = [...events].sort((a, b) => a.index - b.index).reverse()
-  const found = browserEvents.find((e) => {
-    const lv = e.metadata?.browserLiveUrl
-    const provider = e.metadata?.browserProvider
-    return e.kind === "browser" &&
-      e.title !== "Browser live" &&
-      provider === "firecrawl" &&
-      typeof lv === "string" &&
-      lv.startsWith("http")
-  }) || browserEvents.find((e) => {
-    const lv = e.metadata?.browserLiveUrl
-    const provider = e.metadata?.browserProvider
-    return e.kind === "browser" &&
-      provider === "firecrawl" &&
-      typeof lv === "string" &&
-      lv.startsWith("http")
-  })
+  const found = browserEvents.find((e) =>
+    e.kind === "browser" &&
+    e.title !== "Browser live" &&
+    typeof e.metadata?.targetUrl === "string" &&
+    (e.metadata.targetUrl as string).startsWith("http")
+  )
   if (!found?.metadata) return null
-  const liveUrl = typeof found.metadata.browserLiveUrl === "string" ? found.metadata.browserLiveUrl : ""
-  const url     = typeof found.metadata.targetUrl       === "string" ? found.metadata.targetUrl       : ""
-  if (!liveUrl || !url) return null
+  const url = typeof found.metadata.targetUrl === "string" ? found.metadata.targetUrl : ""
+  if (!url) return null
   return {
-    url, liveUrl,
+    url,
+    liveUrl: url, // kept for type compatibility; iframe always uses url
     sessionId: typeof found.metadata.browserSessionId === "string" ? found.metadata.browserSessionId : undefined,
     baseUrl:   typeof found.metadata.browserBaseUrl   === "string" ? found.metadata.browserBaseUrl   : undefined,
     provider:  typeof found.metadata.browserProvider  === "string" ? found.metadata.browserProvider  : undefined,
     expiresAt: typeof found.metadata.browserExpiresAt === "string" ? found.metadata.browserExpiresAt : undefined,
-    isExpired: isBrowserLiveViewExpired(found),
+    isExpired: false, // targetUrl never expires
     title:     typeof found.metadata.pageTitle === "string" && found.metadata.pageTitle.trim() ? found.metadata.pageTitle : url,
   }
 }
@@ -427,7 +416,7 @@ function DeployButton({
         type="button"
         onClick={() => onOpenChange(!open)}
         disabled={state.busy}
-        className="inline-flex h-8 items-center gap-1.5 rounded-full border border-zinc-900 bg-zinc-900 px-3 text-[11px] font-semibold text-white shadow-sm transition-colors hover:bg-black disabled:cursor-not-allowed disabled:opacity-70"
+        className="inline-flex h-8 items-center gap-1.5 rounded-full border border-zinc-900 bg-zinc-900 px-3 text-[11px] font-semibold text-white shadow-sm transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-70"
       >
         {state.busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Rocket className="h-3.5 w-3.5" />}
         Deploy
@@ -911,6 +900,17 @@ function FeedItem({ event, isLatest, onSupabaseSetup, onSupabaseDecline, onClari
     }
   }
 
+  // AI conversational reply — rendered as plain prose, no bubble, no icon
+  if (event.title === "Response" && event.description) {
+    return (
+      <div className="py-3 pr-2">
+        <p className="whitespace-pre-wrap break-words text-[14px] leading-[1.7] text-zinc-800 [overflow-wrap:anywhere]">
+          {event.description}
+        </p>
+      </div>
+    )
+  }
+
   // Plan card — rendered only once when planning completes
   if (event.title === "Planning execution" && isComplete && event.description) {
     return <PlanTool event={event} />
@@ -979,19 +979,15 @@ function FeedItem({ event, isLatest, onSupabaseSetup, onSupabaseDecline, onClari
   return (
     <div className="flex items-start gap-2.5 py-1.5 w-full overflow-hidden">
       <div className="flex h-5 w-4 shrink-0 items-center justify-center">
-        {isComplete || isSkipped ? (
-          <svg className="h-3 w-3" viewBox="0 0 11 11" fill="none" stroke="#71717a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="2,5.5 4.5,8 9,3" />
-          </svg>
-        ) : isError ? (
-          <X className="h-3 w-3 text-red-500" />
-        ) : isRunning ? (
+        {isRunning ? (
           <div className="relative flex h-1.5 w-1.5">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-zinc-900 opacity-20" />
             <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-zinc-900" />
           </div>
+        ) : isError ? (
+          <div className="h-1.5 w-1.5 rounded-full bg-red-400" />
         ) : (
-          <div className="h-1 w-1 rounded-full bg-zinc-300" />
+          <div className={cn("h-1.5 w-1.5 rounded-full", isSkipped ? "bg-zinc-200" : "bg-zinc-300")} />
         )}
       </div>
       <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2">
@@ -1102,7 +1098,7 @@ function UserMessageBubble({
 function AgentFeed({
   prompt, events, localMessages, status, optimisticStart,
   editingIndex, editText, onEditStart, onEditChange, onEditSubmit, onEditCancel,
-  onSupabaseSetup, onSupabaseDecline, onClarificationAnswer,
+  onSupabaseSetup, onSupabaseDecline, onClarificationAnswer, onSwitchToPreview,
 }: {
   prompt?: string; events: ComputerTimelineEvent[]
   localMessages: LocalMessage[]
@@ -1115,6 +1111,7 @@ function AgentFeed({
   onSupabaseSetup?: () => void
   onSupabaseDecline?: () => void
   onClarificationAnswer?: (answer: string) => void
+  onSwitchToPreview?: () => void
 }) {
   const endRef    = useRef<HTMLDivElement | null>(null)
   const isRunning = status === "running" || status === "planning"
@@ -1240,11 +1237,23 @@ function AgentFeed({
       {/* Completion message */}
       {status === "complete" && visible.length > 0 && (
         <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.14 }} className="pt-4">
-          <p className="text-[13px] leading-relaxed text-zinc-800">
-            {events.some((e) => e.title === "Preview ready")
-              ? "Preview is ready. The generated app is live in the workspace."
-              : "Run complete."}
-          </p>
+          {events.some((e) => e.title === "Preview ready") ? (
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50 px-3.5 py-3">
+              <p className="text-[13px] font-medium text-emerald-800">Preview is ready.</p>
+              {onSwitchToPreview && (
+                <button
+                  type="button"
+                  onClick={onSwitchToPreview}
+                  className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-emerald-700 sm:hidden"
+                >
+                  <Monitor className="h-3.5 w-3.5" />
+                  Open Preview
+                </button>
+              )}
+            </div>
+          ) : (
+            <p className="text-[13px] leading-relaxed text-zinc-800">Run complete.</p>
+          )}
         </motion.div>
       )}
 
@@ -1295,6 +1304,83 @@ function ResearchPanel({ events }: { events: ComputerTimelineEvent[] }) {
   )
 }
 
+// ─── Runtime error card ───────────────────────────────────────────────────────
+
+function RuntimeErrorCard({
+  error,
+  fixing,
+  onFix,
+  onDismiss,
+}: {
+  error: { message: string; stack: string }
+  fixing: boolean
+  onFix: () => void
+  onDismiss: () => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  return (
+    <div className="absolute bottom-4 right-4 z-20 w-[340px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-red-200 bg-[#fffdf8] shadow-[0_12px_40px_-12px_rgba(220,38,38,0.25),0_4px_16px_-4px_rgba(0,0,0,0.12)]">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2 border-b border-red-100 bg-red-50 px-3.5 py-2.5">
+        <div className="flex items-center gap-2">
+          <span className="flex h-5 w-5 items-center justify-center rounded-md bg-red-100">
+            <ShieldAlert className="h-3 w-3 text-red-500" />
+          </span>
+          <span className="text-[12px] font-semibold text-red-700">Runtime Error</span>
+        </div>
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="flex h-5 w-5 items-center justify-center rounded-md text-red-400 transition-colors hover:bg-red-100 hover:text-red-600"
+        >
+          <span className="text-[14px] leading-none">×</span>
+        </button>
+      </div>
+      {/* Error message */}
+      <div className="px-3.5 py-3">
+        <p className="line-clamp-2 text-[12px] leading-relaxed text-zinc-700">{error.message}</p>
+        {/* Stack trace toggle */}
+        {error.stack && (
+          <div className="mt-2">
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              className="text-[11px] text-zinc-400 transition-colors hover:text-zinc-700"
+            >
+              {expanded ? 'Hide stack trace' : 'Show stack trace'}
+            </button>
+            {expanded && (
+              <pre className="mt-1.5 max-h-[120px] overflow-y-auto rounded-lg border border-zinc-100 bg-zinc-50 p-2 text-[10px] leading-relaxed text-zinc-500 [scrollbar-width:thin]">
+                {error.stack}
+              </pre>
+            )}
+          </div>
+        )}
+      </div>
+      {/* Action row */}
+      <div className="flex items-center gap-2 border-t border-[#e0dbd1] bg-[#faf9f5] px-3.5 py-2.5">
+        <button
+          type="button"
+          onClick={onFix}
+          disabled={fixing}
+          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {fixing
+            ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Fixing...</>
+            : <><Wrench className="h-3.5 w-3.5" /> Fix with AI</>}
+        </button>
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="inline-flex h-8 items-center rounded-lg border border-zinc-200 bg-white px-3 text-[12px] font-medium text-zinc-500 transition-colors hover:text-zinc-800"
+        >
+          Dismiss
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ─── Workspace panel ──────────────────────────────────────────────────────────
 
 function WorkspaceHeaderLink({ href }: { href: string }) {
@@ -1337,49 +1423,23 @@ function LaptopSwitcher({ label, title, url, icon, onClick }: {
 
 function WorkspaceContent({
   session, activeTab, browserInspection, isEnsuringPreview, previewEnsureError, onSwitchView,
+  runtimeError, fixingError, onFixError, onDismissError,
 }: {
   session: ComputerSessionResponse; activeTab: WorkspaceTab
   browserInspection: BrowserInspection | null
   isEnsuringPreview: boolean
   previewEnsureError: string | null
   onSwitchView: (v: WorkspaceTab) => void
+  runtimeError: { message: string; stack: string } | null
+  fixingError: boolean
+  onFixError: () => void
+  onDismissError: () => void
 }) {
   if (activeTab === "research") {
     return <ResearchPanel events={session.timeline} />
   }
 
   if (activeTab === "browser" && browserInspection) {
-    if (browserInspection.isExpired) {
-      return (
-        <motion.div key="browser-expired" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}
-          className="flex h-full items-center justify-center p-8 text-center">
-          <div className="max-w-sm">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-[#e0dbd1] bg-white text-zinc-300 shadow-sm">
-              <Globe2 className="h-5 w-5" />
-            </div>
-            <p className="text-[13px] font-semibold text-zinc-700">Browser session expired</p>
-            <p className="mt-1.5 text-[12px] leading-relaxed text-zinc-400">
-              The page context was already captured for generation. Open the original site if you need to inspect it again.
-            </p>
-            <div className="mt-4 flex items-center justify-center gap-2">
-              <a href={browserInspection.url} target="_blank" rel="noreferrer"
-                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#e0dbd1] bg-white px-3 text-[12px] font-medium text-zinc-700 transition-colors hover:bg-[#f7f5f1]">
-                <ExternalLink className="h-3.5 w-3.5" />
-                Open original
-              </a>
-              {session.previewUrl && (
-                <button type="button" onClick={() => onSwitchView("preview")}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-zinc-900 px-3 text-[12px] font-medium text-white transition-colors hover:bg-zinc-800">
-                  <Monitor className="h-3.5 w-3.5" />
-                  Preview
-                </button>
-              )}
-            </div>
-          </div>
-        </motion.div>
-      )
-    }
-
     return (
       <motion.div key="browser" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}
         className="flex h-full min-h-0 flex-col p-3 sm:p-4">
@@ -1391,11 +1451,11 @@ function WorkspaceContent({
             <p className="mt-0.5 truncate text-[12px] font-medium text-zinc-800">{browserInspection.title}</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <WorkspaceHeaderLink href={browserInspection.liveUrl} />
+            <WorkspaceHeaderLink href={browserInspection.url} />
           </div>
         </div>
         <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-zinc-800 bg-[#111113] shadow-sm">
-          <iframe src={browserInspection.liveUrl} className="h-full w-full bg-white"
+          <iframe src={browserInspection.url} className="h-full w-full bg-white"
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
             referrerPolicy="no-referrer" title="Remote browser" />
           {session.previewUrl && (
@@ -1423,6 +1483,14 @@ function WorkspaceContent({
           {browserInspection && !browserInspection.isExpired && (
             <LaptopSwitcher label="Browser" title={browserInspection.title} url={browserInspection.url}
               icon={<Globe2 className="h-3.5 w-3.5" />} onClick={() => onSwitchView("browser")} />
+          )}
+          {runtimeError && (
+            <RuntimeErrorCard
+              error={runtimeError}
+              fixing={fixingError}
+              onFix={onFixError}
+              onDismiss={onDismissError}
+            />
           )}
         </div>
       </motion.div>
@@ -1543,6 +1611,8 @@ export default function ComputerPage() {
   const [tokenLimitModalOpen, setTokenLimitModalOpen] = useState(false)
   const [isEnsuringPreview, setIsEnsuringPreview] = useState(false)
   const [previewEnsureError, setPreviewEnsureError] = useState<string | null>(null)
+  const [runtimeError,      setRuntimeError]      = useState<{ message: string; stack: string } | null>(null)
+  const [fixingError,       setFixingError]       = useState(false)
   const hasStartedRef = useRef(false)
   const previousPreviewUrlRef = useRef<string | null | undefined>(undefined)
   const previewEnsureKeyRef = useRef<string | null>(null)
@@ -1755,6 +1825,19 @@ export default function ComputerPage() {
     }
   }, [authLoading, getOptionalAuthHeader, session, session?.projectId, session?.status, session?.previewUrl, setActiveTab, setMobileView, user])
 
+  // ── Runtime error listener — receives postMessage from sandbox iframe ─────
+  useEffect(() => {
+    if (!session?.previewUrl) return
+    const handler = (event: MessageEvent) => {
+      const data = event.data as { type?: string; message?: string; stack?: string }
+      if (data?.type !== 'runtime-error') return
+      if (!data.message) return
+      setRuntimeError({ message: data.message, stack: data.stack || '' })
+    }
+    window.addEventListener('message', handler)
+    return () => window.removeEventListener('message', handler)
+  }, [session?.previewUrl])
+
   // ── Auto-run (unchanged) ──────────────────────────────────────────────────
   useEffect(() => {
     if (!session || session.status !== "idle" || hasStartedRef.current) return
@@ -1788,6 +1871,7 @@ export default function ComputerPage() {
   const handleRun = useCallback(async (value: string) => {
     const t = value.trim(); if (!t) return
     setLocalMessages((c) => [...c, { role: "user", content: t }])
+    setRuntimeError(null)
     if (!session || isStartingRun) return
     if (isBuildTokenBlocked) {
       showTokenLimit()
@@ -1816,6 +1900,7 @@ export default function ComputerPage() {
   const handleEditSubmit = useCallback(async (index: number) => {
     const t = editText.trim(); if (!t || !session) return
     setEditingMsgIndex(null); setEditText("")
+    setRuntimeError(null)
 
     // Determine which runs are being discarded (everything at or after the edit point).
     const { firstRunId, followUpRunIds } = getRunIdGroups(session.timeline)
@@ -2221,8 +2306,8 @@ export default function ComputerPage() {
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,rgba(210,200,182,0.22),transparent)]" />
 
       {/* ── Header ── */}
-      <header className="relative z-10 shrink-0 px-3 pt-3 pb-2.5 sm:px-4 sm:pt-4 sm:pb-3">
-        <div className="mx-auto max-w-[1800px]">
+      <header className="relative z-10 shrink-0 px-3 pt-3 pb-2.5 sm:px-0 sm:pt-2 sm:pb-2">
+        <div className="mx-auto max-w-none sm:px-3">
           <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-[1.4rem] border border-[#e0dbd1] bg-[rgba(252,250,246,0.92)] px-3.5 py-2.5 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_32px_-12px_rgba(0,0,0,0.12)] backdrop-blur-md sm:rounded-[1.6rem] sm:px-5 sm:py-3">
             <Link href="/" aria-label="Back"
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-500 shadow-sm transition-colors hover:bg-zinc-50">
@@ -2230,7 +2315,7 @@ export default function ComputerPage() {
             </Link>
             <div className="min-w-0 flex-1">
               <div className="flex min-w-0 items-center gap-2">
-                <span className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-2xl border border-zinc-200 bg-white text-zinc-700 shadow-sm">
+                <span className="hidden sm:inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-2xl border border-zinc-200 bg-white text-zinc-700 shadow-sm">
                   <Laptop className="h-4 w-4" />
                   <span className="sr-only">Computer session</span>
                 </span>
@@ -2274,7 +2359,7 @@ export default function ComputerPage() {
                     <button
                       type="button"
                       onClick={() => setIsEditingTitle(true)}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-600 transition-colors hover:text-zinc-900"
+                      className="hidden sm:inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-600 transition-colors hover:text-zinc-900"
                       aria-label="Edit session title"
                       title="Edit title"
                     >
@@ -2289,35 +2374,37 @@ export default function ComputerPage() {
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2">
               <StatusBadge status={session.status} />
-              <IntegrationsButton
-                projectId={session.projectId}
-                project={projectIntegration}
-                open={integrationsOpen}
-                busy={integrationBusy}
-                message={integrationMessage}
-                envValues={envValues}
-                onOpenChange={setIntegrationsOpen}
-                onGithubSync={handleGithubSync}
-                onSupabaseSetup={handleSupabaseSetup}
-                onEnvChange={(key, value) => setEnvValues((current) => ({ ...current, [key]: value }))}
-                onEnvAdd={handleEnvAdd}
-                onEnvSave={handleEnvSave}
-              />
-              <DeployButton
-                projectId={session.projectId}
-                open={deployOpen}
-                state={deployState}
-                deploymentLinks={getProjectDeploymentLinks(projectIntegration)}
-                onOpenChange={setDeployOpen}
-                onDeploy={handleDeploy}
-              />
+              <div className="hidden sm:contents">
+                <IntegrationsButton
+                  projectId={session.projectId}
+                  project={projectIntegration}
+                  open={integrationsOpen}
+                  busy={integrationBusy}
+                  message={integrationMessage}
+                  envValues={envValues}
+                  onOpenChange={setIntegrationsOpen}
+                  onGithubSync={handleGithubSync}
+                  onSupabaseSetup={handleSupabaseSetup}
+                  onEnvChange={(key, value) => setEnvValues((current) => ({ ...current, [key]: value }))}
+                  onEnvAdd={handleEnvAdd}
+                  onEnvSave={handleEnvSave}
+                />
+                <DeployButton
+                  projectId={session.projectId}
+                  open={deployOpen}
+                  state={deployState}
+                  deploymentLinks={getProjectDeploymentLinks(projectIntegration)}
+                  onOpenChange={setDeployOpen}
+                  onDeploy={handleDeploy}
+                />
+              </div>
             </div>
           </div>
         </div>
       </header>
 
       {/* ── 2-panel body ── */}
-      <div className="relative mx-auto flex min-h-0 w-full max-w-[1800px] flex-1 gap-3 overflow-hidden px-3 pb-16 sm:pb-3 sm:px-4 sm:pb-4">
+      <div className="relative flex min-h-0 w-full flex-1 gap-3 overflow-hidden px-3 pb-20 sm:px-3 sm:pb-3">
 
         {/* ── Feed panel (left) ── */}
         <div className={cn(
@@ -2350,7 +2437,7 @@ export default function ComputerPage() {
           </div>
 
           {/* Feed scroll area */}
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 [scrollbar-width:thin] sm:px-5">
+          <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 [scrollbar-width:thin] sm:px-5">
             <AgentFeed
               prompt={firstPrompt} events={session.timeline}
               localMessages={localMessages} status={session.status}
@@ -2361,6 +2448,7 @@ export default function ComputerPage() {
               onSupabaseSetup={handleSupabaseYes}
               onSupabaseDecline={handleSupabaseNo}
               onClarificationAnswer={handleClarificationAnswer}
+              onSwitchToPreview={() => { setMobileView("workspace"); setActiveTab("preview") }}
             />
           </div>
 
@@ -2425,6 +2513,18 @@ export default function ComputerPage() {
                   isEnsuringPreview={isEnsuringPreview}
                   previewEnsureError={previewEnsureError}
                   onSwitchView={setActiveTab}
+                  runtimeError={runtimeError}
+                  fixingError={fixingError}
+                  onFixError={async () => {
+                    if (!runtimeError || fixingError) return
+                    setFixingError(true)
+                    setMobileView("feed")
+                    const fixPrompt = `Fix this runtime error in the app:\n\n${runtimeError.message}${runtimeError.stack ? '\n\nStack trace:\n' + runtimeError.stack.slice(0, 800) : ''}`
+                    setRuntimeError(null)
+                    await handleRun(fixPrompt)
+                    setFixingError(false)
+                  }}
+                  onDismissError={() => setRuntimeError(null)}
                 />
               </motion.div>
             </AnimatePresence>
@@ -2433,27 +2533,48 @@ export default function ComputerPage() {
       </div>
 
       {/* ── Mobile bottom nav — 2 views only ── */}
-      <nav className="absolute inset-x-0 bottom-0 z-10 shrink-0 border-t border-[#ede8e0] bg-[rgba(252,250,246,0.96)] px-3 pb-safe pt-2 backdrop-blur-xl sm:hidden">
-        <div className="mx-auto grid max-w-sm grid-cols-2 gap-1 rounded-[1rem] border border-[#e0dbd1] bg-[#f5f3ee] p-1">
-          {([
-            { value: "feed"      as const, label: "Session",   icon: MessageSquare   },
-            { value: "workspace" as const, label: "Workspace", icon: LayoutPanelLeft },
-          ]).map(({ value, label, icon: Icon }) => (
-            <button key={value} type="button" onClick={() => setMobileView(value)}
-              className={cn(
-                "flex h-10 items-center justify-center gap-1.5 rounded-[0.75rem]",
-                "text-[12px] font-medium transition-all",
-                mobileView === value
-                  ? "bg-white text-zinc-900 shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
-                  : "text-zinc-500 hover:text-zinc-700"
-              )}>
-              <Icon className="h-3.5 w-3.5" />
-              {label}
-              {value === "workspace" && isActive && (
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-              )}
-            </button>
-          ))}
+      <nav className="absolute inset-x-0 bottom-0 z-10 shrink-0 border-t border-[#ede8e0] bg-[rgba(252,250,246,0.96)] px-3 pb-4 pt-2 backdrop-blur-xl sm:hidden" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+        <div className="mx-auto grid max-w-sm grid-cols-2 gap-1.5 rounded-[1rem] border border-[#e0dbd1] bg-[#f5f3ee] p-1">
+          <button
+            type="button"
+            onClick={() => setMobileView("feed")}
+            className={cn(
+              "flex h-11 items-center justify-center gap-2 rounded-[0.75rem] text-[13px] font-medium transition-all",
+              mobileView === "feed"
+                ? "bg-white text-zinc-900 shadow-[0_1px_4px_rgba(0,0,0,0.10)]"
+                : "text-zinc-500"
+            )}
+          >
+            <MessageSquare className="h-4 w-4" />
+            Chat
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileView("workspace")}
+            className={cn(
+              "relative flex h-11 items-center justify-center gap-2 rounded-[0.75rem] text-[13px] font-medium transition-all",
+              mobileView === "workspace"
+                ? "bg-white text-zinc-900 shadow-[0_1px_4px_rgba(0,0,0,0.10)]"
+                : hasPreview
+                  ? "bg-zinc-900 text-white shadow-[0_1px_4px_rgba(0,0,0,0.18)]"
+                  : "text-zinc-500"
+            )}
+          >
+            <Monitor className="h-4 w-4" />
+            Preview
+            {isActive && (
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400" />
+              </span>
+            )}
+            {!isActive && hasPreview && mobileView !== "workspace" && (
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+              </span>
+            )}
+          </button>
         </div>
       </nav>
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { collection, deleteDoc, doc, onSnapshot, query, where } from "firebase/firestore"
@@ -320,7 +320,7 @@ function SettingsContent() {
   const [portalLoading, setPortalLoading] = useState(false)
   const [invoices, setInvoices] = useState<StripeInvoice[]>([])
   const [invoicesLoading, setInvoicesLoading] = useState(false)
-  const [invoicesFetched, setInvoicesFetched] = useState(false)
+  const invoicesFetched = useRef(false)
 
   useEffect(() => {
     if (!user?.uid) {
@@ -388,18 +388,21 @@ function SettingsContent() {
   useEffect(() => {
     const planId = userData?.planId
     const hasPaidPlan = planId && planId !== "free"
-    if (activePage !== "billing" || invoicesFetched || !user || !hasPaidPlan) return
+    if (activePage !== "billing" || invoicesFetched.current || !user || !hasPaidPlan) return
+    let mounted = true
     setInvoicesLoading(true)
     user.getIdToken().then((token) =>
       fetch("/api/stripe/invoices", { headers: { Authorization: `Bearer ${token}` } })
     ).then((r) => r.json()).then((data) => {
+      if (!mounted) return
       setInvoices(data.invoices ?? [])
-      setInvoicesFetched(true)
+      invoicesFetched.current = true
     }).catch(() => {
-      setInvoicesFetched(true)
-    }).finally(() => setInvoicesLoading(false))
+      if (mounted) invoicesFetched.current = true
+    }).finally(() => { if (mounted) setInvoicesLoading(false) })
+    return () => { mounted = false }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activePage, invoicesFetched, user?.uid, userData?.planId])
+  }, [activePage, user?.uid, userData?.planId])
 
   const analytics = useMemo(() => {
     const total = projectsData.length

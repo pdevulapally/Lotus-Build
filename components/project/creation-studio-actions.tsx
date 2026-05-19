@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { Button } from "@/components/ui/button"
 
@@ -33,7 +33,7 @@ export function CreationStudioActions(props: {
             type="button"
             onClick={onBuildFromPlan}
             disabled={disabled}
-            className="w-full rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-black disabled:opacity-50"
+            className="w-full rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
           >
             Build from plan
           </Button>
@@ -52,7 +52,7 @@ export function CreationStudioActions(props: {
           type="button"
           onClick={onGeneratePlan}
           disabled={disabled || isDraftingPlan}
-          className="w-full rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-black disabled:opacity-50"
+          className="w-full rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
         >
           {isDraftingPlan ? "Generating plan..." : "Generate plan"}
         </Button>
@@ -62,7 +62,7 @@ export function CreationStudioActions(props: {
         {stage === "plan"
           ? "Make any last changes, then build from the approved plan."
           : planReady
-            ? "Answers look complete — generate the plan and review before building."
+            ? "Answers look complete â€” generate the plan and review before building."
             : questionsRemaining === 1
               ? "One more answer should be enough to move into the plan step."
               : "Keep answering the prompts and the plan will appear once the brief is complete."}

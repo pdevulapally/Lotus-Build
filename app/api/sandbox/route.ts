@@ -341,6 +341,22 @@ function parsePackageJsonText(txt: string): any {
   }
 }
 
+/**
+ * Dependency version overrides applied to every sandbox before `npm install`.
+ *
+ * IMPORTANT — do NOT guess or hallucinate these versions.
+ * Each entry must reflect what is actually pre-installed in the E2B sandbox
+ * template (or a version known to be compatible with it).
+ *
+ * To update a version:
+ *   1. Verify the version is available on npm (`npm info <pkg> version`).
+ *   2. Confirm it works in the sandbox template.
+ *   3. Update the value here — do not infer it from unrelated context.
+ *
+ * Current verified versions (as of sandbox template baseline):
+ *   framer-motion  12.39.0  — verified against E2B template
+ *   lucide-react    1.16.0  — verified against E2B template
+ */
 const SANDBOX_DEPENDENCY_VERSION_OVERRIDES: Record<string, string> = {
   "react-icons": "^5.0.0",
   "tailwindcss": "^3.4.17",
@@ -348,8 +364,10 @@ const SANDBOX_DEPENDENCY_VERSION_OVERRIDES: Record<string, string> = {
   "autoprefixer": "^10.4.20",
   "vite": "^5.4.11",
   "@vitejs/plugin-react": "^4.3.4",
-  "lucide-react": "^0.577.0",
-  "framer-motion": "^11.0.0",
+  // These versions are pinned to the E2B sandbox template baseline.
+  // Do NOT change them without verifying against the actual template.
+  "lucide-react": "1.16.0",
+  "framer-motion": "12.39.0",
 }
 
 async function normalizePackageJsonDependenciesForPreview(sandbox: Sandbox): Promise<any> {
@@ -408,27 +426,48 @@ async function normalizePackageJsonDependenciesForPreview(sandbox: Sandbox): Pro
     }
   }
 
+  // Scan all source files for third-party imports and auto-add any that are missing
+  // from package.json. This prevents "Failed to resolve import" (missing-import) errors
+  // at dev-server startup without hardcoding a package list.
   try {
     const importScan = await cmd(
       sandbox,
-      `grep -R -E "from ['\\\"](lucide-react|framer-motion)['\\\"]|from\\(['\\\"](lucide-react|framer-motion)['\\\"]\\)" ${PROJECT_DIR}/src ${PROJECT_DIR}/index.html 2>/dev/null || true`,
-      10000
+      // Match: import ... from 'pkg' / import ... from "pkg" / require('pkg') / require("pkg")
+      // Capture the package name (bare specifier, not relative/absolute path)
+      `grep -R -hE "(from|require)\\s*['\"]([^./'\"][^'\"]*)['\"]" ${PROJECT_DIR}/src 2>/dev/null | grep -oE "['\"][^./'\"][^'\"]*['\"]" | tr -d "'\"" | sort -u || true`,
+      15000
     )
-    const importedPackages = importScan.stdout || ""
-    for (const packageName of ["lucide-react", "framer-motion"]) {
-      if (
-        importedPackages.includes(packageName) &&
-        !pkg.dependencies?.[packageName] &&
-        !pkg.devDependencies?.[packageName]
-      ) {
-        pkg.dependencies = {
-          ...(pkg.dependencies && typeof pkg.dependencies === "object" ? pkg.dependencies : {}),
-          [packageName]: SANDBOX_DEPENDENCY_VERSION_OVERRIDES[packageName],
-        }
-        changed = true
-      }
+    const scannedPackages = (importScan.stdout || "")
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean)
+
+    const currentAllDeps = {
+      ...(pkg.dependencies && typeof pkg.dependencies === "object" ? pkg.dependencies : {}),
+      ...(pkg.devDependencies && typeof pkg.devDependencies === "object" ? pkg.devDependencies : {}),
     }
-  } catch {}
+
+    for (const rawPkg of scannedPackages) {
+      // Normalise scoped packages: "@scope/name/sub" → "@scope/name", "name/sub" → "name"
+      const packageName = rawPkg.startsWith("@")
+        ? rawPkg.split("/").slice(0, 2).join("/")
+        : rawPkg.split("/")[0]
+
+      if (!packageName || currentAllDeps[packageName]) continue
+
+      // Use a pinned version if we have one, otherwise fall back to "latest"
+      const version = SANDBOX_DEPENDENCY_VERSION_OVERRIDES[packageName] ?? "latest"
+      pkg.dependencies = {
+        ...(pkg.dependencies && typeof pkg.dependencies === "object" ? pkg.dependencies : {}),
+        [packageName]: version,
+      }
+      currentAllDeps[packageName] = version
+      changed = true
+      console.log(`[sandbox] Auto-added missing import: ${packageName}@${version}`)
+    }
+  } catch (e) {
+    console.warn("[sandbox] Import scan failed (non-fatal):", e)
+  }
 
   for (const field of ["dependencies", "devDependencies"] as const) {
     const deps = pkg?.[field]
@@ -1042,6 +1081,42 @@ const VISUAL_EDIT_SCRIPT = `
       return;
     }
   });
+
+  // ── Runtime error capture ──────────────────────────────────────────────────
+  (function() {
+    function postError(message, stack, kind) {
+      window.parent.postMessage({
+        type: 'runtime-error',
+        message: String(message || 'Unknown error').slice(0, 800),
+        stack: String(stack || '').slice(0, 2000),
+        kind: kind || 'error'
+      }, '*');
+    }
+    window.addEventListener('error', function(e) {
+      postError(e.message, e.error ? e.error.stack : '', 'error');
+    });
+    window.addEventListener('unhandledrejection', function(e) {
+      var reason = e.reason;
+      var message = reason instanceof Error
+        ? reason.message
+        : String(reason || 'Unhandled promise rejection');
+      var stack = reason instanceof Error ? reason.stack : '';
+      postError(message, stack, 'unhandledrejection');
+    });
+    // React error boundary via console.error interception
+    var _consoleError = console.error;
+    console.error = function() {
+      var args = Array.prototype.slice.call(arguments);
+      var joined = args.map(function(a) {
+        return a instanceof Error ? a.stack || a.message : String(a);
+      }).join(' ');
+      // Only capture React invariant violations and component errors
+      if (/minimum two children|invariant|component stack|React will try/i.test(joined)) {
+        postError(joined.slice(0, 800), '', 'react');
+      }
+      _consoleError.apply(console, args);
+    };
+  })();
 })();
 `
 

@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -35,7 +35,7 @@ export function TokenLimitDialog({
             Close
           </Button>
           <Link href="/pricing">
-            <Button type="button" className="bg-[#1f1f1f] text-white hover:bg-black" onClick={() => onOpenChange(false)}>
+            <Button type="button" className="bg-[#1f1f1f] text-white hover:bg-zinc-800" onClick={() => onOpenChange(false)}>
               Upgrade Plan
             </Button>
           </Link>

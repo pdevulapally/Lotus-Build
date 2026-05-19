@@ -1,11 +1,12 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
+import { motion, AnimatePresence } from "framer-motion"
 import { Navbar } from "@/components/ui/navbar"
 import { FooterSection } from "@/components/sections/footer-section"
-import { Check, ArrowLeft, Loader2, Sparkles, ShieldCheck } from "lucide-react"
+import { Check, ArrowLeft, Loader2, Sparkles, ShieldCheck, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/auth-context"
 import {
@@ -28,13 +29,58 @@ import {
 
 // ─── all backend logic untouched ──────────────────────────────────────────────
 
+type CheckoutStatus = "success" | "cancelled"
+
+type CheckoutRequest = {
+  priceId: string
+  planId: PlanId
+  quantity: number
+}
+
+const CHECKOUT_STATUS_COPY: Record<CheckoutStatus, { title: string; description: string }> = {
+  success: {
+    title: "Welcome to Pro",
+    description: "Your subscription is active. Start building production-ready websites today.",
+  },
+  cancelled: {
+    title: "Checkout was cancelled",
+    description: "You were not charged. You can retry the same plan or choose another option below.",
+  },
+}
+
+function getCheckoutStatus(value: string | null): CheckoutStatus | null {
+  return value === "success" || value === "cancelled" ? value : null
+}
+
+function getCheckoutQuantity(value: string | null) {
+  const quantity = Number(value)
+  return Number.isInteger(quantity) && quantity > 0 ? quantity : 1
+}
+
+function getCheckoutKey(priceId: string, quantity: number) {
+  return `${priceId}:${quantity}`
+}
+
 export default function PricingPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const checkoutStatus = searchParams.get("checkout")
   const { user, userData, loading: authLoading } = useAuth()
   const [plans, setPlans] = useState<PlanForApi[]>([])
   const [loading, setLoading] = useState(true)
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null)
   const [selectedTierByPlanId, setSelectedTierByPlanId] = useState<Record<string, number>>({})
+  const [showSuccess, setShowSuccess] = useState(checkoutStatus === "success")
+  const [showCancelledBanner, setShowCancelledBanner] = useState(checkoutStatus === "cancelled")
+  const successDismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    if (checkoutStatus === "success") {
+      setShowSuccess(true)
+      successDismissTimer.current = setTimeout(() => setShowSuccess(false), 6000)
+      return () => { if (successDismissTimer.current) clearTimeout(successDismissTimer.current) }
+    }
+  }, [checkoutStatus])
 
   useEffect(() => {
     fetch("/api/stripe/plans")
@@ -80,7 +126,7 @@ export default function PricingPage() {
           idToken,
           priceId,
           quantity,
-          successUrl: `${baseUrl}/projects?checkout=success`,
+          successUrl: `${baseUrl}/pricing?checkout=success`,
           cancelUrl: `${baseUrl}/pricing?checkout=cancelled`,
         }),
       })
@@ -137,7 +183,113 @@ export default function PricingPage() {
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#f5f5f2]">
+
+      {/* ── Welcome to Pro overlay ───────────────────────────── */}
+      <AnimatePresence>
+        {showSuccess && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/95 backdrop-blur-sm"
+          >
+            <button
+              onClick={() => setShowSuccess(false)}
+              className="absolute right-5 top-5 rounded-lg p-2 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-white"
+              aria-label="Dismiss"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="flex flex-col items-center text-center px-8">
+              {/* Logo mark */}
+              <motion.div
+                initial={{ scale: 0.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.15, duration: 0.5, type: "spring", stiffness: 200, damping: 18 }}
+                className="mb-8 flex h-20 w-20 items-center justify-center rounded-2xl bg-white shadow-2xl shadow-white/10"
+              >
+                <Sparkles className="h-9 w-9 text-zinc-900" />
+              </motion.div>
+
+              {/* Headline */}
+              <motion.p
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3, duration: 0.45 }}
+                className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500"
+              >
+                Lotus.build
+              </motion.p>
+              <motion.h1
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.38, duration: 0.45 }}
+                className="mt-3 text-4xl font-bold tracking-tight text-white sm:text-5xl"
+              >
+                Welcome to Pro
+              </motion.h1>
+              <motion.p
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.48, duration: 0.45 }}
+                className="mt-4 max-w-xs text-[14px] leading-relaxed text-zinc-400"
+              >
+                Your subscription is active. Start building production-ready websites today.
+              </motion.p>
+
+              {/* CTA */}
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6, duration: 0.4 }}
+                className="mt-10 flex flex-col items-center gap-3"
+              >
+                <Link href="/projects">
+                  <Button className="h-12 rounded-xl bg-white px-8 text-[14px] font-semibold text-zinc-900 hover:bg-zinc-100">
+                    Start building →
+                  </Button>
+                </Link>
+                <button
+                  onClick={() => setShowSuccess(false)}
+                  className="text-[12px] text-zinc-600 transition-colors hover:text-zinc-400"
+                >
+                  Stay on pricing
+                </button>
+              </motion.div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <Navbar />
+
+      {/* ── Payment cancelled banner ─────────────────────────── */}
+      <AnimatePresence>
+        {showCancelledBanner && (
+          <motion.div
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.3 }}
+            className="fixed left-0 right-0 top-16 z-40 flex items-center justify-center px-4"
+          >
+            <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 shadow-sm">
+              <p className="text-[13px] text-amber-800">
+                Payment cancelled — you were not charged.
+              </p>
+              <button
+                onClick={() => setShowCancelledBanner(false)}
+                className="rounded p-0.5 text-amber-600 transition-colors hover:bg-amber-100"
+                aria-label="Dismiss"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="mx-auto w-full max-w-5xl px-4 pb-24 pt-20 sm:px-6 sm:pt-28 lg:px-8">
 

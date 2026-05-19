@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { ArrowUp, Check, Loader2, Square, Sparkles, X } from "lucide-react";
@@ -551,11 +551,11 @@ export function AnimatedAIInput({
               "absolute bottom-3 right-3 sm:bottom-4 sm:right-4 flex h-10 items-center justify-center gap-2 rounded-full transition-all duration-200 px-3",
               "focus-visible:ring-1 focus-visible:ring-zinc-300 focus-visible:ring-offset-0",
               canStop
-                ? "bg-zinc-900 text-white hover:bg-black active:scale-95"
+                ? "bg-zinc-900 text-white hover:bg-zinc-800 active:scale-95"
                 : canSubmit
                 ? creationMode === "agent"
                   ? "bg-[#6f6557] text-white hover:bg-[#5d5447] active:scale-95"
-                  : "bg-zinc-900 text-white hover:bg-black active:scale-95"
+                  : "bg-zinc-900 text-white hover:bg-zinc-800 active:scale-95"
                 : "bg-zinc-100 text-zinc-400 cursor-not-allowed"
             )}
             aria-label={canStop ? "Stop generating" : submitAriaLabel}

@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+﻿import type { Metadata } from "next"
 import Link from "next/link"
 import { Navbar } from "@/components/ui/navbar"
 import { FooterSection } from "@/components/sections/footer-section"
@@ -80,7 +80,7 @@ export default function TeamsPage() {
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link
               href="/projects"
-              className="inline-flex min-h-[48px] items-center justify-center rounded-full bg-zinc-900 px-6 text-sm font-medium text-white transition-colors hover:bg-black"
+              className="inline-flex min-h-[48px] items-center justify-center rounded-full bg-zinc-900 px-6 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
             >
               Start Building
             </Link>
@@ -166,7 +166,7 @@ export default function TeamsPage() {
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link
               href="/projects"
-              className="inline-flex min-h-[48px] items-center justify-center rounded-full bg-zinc-900 px-6 text-sm font-medium text-white transition-colors hover:bg-black"
+              className="inline-flex min-h-[48px] items-center justify-center rounded-full bg-zinc-900 px-6 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
             >
               Try with Your Team
             </Link>

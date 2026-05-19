@@ -202,7 +202,7 @@ export default function LoginPage() {
           </div>
 
           {/* Bottom */}
-          <p className="text-[11.5px] text-zinc-600 mt-10">
+          <p className="text-[11.5px] text-zinc-600 mt-10" suppressHydrationWarning>
             © {new Date().getFullYear()} Lotus.build · All rights reserved
           </p>
         </div>
@@ -394,7 +394,6 @@ export default function LoginPage() {
                   placeholder="you@example.com"
                   className="h-11 rounded-xl border-zinc-200 bg-zinc-50 text-[13.5px] placeholder:text-zinc-400"
                   required
-                  autoFocus
                 />
               </div>
               <Button

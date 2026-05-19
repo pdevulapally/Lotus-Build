@@ -116,9 +116,9 @@ export default function Home() {
             </div>
 
             <div className="flex gap-4 overflow-x-auto pb-2 [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-300/80 hover:[&::-webkit-scrollbar-thumb]:bg-zinc-400/80">
-              {lotusBuildTestimonials.map((testimonial, idx) => (
+              {lotusBuildTestimonials.map((testimonial) => (
                 <blockquote
-                  key={idx}
+                  key={testimonial.name}
                   className="w-[300px] shrink-0 rounded-2xl border border-zinc-200 bg-white/80 p-5"
                 >
                   <p className="text-sm text-zinc-700">"{testimonial.text}"</p>

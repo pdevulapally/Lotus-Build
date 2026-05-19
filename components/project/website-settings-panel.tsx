@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { doc, updateDoc } from "firebase/firestore"
@@ -301,7 +301,7 @@ export function WebsiteSettingsPanel({ projectId, initialSettings, projectName, 
             }),
           })
         }
-        // Always fire provision — it handles create if no project exists
+        // Always fire provision â€” it handles create if no project exists
         await fetch("/api/integrations/supabase/provision", {
           method: "POST",
           headers: {
@@ -388,7 +388,7 @@ export function WebsiteSettingsPanel({ projectId, initialSettings, projectName, 
             type="button"
             onClick={handleConnectAndPublish}
             disabled={githubLoading || githubSyncing}
-            className="bg-zinc-900 text-white hover:bg-black disabled:opacity-60"
+            className="bg-zinc-900 text-white hover:bg-zinc-800 disabled:opacity-60"
           >
             {githubLoading || githubSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             {!githubConnected ? "Connect & Publish" : githubIntegration?.repoFullName ? "Sync Latest Changes" : "Publish to GitHub"}
@@ -447,7 +447,7 @@ export function WebsiteSettingsPanel({ projectId, initialSettings, projectName, 
               type="button"
               onClick={handleConnectSupabase}
               disabled={supabaseConnectLoading || supabaseChecking}
-              className="bg-zinc-900 text-white hover:bg-black w-full"
+              className="bg-zinc-900 text-white hover:bg-zinc-800 w-full"
             >
               {supabaseConnectLoading
                 ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -513,7 +513,7 @@ export function WebsiteSettingsPanel({ projectId, initialSettings, projectName, 
       </Collapsible>
 
       <div className="flex justify-end">
-        <Button type="button" onClick={saveSettings} disabled={saving} className="bg-zinc-900 text-white hover:bg-black">
+        <Button type="button" onClick={saveSettings} disabled={saving} className="bg-zinc-900 text-white hover:bg-zinc-800">
           <Save className="mr-2 h-4 w-4" />
           {saving ? "Saving..." : "Save Website Settings"}
         </Button>

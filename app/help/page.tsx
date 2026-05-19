@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useMemo } from "react"
 import Link from "next/link"
@@ -22,7 +22,7 @@ import {
 } from "lucide-react"
 
 // ---------------------------------------------------------------------------
-// Category config — maps FAQ indices to a category for tab filtering
+// Category config â€” maps FAQ indices to a category for tab filtering
 // ---------------------------------------------------------------------------
 const FAQ_CATEGORIES = [
   { key: "all", label: "All questions" },
@@ -145,7 +145,7 @@ export default function HelpPage() {
                 setQuery(e.target.value)
                 if (e.target.value) setActiveCategory("all")
               }}
-              placeholder="Search for answers…"
+              placeholder="Search for answersâ€¦"
               className="w-full rounded-2xl border border-zinc-200 bg-white py-3.5 pl-11 pr-4 text-sm text-zinc-900 shadow-sm outline-none ring-0 transition-all placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-2 focus:ring-zinc-300/60"
             />
           </div>
@@ -280,7 +280,7 @@ export default function HelpPage() {
             </div>
             <Link
               href="mailto:support@lotus-build.app"
-              className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-black"
+              className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
             >
               <Mail className="h-4 w-4" />
               Contact support
