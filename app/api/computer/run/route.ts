@@ -484,6 +484,125 @@ function parseGenerationDecision(text: string): GenerationDecision {
   return { shouldGenerate: true, reason: "parse_failed" }
 }
 
+// ─── Shared repair helpers ────────────────────────────────────────────────────
+
+type ErrorFixResult = {
+  success: boolean
+  files: GeneratedFile[]
+  explanation: string
+  error?: string
+}
+
+/**
+ * Calls /api/error/fix (purpose-built repair route: 3 attempts, import validation).
+ * Preferred over /api/generate for all fix paths — avoids the full-generation
+ * system prompt which causes parse failures when the LLM returns prose instead
+ * of file blocks.
+ */
+async function callErrorFixRoute(params: {
+  baseUrl: string
+  authHeader: string
+  files: GeneratedFile[]
+  error: string
+  logsTail?: string
+  failureCategory?: string
+  failureReason?: string
+  timeoutMs?: number
+}): Promise<ErrorFixResult> {
+  const timeoutMs = params.timeoutMs ?? 90000
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    const res = await fetch(`${params.baseUrl}/api/error/fix`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: params.authHeader,
+      },
+      body: JSON.stringify({
+        files: params.files,
+        error: params.error,
+        logsTail: params.logsTail || "",
+        failureCategory: params.failureCategory || "unknown",
+        failureReason: params.failureReason || params.error.slice(0, 500),
+      }),
+      signal: controller.signal,
+    })
+
+    const json = await res.json().catch(() => ({})) as Record<string, unknown>
+
+    if (res.ok && json.success === true && Array.isArray(json.files) && json.files.length > 0) {
+      return {
+        success: true,
+        files: json.files as GeneratedFile[],
+        explanation: typeof json.explanation === "string" ? json.explanation : "Fix applied",
+      }
+    }
+
+    return {
+      success: false,
+      files: params.files,
+      explanation: "",
+      error: typeof json.error === "string" ? json.error : `Fix route responded with status ${res.status}`,
+    }
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
+/**
+ * Scans relative imports in generated files and returns issues for any that
+ * don't resolve to a file in the generated set. Used for pre-sandbox validation
+ * to catch missing-import build errors before they reach the sandbox.
+ */
+function validateGeneratedImports(files: GeneratedFile[]): string[] {
+  const availablePaths = new Set(files.map((f) => f.path))
+  const issues: string[] = []
+
+  for (const file of files) {
+    if (!/\.(tsx?|jsx?)$/.test(file.path)) continue
+
+    const importerDir = file.path.includes("/")
+      ? file.path.slice(0, file.path.lastIndexOf("/"))
+      : ""
+    const importRegex = /from\s+["'](\.[^"']+)["']|import\s+["'](\.[^"']+)["']/g
+    let match: RegExpExecArray | null
+
+    while ((match = importRegex.exec(file.content)) !== null) {
+      const rawImport = match[1] || match[2]
+      if (!rawImport) continue
+
+      const normalizedBase = rawImport
+        .split("/")
+        .reduce<string[]>((parts, seg) => {
+          if (!seg || seg === ".") return parts
+          if (seg === "..") { parts.pop(); return parts }
+          parts.push(seg)
+          return parts
+        }, importerDir ? importerDir.split("/") : [])
+        .join("/")
+
+      const candidates = [
+        normalizedBase,
+        `${normalizedBase}.ts`,
+        `${normalizedBase}.tsx`,
+        `${normalizedBase}.js`,
+        `${normalizedBase}.jsx`,
+        `${normalizedBase}/index.ts`,
+        `${normalizedBase}/index.tsx`,
+      ]
+
+      if (!candidates.some((c) => availablePaths.has(c))) {
+        issues.push(`Missing import "${rawImport}" in ${file.path}`)
+        if (issues.length >= 20) return issues
+      }
+    }
+  }
+
+  return issues
+}
+
 function normalizeTinyFishEvent(raw: unknown): Record<string, unknown> | null {
   if (!raw || typeof raw !== "object") return null
   const record = raw as Record<string, unknown>
