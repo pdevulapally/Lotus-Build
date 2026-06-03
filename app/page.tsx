@@ -26,7 +26,7 @@ export default function Home() {
           <div
             className="absolute inset-0 -z-30 scale-105"
             style={{
-              backgroundImage: "url('/Images/golden-sunset.png')",
+              backgroundImage: "url('/Images/487c1040-cc7a-4bee-867e-84462280fe6e.png')",
               backgroundSize: "cover",
               backgroundPosition: "center",
               backgroundRepeat: "no-repeat",
