@@ -430,11 +430,30 @@ async function normalizePackageJsonDependenciesForPreview(sandbox: Sandbox): Pro
   // from package.json. This prevents "Failed to resolve import" (missing-import) errors
   // at dev-server startup without hardcoding a package list.
   try {
+    // E2B wraps commands in bash -c '...' so embedding single quotes in a grep
+    // regex breaks shell parsing (exit 2). Write the scanner as a file instead.
+    const scanScript = `import re, os, sys
+src = sys.argv[1] if len(sys.argv) > 1 else "."
+pat = re.compile(r'(?:from|require)\\s*[\\x27"]((?![./])[^\\x27"]+)[\\x27"]')
+seen = set()
+skip = {"node_modules", ".git", "dist", "build", ".next", ".cache", "out"}
+for root, dirs, files in os.walk(src):
+    dirs[:] = [d for d in dirs if d not in skip]
+    for f in files:
+        if not f.endswith((".js", ".ts", ".jsx", ".tsx", ".mjs", ".cjs")):
+            continue
+        try:
+            for m in pat.findall(open(os.path.join(root, f), errors="ignore").read()):
+                seen.add(m)
+        except Exception:
+            pass
+for p in sorted(seen):
+    print(p)
+`
+    await sandbox.files.write("/tmp/_lotus_scan.py", scanScript)
     const importScan = await cmd(
       sandbox,
-      // Match: import ... from 'pkg' / import ... from "pkg" / require('pkg') / require("pkg")
-      // Capture the package name (bare specifier, not relative/absolute path)
-      `grep -R -hE "(from|require)\\s*['\"]([^./'\"][^'\"]*)['\"]" ${PROJECT_DIR}/src 2>/dev/null | grep -oE "['\"][^./'\"][^'\"]*['\"]" | tr -d "'\"" | sort -u || true`,
+      `python3 /tmp/_lotus_scan.py ${PROJECT_DIR}/src`,
       15000
     )
     const scannedPackages = (importScan.stdout || "")

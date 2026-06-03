@@ -35,15 +35,48 @@ High-level architecture:
 - the project builder UI lives in `app/project/[id]/page.tsx`
 - the landing page assistant is separate from project code generation
 
-Two AI systems exist:
+Three AI systems exist:
 1. **Main builder AI**
    - code generation/editing
    - driven by `/api/generate`
 2. **Website assistant**
    - landing-page assistant
    - separate from the builder generation flow
+3. **Computer agent** (`app/computer/[id]/page.tsx`)
+   - autonomous orchestration agent powered by Anthropic
+   - all calls go through `createComputerAgentMessage` in `lib/computer-agent/agent-config.ts`
+   - POST endpoint: `/api/computer/run/route.ts`
 
 These must not be conflated.
+
+---
+
+## Memory system (computer agent)
+
+The computer agent supports persistent memory injected into every Anthropic call.
+
+### Storage
+| Scope | Firestore field | Collection |
+|-------|----------------|------------|
+| Global | `globalMemory: string` | `users/{uid}` |
+| Project | `projectMemory: string` | `projects/{projectId}` |
+
+### Injection flow
+1. `POST /api/computer/run` reads both fields in parallel (`Promise.all`)
+2. Passes them as `MemoryContext` to `createComputerAgentMessage` via the `callAgent` closure
+3. `composeSystemPrompt` injects them between the base system prompt and task-specific instructions
+4. Format: `buildMemoryBlock()` in `lib/computer-agent/agent-config.ts`
+
+### User editing
+Users edit global and project memories at `/settings` → Memory tab:
+- Global memory: one textarea, saved to `users/{uid}.globalMemory`
+- Project memory: per-project textareas, saved to `projects/{projectId}.projectMemory`
+- Both load lazily (only when the Memory tab is activated) and persist immediately on Save
+
+### Rules
+- Never read memory from anywhere other than these two Firestore fields
+- Do not add a third memory scope without updating `MemoryContext` in `agent-config.ts`, the run route, and the settings page
+- Memory is plain text — do not impose a structured format on it
 
 ---
 
@@ -60,6 +93,18 @@ Preserve these unless the task explicitly requires otherwise:
 - do not fork the builder into duplicate versions for different states unless unavoidable
 
 When changing UI behavior, prefer **front-end orchestration changes** over backend rewrites.
+
+### Sandbox (E2B) rules
+- `sandbox.commands.run()` wraps commands in `bash -c '...'` — **never use single quotes inside commands**
+- For shell operations that need complex regex, write a Python script to `/tmp/` via `sandbox.files.write()` and execute it with `python3 /tmp/script.py`
+- Use `\\x27` (Python hex escape for `'`) inside Python strings to avoid any quoting issues
+- The import scanner at `/api/sandbox/route.ts` uses this pattern (`_lotus_scan.py`)
+
+### Firecrawl remote browser rules
+- The live stream URL is `metadata.browserLiveUrl` on the timeline event — **not** the target URL
+- `getLatestBrowserInspection` in `app/computer/[id]/page.tsx` reads `browserLiveUrl` for the iframe src
+- Never use `targetUrl` as an iframe src — target sites block embedding via X-Frame-Options
+- If `browserLiveUrl` is missing or expired, show a fallback UI with an external link, not a broken iframe
 
 ---
 
@@ -362,6 +407,43 @@ It must also be:
 - maintainable
 - extensible
 - consistent with the architecture
+
+---
+
+## AI website generation quality rules
+
+The generate pipeline (`/api/generate`) must produce modern, editorial, non-generic websites.
+
+### Design brief (`deriveDesignBrief`)
+Produces a structured brief with 9 fields: PALETTE, FONTS, PERSONALITY, HERO_FORMAT, HERO_HEADLINE, SECTIONS (with layout descriptors), TYPOGRAPHY_APPROACH, STANDOUT, ANTI_PATTERN.
+
+### Banned AI slop patterns (enforced in system prompt)
+The following must never appear in generated output:
+1. Hero with centered text + stock photo background + CTA button
+2. Three-column "icon + title + blurb" feature cards
+3. Generic "Trusted by 10,000+ companies" social proof band
+4. "How it works" 3-step numbered list with icons
+5. Full-width footer with 4 identical column layouts
+6. "Start your free trial today" CTA section with gradient background
+7. Testimonials in quote cards with avatar + name + title
+8. Pricing table with 3 identical columns (Starter/Pro/Enterprise)
+9. "FAQ" accordion section at the bottom
+
+### Modern pattern requirements (enforced in system prompt)
+Generated sites must use at least one of:
+- Asymmetric multi-column layouts
+- Large editorial typography as a design element
+- Bento-style grid compositions
+- Horizontal scrolling sections
+- Full-bleed imagery with type overlays
+- Data-forward hero sections
+- Unconventional whitespace use
+- Mixed type scales (e.g. 9px + 72px on the same screen)
+
+### Rules for agents touching generate
+- Do not remove the BANNED PATTERNS or MODERN PATTERNS sections from the system prompt
+- Do not revert `deriveDesignBrief` to a shorter or more generic version
+- `max_tokens` for the design brief is 520 — do not reduce it
 
 ---
 

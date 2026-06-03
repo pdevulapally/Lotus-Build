@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { collection, deleteDoc, doc, onSnapshot, query, where } from "firebase/firestore"
+import { collection, deleteDoc, doc, getDoc, onSnapshot, query, updateDoc, where } from "firebase/firestore"
 import { deleteUser } from "firebase/auth"
 import { useAuth } from "@/contexts/auth-context"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -23,7 +23,7 @@ import { ProtectedRoute } from "@/components/auth/protected-route"
 import { getAgentRunLimitForPlan } from "@/lib/agent-quotas"
 
 type ProjectStatus = "pending" | "generating" | "complete" | "error"
-type SettingsPageKey = "account" | "billing" | "usage" | "projects"
+type SettingsPageKey = "account" | "billing" | "usage" | "projects" | "memory"
 
 type StripeInvoice = {
   id: string
@@ -44,6 +44,7 @@ const SETTINGS_PAGES: Array<{ key: SettingsPageKey; label: string }> = [
   { key: "billing", label: "Billing" },
   { key: "usage", label: "Usage" },
   { key: "projects", label: "Projects" },
+  { key: "memory", label: "Memory" },
 ]
 
 type ProjectAnalyticsItem = {
@@ -53,6 +54,7 @@ type ProjectAnalyticsItem = {
   status: ProjectStatus
   createdAt?: any
   updatedAt?: any
+  projectMemory?: string
 }
 
 type ContributionActivityItem = {
@@ -321,6 +323,14 @@ function SettingsContent() {
   const [invoices, setInvoices] = useState<StripeInvoice[]>([])
   const [invoicesLoading, setInvoicesLoading] = useState(false)
   const invoicesFetched = useRef(false)
+  const [globalMemoryDraft, setGlobalMemoryDraft] = useState("")
+  const [globalMemoryLoading, setGlobalMemoryLoading] = useState(false)
+  const [globalMemorySaving, setGlobalMemorySaving] = useState(false)
+  const [globalMemorySaved, setGlobalMemorySaved] = useState(false)
+  const [projectMemoryDrafts, setProjectMemoryDrafts] = useState<Record<string, string>>({})
+  const [projectMemorySaving, setProjectMemorySaving] = useState<Record<string, boolean>>({})
+  const [projectMemorySaved, setProjectMemorySaved] = useState<Record<string, boolean>>({})
+  const globalMemoryFetched = useRef(false)
 
   useEffect(() => {
     if (!user?.uid) {
@@ -341,6 +351,7 @@ function SettingsContent() {
           status: (data.status as ProjectStatus) || "pending",
           createdAt: data.createdAt,
           updatedAt: data.updatedAt,
+          projectMemory: data.projectMemory || "",
         })
       })
       next.sort((a, b) => (toDate(b.createdAt)?.getTime() ?? 0) - (toDate(a.createdAt)?.getTime() ?? 0))
@@ -403,6 +414,31 @@ function SettingsContent() {
     return () => { mounted = false }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePage, user?.uid, userData?.planId])
+
+  useEffect(() => {
+    if (activePage !== "memory" || !user?.uid || globalMemoryFetched.current) return
+    let mounted = true
+    setGlobalMemoryLoading(true)
+    getDoc(doc(db, "users", user.uid)).then((snap) => {
+      if (!mounted) return
+      setGlobalMemoryDraft((snap.data()?.globalMemory as string | undefined) || "")
+      globalMemoryFetched.current = true
+    }).catch((err) => {
+      console.error("Failed to load global memory:", err)
+    }).finally(() => { if (mounted) setGlobalMemoryLoading(false) })
+    return () => { mounted = false }
+  }, [activePage, user?.uid])
+
+  useEffect(() => {
+    if (activePage !== "memory") return
+    setProjectMemoryDrafts((prev) => {
+      const next: Record<string, string> = { ...prev }
+      projectsData.forEach((p) => {
+        if (!(p.id in next)) next[p.id] = p.projectMemory || ""
+      })
+      return next
+    })
+  }, [activePage, projectsData])
 
   const analytics = useMemo(() => {
     const total = projectsData.length
@@ -469,6 +505,36 @@ function SettingsContent() {
         setDeleteError("Failed to delete account. Please try again or contact support.")
       }
       setDeleteLoading(false)
+    }
+  }
+
+  const handleSaveGlobalMemory = async () => {
+    if (!user?.uid || globalMemorySaving) return
+    setGlobalMemorySaving(true)
+    setGlobalMemorySaved(false)
+    try {
+      await updateDoc(doc(db, "users", user.uid), { globalMemory: globalMemoryDraft })
+      setGlobalMemorySaved(true)
+      setTimeout(() => setGlobalMemorySaved(false), 2500)
+    } catch (err) {
+      console.error("Failed to save global memory:", err)
+    } finally {
+      setGlobalMemorySaving(false)
+    }
+  }
+
+  const handleSaveProjectMemory = async (projectId: string) => {
+    if (projectMemorySaving[projectId]) return
+    setProjectMemorySaving((prev) => ({ ...prev, [projectId]: true }))
+    setProjectMemorySaved((prev) => ({ ...prev, [projectId]: false }))
+    try {
+      await updateDoc(doc(db, "projects", projectId), { projectMemory: projectMemoryDrafts[projectId] ?? "" })
+      setProjectMemorySaved((prev) => ({ ...prev, [projectId]: true }))
+      setTimeout(() => setProjectMemorySaved((prev) => ({ ...prev, [projectId]: false })), 2500)
+    } catch (err) {
+      console.error("Failed to save project memory:", err)
+    } finally {
+      setProjectMemorySaving((prev) => ({ ...prev, [projectId]: false }))
     }
   }
 
@@ -842,6 +908,102 @@ function SettingsContent() {
           </SettingsSection>
           )}
 
+          {activePage === "memory" && (
+            <div className="pb-12">
+              <h2 className="mb-2 text-[15px] font-semibold text-zinc-950">Memory</h2>
+              <p className="mb-8 text-sm text-zinc-500">
+                Memory lets the AI agent carry context across sessions. Global memory applies to every project; project memory is scoped to a single project.
+              </p>
+
+              {/* Global memory */}
+              <section className="mb-10">
+                <h3 className="mb-1 text-sm font-semibold text-zinc-800">Global Memory</h3>
+                <p className="mb-3 text-xs text-zinc-500">Preferences and facts that apply to all projects — coding style, preferred libraries, tone, recurring requirements.</p>
+                {globalMemoryLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-zinc-400 py-4">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading…
+                  </div>
+                ) : (
+                  <>
+                    <textarea
+                      value={globalMemoryDraft}
+                      onChange={(e) => { setGlobalMemoryDraft(e.target.value); setGlobalMemorySaved(false) }}
+                      rows={8}
+                      placeholder={"e.g. Always use TypeScript. Prefer Tailwind CSS. Keep code minimal and readable. Never add comments explaining what the code does."}
+                      className="w-full resize-y rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-800 placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none focus:ring-0 shadow-sm"
+                    />
+                    <div className="mt-3 flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={handleSaveGlobalMemory}
+                        disabled={globalMemorySaving}
+                        className="inline-flex h-9 items-center gap-2 rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:opacity-50"
+                      >
+                        {globalMemorySaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                        {globalMemorySaving ? "Saving…" : "Save"}
+                      </button>
+                      {globalMemorySaved && <span className="text-xs text-emerald-600">Saved</span>}
+                    </div>
+                  </>
+                )}
+              </section>
+
+              {/* Project memories */}
+              <section>
+                <h3 className="mb-1 text-sm font-semibold text-zinc-800">Project Memory</h3>
+                <p className="mb-5 text-xs text-zinc-500">Context specific to each project — goals, constraints, tech stack, design decisions. Only injected when working in that project.</p>
+                {projectsLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-zinc-400 py-4">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading projects…
+                  </div>
+                ) : projectsData.length === 0 ? (
+                  <p className="text-sm text-zinc-500">No projects yet.</p>
+                ) : (
+                  <div className="space-y-6">
+                    {projectsData.map((p) => (
+                      <div key={p.id} className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+                        <div className="mb-3 flex items-center gap-2">
+                          {statusDot(p.status)}
+                          <span className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-800">{p.prompt?.trim() || "Untitled project"}</span>
+                          <a
+                            href={`/computer/${p.id}`}
+                            className="shrink-0 text-xs text-zinc-400 transition-colors hover:text-zinc-700 flex items-center gap-1"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            Open
+                          </a>
+                        </div>
+                        <textarea
+                          value={projectMemoryDrafts[p.id] ?? ""}
+                          onChange={(e) => {
+                            setProjectMemoryDrafts((prev) => ({ ...prev, [p.id]: e.target.value }))
+                            setProjectMemorySaved((prev) => ({ ...prev, [p.id]: false }))
+                          }}
+                          rows={4}
+                          placeholder="Project-specific context, constraints, decisions…"
+                          className="w-full resize-y rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-sm text-zinc-800 placeholder:text-zinc-400 focus:border-zinc-400 focus:bg-white focus:outline-none focus:ring-0"
+                        />
+                        <div className="mt-2.5 flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => handleSaveProjectMemory(p.id)}
+                            disabled={projectMemorySaving[p.id]}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-50 disabled:opacity-50"
+                          >
+                            {projectMemorySaving[p.id] && <Loader2 className="h-3 w-3 animate-spin" />}
+                            {projectMemorySaving[p.id] ? "Saving…" : "Save"}
+                          </button>
+                          {projectMemorySaved[p.id] && <span className="text-xs text-emerald-600">Saved</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </div>
+          )}
 
         </main>
       </div>

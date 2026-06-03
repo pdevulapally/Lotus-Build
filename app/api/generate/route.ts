@@ -665,29 +665,34 @@ async function deriveDesignBrief(prompt: string): Promise<string> {
       messages: [
         {
           role: "system",
-          content: `You are a senior design director. Given a website build request, produce a specific, committed design brief.
+          content: `You are a senior design director at a world-class digital agency (think Pentagram, Instrument, Fantasy Interactive). Given a website build request, produce a specific, committed design brief that will produce a distinctive, editorial-grade website — not a generic AI template.
 
 Rules:
-- Draw on real-world knowledge of what excellent designers produce for this exact type of business — not on template categories or lookup tables.
+- Draw on real-world knowledge of what excellent designers actually produce for this exact type of business.
 - If the user mentioned colors, fonts, style words, or visual references — treat those as hard constraints that override everything else.
-- If the user said nothing about style — reason from what a specialist agency would actually design for this specific client: their audience, their industry positioning, their competitive context.
-- Every decision must be specific: exact hex values, exact font names, exact layout decisions. "Warm tones" is not a decision. "#f5ede0 background with #c4783c accent" is a decision.
+- If the user said nothing about style — reason from brand positioning: who they need to impress, what makes them credible, what aesthetic their best competitors occupy.
+- Every decision must be specific: exact hex values, exact font names, exact layout descriptions. "Warm tones" is not a decision. "#f5ede0 background with #c4783c accent" is a decision. "big hero with text" is not a decision. "full-bleed near-black background, 96px left-aligned display type, no subheadline, single underlined CTA" is a decision.
 - No filler. No padding. Output only the brief.
 
-Output this structure exactly (plain text, no markdown):
-PALETTE: [brand hex] [accent hex] [background hex] [text hex]
-FONTS: [display font name] + [body font name]
-PERSONALITY: [3 specific adjectives]
-HERO_HEADLINE: [actual headline written for this specific business]
-SECTIONS: [ordered comma-separated list]
-STANDOUT: [one specific layout or composition decision]`,
+CRITICAL: The brief must produce a site that looks nothing like a generic AI template. Banned defaults: gradient hero with centered text + subheadline, three identical feature cards, "Why Choose Us" headings, cookie-cutter testimonial card grids. Think editorial. Think considered spacing. Think typographic hierarchy as the primary design tool.
+
+Output this exact structure (plain text, no markdown):
+PALETTE: [brand hex] [accent hex] [background hex] [text hex] [muted-surface hex]
+FONTS: [display font] + [body font] (both must be on Google Fonts)
+PERSONALITY: [3 specific adjectives describing the visual tone]
+HERO_FORMAT: [exact hero layout — e.g. "full-bleed near-black bg, 104px display type left-aligned, one-line headline only, no subtext block, ghost-border CTA button bottom-left"]
+HERO_HEADLINE: [actual headline written for this specific business — punchy, brand-voice, under 8 words]
+SECTIONS: [ordered list — each entry must be: SectionName: specific-layout-description — e.g. "Services: alternating image-left/text-right rows with large italic service name as section anchor"]
+TYPOGRAPHY_APPROACH: [specify display size range, label style, body size — e.g. "display 80-120px, section labels 10px uppercase tracked 0.18em, body 16px/1.75"]
+STANDOUT: [one unexpected layout or composition decision that makes this site memorable and non-generic]
+ANTI_PATTERN: [describe the clichéd AI-template version of this exact site to actively avoid]`,
         },
         {
           role: "user",
           content: prompt.slice(0, 1500),
         },
       ],
-      max_tokens: 280,
+      max_tokens: 520,
       temperature: 0.4,
     })
     return res.choices[0]?.message?.content?.trim() || ""
@@ -1065,7 +1070,11 @@ PRODUCTION STANDARD (FOLLOW-UP):
 - Preserve the existing project architecture and file structure. Do NOT convert an existing React/Vite project into standalone HTML/CSS/JS.
 - Never say you are building "a single-page HTML/CSS/JS file" in the agent message. Describe the actual targeted React/Vite change.
 
-UI STANDARD: When adding or changing UI, keep it modern and polished—distinctive typography, intentional colors, generous spacing, subtle motion (Framer Motion). Avoid generic "AI slop" aesthetics. Match or elevate the existing design language.
+UI STANDARD: When adding or changing UI, match or elevate the existing design language. Specifically:
+- New sections must follow the same typographic scale and spacing rhythm already present (generous padding, large display type, deliberate hierarchy).
+- Never add a section that falls into the AI slop patterns: 3 identical feature cards, centered banner CTA, gradient hero, generic testimonial card grid.
+- Prefer asymmetric or editorial layout formats when adding new content — alternating rows, large anchor numerals, bento grids.
+- Motion must be intentional: scroll-triggered reveals (useInView) and stagger effects, not just fade-in on everything.
 
 RESPONSIVE: Preserve or improve responsiveness on all devices. Use Tailwind breakpoints (sm:, md:, lg:) for layout and typography; avoid fixed widths that break on small screens; ensure touch targets are at least 44px on mobile; prevent horizontal overflow (max-w-full, min-w-0, overflow-hidden where needed). Generated UI must work on phone, tablet, and desktop.
 
@@ -1113,15 +1122,37 @@ Only when the app would clearly benefit from a database or backend.`
 
 PRODUCTION STANDARD (NON-NEGOTIABLE):
 - This is a real website for a real business. Build it like a specialist agency would, not like an AI filling in a template.
-- ZERO placeholder content. If you don't know a specific detail, infer it intelligently from context — a bakery prompt means real bakery copy, real dish names, real pricing format, real opening hours.
-- ZERO generic AI layouts. The Design Brief above specifies the sections — build those exactly.
-- Implement the palette, fonts, and standout element from the Design Brief via CSS custom properties in :root.
-- Load Google Fonts via @import in src/index.css. Apply display font to h1–h3, body font to p/nav/buttons.
+- ZERO placeholder content. Infer specific details from context — a bakery prompt means real dish names, real prices, real opening hours, real neighbourhood.
+- Follow the Design Brief above exactly — sections, layout formats, palette, fonts, HERO_FORMAT, STANDOUT element.
+- Implement palette via CSS custom properties in :root. Load Google Fonts via @import in src/index.css.
+- Apply display font to h1–h3, body font to p/nav/buttons/labels. Follow TYPOGRAPHY_APPROACH from the brief exactly.
 - Every interactive element has a hover state, focus state, and transition. No static buttons.
-- Framer Motion for entrance animations, scroll-triggered reveals (useInView), stagger effects on lists.
-- Images: use real Unsplash URLs https://images.unsplash.com/photo-[ID]?w=1200&q=80&auto=format&fit=crop — choose IDs that genuinely match the content.
-- Copy must sound like the actual business owner wrote it. Strong, specific headlines. Action-specific CTAs.
+- Framer Motion: entrance animations, scroll-triggered reveals (useInView), stagger on lists. Motion must feel intentional — not just fade-in on every element.
+- Images: real Unsplash URLs https://images.unsplash.com/photo-[ID]?w=1200&q=80&auto=format&fit=crop — IDs must genuinely match content.
+- Copy must sound like the actual business owner wrote it. Punchy headlines. Specific CTAs. No filler.
 - Components split by responsibility. Clean semantic React, named exports, no unused imports.
+
+BANNED PATTERNS — these are "AI slop" and must never appear:
+- Hero section: centered headline + centered subheadline paragraph + two side-by-side CTA buttons. This is the #1 AI cliché.
+- Three identical feature cards in a row: [icon on top] [heading] [short paragraph] × 3. Use a different layout.
+- "Why Choose Us", "Our Features", "What We Offer", "Get Started Today" as section headings — these are template copy.
+- Gradient backgrounds on hero sections (blue-to-purple, teal-to-blue, etc.).
+- Stock photo with dark overlay + centered white text on top as the entire hero.
+- Testimonials as three identical cards with avatar circle + star rating + quote + name + title.
+- "How It Works" as three numbered steps in identical cards or a numbered list with icons.
+- A CTA section that is just a solid-color banner with centered heading + one button.
+- Uniform section padding — every section the same height and density looks flat.
+- Borders on every card — overuse of card borders creates visual noise.
+
+MODERN PATTERNS — use these instead:
+- Hero: full-bleed, typographically led. Large display type (min 72px, ideally 96–120px). Left-aligned or split asymmetric. One strong headline — no filler subheadline block. CTA as a simple underlined link or ghost-border button, not a filled pill.
+- Feature/services: use alternating image+text rows with a large italic or light-weight service name as the visual anchor; OR an editorial grid with varied card sizes (bento); OR a two-column table-style list with numbers; NOT three identical cards.
+- Social proof: a single oversized pull quote at editorial scale (64px+) + attribution; OR a horizontal logo marquee for brand logos; NOT a 3-card testimonial grid.
+- Section rhythm: vary background tone between sections (e.g., white → near-black → warm off-white → white). This creates structure without decorative dividers.
+- Typography: use dramatic size contrast — display headings at 80–120px alongside 12–14px labels. Mix font weights within a heading line when appropriate (e.g., light weight + bold weight).
+- Navigation: minimal. Wordmark or logo left, 3–5 links right. Avoid a big "Get Started" button in the nav unless it genuinely matters for conversion.
+- Spacing: generous. Section vertical padding minimum 96px (py-24), often 120–160px (py-32 py-40). Let content breathe.
+- At least one section must use an unexpected structural element: a large number/stat as section anchor, a horizontal scroll strip, a split-screen layout, or a full-bleed image with text overlay that doesn't feel like a cliché.
 
 ARCHITECTURE (NON-NEGOTIABLE):
 - Build within the Lotus generated-app architecture: Vite + React + TypeScript.
@@ -1202,7 +1233,13 @@ COMPLETENESS VERIFICATION (MANDATORY before output):
 4. No file references another file that is not in your output.
 If any check fails, generate the missing file before finishing.
 
-QUALITY BAR: Before finalising output, ask yourself: "Would a real business owner pay a design agency for this?" If no — redesign it. The output must be distinctive, professional, and domain-appropriate. Never ship AI slop.
+QUALITY BAR: Before finalising output, check each item:
+1. Does the hero look like any of the banned patterns above? If yes — rebuild it using the modern patterns.
+2. Is there a row of 3 identical feature cards anywhere? If yes — replace with an alternating layout, bento grid, or editorial list.
+3. Do any section headings say "Why Choose Us", "Our Features", or "What We Offer"? If yes — rewrite with specific, brand-voice copy.
+4. Is every section the same vertical padding and density? If yes — vary the rhythm.
+5. Would a designer at a top agency be embarrassed to show this in a portfolio? If yes — redesign it.
+The output must be distinctive, considered, and domain-appropriate. Never ship AI slop.
 
 BACKEND DETECTION: If the user's request clearly implies a need for a backend, database, or persistent data (e.g. user accounts, login/signup, saving data, todos, forms that persist, dashboards with data, CRUD, API, auth), then at the very end of your response output exactly this line on its own line (after all ===END_FILE=== blocks):
 ===META: suggestsBackend=true===

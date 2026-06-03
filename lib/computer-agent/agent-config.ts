@@ -10,6 +10,11 @@ export type ComputerAgentDefinition = {
   skills: string[]
 }
 
+export type MemoryContext = {
+  global?: string
+  project?: string
+}
+
 type ComputerAgentMessageParams = Omit<MessageCreateParamsNonStreaming, "model"> & {
   model?: MessageCreateParamsNonStreaming["model"]
 }
@@ -32,23 +37,39 @@ Keep outputs brief, practical, and implementation-oriented.`,
   skills: [],
 }
 
-function composeSystemPrompt(system?: MessageCreateParamsNonStreaming["system"]) {
-  if (!system) return LOTUS_BUILD_ORCHESTRATOR_AGENT.system
-  if (typeof system !== "string") return system
-  return `${LOTUS_BUILD_ORCHESTRATOR_AGENT.system}
+function buildMemoryBlock(memory?: MemoryContext): string {
+  const parts: string[] = []
+  if (memory?.global?.trim()) {
+    parts.push(`GLOBAL MEMORY — user preferences that apply to every project:\n${memory.global.trim()}`)
+  }
+  if (memory?.project?.trim()) {
+    parts.push(`PROJECT MEMORY — context specific to this project:\n${memory.project.trim()}`)
+  }
+  if (!parts.length) return ""
+  return `---\nMEMORY CONTEXT (treat as authoritative user preferences and project facts):\n\n${parts.join("\n\n")}\n---`
+}
 
-Task-specific instructions:
-${system}`
+function composeSystemPrompt(
+  system?: MessageCreateParamsNonStreaming["system"],
+  memory?: MemoryContext,
+) {
+  const memBlock = buildMemoryBlock(memory)
+  const base = memBlock
+    ? `${LOTUS_BUILD_ORCHESTRATOR_AGENT.system}\n\n${memBlock}`
+    : LOTUS_BUILD_ORCHESTRATOR_AGENT.system
+  if (!system) return base
+  if (typeof system !== "string") return system
+  return `${base}\n\nTask-specific instructions:\n${system}`
 }
 
 export function createComputerAgentMessage(
   anthropic: Anthropic,
   params: ComputerAgentMessageParams,
-  _options?: { enableMcp?: boolean }
+  options?: { enableMcp?: boolean; memory?: MemoryContext },
 ) {
   return anthropic.beta.messages.create({
     ...params,
     model: LOTUS_BUILD_ORCHESTRATOR_AGENT.model,
-    system: composeSystemPrompt(params.system),
+    system: composeSystemPrompt(params.system, options?.memory),
   })
 }

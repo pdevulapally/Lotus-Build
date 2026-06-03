@@ -7,6 +7,7 @@ import { adminDb } from "@/lib/firebase-admin"
 import { requireUserUid } from "@/lib/server-auth"
 import type { ComputerTimelineEvent } from "@/lib/computer-agent/types"
 import { createComputerAgentMessage } from "@/lib/computer-agent/agent-config"
+import type { MemoryContext } from "@/lib/computer-agent/agent-config"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -1347,7 +1348,7 @@ async function createAgentWebPlan(prompt: string, planText: string, profile?: Co
   }
 
   try {
-    const response = await createComputerAgentMessage(anthropic, {
+    const response = await callAgent({
       max_tokens: 250,
       temperature: 0,
       system: `You are directing web research for an AI website builder. Your job is to maximise the quality of design evidence gathered before code generation.
@@ -1473,12 +1474,20 @@ export async function POST(req: Request) {
     }
 
     let projectFiles: GeneratedFile[] = []
-    if (data.projectId) {
-      const projectSnap = await adminDb.collection("projects").doc(data.projectId).get()
-      if (projectSnap.exists) {
-        projectFiles = projectSnap.data()?.files || []
-      }
+    let projectMemory = ""
+    const [projectSnap, userMemSnap] = await Promise.all([
+      data.projectId ? adminDb.collection("projects").doc(data.projectId).get() : Promise.resolve(null),
+      adminDb.collection("users").doc(uid).get(),
+    ])
+    if (projectSnap?.exists) {
+      const projectData = projectSnap.data()
+      projectFiles = projectData?.files || []
+      projectMemory = (projectData?.projectMemory as string | undefined) || ""
     }
+    const globalMemory: string = (userMemSnap.data()?.globalMemory as string | undefined) || ""
+    const sessionMemory: MemoryContext = { global: globalMemory, project: projectMemory }
+    const callAgent = (params: Parameters<typeof createComputerAgentMessage>[1]) =>
+      callAgent(params, { memory: sessionMemory })
 
     const storedPrompt = typeof data.prompt === "string" ? data.prompt.trim() : ""
     let prompt = parsed.data.prompt?.trim() || storedPrompt || "No prompt provided"
@@ -1533,7 +1542,7 @@ export async function POST(req: Request) {
     // Determines whether to build, have a conversation, or give advice.
     // No keywords, no if/else — the model reads the message and decides.
     {
-      const intentRes = await createComputerAgentMessage(anthropic, {
+      const intentRes = await callAgent({
         max_tokens: 300,
         temperature: 0,
         system: `You are the first reasoning step of an AI website builder agent. Read the user's message and decide what kind of response is appropriate.
@@ -1589,7 +1598,7 @@ The user may also be on an existing project — in that case, requests like "exp
     })
 
     if (runProfile.shouldShowDetailedNarration) {
-      const understandingNarration = await createComputerAgentMessage(anthropic, {
+      const understandingNarration = await callAgent({
         max_tokens: 200,
         temperature: 0.3,
         system: "You are an autonomous website builder agent. Write 2-3 sentences in first person, plain text, no markdown. State: (1) what you understand the user wants built and the specific domain or business type, (2) your immediate instinct for the visual direction or key design challenge this presents, (3) one specific thing you will do to make this feel authentic to the domain rather than generic.",
@@ -1618,7 +1627,7 @@ The user may also be on an existing project — in that case, requests like "exp
     // — Clarification check: ask if prompt is too vague (skip for edits) —
     if (!runProfile.hasExistingProject) {
       try {
-        const clarificationRes = await createComputerAgentMessage(anthropic, {
+        const clarificationRes = await callAgent({
           max_tokens: 500,
           temperature: 0,
           system: `You are a design consultant for an AI website builder. Your job is to decide whether the user's request has enough detail to produce a great, domain-specific website — and if not, ask the one or two questions that would make the biggest difference to design quality.
@@ -1775,7 +1784,7 @@ Return ONLY valid JSON, no markdown:
           createdAt: new Date().toISOString(),
         })
 
-        const researchNarration = await createComputerAgentMessage(anthropic, {
+        const researchNarration = await callAgent({
           max_tokens: 200,
           temperature: 0.3,
           system: "You are an autonomous website builder agent narrating a research phase. First person, plain text, no markdown, 2-3 sentences. Extract design-relevant signals: what color palettes, layout patterns, typography styles, or content structures appeared across the results that are worth applying to this build. Be specific — name colors, describe layouts, mention font styles.",
@@ -1872,7 +1881,7 @@ Return ONLY valid JSON, no markdown:
           },
         })
 
-        const browserNarration = await createComputerAgentMessage(anthropic, {
+        const browserNarration = await callAgent({
           max_tokens: 220,
           temperature: 0.3,
           system: "You are an autonomous website builder agent narrating a page inspection. First person, plain text, no markdown, 2-3 sentences. Extract and name specific design decisions you observed: exact color palette, heading font style, layout structure, hero treatment, spacing density, button style, background treatment. State concretely what you will carry into the build.",
@@ -2007,7 +2016,7 @@ Return ONLY valid JSON, no markdown:
         : ""
 
       try {
-        const planResponse = await createComputerAgentMessage(anthropic, {
+        const planResponse = await callAgent({
           max_tokens: 800,
           temperature: 0.2,
           system: `You are a senior design director and frontend architect creating a build brief for a website or web application.
@@ -2094,7 +2103,7 @@ Rules:
     if (runProfile.hasExistingProject && !runProfile.shouldUseWebTools) {
       generationDecision = { shouldGenerate: true, reason: "targeted_edit" }
     } else try {
-      const generationDecisionRes = await createComputerAgentMessage(anthropic, {
+      const generationDecisionRes = await callAgent({
         temperature: 0,
         max_tokens: 120,
         system: `
@@ -2153,7 +2162,7 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
     })
 
     if (runProfile.shouldShowDetailedNarration) {
-    const buildNarration = await createComputerAgentMessage(anthropic, {
+    const buildNarration = await callAgent({
       max_tokens: 220,
       temperature: 0.3,
       system: "You are an autonomous design and engineering agent. Write a commit statement in first person — 3-4 sentences, no markdown. State: (1) the specific visual identity you are committing to, naming the font pair and color direction, (2) the standout layout decision for the hero or most important section, (3) what makes this site feel handcrafted for this domain rather than generic.",
@@ -2530,7 +2539,7 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
         let classification: FailureClassification = { category: "unknown", reason: "default" }
 
         try {
-          const failureRes = await createComputerAgentMessage(anthropic, {
+          const failureRes = await callAgent({
             temperature: 0,
             max_tokens: 120,
             system: `
@@ -2841,7 +2850,7 @@ Instructions:
         let shouldFix = false
 
         try {
-          const runtimeDecisionRes = await createComputerAgentMessage(anthropic, {
+          const runtimeDecisionRes = await callAgent({
             temperature: 0,
             max_tokens: 120,
             system: `

@@ -261,14 +261,18 @@ function getLatestBrowserInspection(events: ComputerTimelineEvent[]): BrowserIns
   if (!found?.metadata) return null
   const url = typeof found.metadata.targetUrl === "string" ? found.metadata.targetUrl : ""
   if (!url) return null
+  const liveUrl =
+    typeof found.metadata.browserLiveUrl === "string" && found.metadata.browserLiveUrl.startsWith("http")
+      ? found.metadata.browserLiveUrl
+      : ""
   return {
     url,
-    liveUrl: url, // kept for type compatibility; iframe always uses url
+    liveUrl,
     sessionId: typeof found.metadata.browserSessionId === "string" ? found.metadata.browserSessionId : undefined,
     baseUrl:   typeof found.metadata.browserBaseUrl   === "string" ? found.metadata.browserBaseUrl   : undefined,
     provider:  typeof found.metadata.browserProvider  === "string" ? found.metadata.browserProvider  : undefined,
     expiresAt: typeof found.metadata.browserExpiresAt === "string" ? found.metadata.browserExpiresAt : undefined,
-    isExpired: false, // targetUrl never expires
+    isExpired: liveUrl ? isBrowserLiveViewExpired(found) : false,
     title:     typeof found.metadata.pageTitle === "string" && found.metadata.pageTitle.trim() ? found.metadata.pageTitle : url,
   }
 }
@@ -1455,9 +1459,21 @@ function WorkspaceContent({
           </div>
         </div>
         <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-zinc-800 bg-[#111113] shadow-sm">
-          <iframe src={browserInspection.url} className="h-full w-full bg-white"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-            referrerPolicy="no-referrer" title="Remote browser" />
+          {browserInspection.liveUrl && !browserInspection.isExpired ? (
+            <iframe src={browserInspection.liveUrl} className="h-full w-full bg-white"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+              referrerPolicy="no-referrer" title="Remote browser" />
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+              <p className="text-sm text-zinc-400">
+                {browserInspection.isExpired ? "Live view has expired." : "Live view unavailable."}
+              </p>
+              <a href={browserInspection.url} target="_blank" rel="noopener noreferrer"
+                className="text-xs text-zinc-500 underline underline-offset-2 hover:text-zinc-300">
+                Open {browserInspection.url} in a new tab
+              </a>
+            </div>
+          )}
           {session.previewUrl && (
             <LaptopSwitcher label="Preview" title="Generated app" url={session.previewUrl}
               icon={<Monitor className="h-3.5 w-3.5" />} onClick={() => onSwitchView("preview")} />
