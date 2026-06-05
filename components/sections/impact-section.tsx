@@ -11,7 +11,7 @@ export function ImpactSection() {
       <div className="mx-auto max-w-6xl rounded-[2rem] border border-zinc-200 bg-white px-5 py-10 sm:px-8 sm:py-12 lg:px-12">
         <div className="mb-12 text-center">
           <p className="text-sm font-medium text-zinc-500 uppercase tracking-wider mb-4">By the numbers</p>
-          <h2 className="font-display text-3xl md:text-4xl font-bold text-zinc-900 mb-4">Powering the next generation</h2>
+          <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-4">Powering the next generation</h2>
           <p className="text-zinc-500 max-w-lg mx-auto text-balance">
             Builders around the world are creating amazing apps with Lotus.build.
           </p>
@@ -25,7 +25,7 @@ export function ImpactSection() {
             >
               <div className="absolute inset-0 bg-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               <div className="relative">
-                <p className="font-display text-3xl md:text-4xl font-bold text-zinc-900 mb-1 group-hover:text-white transition-colors">
+                <p className="font-display text-3xl md:text-4xl font-bold text-foreground mb-1 group-hover:text-white transition-colors">
                   {metric.value}
                 </p>
                 <p className="text-sm font-medium text-zinc-600 mb-1">{metric.label}</p>

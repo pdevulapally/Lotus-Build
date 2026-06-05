@@ -24,7 +24,7 @@ export function ProtectedRoute({ children, requiredTokens = 0 }: ProtectedRouteP
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-8 h-8 animate-spin text-zinc-400" />
           <p className="text-zinc-500">Loading...</p>
@@ -40,7 +40,7 @@ export function ProtectedRoute({ children, requiredTokens = 0 }: ProtectedRouteP
   // Check token limit
   if (requiredTokens > 0 && !hasTokens(requiredTokens)) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="text-center max-w-md">
           <div className="w-16 h-16 rounded-full bg-zinc-800 flex items-center justify-center mx-auto mb-4">
             <svg
@@ -68,7 +68,7 @@ export function ProtectedRoute({ children, requiredTokens = 0 }: ProtectedRouteP
           </p>
           <a
             href="/pricing"
-            className="inline-flex items-center justify-center px-6 py-2 bg-zinc-100 text-zinc-900 font-medium rounded-lg hover:bg-zinc-200 transition-colors"
+            className="inline-flex items-center justify-center px-6 py-2 bg-zinc-100 text-foreground font-medium rounded-lg hover:bg-zinc-200 transition-colors"
           >
             Upgrade Plan
           </a>

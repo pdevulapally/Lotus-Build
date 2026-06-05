@@ -74,7 +74,7 @@ function SectionAnchor({ id }: { id: string }) {
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="mt-12 mb-5 text-xl font-semibold tracking-tight text-zinc-900 first:mt-0">
+    <h2 className="mt-12 mb-5 text-xl font-semibold tracking-tight text-foreground first:mt-0">
       {children}
     </h2>
   )
@@ -116,7 +116,7 @@ export default function TermsPage() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-[#f5f5f2] font-sans">
+    <div className="min-h-screen bg-background font-sans">
       <Navbar />
 
       {/* â”€â”€ Hero header â”€â”€ */}
@@ -128,7 +128,7 @@ export default function TermsPage() {
             <ChevronRight className="h-3 w-3" />
             <span>Terms of Service</span>
           </div>
-          <h1 className="mt-4 text-4xl font-semibold tracking-tight text-zinc-900 sm:text-5xl">
+          <h1 className="mt-4 text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
             Terms of Service
           </h1>
           <p className="mt-3 max-w-2xl text-base leading-relaxed text-zinc-600">
@@ -170,8 +170,8 @@ export default function TermsPage() {
                     className={cn(
                       "block w-full text-left rounded-lg px-3 py-1.5 text-sm transition-colors",
                       active === id
-                        ? "bg-zinc-900 text-white font-medium"
-                        : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+                        ? "bg-accent text-accent-foreground font-medium"
+                        : "text-zinc-500 hover:bg-zinc-100 hover:text-foreground"
                     )}
                   >
                     {label}
@@ -183,7 +183,7 @@ export default function TermsPage() {
                 <p className="mt-1 text-xs text-zinc-500">Our team is happy to help.</p>
                 <a
                   href="mailto:arpkwebsitedevelopment@gmail.com"
-                  className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-zinc-900 underline-offset-2 hover:underline"
+                  className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-foreground underline-offset-2 hover:underline"
                 >
                   arpkwebsitedevelopment@gmail.com
                 </a>
@@ -202,7 +202,7 @@ export default function TermsPage() {
               between you (&ldquo;User&rdquo;, &ldquo;you&rdquo;, or &ldquo;your&rdquo;) and
               Lotus.build (&ldquo;Lotus.build&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;, or
               &ldquo;our&rdquo;), the operator of the website located at{" "}
-              <a href="https://lotus-build.vercel.app" className="font-medium text-zinc-900 underline-offset-2 hover:underline" target="_blank" rel="noopener noreferrer">
+              <a href="https://lotus-build.vercel.app" className="font-medium text-foreground underline-offset-2 hover:underline" target="_blank" rel="noopener noreferrer">
                 https://lotus-build.vercel.app
               </a>{" "}
               and all associated services, APIs, and tools (collectively, the &ldquo;Service&rdquo;).
@@ -211,7 +211,7 @@ export default function TermsPage() {
               By creating an account, clicking &ldquo;I agree&rdquo;, or otherwise accessing or
               using the Service, you acknowledge that you have read, understood, and agree to be
               bound by these Terms and our{" "}
-              <Link href="/privacy" className="font-medium text-zinc-900 underline-offset-2 hover:underline">
+              <Link href="/privacy" className="font-medium text-foreground underline-offset-2 hover:underline">
                 Privacy Policy
               </Link>
               , which is incorporated herein by reference. If you do not agree to these Terms, you
@@ -313,7 +313,7 @@ export default function TermsPage() {
             <p className="mt-4 font-medium text-zinc-800">Pricing</p>
             <p className="mt-2">
               Current pricing is available at{" "}
-              <Link href="/pricing" className="font-medium text-zinc-900 underline-offset-2 hover:underline">
+              <Link href="/pricing" className="font-medium text-foreground underline-offset-2 hover:underline">
                 https://lotus-build.vercel.app/pricing
               </Link>
               . All prices are displayed exclusive of applicable taxes unless stated otherwise.
@@ -331,7 +331,7 @@ export default function TermsPage() {
             <p className="mt-2">
               Token purchases and subscription fees are generally non-refundable. If you believe
               you have been charged in error or wish to request a refund, please contact{" "}
-              <a href="mailto:arpkwebsitedevelopment@gmail.com" className="font-medium text-zinc-900 underline-offset-2 hover:underline">
+              <a href="mailto:arpkwebsitedevelopment@gmail.com" className="font-medium text-foreground underline-offset-2 hover:underline">
                 arpkwebsitedevelopment@gmail.com
               </a>{" "}
               within 14 days of the charge. Refund eligibility is assessed on a case-by-case basis
@@ -491,7 +491,7 @@ export default function TermsPage() {
             <SectionTitle>10. Data &amp; Privacy</SectionTitle>
             <p>
               Your privacy is important to us. Our{" "}
-              <Link href="/privacy" className="font-medium text-zinc-900 underline-offset-2 hover:underline">
+              <Link href="/privacy" className="font-medium text-foreground underline-offset-2 hover:underline">
                 Privacy Policy
               </Link>{" "}
               describes how we collect, use, store, and share your personal data, and forms part of
@@ -528,7 +528,7 @@ export default function TermsPage() {
             <p className="mt-4">
               If you discover a security vulnerability in the Service, please report it
               responsibly to{" "}
-              <a href="mailto:arpkwebsitedevelopment@gmail.com" className="font-medium text-zinc-900 underline-offset-2 hover:underline">
+              <a href="mailto:arpkwebsitedevelopment@gmail.com" className="font-medium text-foreground underline-offset-2 hover:underline">
                 arpkwebsitedevelopment@gmail.com
               </a>{" "}
               before disclosing it publicly. We appreciate responsible disclosure.
@@ -677,7 +677,7 @@ export default function TermsPage() {
               including any right to bring proceedings in the courts of your country of residence.
               EU consumers may also use the European Commission&rsquo;s Online Dispute Resolution
               platform at{" "}
-              <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener noreferrer" className="font-medium text-zinc-900 underline-offset-2 hover:underline">
+              <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener noreferrer" className="font-medium text-foreground underline-offset-2 hover:underline">
                 ec.europa.eu/consumers/odr
               </a>
               .
@@ -706,17 +706,17 @@ export default function TermsPage() {
             </p>
             <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-5 space-y-2 text-sm">
               <p><span className="font-medium text-zinc-700">Email:</span>{" "}
-                <a href="mailto:arpkwebsitedevelopment@gmail.com" className="text-zinc-900 underline-offset-2 hover:underline">
+                <a href="mailto:arpkwebsitedevelopment@gmail.com" className="text-foreground underline-offset-2 hover:underline">
                   arpkwebsitedevelopment@gmail.com
                 </a>
               </p>
               <p><span className="font-medium text-zinc-700">Website:</span>{" "}
-                <a href="https://lotus-build.vercel.app" target="_blank" rel="noopener noreferrer" className="text-zinc-900 underline-offset-2 hover:underline">
+                <a href="https://lotus-build.vercel.app" target="_blank" rel="noopener noreferrer" className="text-foreground underline-offset-2 hover:underline">
                   https://lotus-build.vercel.app
                 </a>
               </p>
               <p><span className="font-medium text-zinc-700">Help centre:</span>{" "}
-                <Link href="/help" className="text-zinc-900 underline-offset-2 hover:underline">
+                <Link href="/help" className="text-foreground underline-offset-2 hover:underline">
                   https://lotus-build.vercel.app/help
                 </Link>
               </p>
@@ -741,7 +741,7 @@ export default function TermsPage() {
         <button
           type="button"
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="fixed bottom-6 right-6 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-zinc-900 text-white shadow-lg transition-opacity hover:bg-zinc-700"
+          className="fixed bottom-6 right-6 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-lg transition-opacity hover:bg-accent/90"
           aria-label="Back to top"
         >
           <ArrowUp className="h-4 w-4" />

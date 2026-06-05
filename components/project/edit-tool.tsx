@@ -74,7 +74,7 @@ function ApprovalFooter({
   const status = decision === "approved" ? (isPending ? "Starting" : "Approved") : decision === "rejected" ? "Canceled" : isPending ? "Waiting" : ""
 
   return (
-    <div className="flex items-center justify-between gap-2 border-t border-[#e0dbd1] bg-[#f7f5f1] px-2.5 py-2">
+    <div className="flex items-center justify-between gap-2 border-t border-border bg-muted px-2.5 py-2">
       <span className="inline-flex items-center gap-1.5 text-xs text-zinc-500">
         {status}
         {decision === "approved" && isPending && (
@@ -93,7 +93,7 @@ function ApprovalFooter({
               setDecision("rejected")
               onReject?.()
             }}
-            className="inline-flex h-7 items-center gap-1 rounded-md border border-[#e0dbd1] bg-white px-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-[#f3f1ec]"
+            className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-white px-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-muted"
           >
             <X className="h-3 w-3" />
             {rejectLabel}
@@ -104,7 +104,7 @@ function ApprovalFooter({
               setDecision("approved")
               onApprove?.()
             }}
-            className="inline-flex h-7 items-center gap-1 rounded-md bg-zinc-950 px-2 text-xs font-medium text-white transition-colors hover:bg-zinc-800"
+            className="inline-flex h-7 items-center gap-1 rounded-md bg-accent px-2 text-xs font-medium text-accent-foreground transition-colors hover:bg-accent/90"
           >
             <Check className="h-3 w-3" />
             {approveLabel}
@@ -161,11 +161,11 @@ export const EditTool = React.memo(function EditTool({
       : `${isWrite ? "Created" : "Edited"}${fileName ? ` ${fileName}` : ""}`
 
   return (
-    <div className={cn("w-full overflow-hidden rounded-[10px] border border-[#e0dbd1] bg-[#f7f5f1] shadow-sm", className)}>
+    <div className={cn("w-full overflow-hidden rounded-[10px] border border-border bg-muted shadow-sm", className)}>
       <div
         className={cn(
-          "flex h-8 items-center justify-between gap-3 bg-[#f3f1ec] px-2.5",
-          ((diffOps && diffOps.length > 0) || approval) && "border-b border-[#e0dbd1]"
+          "flex h-8 items-center justify-between gap-3 bg-muted px-2.5",
+          ((diffOps && diffOps.length > 0) || approval) && "border-b border-border"
         )}
       >
         <div className="flex min-w-0 items-center gap-1.5">

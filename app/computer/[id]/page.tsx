@@ -420,16 +420,16 @@ function DeployButton({
         type="button"
         onClick={() => onOpenChange(!open)}
         disabled={state.busy}
-        className="inline-flex h-8 items-center gap-1.5 rounded-full border border-zinc-900 bg-zinc-900 px-3 text-[11px] font-semibold text-white shadow-sm transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-70"
+        className="inline-flex h-8 items-center gap-1.5 rounded-full border border-zinc-900 bg-accent px-3 text-[11px] font-semibold text-white shadow-sm transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-70"
       >
         {state.busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Rocket className="h-3.5 w-3.5" />}
         Deploy
       </button>
 
       {open && (
-        <div className="absolute right-0 top-10 z-30 w-[480px] max-w-[calc(100vw-2rem)] rounded-2xl border border-[#e0dbd1] bg-[#fffdf8] p-3 shadow-[0_18px_60px_-24px_rgba(0,0,0,0.45)]">
+        <div className="absolute right-0 top-10 z-30 w-[480px] max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-card p-3 shadow-[0_18px_60px_-24px_rgba(0,0,0,0.45)]">
           <div className="px-1 pb-2">
-            <p className="text-[12px] font-semibold text-zinc-900">Publish this project</p>
+            <p className="text-[12px] font-semibold text-foreground">Publish this project</p>
             <p className="mt-0.5 text-[11px] leading-relaxed text-zinc-500">
               Deploy directly from this generated project.
             </p>
@@ -469,7 +469,7 @@ function DeployButton({
           )}
 
           {(state.step || state.error || visibleStateSiteUrl) && (
-            <div className="mt-2 rounded-xl border border-zinc-200 bg-[#faf9f5] p-2.5">
+            <div className="mt-2 rounded-xl border border-zinc-200 bg-card p-2.5">
               <div className="flex items-center gap-1.5">
                 {state.busy && <Loader2 className="h-3 w-3 animate-spin text-zinc-500" />}
                 <p className="min-w-0 truncate text-[11px] font-medium text-zinc-600">
@@ -552,9 +552,9 @@ function IntegrationsButton({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-10 z-30 w-[360px] rounded-2xl border border-[#e0dbd1] bg-[#fffdf8] p-3 shadow-[0_18px_60px_-24px_rgba(0,0,0,0.45)]">
+        <div className="absolute right-0 top-10 z-30 w-[360px] rounded-2xl border border-border bg-card p-3 shadow-[0_18px_60px_-24px_rgba(0,0,0,0.45)]">
           <div className="mb-3">
-            <p className="text-[12px] font-semibold text-zinc-900">Project integrations</p>
+            <p className="text-[12px] font-semibold text-foreground">Project integrations</p>
             <p className="mt-0.5 text-[11px] leading-relaxed text-zinc-500">
               Connect services directly to this generated website.
             </p>
@@ -566,7 +566,7 @@ function IntegrationsButton({
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
                     <Github className="h-3.5 w-3.5 text-zinc-500" />
-                    <p className="text-[12px] font-semibold text-zinc-900">GitHub</p>
+                    <p className="text-[12px] font-semibold text-foreground">GitHub</p>
                   </div>
                   <p className="mt-1 truncate text-[11px] text-zinc-500">
                     {hasGitHub ? project?.githubRepoFullName || project?.githubRepoUrl : "Create or update a repository"}
@@ -577,7 +577,7 @@ function IntegrationsButton({
                   type="button"
                   onClick={onGithubSync}
                   disabled={busy !== null}
-                  className="rounded-lg border border-zinc-200 bg-[#faf9f5] px-2.5 py-1 text-[11px] font-semibold text-zinc-700 disabled:opacity-60"
+                  className="rounded-lg border border-zinc-200 bg-card px-2.5 py-1 text-[11px] font-semibold text-zinc-700 disabled:opacity-60"
                 >
                   {busy === "github" ? "Syncing..." : hasGitHub ? "Sync" : "Publish"}
                 </button>
@@ -589,7 +589,7 @@ function IntegrationsButton({
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
                     <Database className="h-3.5 w-3.5 text-zinc-500" />
-                    <p className="text-[12px] font-semibold text-zinc-900">Supabase</p>
+                    <p className="text-[12px] font-semibold text-foreground">Supabase</p>
                   </div>
                   <p className="mt-1 truncate text-[11px] text-zinc-500">
                     {hasSupabase ? project?.supabaseProjectRef || project?.supabaseUrl : "Provision database and app credentials"}
@@ -599,7 +599,7 @@ function IntegrationsButton({
                   type="button"
                   onClick={onSupabaseSetup}
                   disabled={busy !== null}
-                  className="rounded-lg border border-zinc-200 bg-[#faf9f5] px-2.5 py-1 text-[11px] font-semibold text-zinc-700 disabled:opacity-60"
+                  className="rounded-lg border border-zinc-200 bg-card px-2.5 py-1 text-[11px] font-semibold text-zinc-700 disabled:opacity-60"
                 >
                   {busy === "supabase" ? "Setting up..." : hasSupabase ? "Re-run" : "Set up"}
                 </button>
@@ -609,7 +609,7 @@ function IntegrationsButton({
             <div className="rounded-xl border border-zinc-200 bg-white p-3">
               <div className="flex items-center gap-1.5">
                 <KeyRound className="h-3.5 w-3.5 text-zinc-500" />
-                <p className="text-[12px] font-semibold text-zinc-900">Environment variables</p>
+                <p className="text-[12px] font-semibold text-foreground">Environment variables</p>
               </div>
               <div className="mt-2 space-y-2">
                 {envNames.map((name) => (
@@ -619,7 +619,7 @@ function IntegrationsButton({
                       value={envValues[name] || ""}
                       onChange={(event) => onEnvChange(name, event.target.value)}
                       placeholder="Value"
-                      className="mt-1 h-8 w-full rounded-lg border border-zinc-200 bg-[#faf9f5] px-2 text-[12px] outline-none focus:border-zinc-400"
+                      className="mt-1 h-8 w-full rounded-lg border border-zinc-200 bg-card px-2 text-[12px] outline-none focus:border-zinc-400"
                     />
                   </label>
                 ))}
@@ -628,13 +628,13 @@ function IntegrationsButton({
                     value={newEnvKey}
                     onChange={(event) => setNewEnvKey(event.target.value)}
                     placeholder="KEY"
-                    className="h-8 min-w-0 rounded-lg border border-zinc-200 bg-[#faf9f5] px-2 text-[12px] outline-none focus:border-zinc-400"
+                    className="h-8 min-w-0 rounded-lg border border-zinc-200 bg-card px-2 text-[12px] outline-none focus:border-zinc-400"
                   />
                   <input
                     value={newEnvValue}
                     onChange={(event) => setNewEnvValue(event.target.value)}
                     placeholder="Value"
-                    className="h-8 min-w-0 rounded-lg border border-zinc-200 bg-[#faf9f5] px-2 text-[12px] outline-none focus:border-zinc-400"
+                    className="h-8 min-w-0 rounded-lg border border-zinc-200 bg-card px-2 text-[12px] outline-none focus:border-zinc-400"
                   />
                   <button
                     type="button"
@@ -646,7 +646,7 @@ function IntegrationsButton({
                       setNewEnvValue("")
                     }}
                     disabled={busy !== null || !newEnvKey.trim()}
-                    className="rounded-lg border border-zinc-200 bg-[#faf9f5] px-2.5 text-[11px] font-semibold text-zinc-700 disabled:opacity-50"
+                    className="rounded-lg border border-zinc-200 bg-card px-2.5 text-[11px] font-semibold text-zinc-700 disabled:opacity-50"
                   >
                     Add
                   </button>
@@ -655,7 +655,7 @@ function IntegrationsButton({
                   type="button"
                   onClick={onEnvSave}
                   disabled={busy !== null}
-                  className="rounded-lg border border-zinc-200 bg-[#faf9f5] px-2.5 py-1 text-[11px] font-semibold text-zinc-700 disabled:opacity-60"
+                  className="rounded-lg border border-zinc-200 bg-card px-2.5 py-1 text-[11px] font-semibold text-zinc-700 disabled:opacity-60"
                 >
                   {busy === "env" ? "Saving..." : "Save and update preview"}
                 </button>
@@ -664,7 +664,7 @@ function IntegrationsButton({
           </div>
 
           {message ? (
-            <p className="mt-3 rounded-xl border border-zinc-200 bg-[#faf9f5] px-3 py-2 text-[11px] leading-relaxed text-zinc-600">
+            <p className="mt-3 rounded-xl border border-zinc-200 bg-card px-3 py-2 text-[11px] leading-relaxed text-zinc-600">
               {message}
             </p>
           ) : null}
@@ -731,15 +731,15 @@ function SupabaseQuestionCard({ onSetup, onDecline }: { onSetup: () => void; onD
   }
 
   return (
-    <div className="my-3 overflow-hidden rounded-[10px] border border-[#e0dbd1] bg-[#f3f1ec] shadow-sm">
+    <div className="my-3 overflow-hidden rounded-[10px] border border-border bg-muted shadow-sm">
       <div className="flex h-8 items-center justify-between pl-3 pr-2.5">
         <div className="flex min-w-0 items-center gap-1.5">
           <Database className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
           <span className="truncate text-xs text-zinc-500">Backend detected</span>
         </div>
       </div>
-      <div className="border-t border-[#e0dbd1] bg-white px-3 py-3">
-        <p className="text-sm font-medium text-zinc-900">This app needs a database</p>
+      <div className="border-t border-border bg-white px-3 py-3">
+        <p className="text-sm font-medium text-foreground">This app needs a database</p>
         <p className="mt-1 text-xs text-zinc-500">
           Connect Supabase to add auth, persistent storage, and a live backend — automatically wired into your code.
         </p>
@@ -748,7 +748,7 @@ function SupabaseQuestionCard({ onSetup, onDecline }: { onSetup: () => void; onD
             type="button"
             onClick={handleSetup}
             disabled={setting}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-zinc-700 disabled:opacity-60"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-accent/90 disabled:opacity-60"
           >
             {setting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Database className="h-3 w-3" />}
             {setting ? "Setting up..." : "Set up Supabase"}
@@ -779,7 +779,7 @@ function PlanTool({ event }: { event: ComputerTimelineEvent }) {
   const hasSummary = summary.length > 0
 
   return (
-    <div className="my-3 overflow-hidden rounded-[10px] border border-[#e0dbd1] bg-[#f3f1ec] shadow-sm">
+    <div className="my-3 overflow-hidden rounded-[10px] border border-border bg-muted shadow-sm">
       <div className="flex h-8 items-center justify-between pl-3 pr-2.5">
         <div className="flex min-w-0 items-center gap-1.5">
           <FileText className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
@@ -789,14 +789,14 @@ function PlanTool({ event }: { event: ComputerTimelineEvent }) {
           type="button"
           onClick={() => setIsExpanded((prev) => !prev)}
           aria-label={isExpanded ? "Collapse plan" : "Expand plan"}
-          className="inline-flex h-5 w-5 items-center justify-center rounded-[4px] text-zinc-500 transition-colors hover:bg-white hover:text-zinc-900"
+          className="inline-flex h-5 w-5 items-center justify-center rounded-[4px] text-zinc-500 transition-colors hover:bg-white hover:text-foreground"
         >
           {isExpanded ? <ChevronsUp className="h-3.5 w-3.5" /> : <ChevronsDown className="h-3.5 w-3.5" />}
         </button>
       </div>
 
-      <div className="border-t border-[#e0dbd1] bg-white pt-2">
-        <div className="px-3 text-sm font-medium text-zinc-900">Plan drafted</div>
+      <div className="border-t border-border bg-white pt-2">
+        <div className="px-3 text-sm font-medium text-foreground">Plan drafted</div>
 
         {hasSummary ? (
           <div className="relative mt-1">
@@ -810,7 +810,7 @@ function PlanTool({ event }: { event: ComputerTimelineEvent }) {
                   <button
                     type="button"
                     onClick={() => setIsExpanded(true)}
-                    className="-mx-1.5 h-5 rounded-[4px] px-1.5 text-xs text-zinc-500 transition-colors hover:text-zinc-900"
+                    className="-mx-1.5 h-5 rounded-[4px] px-1.5 text-xs text-zinc-500 transition-colors hover:text-foreground"
                   >
                     Read detailed plan
                   </button>
@@ -823,11 +823,11 @@ function PlanTool({ event }: { event: ComputerTimelineEvent }) {
         )}
 
         {(isExpanded || !hasSummary) && (
-          <div className="mt-2 flex items-center justify-between border-t border-[#e0dbd1] bg-[#f3f1ec] py-2 pl-3.5 pr-2">
+          <div className="mt-2 flex items-center justify-between border-t border-border bg-muted py-2 pl-3.5 pr-2">
             <button
               type="button"
               onClick={() => setIsExpanded((prev) => !prev)}
-              className="-mx-1.5 h-5 rounded-[4px] px-1.5 text-xs text-zinc-500 transition-colors hover:text-zinc-900"
+              className="-mx-1.5 h-5 rounded-[4px] px-1.5 text-xs text-zinc-500 transition-colors hover:text-foreground"
             >
               {isExpanded ? "Hide detailed plan" : "Read detailed plan"}
             </button>
@@ -971,7 +971,7 @@ function FeedItem({ event, isLatest, onSupabaseSetup, onSupabaseDecline, onClari
             </span>
           )}
         </CollapsibleTrigger>
-        <CollapsibleContent className="mt-2 ml-1.5 border-l-2 border-[#e8e3da] pl-3">
+        <CollapsibleContent className="mt-2 ml-1.5 border-l-2 border-border pl-3">
           <p className="text-[13.5px] leading-relaxed text-zinc-600">
             {event.description}
           </p>
@@ -986,7 +986,7 @@ function FeedItem({ event, isLatest, onSupabaseSetup, onSupabaseDecline, onClari
         {isRunning ? (
           <div className="relative flex h-1.5 w-1.5">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-zinc-900 opacity-20" />
-            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-zinc-900" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
           </div>
         ) : isError ? (
           <div className="h-1.5 w-1.5 rounded-full bg-red-400" />
@@ -1046,7 +1046,7 @@ function UserMessageBubble({
     return (
       <div className="flex justify-end pb-4">
         <div className="w-full max-w-[min(84%,42rem)]">
-          <div className="overflow-hidden rounded-[14px] bg-[#1f1f1f] shadow-[0_1px_2px_rgba(0,0,0,0.18)]">
+          <div className="overflow-hidden rounded-[14px] bg-primary shadow-[0_1px_2px_rgba(0,0,0,0.18)]">
           <textarea
             ref={ref} value={editText} onChange={(e) => onEditChange(e.target.value)}
             rows={Math.max(2, editText.split("\n").length)}
@@ -1059,7 +1059,7 @@ function UserMessageBubble({
           </div>
           <div className="mt-1.5 flex items-center justify-end gap-2">
             <button type="button" onClick={onEditCancel} className="rounded-md px-2 py-1 text-[11px] text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800">Cancel</button>
-            <button type="button" onClick={() => onEditSubmit(index)} className="rounded-md bg-zinc-900 px-2.5 py-1 text-[11px] font-medium text-white transition-colors hover:bg-zinc-800">Submit</button>
+            <button type="button" onClick={() => onEditSubmit(index)} className="rounded-md bg-accent px-2.5 py-1 text-[11px] font-medium text-white transition-colors hover:bg-accent/90">Submit</button>
           </div>
         </div>
       </div>
@@ -1069,7 +1069,7 @@ function UserMessageBubble({
   return (
     <div className="group flex w-full justify-end pb-4">
       <div className="flex w-fit max-w-[min(84%,42rem)] min-w-0 flex-col items-end">
-        <div className="max-w-full rounded-[14px] bg-[#1f1f1f] px-3.5 py-2.5 text-right shadow-[0_1px_2px_rgba(0,0,0,0.18)]">
+        <div className="max-w-full rounded-[14px] bg-primary px-3.5 py-2.5 text-right shadow-[0_1px_2px_rgba(0,0,0,0.18)]">
           <p className="whitespace-pre-wrap break-words text-left text-[13px] leading-relaxed text-zinc-100 [overflow-wrap:anywhere]">{content}</p>
         </div>
         <div className="mt-1.5 flex items-center gap-1 pr-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
@@ -1276,7 +1276,7 @@ function ResearchPanel({ events }: { events: ComputerTimelineEvent[] }) {
     return (
       <div className="flex h-full items-center justify-center p-8 text-center">
         <div>
-          <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-xl border border-[#e0dbd1] bg-white text-zinc-300">
+          <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-white text-zinc-300">
             <BookOpen className="h-4.5 w-4.5" />
           </div>
           <p className="text-[13px] font-medium text-zinc-600">No research yet</p>
@@ -1290,7 +1290,7 @@ function ResearchPanel({ events }: { events: ComputerTimelineEvent[] }) {
       <AnimatePresence initial={false}>
         {evidence.map((event, i) => (
           <motion.div key={event.id ?? `${event.title}-${i}`} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.12 }}
-            className="rounded-2xl border border-[#e0dbd1] bg-white px-3.5 py-3 shadow-sm">
+            className="rounded-2xl border border-border bg-white px-3.5 py-3 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[12.5px] font-semibold text-zinc-800">{getEventTitle(event)}</p>
@@ -1323,7 +1323,7 @@ function RuntimeErrorCard({
 }) {
   const [expanded, setExpanded] = useState(false)
   return (
-    <div className="absolute bottom-4 right-4 z-20 w-[340px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-red-200 bg-[#fffdf8] shadow-[0_12px_40px_-12px_rgba(220,38,38,0.25),0_4px_16px_-4px_rgba(0,0,0,0.12)]">
+    <div className="absolute bottom-4 right-4 z-20 w-[340px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-red-200 bg-card shadow-[0_12px_40px_-12px_rgba(220,38,38,0.25),0_4px_16px_-4px_rgba(0,0,0,0.12)]">
       {/* Header */}
       <div className="flex items-center justify-between gap-2 border-b border-red-100 bg-red-50 px-3.5 py-2.5">
         <div className="flex items-center gap-2">
@@ -1362,12 +1362,12 @@ function RuntimeErrorCard({
         )}
       </div>
       {/* Action row */}
-      <div className="flex items-center gap-2 border-t border-[#e0dbd1] bg-[#faf9f5] px-3.5 py-2.5">
+      <div className="flex items-center gap-2 border-t border-border bg-card px-3.5 py-2.5">
         <button
           type="button"
           onClick={onFix}
           disabled={fixing}
-          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
         >
           {fixing
             ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Fixing...</>
@@ -1402,12 +1402,12 @@ function LaptopSwitcher({ label, title, url, icon, onClick }: {
 }) {
   return (
     <button type="button" onClick={onClick}
-      className="absolute bottom-4 right-4 z-10 w-[180px] rounded-2xl border border-black/10 bg-[#f7f5ef] p-2 text-left shadow-[0_12px_40px_-18px_rgba(0,0,0,0.55)] transition hover:-translate-y-0.5">
+      className="absolute bottom-4 right-4 z-10 w-[180px] rounded-2xl border border-black/10 bg-muted p-2 text-left shadow-[0_12px_40px_-18px_rgba(0,0,0,0.55)] transition hover:-translate-y-0.5">
       <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-1">
         <div className="aspect-[16/10] overflow-hidden rounded-lg border border-white/10 bg-white">
           <div className="flex h-full flex-col">
             <div className="h-4 border-b border-zinc-200 bg-zinc-100" />
-            <div className="flex flex-1 items-center justify-center bg-[#faf9f5] text-zinc-300">
+            <div className="flex flex-1 items-center justify-center bg-card text-zinc-300">
               <Laptop className="h-5 w-5" />
             </div>
           </div>
@@ -1493,7 +1493,7 @@ function WorkspaceContent({
             <WorkspaceHeaderLink href={session.previewUrl} />
           </div>
         </div>
-        <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-[#e0dbd1] bg-white shadow-sm">
+        <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-border bg-white shadow-sm">
           <iframe src={session.previewUrl} className="h-full w-full"
             sandbox="allow-scripts allow-same-origin allow-forms" title="Live preview" />
           {browserInspection && !browserInspection.isExpired && (
@@ -1518,7 +1518,7 @@ function WorkspaceContent({
     <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}
       className="flex h-full items-center justify-center p-8 text-center">
       <div className="max-w-xs">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-[#e0dbd1] bg-white text-zinc-300 shadow-sm">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-white text-zinc-300 shadow-sm">
           <Monitor className="h-5 w-5" />
         </div>
         {(isEnsuringPreview || previewEnsureError) && (
@@ -1543,18 +1543,18 @@ function WorkspaceContent({
 
 function LoadingShell() {
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-[#f0ece4]">
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-background">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,rgba(210,200,182,0.22),transparent)]" />
       <header className="relative z-10 shrink-0 px-3 pt-3 pb-2.5 sm:px-4">
-        <div className="flex h-12 items-center gap-3 rounded-[1.4rem] border border-[#e0dbd1] bg-[rgba(252,250,246,0.92)] px-4 backdrop-blur-md">
+        <div className="flex h-12 items-center gap-3 rounded-[1.4rem] border border-border bg-card/90 px-4 backdrop-blur-md">
           <div className="h-5 w-5 animate-pulse rounded-lg bg-zinc-200" />
           <div className="h-3 w-36 animate-pulse rounded bg-zinc-200" />
           <div className="ml-auto h-6 w-24 animate-pulse rounded-full bg-zinc-200" />
         </div>
       </header>
       <div className="flex flex-1 gap-3 overflow-hidden px-3 pb-3 sm:px-4 sm:pb-4">
-        <div className="w-[380px] shrink-0 animate-pulse rounded-[1.4rem] border border-[#e0dbd1] bg-[rgba(252,250,246,0.96)] hidden sm:block" />
-        <div className="flex-1 animate-pulse rounded-[1.4rem] border border-[#e0dbd1] bg-[rgba(252,250,246,0.96)]" />
+        <div className="w-[380px] shrink-0 animate-pulse rounded-[1.4rem] border border-border bg-card/95 hidden sm:block" />
+        <div className="flex-1 animate-pulse rounded-[1.4rem] border border-border bg-card/95" />
       </div>
     </div>
   )
@@ -1562,14 +1562,14 @@ function LoadingShell() {
 
 function ErrorState({ message }: { message: string }) {
   return (
-    <div className="flex h-[100dvh] items-center justify-center bg-[#f0ece4] px-4">
-      <div className="w-full max-w-md rounded-[1.5rem] border border-[#e0dbd1] bg-[rgba(252,250,246,0.96)] p-8 text-center shadow-[0_4px_24px_-8px_rgba(0,0,0,0.10)]">
-        <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-[#e0dbd1] bg-white text-zinc-400 shadow-sm">
+    <div className="flex h-[100dvh] items-center justify-center bg-background px-4">
+      <div className="w-full max-w-md rounded-[1.5rem] border border-border bg-card/95 p-8 text-center shadow-[0_4px_24px_-8px_rgba(0,0,0,0.10)]">
+        <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-white text-zinc-400 shadow-sm">
           <ShieldAlert className="h-5 w-5" />
         </div>
-        <h1 className="text-[15px] font-semibold text-zinc-900">Session not found</h1>
+        <h1 className="text-[15px] font-semibold text-foreground">Session not found</h1>
         <p className="mt-2 text-[13px] leading-relaxed text-zinc-500">{message}</p>
-        <Button asChild className="mt-6 inline-flex h-9 items-center gap-1.5 rounded-xl bg-zinc-900 px-4 text-[12px] font-semibold text-white hover:bg-zinc-800">
+        <Button asChild className="mt-6 inline-flex h-9 items-center gap-1.5 rounded-xl bg-accent px-4 text-[12px] font-semibold text-white hover:bg-accent/90">
           <Link href="/"><ArrowLeft className="h-3.5 w-3.5" />Back home</Link>
         </Button>
       </div>
@@ -1586,7 +1586,7 @@ function TabBtn({ active, onClick, icon, label, dot }: {
     <button type="button" onClick={onClick}
       className={cn(
         "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-medium transition-all",
-        active ? "bg-zinc-900 text-white shadow-sm" : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800"
+        active ? "bg-accent text-accent-foreground shadow-sm" : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800"
       )}>
       {icon}
       {label}
@@ -2318,13 +2318,13 @@ export default function ComputerPage() {
   const hasResearch   = session.timeline.some((e) => (e.kind === "research" || e.kind === "browser") && e.description?.trim())
 
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-[#f0ece4] text-[#1c1c1c]">
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,rgba(210,200,182,0.22),transparent)]" />
 
       {/* ── Header ── */}
       <header className="relative z-10 shrink-0 px-3 pt-3 pb-2.5 sm:px-0 sm:pt-2 sm:pb-2">
         <div className="mx-auto max-w-none sm:px-3">
-          <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-[1.4rem] border border-[#e0dbd1] bg-[rgba(252,250,246,0.92)] px-3.5 py-2.5 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_32px_-12px_rgba(0,0,0,0.12)] backdrop-blur-md sm:rounded-[1.6rem] sm:px-5 sm:py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-[1.4rem] border border-border bg-card/90 px-3.5 py-2.5 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_32px_-12px_rgba(0,0,0,0.12)] backdrop-blur-md sm:rounded-[1.6rem] sm:px-5 sm:py-3">
             <Link href="/" aria-label="Back"
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-500 shadow-sm transition-colors hover:bg-zinc-50">
               <ArrowLeft className="h-3.5 w-3.5" />
@@ -2340,7 +2340,7 @@ export default function ComputerPage() {
                     <input
                       value={titleDraft}
                       onChange={(event) => setTitleDraft(event.target.value)}
-                      className="min-w-0 flex-1 max-w-[24rem] rounded-2xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-1 ring-transparent transition focus:border-zinc-400 focus:ring-zinc-200"
+                      className="min-w-0 flex-1 max-w-[24rem] rounded-2xl border border-zinc-200 bg-white px-3 py-2 text-sm text-foreground outline-none ring-1 ring-transparent transition focus:border-zinc-400 focus:ring-zinc-200"
                       placeholder="Enter a session title"
                       aria-label="Edit session title"
                     />
@@ -2369,13 +2369,13 @@ export default function ComputerPage() {
                   </div>
                 ) : (
                   <div className="flex min-w-0 items-center gap-2">
-                    <h1 className="truncate text-base font-semibold tracking-tight text-zinc-900 sm:text-lg">
+                    <h1 className="truncate text-base font-semibold tracking-tight text-foreground sm:text-lg">
                       {sessionTitle}
                     </h1>
                     <button
                       type="button"
                       onClick={() => setIsEditingTitle(true)}
-                      className="hidden sm:inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-600 transition-colors hover:text-zinc-900"
+                      className="hidden sm:inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-600 transition-colors hover:text-foreground"
                       aria-label="Edit session title"
                       title="Edit title"
                     >
@@ -2424,21 +2424,21 @@ export default function ComputerPage() {
 
         {/* ── Feed panel (left) ── */}
         <div className={cn(
-          "flex w-full shrink-0 flex-col overflow-hidden rounded-[1.4rem] border border-[#e0dbd1] bg-[rgba(252,250,246,0.96)] shadow-[0_2px_16px_-4px_rgba(0,0,0,0.08)]",
+          "flex w-full shrink-0 flex-col overflow-hidden rounded-[1.4rem] border border-border bg-card/95 shadow-[0_2px_16px_-4px_rgba(0,0,0,0.08)]",
           "sm:w-[380px] xl:w-[420px]",
           mobileView !== "feed" && "hidden sm:flex"
         )}>
           {/* Feed header */}
-          <div className="shrink-0 border-b border-[#ede8e0] bg-[#fcfaf6] px-4 py-2">
+          <div className="shrink-0 border-b border-border bg-card px-4 py-2">
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[12.5px] font-medium leading-5 text-zinc-900">
+                <p className="truncate text-[12.5px] font-medium leading-5 text-foreground">
                   {firstPrompt || "Untitled request"}
                 </p>
               </div>
               {isActive && (
                 <div className="flex shrink-0 items-center gap-2 rounded-full border border-zinc-200 bg-white px-2.5 py-1">
-                  <PulseDot color="bg-zinc-900" active />
+                  <PulseDot color="bg-primary" active />
                   <TextShimmer className="bg-gradient-to-r from-zinc-500 via-zinc-950 to-zinc-500 text-[11px] font-medium">
                     {STATUS_LABELS[session.status]}
                   </TextShimmer>
@@ -2469,7 +2469,7 @@ export default function ComputerPage() {
           </div>
 
           {/* Input */}
-          <div className="shrink-0 border-t border-[#ede8e0] bg-[#faf9f5] p-3 sm:p-4">
+          <div className="shrink-0 px-3 pb-3 pt-2 sm:px-4 sm:pb-4">
             {isBuildTokenBlocked && (
               <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
                 <p className="text-sm font-medium text-amber-900">You have used all credits for this cycle.</p>
@@ -2494,11 +2494,11 @@ export default function ComputerPage() {
 
         {/* ── Workspace panel (right) ── */}
         <div className={cn(
-          "flex min-w-0 flex-1 flex-col overflow-hidden rounded-[1.4rem] border border-[#e0dbd1] bg-[rgba(252,250,246,0.96)] shadow-[0_2px_16px_-4px_rgba(0,0,0,0.08)]",
+          "flex min-w-0 flex-1 flex-col overflow-hidden rounded-[1.4rem] border border-border bg-card/95 shadow-[0_2px_16px_-4px_rgba(0,0,0,0.08)]",
           mobileView !== "workspace" && "hidden sm:flex"
         )}>
           {/* Workspace tab bar */}
-          <div className="flex shrink-0 items-center gap-2 border-b border-zinc-100 bg-[#faf9f5] px-3 py-2.5 sm:px-4">
+          <div className="flex shrink-0 items-center gap-2 border-b border-zinc-100 bg-card px-3 py-2.5 sm:px-4">
             <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none]">
               <TabBtn active={activeTab === "preview"} onClick={() => setActiveTab("preview")}
                 icon={<Monitor className="h-3.5 w-3.5" />} label="Preview"
@@ -2519,7 +2519,7 @@ export default function ComputerPage() {
           </div>
 
           {/* Workspace content */}
-          <div className="relative min-h-0 flex-1 bg-[#f7f5f1]">
+          <div className="relative min-h-0 flex-1 bg-background">
             <AnimatePresence mode="wait" initial={false}>
               <motion.div key={activeTab} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 transition={{ duration: 0.16 }} className="h-full min-h-0">
@@ -2548,16 +2548,16 @@ export default function ComputerPage() {
         </div>
       </div>
 
-      {/* ── Mobile bottom nav — 2 views only ── */}
-      <nav className="absolute inset-x-0 bottom-0 z-10 shrink-0 border-t border-[#ede8e0] bg-[rgba(252,250,246,0.96)] px-3 pb-4 pt-2 backdrop-blur-xl sm:hidden" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
-        <div className="mx-auto grid max-w-sm grid-cols-2 gap-1.5 rounded-[1rem] border border-[#e0dbd1] bg-[#f5f3ee] p-1">
+      {/* ── Mobile bottom nav — 4 actions ── */}
+      <nav className="absolute inset-x-0 bottom-0 z-10 shrink-0 border-t border-border bg-card/95 px-3 pb-4 pt-2 backdrop-blur-xl sm:hidden" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+        <div className="mx-auto grid max-w-sm grid-cols-4 gap-1.5 rounded-[1rem] border border-border bg-muted p-1">
           <button
             type="button"
             onClick={() => setMobileView("feed")}
             className={cn(
-              "flex h-11 items-center justify-center gap-2 rounded-[0.75rem] text-[13px] font-medium transition-all",
+              "flex h-11 items-center justify-center gap-1.5 rounded-[0.75rem] text-[12px] font-medium transition-all",
               mobileView === "feed"
-                ? "bg-white text-zinc-900 shadow-[0_1px_4px_rgba(0,0,0,0.10)]"
+                ? "bg-white text-foreground shadow-[0_1px_4px_rgba(0,0,0,0.10)]"
                 : "text-zinc-500"
             )}
           >
@@ -2568,11 +2568,11 @@ export default function ComputerPage() {
             type="button"
             onClick={() => setMobileView("workspace")}
             className={cn(
-              "relative flex h-11 items-center justify-center gap-2 rounded-[0.75rem] text-[13px] font-medium transition-all",
+              "relative flex h-11 items-center justify-center gap-1.5 rounded-[0.75rem] text-[12px] font-medium transition-all",
               mobileView === "workspace"
-                ? "bg-white text-zinc-900 shadow-[0_1px_4px_rgba(0,0,0,0.10)]"
+                ? "bg-white text-foreground shadow-[0_1px_4px_rgba(0,0,0,0.10)]"
                 : hasPreview
-                  ? "bg-zinc-900 text-white shadow-[0_1px_4px_rgba(0,0,0,0.18)]"
+                  ? "bg-accent text-accent-foreground shadow-[0_1px_4px_rgba(0,0,0,0.18)]"
                   : "text-zinc-500"
             )}
           >
@@ -2590,6 +2590,22 @@ export default function ComputerPage() {
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
               </span>
             )}
+          </button>
+          <button
+            type="button"
+            onClick={() => setIntegrationsOpen(true)}
+            className="flex h-11 items-center justify-center gap-1.5 rounded-[0.75rem] text-[12px] font-medium text-zinc-500 transition-all"
+          >
+            <Zap className="h-4 w-4" />
+            Connect
+          </button>
+          <button
+            type="button"
+            onClick={() => setDeployOpen(true)}
+            className="flex h-11 items-center justify-center gap-1.5 rounded-[0.75rem] text-[12px] font-medium text-zinc-500 transition-all"
+          >
+            <Rocket className="h-4 w-4" />
+            Deploy
           </button>
         </div>
       </nav>

@@ -108,7 +108,7 @@ export default function HelpPage() {
   }, [query, activeCategory])
 
   return (
-    <main className="min-h-screen bg-[#f5f5f2]">
+    <main className="min-h-screen bg-background">
       <Navbar />
 
       {/* ------------------------------------------------------------------ */}
@@ -122,12 +122,12 @@ export default function HelpPage() {
         />
 
         <div className="relative mx-auto max-w-2xl text-center">
-          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#e2ddd3] bg-white/80 px-4 py-1.5 text-xs font-medium uppercase tracking-[0.16em] text-zinc-500 shadow-sm">
+          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-border bg-white/80 px-4 py-1.5 text-xs font-medium uppercase tracking-[0.16em] text-zinc-500 shadow-sm">
             <Globe className="h-3.5 w-3.5" />
             Help Center
           </div>
 
-          <h1 className="mb-4 font-display text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl md:text-5xl">
+          <h1 className="mb-4 font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl md:text-5xl">
             How can we help?
           </h1>
           <p className="mx-auto mb-10 max-w-md text-base text-zinc-500 sm:text-lg">
@@ -146,7 +146,7 @@ export default function HelpPage() {
                 if (e.target.value) setActiveCategory("all")
               }}
               placeholder="Search for answersâ€¦"
-              className="w-full rounded-2xl border border-zinc-200 bg-white py-3.5 pl-11 pr-4 text-sm text-zinc-900 shadow-sm outline-none ring-0 transition-all placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-2 focus:ring-zinc-300/60"
+              className="w-full rounded-2xl border border-zinc-200 bg-white py-3.5 pl-11 pr-4 text-sm text-foreground shadow-sm outline-none ring-0 transition-all placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-2 focus:ring-zinc-300/60"
             />
           </div>
         </div>
@@ -167,10 +167,10 @@ export default function HelpPage() {
                 rel={item.external ? "noopener noreferrer" : undefined}
                 className="group relative overflow-hidden rounded-2xl border border-zinc-200 bg-white p-5 transition-all duration-200 hover:border-zinc-300 hover:shadow-md"
               >
-                <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-100 bg-[#f5f5f2] transition-colors group-hover:border-zinc-200 group-hover:bg-zinc-100">
+                <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-100 bg-background transition-colors group-hover:border-zinc-200 group-hover:bg-zinc-100">
                   <Icon className="h-4.5 w-4.5 text-zinc-600" />
                 </div>
-                <p className="mb-1 text-sm font-semibold text-zinc-900">{item.title}</p>
+                <p className="mb-1 text-sm font-semibold text-foreground">{item.title}</p>
                 <p className="text-xs leading-relaxed text-zinc-500">{item.description}</p>
                 <ArrowUpRight className="absolute right-4 top-4 h-4 w-4 text-zinc-300 transition-all group-hover:text-zinc-600 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
               </Link>
@@ -185,7 +185,7 @@ export default function HelpPage() {
       <section className="mx-auto max-w-3xl px-4 pb-20 sm:px-6 sm:pb-24">
         {/* Section header */}
         <div className="mb-8">
-          <h2 className="mb-1.5 text-xl font-semibold text-zinc-900 sm:text-2xl">
+          <h2 className="mb-1.5 text-xl font-semibold text-foreground sm:text-2xl">
             Frequently asked questions
           </h2>
           <p className="text-sm text-zinc-500">
@@ -209,8 +209,8 @@ export default function HelpPage() {
                   className={cn(
                     "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-all",
                     isActive
-                      ? "border-zinc-800 bg-zinc-900 text-white shadow-sm"
-                      : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:text-zinc-900"
+                      ? "border-zinc-800 bg-accent text-accent-foreground shadow-sm"
+                      : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:text-foreground"
                   )}
                 >
                   <Icon className="h-3 w-3" />
@@ -238,9 +238,9 @@ export default function HelpPage() {
                       idx === filteredFaqs.length - 1 && "rounded-b-2xl"
                     )}
                   >
-                    <AccordionTrigger className="gap-3 py-4 text-left text-sm font-medium text-zinc-900 hover:text-zinc-900 hover:no-underline sm:py-5 [&>svg]:shrink-0 [&>svg]:text-zinc-400">
+                    <AccordionTrigger className="gap-3 py-4 text-left text-sm font-medium text-foreground hover:text-foreground hover:no-underline sm:py-5 [&>svg]:shrink-0 [&>svg]:text-zinc-400">
                       <span className="flex items-start gap-3">
-                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-[#f0ede8]">
+                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-muted">
                           <CatIcon className="h-3 w-3 text-zinc-500" />
                         </span>
                         <span>{faq.q}</span>
@@ -273,14 +273,14 @@ export default function HelpPage() {
         <div className="mt-10 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
           <div className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm font-semibold text-zinc-900">Still have a question?</p>
+              <p className="text-sm font-semibold text-foreground">Still have a question?</p>
               <p className="mt-0.5 text-sm text-zinc-500">
                 Our team usually responds within a few hours.
               </p>
             </div>
             <Link
               href="mailto:support@lotus-build.app"
-              className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
+              className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent/90"
             >
               <Mail className="h-4 w-4" />
               Contact support

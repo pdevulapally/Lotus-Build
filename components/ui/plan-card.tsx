@@ -17,7 +17,7 @@ export function PlanCard({ className }: { className?: string }) {
   return (
     <div 
       className={cn(
-        "relative overflow-hidden rounded-2xl border border-zinc-200 bg-[#f8f8f5]",
+        "relative overflow-hidden rounded-2xl border border-zinc-200 bg-card",
         className
       )}
     >
@@ -47,7 +47,7 @@ export function PlanCard({ className }: { className?: string }) {
               <div className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
                 Current Plan
               </div>
-              <div className="text-sm font-semibold text-zinc-900">
+              <div className="text-sm font-semibold text-foreground">
                 {userData?.planName ?? "Free"}
               </div>
             </div>
@@ -59,7 +59,7 @@ export function PlanCard({ className }: { className?: string }) {
             </div>
             <div className={cn(
               "text-lg font-bold tabular-nums leading-none mt-0.5",
-              isCritical ? "text-red-500" : isLow ? "text-amber-600" : "text-zinc-900"
+              isCritical ? "text-red-500" : isLow ? "text-amber-600" : "text-foreground"
             )}>
               {Math.max(0, remainingTokens).toLocaleString()}
             </div>
@@ -112,7 +112,7 @@ export function PlanCard({ className }: { className?: string }) {
         {/* Upgrade Button */}
         <Link 
           href="/pricing"
-          className="group inline-flex h-11 w-full items-center justify-center rounded-xl border border-zinc-300 bg-white text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
+          className="group inline-flex h-11 w-full items-center justify-center rounded-xl border border-zinc-300 bg-white text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-foreground"
         >
           <span className="flex items-center gap-2">
             Upgrade Plan

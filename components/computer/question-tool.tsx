@@ -160,11 +160,11 @@ function QuestionPrompt({
   const optionRowBase = "w-full text-left rounded-md px-2 py-1.5 flex items-center gap-2 -mx-2 hover:bg-zinc-50 transition-colors"
   const badgeBase = "h-5 min-w-5 px-1 rounded-[4px] inline-flex items-center justify-center text-xs font-semibold border shrink-0"
   const badgeOff = "bg-transparent text-zinc-500 border-zinc-200"
-  const badgeOn = "bg-zinc-900 text-white border-zinc-900"
+  const badgeOn = "bg-accent text-accent-foreground border-zinc-900"
 
   return (
     <div className={cn("px-3 py-2.5 space-y-2 bg-white", className)}>
-      <p className="text-sm font-medium text-zinc-900 leading-snug">{activeQuestion.title}</p>
+      <p className="text-sm font-medium text-foreground leading-snug">{activeQuestion.title}</p>
       {activeQuestion.description && (
         <p className="text-xs text-zinc-500">{activeQuestion.description}</p>
       )}
@@ -207,7 +207,7 @@ function QuestionPrompt({
                 value={customText}
                 onChange={(e) => handleCustomTextChange(e.target.value)}
                 placeholder={activeQuestion.customPlaceholder ?? "Type your answer"}
-                className="w-full h-7 rounded-md border border-zinc-200 bg-white px-2 text-sm text-zinc-900 outline-none focus:border-zinc-400"
+                className="w-full h-7 rounded-md border border-zinc-200 bg-white px-2 text-sm text-foreground outline-none focus:border-zinc-400"
               />
             </div>
           )}
@@ -220,7 +220,7 @@ function QuestionPrompt({
           onChange={(e) => setTextValue(e.target.value)}
           placeholder={activeQuestion.placeholder ?? "Type your answer"}
           rows={3}
-          className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 resize-none outline-none focus:border-zinc-400"
+          className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-sm text-foreground resize-none outline-none focus:border-zinc-400"
         />
       )}
 
@@ -229,7 +229,7 @@ function QuestionPrompt({
           <button
             type="button"
             onClick={handleSkip}
-            className="h-6 px-2 rounded-[4px] text-xs text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50 transition-colors"
+            className="h-6 px-2 rounded-[4px] text-xs text-zinc-500 hover:text-foreground hover:bg-zinc-50 transition-colors"
           >
             {skipLabel}
           </button>
@@ -238,7 +238,7 @@ function QuestionPrompt({
           type="button"
           onClick={handleSubmit}
           disabled={!canSubmit}
-          className="h-6 px-2.5 rounded-[4px] text-xs font-semibold bg-zinc-900 text-white hover:bg-zinc-700 active:scale-[0.98] transition-all disabled:opacity-40 disabled:hover:bg-zinc-900 disabled:active:scale-100"
+          className="h-6 px-2.5 rounded-[4px] text-xs font-semibold bg-accent text-accent-foreground hover:bg-accent/90 active:scale-[0.98] transition-all disabled:opacity-40 disabled:hover:bg-zinc-900 disabled:active:scale-100"
         >
           {primaryLabel}
         </button>
@@ -349,8 +349,8 @@ export function QuestionTool({
   if (!question) return null
 
   return (
-    <div className={cn("rounded-[10px] border border-[#e0dbd1] bg-[#f3f1ec] overflow-hidden", className)}>
-      <div className="h-7 border-b border-[#e0dbd1] px-3 flex items-center justify-between text-xs text-zinc-500">
+    <div className={cn("rounded-[10px] border border-border bg-muted overflow-hidden", className)}>
+      <div className="h-7 border-b border-border px-3 flex items-center justify-between text-xs text-zinc-500">
         <div className="inline-flex items-center gap-1.5">
           <MessageCircle className="w-3.5 h-3.5" />
           <span>Question{totalQuestions > 1 ? `s (${clampedIndex}/${totalQuestions})` : ""}</span>

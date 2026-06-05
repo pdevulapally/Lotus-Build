@@ -99,7 +99,7 @@ function FileTreeItem({
       onClick={() => onSelect({ path: node.path, content: node.content || "" })}
       className={cn(
         "flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm transition-colors",
-        isSelected ? "bg-zinc-900 text-white" : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
+        isSelected ? "bg-accent text-accent-foreground" : "text-zinc-600 hover:bg-zinc-100 hover:text-foreground"
       )}
       style={{ paddingLeft: `${depth * 12 + 8}px` }}
     >
@@ -134,7 +134,7 @@ export interface ProjectFileTreeProps {
 export function ProjectFileTree({ files, selectedFile, onSelectFile, isGenerating }: ProjectFileTreeProps) {
   const fileTree = buildFileTree(files)
   return (
-    <div className="custom-scrollbar w-56 flex-shrink-0 overflow-y-auto border-r border-zinc-200 bg-[#f8f8f5]">
+    <div className="custom-scrollbar w-56 flex-shrink-0 overflow-y-auto border-r border-zinc-200 bg-card">
       <div className="p-2.5">
         <div className="flex items-center justify-between px-2 py-2.5">
           <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Files</span>

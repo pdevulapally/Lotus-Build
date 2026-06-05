@@ -29,7 +29,7 @@ function PlanningHeader(props: {
   const { projectLabel, onBack } = props
 
   return (
-    <header className="sticky top-0 z-20 border-b border-zinc-200 bg-[#f5f5f2]/80 backdrop-blur-md">
+    <header className="sticky top-0 z-20 border-b border-zinc-200 bg-background/80 backdrop-blur-md">
       <div className="mx-auto max-w-4xl px-4 py-3 sm:px-6 sm:py-4">
         <div className="flex items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
@@ -37,14 +37,14 @@ function PlanningHeader(props: {
               <button
                 type="button"
                 onClick={onBack}
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center text-zinc-400 transition-colors hover:text-zinc-900"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center text-zinc-400 transition-colors hover:text-foreground"
                 aria-label="Back"
               >
                 <ArrowLeft className="h-4 w-4" />
               </button>
             ) : null}
             <div className="min-w-0">
-              <p className="truncate text-base font-medium text-zinc-900">{projectLabel}</p>
+              <p className="truncate text-base font-medium text-foreground">{projectLabel}</p>
             </div>
           </div>
 
@@ -81,7 +81,7 @@ function ChatMessage({ message }: { message: Message }) {
   return (
     <article className={cn("mx-auto w-full max-w-3xl px-4 sm:px-6", isUser ? "flex justify-end" : "")}>
       {isUser ? (
-        <div className="max-w-xl rounded-2xl bg-[#1f1f1f] px-4 py-3 text-sm leading-6 text-white">
+        <div className="max-w-xl rounded-2xl bg-primary px-4 py-3 text-sm leading-6 text-primary-foreground">
           <p className="whitespace-pre-wrap">{message.content}</p>
         </div>
       ) : (
@@ -112,7 +112,7 @@ function SuggestedReplies(props: {
   return (
     <div className="mx-auto w-full max-w-3xl space-y-4 px-4 sm:px-6">
       <div className="space-y-1">
-        <p className="text-sm font-medium text-zinc-900">{question || guidedAnswerSet.question}</p>
+        <p className="text-sm font-medium text-foreground">{question || guidedAnswerSet.question}</p>
         {helper ? <p className="text-xs text-zinc-500">{helper}</p> : null}
       </div>
       {isLoadingOptions ? (
@@ -132,8 +132,8 @@ function SuggestedReplies(props: {
                   className={cn(
                     "rounded-full border px-4 py-2 text-sm transition-all",
                     selected
-                      ? "border-[#1f1f1f] bg-[#1f1f1f] text-white"
-                      : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:text-zinc-900"
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:text-foreground"
                   )}
                 >
                   {option.label}
@@ -157,7 +157,7 @@ function SuggestedReplies(props: {
               type="button"
               onClick={onSubmitSelection}
               disabled={isSubmitting}
-              className="rounded-full bg-[#1f1f1f] px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:opacity-50"
+              className="rounded-full bg-accent px-5 py-2 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent/90 disabled:opacity-50"
             >
               {isSubmitting ? "Continuing..." : "Continue â†’"}
             </button>
@@ -193,7 +193,7 @@ function ChatComposer(props: {
   }
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-[#f5f5f2]/95 backdrop-blur">
+    <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-background/95 backdrop-blur">
       <div className="mx-auto max-w-4xl px-4 py-3 sm:px-6 sm:py-4">
         <div className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
           <Textarea
@@ -202,14 +202,14 @@ function ChatComposer(props: {
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
-            className="min-h-[52px] max-h-[120px] resize-none border-0 bg-transparent px-4 py-3.5 pr-20 text-sm leading-6 text-zinc-900 placeholder:text-zinc-400 shadow-none focus-visible:ring-0"
+            className="min-h-[52px] max-h-[120px] resize-none border-0 bg-transparent px-4 py-3.5 pr-20 text-sm leading-6 text-foreground placeholder:text-zinc-400 shadow-none focus-visible:ring-0"
             disabled={!canEdit || isSubmitting}
           />
           <Button
             type="button"
             onClick={onSubmit}
             disabled={!canSubmit || !canEdit || isSubmitting}
-            className="absolute bottom-3 right-3 h-8 rounded-lg bg-zinc-900 px-3 text-xs font-medium text-white disabled:opacity-40"
+            className="absolute bottom-3 right-3 h-8 rounded-lg bg-accent px-3 text-xs font-medium text-white disabled:opacity-40"
           >
             {isSubmitting ? "..." : submitLabel}
           </Button>
@@ -283,7 +283,7 @@ function ConversationThread(props: {
   } = props
 
   return (
-    <div ref={scrollRef} className="relative flex-1 overflow-y-auto bg-[#f5f5f2] pb-36">
+    <div ref={scrollRef} className="relative flex-1 overflow-y-auto bg-background pb-36">
       <div className="mx-auto flex max-w-4xl flex-col gap-5 px-4 py-6 sm:px-6">
         <IntroMessage description={introDescription} prompt={prompt} />
 
@@ -324,7 +324,7 @@ function ConversationThread(props: {
                     type="button"
                     onClick={() => void onBuildFromPlan()}
                     disabled={!canEdit || isDisabled}
-                    className="h-10 rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
+                    className="h-10 rounded-lg bg-accent px-4 text-sm font-medium text-white hover:bg-accent/90 disabled:opacity-50"
                   >
                     Build from plan
                   </Button>
@@ -522,7 +522,7 @@ export function ProjectCreationStudio(props: {
   const canSubmitCurrentAnswer = blueprintVisible ? !!draft.trim() : !guidedAnswerSet ? !!draft.trim() : useCustomAnswer ? !!draft.trim() : !!buildGuidedAnswerDraft(guidedAnswerSet, selectedGuidedOptions)
 
   return (
-    <div className="min-h-screen bg-[#f5f5f2] text-zinc-900">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="relative flex min-h-screen flex-col">
         <PlanningHeader
           projectLabel={projectLabel}

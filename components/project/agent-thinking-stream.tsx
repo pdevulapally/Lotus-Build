@@ -29,22 +29,22 @@ const phaseConfig: Record<ThinkingPhase, { label: string; icon: React.ReactNode;
   analysis: {
     label: "Analyzing",
     icon: <Brain className="h-4 w-4" />,
-    color: "bg-[#f5f3ef] border-[#e7dfd2] text-zinc-700",
+    color: "bg-muted border-border text-zinc-700",
   },
   planning: {
     label: "Planning",
     icon: <Zap className="h-4 w-4" />,
-    color: "bg-[#f5f3ef] border-[#e7dfd2] text-zinc-700",
+    color: "bg-muted border-border text-zinc-700",
   },
   generation: {
     label: "Generating",
     icon: <Zap className="h-4 w-4" />,
-    color: "bg-[#f5f3ef] border-[#e7dfd2] text-zinc-700",
+    color: "bg-muted border-border text-zinc-700",
   },
   validation: {
     label: "Validating",
     icon: <CheckCircle className="h-4 w-4" />,
-    color: "bg-[#f5f3ef] border-[#e7dfd2] text-zinc-700",
+    color: "bg-muted border-border text-zinc-700",
   },
 }
 
@@ -70,8 +70,8 @@ function ThinkingStepCard({ step, isLast }: { step: ThinkingStep; isLast: boolea
       <div
         className={cn(
           "relative flex gap-3 p-3 rounded-lg border transition-all duration-200",
-          isActive && "border-zinc-300 bg-[#f7f4ee] shadow-md shadow-zinc-200/50",
-          isComplete && "border-zinc-200 bg-[#f5f3ef]",
+          isActive && "border-zinc-300 bg-muted shadow-md shadow-zinc-200/50",
+          isComplete && "border-zinc-200 bg-muted",
           isPending && "border-zinc-100 bg-zinc-50/50 opacity-60",
           isError && "border-red-200 bg-red-50/50"
         )}
@@ -173,16 +173,16 @@ export function AgentThinkingStream({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-xl border border-[#e7dfd2] bg-white",
+        "overflow-hidden rounded-xl border border-border bg-white",
         className
       )}
     >
       {/* Header */}
-      <div className="border-b border-[#eee6da] bg-[#f8f5ef] px-4 py-3">
+      <div className="border-b border-border bg-muted px-4 py-3">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Brain className="h-4 w-4 text-zinc-700" />
-            <span className="text-sm font-semibold text-zinc-900">Reasoning</span>
+            <span className="text-sm font-semibold text-foreground">Reasoning</span>
           </div>
 
           {isStreaming && (
@@ -203,7 +203,7 @@ export function AgentThinkingStream({
           </div>
           <div className="h-1.5 w-full bg-zinc-200 rounded-full overflow-hidden">
             <div
-              className="h-full bg-zinc-900 transition-all duration-500"
+              className="h-full bg-primary transition-all duration-500"
               style={{ width: `${progress}%` }}
             />
           </div>
@@ -228,7 +228,7 @@ export function AgentThinkingStream({
 
       {/* Footer - current phase info */}
       {activeStep && (
-        <div className="border-t border-[#eee6da] bg-[#faf8f4] px-4 py-2.5 text-xs text-zinc-500">
+        <div className="border-t border-border bg-card px-4 py-2.5 text-xs text-zinc-500">
           <div className="flex items-center gap-2">
             <span className="inline-flex h-1.5 w-1.5 rounded-full bg-zinc-700 animate-pulse" />
             <span>

@@ -25,7 +25,7 @@ export function TokenLimitDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md border-zinc-200 bg-white">
         <DialogHeader>
-          <DialogTitle className="text-zinc-900">You&apos;re out of credits</DialogTitle>
+          <DialogTitle className="text-foreground">You&apos;re out of credits</DialogTitle>
           <DialogDescription className="text-zinc-600">
             {description}
           </DialogDescription>
@@ -35,7 +35,7 @@ export function TokenLimitDialog({
             Close
           </Button>
           <Link href="/pricing">
-            <Button type="button" className="bg-[#1f1f1f] text-white hover:bg-zinc-800" onClick={() => onOpenChange(false)}>
+            <Button type="button" className="bg-accent text-accent-foreground hover:bg-accent/90" onClick={() => onOpenChange(false)}>
               Upgrade Plan
             </Button>
           </Link>

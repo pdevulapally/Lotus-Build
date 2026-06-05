@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Loader2, Mail, Sparkles, ArrowRight, Zap, Shield, Globe } from "lucide-react"
+import { Loader2, Mail, ArrowRight, Zap, Shield, Globe } from "lucide-react"
 
 const FEATURES = [
   {
@@ -39,7 +39,7 @@ const FEATURES = [
 export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const redirect = searchParams.get("redirect") || "/"
+  const redirect = searchParams.get("redirect") || "/projects"
   const { signInWithGoogle, signInWithGithub, signInWithEmail, sendPasswordResetEmail, user, loading } = useAuth()
 
   const [email, setEmail]               = useState("")
@@ -126,7 +126,7 @@ export default function LoginPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f5f5f2] flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
       </div>
     )
@@ -135,7 +135,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex">
       {/* ── Left panel ── */}
-      <div className="hidden lg:flex lg:w-[52%] xl:w-[55%] flex-col bg-zinc-950 relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-[52%] xl:w-[55%] flex-col bg-primary relative overflow-hidden">
         {/* Subtle grain + glow */}
         <div
           aria-hidden
@@ -157,9 +157,7 @@ export default function LoginPage() {
         <div className="relative flex flex-col h-full p-10 xl:p-14">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 w-fit group">
-            <div className="h-9 w-9 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center transition-colors group-hover:bg-white/15">
-              <Sparkles className="h-4 w-4 text-white" />
-            </div>
+            <img src="/Images/lotus-official-logo.png" alt="lotus.build" className="h-9 w-9 object-contain" />
             <span className="text-[15px] font-semibold tracking-tight text-white">Lotus.build</span>
           </Link>
 
@@ -209,13 +207,11 @@ export default function LoginPage() {
       </div>
 
       {/* ── Right panel — form ── */}
-      <div className="flex-1 flex flex-col items-center justify-center bg-[#f5f5f2] px-5 py-10 sm:px-8">
+      <div className="flex-1 flex flex-col items-center justify-center bg-background px-5 py-10 sm:px-8">
         {/* Mobile logo */}
         <Link href="/" className="flex items-center gap-2 mb-10 lg:hidden">
-          <div className="h-8 w-8 rounded-lg bg-zinc-900 flex items-center justify-center">
-            <Sparkles className="h-4 w-4 text-white" />
-          </div>
-          <span className="text-[15px] font-bold tracking-tight text-zinc-900">Lotus.build</span>
+          <img src="/Images/lotus-official-logo.png" alt="lotus.build" className="h-8 w-8 object-contain" />
+          <span className="text-[15px] font-bold tracking-tight text-foreground">Lotus.build</span>
         </Link>
 
         <motion.div
@@ -225,12 +221,12 @@ export default function LoginPage() {
           className="w-full max-w-[420px]"
         >
           <div className="mb-7">
-            <h2 className="text-2xl font-bold tracking-tight text-zinc-900">Sign in</h2>
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">Sign in</h2>
             <p className="mt-1.5 text-[13.5px] text-zinc-500">
               Don&apos;t have an account?{" "}
               <Link
                 href={`/signup?redirect=${encodeURIComponent(redirect)}`}
-                className="font-semibold text-zinc-800 hover:text-zinc-900 underline underline-offset-2 decoration-zinc-300"
+                className="font-semibold text-zinc-800 hover:text-foreground underline underline-offset-2 decoration-zinc-300"
               >
                 Sign up free
               </Link>
@@ -298,7 +294,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="h-11 rounded-xl border-zinc-200 bg-zinc-50 text-[13.5px] text-zinc-900 placeholder:text-zinc-400 focus:bg-white focus:border-zinc-300"
+                  className="h-11 rounded-xl border-zinc-200 bg-zinc-50 text-[13.5px] text-foreground placeholder:text-zinc-400 focus:bg-white focus:border-zinc-300"
                   required
                 />
               </div>
@@ -322,7 +318,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Your password"
-                  className="h-11 rounded-xl border-zinc-200 bg-zinc-50 text-[13.5px] text-zinc-900 placeholder:text-zinc-400 focus:bg-white focus:border-zinc-300"
+                  className="h-11 rounded-xl border-zinc-200 bg-zinc-50 text-[13.5px] text-foreground placeholder:text-zinc-400 focus:bg-white focus:border-zinc-300"
                   required
                 />
               </div>
@@ -330,7 +326,7 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="h-11 w-full rounded-xl bg-zinc-900 text-[13.5px] font-semibold text-white hover:bg-zinc-800 active:scale-[0.99] transition-all"
+                className="h-11 w-full rounded-xl bg-accent text-[13.5px] font-semibold text-white hover:bg-accent/90 active:scale-[0.99] transition-all"
               >
                 {isLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -360,9 +356,9 @@ export default function LoginPage() {
 
       {/* Forgot password dialog */}
       <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
-        <DialogContent className="bg-white border-zinc-200 text-zinc-900 sm:max-w-md rounded-2xl">
+        <DialogContent className="bg-white border-zinc-200 text-foreground sm:max-w-md rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-zinc-900">
+            <DialogTitle className="flex items-center gap-2 text-foreground">
               <Mail className="h-4 w-4 text-zinc-500" />
               Reset your password
             </DialogTitle>
@@ -399,7 +395,7 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 disabled={resetLoading}
-                className="h-11 w-full rounded-xl bg-zinc-900 text-[13.5px] font-semibold text-white hover:bg-zinc-800"
+                className="h-11 w-full rounded-xl bg-accent text-[13.5px] font-semibold text-white hover:bg-accent/90"
               >
                 {resetLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

@@ -449,24 +449,56 @@ Generated sites must use at least one of:
 
 ## Visual/theme rules
 
-Use the existing Lotus Build theme and visual language.
+lotus.build uses a slate + vivid red editorial theme.
+This is the canonical palette — do not invent alternatives.
 
-Do not invent a new palette.
+### Design tokens (source of truth: app/globals.css :root)
 
-Keep the UI aligned with the existing brand:
-- off-white / ivory backgrounds
-- deep charcoal foreground
-- light neutral borders / muted surfaces
-- premium minimal aesthetic
+| Token                        | oklch value               | Hex approx | Role                          |
+|------------------------------|---------------------------|------------|-------------------------------|
+| --background                 | oklch(0.961 0.004 85)     | #F4F3F0    | Page base                     |
+| --card                       | oklch(1 0 0)              | #FFFFFF    | Card / popover surface        |
+| --secondary / --muted        | oklch(0.935 0.004 85)     | #ECEAE5    | Muted surface                 |
+| --primary (slate)            | oklch(0.265 0.018 250)    | #2E3440    | Nav, sidebar, headings        |
+| --slate-mid                  | oklch(0.38 0.022 250)     | #4A5568    | Sidebar hover, secondary text |
+| --slate-soft                 | oklch(0.935 0.008 250)    | #E8EAED    | Slate tint background         |
+| --accent (vivid red)         | oklch(0.545 0.215 27)     | #E8362A    | CTAs, active states, links    |
+| --accent-soft                | oklch(0.962 0.018 27)     | #FEECEA    | Badge / tag backgrounds       |
+| --accent-soft-foreground     | oklch(0.36 0.15 27)       | #8A1A10    | Text on accent-soft           |
+| --foreground                 | oklch(0.13 0.008 60)      | #1C1B18    | Body text                     |
+| --muted-foreground           | oklch(0.48 0.01 60)       | #5C5A54    | Secondary text                |
+| --border                     | oklch(0.868 0.006 85)     | #D8D5CE    | Default borders               |
+| --border-strong              | oklch(0.74 0.01 85)       | #B8B4AB    | Emphasis borders              |
+| --success                    | oklch(0.42 0.13 155)      | #1A7A4A    | Success states                |
+| --success-soft               | oklch(0.945 0.04 155)     | #DFF2E8    | Success badge bg              |
+| --destructive                | oklch(0.545 0.215 27)     | #E8362A    | Errors (same as accent)       |
 
-Avoid:
-- neon AI colors
-- generic dashboard chromes
-- visually loud gradients
-- excessive glassmorphism
-- over-styled cards everywhere
+### Usage rules for agents
 
-Use subtle motion only where it improves clarity.
+- `bg-background` — page root only
+- `bg-card` — cards, modals, popovers
+- `bg-secondary` / `bg-muted` — surfaces, input areas
+- `bg-primary text-primary-foreground` — slate nav, sidebar, code blocks
+- `bg-accent text-accent-foreground` — vivid red CTAs, active indicators
+- `bg-accent-soft text-accent-soft-foreground` — badges, tags, status chips
+- `bg-slate-soft text-slate-soft-foreground` — draft/neutral state chips
+- `text-foreground` — all primary body text
+- `text-muted-foreground` — secondary/supporting text
+- `border-border` — default borders
+- `border-border-strong` — emphasis borders, active containers
+- `bg-success-soft text-success-soft-foreground` — live/complete badges
+- `bg-success text-success-foreground` — filled success elements
+
+### Rules agents must follow
+- Never hardcode hex values for brand colors in components
+- Always use the Tailwind token names above
+- Never use purple, blue, orange, or gradient accents
+- The sidebar/nav always uses bg-primary (slate)
+- The one accent color is vivid red — do not introduce
+  secondary accents
+- Active/selected states use accent or accent-soft
+- Success states use success or success-soft
+- Destructive/error states use destructive
 
 ---
 

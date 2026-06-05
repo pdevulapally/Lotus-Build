@@ -90,7 +90,7 @@ function Toggle({
       onClick={() => onChange?.(!checked)}
       className={cn(
         "relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:ring-offset-2",
-        checked ? "bg-zinc-900" : "bg-zinc-200",
+        checked ? "bg-accent" : "bg-zinc-200",
         disabled && "cursor-not-allowed opacity-50"
       )}
     >
@@ -126,7 +126,7 @@ function CategoryRow({
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-zinc-900">{category.label}</span>
+            <span className="text-sm font-semibold text-foreground">{category.label}</span>
             {category.alwaysOn && (
               <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
                 Always on
@@ -200,7 +200,7 @@ function PreferencesModal({
 
       {/* Panel */}
       <div
-        className="relative z-10 w-full max-w-lg rounded-2xl border border-zinc-200 bg-[#fafaf8] shadow-2xl animate-in slide-in-from-bottom-4 duration-300"
+        className="relative z-10 w-full max-w-lg rounded-2xl border border-zinc-200 bg-card shadow-2xl animate-in slide-in-from-bottom-4 duration-300"
         role="dialog"
         aria-modal
         aria-labelledby="cookie-prefs-title"
@@ -208,11 +208,11 @@ function PreferencesModal({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-4">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-900">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary">
               <Cookie className="h-4 w-4 text-white" />
             </div>
             <div>
-              <p id="cookie-prefs-title" className="text-sm font-semibold text-zinc-900">
+              <p id="cookie-prefs-title" className="text-sm font-semibold text-foreground">
                 Cookie Preferences
               </p>
               <p className="text-xs text-zinc-500">Choose what data we collect</p>
@@ -258,14 +258,14 @@ function PreferencesModal({
             <button
               type="button"
               onClick={() => onSave(false, false)}
-              className="flex-1 sm:flex-none rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+              className="flex-1 sm:flex-none rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-foreground"
             >
               Reject all
             </button>
             <button
               type="button"
               onClick={() => onSave(analytics, functional)}
-              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-700"
+              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent/90"
             >
               <Check className="h-3.5 w-3.5" />
               Save preferences
@@ -322,13 +322,13 @@ export function CookieBanner() {
           <div className="px-5 py-4">
             <div className="flex items-start gap-3.5">
               {/* Icon */}
-              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-900">
+              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary">
                 <Cookie className="h-4.5 w-4.5 text-white" style={{ width: 18, height: 18 }} />
               </div>
 
               {/* Text */}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-zinc-900">
+                <p className="text-sm font-semibold text-foreground">
                   We use cookies
                 </p>
                 <p className="mt-0.5 text-xs leading-relaxed text-zinc-500">
@@ -349,7 +349,7 @@ export function CookieBanner() {
               <button
                 type="button"
                 onClick={handleAcceptAll}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-700 active:scale-[0.98]"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent/90 active:scale-[0.98]"
               >
                 <Check className="h-3.5 w-3.5" />
                 Accept all
@@ -357,14 +357,14 @@ export function CookieBanner() {
               <button
                 type="button"
                 onClick={handleRejectAll}
-                className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+                className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-foreground"
               >
                 Reject non-essential
               </button>
               <button
                 type="button"
                 onClick={() => setShowPrefs(true)}
-                className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+                className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-foreground"
               >
                 Manage preferences
               </button>

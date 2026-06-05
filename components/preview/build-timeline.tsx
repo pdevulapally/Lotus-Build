@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect, useRef, useMemo } from "react";
-import { Check, Loader2, X, ChevronRight, ChevronDown, Terminal, Clock, Sparkles, Settings2 } from "lucide-react";
+import { Check, Loader2, X, ChevronRight, ChevronDown, Terminal, Clock, Leaf, Settings2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { TextShimmer } from "@/components/prompt-kit/text-shimmer";
@@ -300,7 +300,7 @@ export function BuildTimeline({
                     {isActive && (
                       <span className="relative flex h-2 w-2">
                         <span className="absolute inset-0 animate-ping rounded-full bg-zinc-600 opacity-50" />
-                        <span className="relative h-2 w-2 rounded-full bg-zinc-900" />
+                        <span className="relative h-2 w-2 rounded-full bg-primary" />
                       </span>
                     )}
                     {isDone && (
@@ -474,7 +474,7 @@ export function BuildTimeline({
                 <button
                   onClick={onFixWithAI}
                   disabled={isFixing}
-                  className="flex w-full items-center justify-center gap-2 rounded-md border border-zinc-900 bg-zinc-900 px-3 py-2 text-xs font-medium text-white shadow-sm transition-all hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex w-full items-center justify-center gap-2 rounded-md border border-zinc-900 bg-accent px-3 py-2 text-xs font-medium text-white shadow-sm transition-all hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isFixing ? (
                     <>
@@ -483,7 +483,7 @@ export function BuildTimeline({
                     </>
                   ) : (
                     <>
-                      <Sparkles className="h-3.5 w-3.5" />
+                      <Leaf className="h-3.5 w-3.5" />
                       <TextShimmer className="bg-gradient-to-r from-white via-zinc-300 to-white">
                         Fix with AI
                       </TextShimmer>

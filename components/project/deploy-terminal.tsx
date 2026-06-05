@@ -20,7 +20,7 @@ export function DeployTerminal({ logs, currentStep, className }: DeployTerminalP
   }, [logs])
 
   return (
-    <div className={cn("overflow-hidden rounded-2xl border border-[#e0dbd1] bg-[#fcfaf6] shadow-[0_8px_30px_rgba(0,0,0,0.06)] transition-all duration-300", className)}>
+    <div className={cn("overflow-hidden rounded-2xl border border-border bg-card shadow-[0_8px_30px_rgba(0,0,0,0.06)] transition-all duration-300", className)}>
       <style jsx>{`
         .terminal-scrollbar::-webkit-scrollbar {
           width: 4px;
@@ -39,7 +39,7 @@ export function DeployTerminal({ logs, currentStep, className }: DeployTerminalP
       `}</style>
       
       {/* Terminal Header */}
-      <div className="flex items-center justify-between gap-3 border-b border-[#e0dbd1] bg-[#f5f2eb] px-4 py-2.5">
+      <div className="flex items-center justify-between gap-3 border-b border-border bg-muted px-4 py-2.5">
         <div className="flex items-center gap-2.5">
           <TerminalIcon className="h-3.5 w-3.5 text-zinc-400" />
           <div className="h-3 w-px bg-zinc-300" />
@@ -59,7 +59,7 @@ export function DeployTerminal({ logs, currentStep, className }: DeployTerminalP
       {/* Terminal Body */}
       <div 
         ref={scrollRef}
-        className="terminal-scrollbar max-h-[320px] overflow-auto bg-[#fcfaf6] p-5 font-mono text-[11px] leading-[1.7]"
+        className="terminal-scrollbar max-h-[320px] overflow-auto bg-card p-5 font-mono text-[11px] leading-[1.7]"
       >
         {logs.length === 0 ? (
           <div className="flex items-center gap-3 text-zinc-400">
@@ -82,7 +82,7 @@ export function DeployTerminal({ logs, currentStep, className }: DeployTerminalP
                     isError && "border-red-500/40 text-red-600 bg-red-50/50",
                     isWarning && "border-amber-500/40 text-amber-700 bg-amber-50/50",
                     isSuccess && "border-emerald-500/40 text-emerald-600 bg-emerald-50/50",
-                    isCommand && "text-zinc-900 font-bold",
+                    isCommand && "text-foreground font-bold",
                     !isError && !isWarning && !isSuccess && !isCommand && "text-zinc-500"
                   )}
                 >

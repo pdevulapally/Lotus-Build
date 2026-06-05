@@ -7,7 +7,7 @@ export function BlueprintSectionCard({ section }: { section: BlueprintSection })
   return (
     <article className="rounded-[1.5rem] border border-zinc-200 bg-white p-4 shadow-sm">
       <div className="mb-3">
-        <h3 className="text-sm font-semibold text-zinc-900">{section.title}</h3>
+        <h3 className="text-sm font-semibold text-foreground">{section.title}</h3>
         {section.description ? (
           <p className="mt-1 text-xs leading-5 text-zinc-500">{section.description}</p>
         ) : null}

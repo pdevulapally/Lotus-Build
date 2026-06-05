@@ -34,14 +34,14 @@ function WebsiteSettingsPageContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f5f5f2] flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-zinc-600" />
       </div>
     )
   }
 
   return (
-    <main className="min-h-screen bg-[#f5f5f2] px-4 py-8 sm:px-6">
+    <main className="min-h-screen bg-background px-4 py-8 sm:px-6">
       <div className="mx-auto max-w-4xl">
         <Link href={`/project/${projectId}`}>
           <Button variant="outline" className="mb-5 border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100">
@@ -51,7 +51,7 @@ function WebsiteSettingsPageContent() {
         </Link>
 
         <section className="rounded-3xl border border-zinc-200 bg-white p-5 sm:p-7">
-          <h1 className="text-2xl font-semibold text-zinc-900">Website Settings</h1>
+          <h1 className="text-2xl font-semibold text-foreground">Website Settings</h1>
           <p className="mt-1 text-sm text-zinc-500">Manage settings for this website.</p>
         </section>
 

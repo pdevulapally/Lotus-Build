@@ -137,7 +137,7 @@ export function ChatMessage({
                           e.stopPropagation()
                           onEdit()
                         }}
-                        className="h-6 sm:h-7 px-1.5 sm:px-2 rounded-lg bg-zinc-800/70 border border-zinc-700/60 hover:bg-zinc-800 text-zinc-300 hover:text-zinc-100 transition-colors inline-flex items-center gap-1.5"
+                        className="h-6 sm:h-7 px-1.5 sm:px-2 rounded-lg bg-zinc-800/70 border border-zinc-700/60 hover:bg-accent/90 text-zinc-300 hover:text-zinc-100 transition-colors inline-flex items-center gap-1.5"
                         title="Edit"
                       >
                         <Edit2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
@@ -151,7 +151,7 @@ export function ChatMessage({
                         e.stopPropagation()
                         handleCopy()
                       }}
-                      className="h-6 sm:h-7 px-1.5 sm:px-2 rounded-lg bg-zinc-800/70 border border-zinc-700/60 hover:bg-zinc-800 text-zinc-300 hover:text-zinc-100 transition-colors inline-flex items-center gap-1.5"
+                      className="h-6 sm:h-7 px-1.5 sm:px-2 rounded-lg bg-zinc-800/70 border border-zinc-700/60 hover:bg-accent/90 text-zinc-300 hover:text-zinc-100 transition-colors inline-flex items-center gap-1.5"
                       title="Copy"
                     >
                       {isCopied ? (
@@ -224,7 +224,7 @@ export function ChatMessage({
                           className="group"
                         >
                           <div
-                            className="flex items-center gap-1.5 rounded-xl border border-zinc-800/80 bg-zinc-950/35 p-1.5 transition-all duration-200 cursor-pointer hover:border-zinc-600/50 hover:bg-zinc-800/60 hover:shadow-sm sm:gap-2 sm:p-2"
+                            className="flex items-center gap-1.5 rounded-xl border border-zinc-800/80 bg-zinc-950/35 p-1.5 transition-all duration-200 cursor-pointer hover:border-zinc-600/50 hover:bg-accent/90/60 hover:shadow-sm sm:gap-2 sm:p-2"
                             onClick={handleFileClick}
                           >
                             {isDirectory && directory && (
@@ -266,7 +266,7 @@ export function ChatMessage({
                   transition={{ delay: index * 0.05 }}
                   className="group flex justify-end"
                 >
-                  <div className="flex items-center gap-2 p-2 rounded-lg bg-zinc-800/50 border border-zinc-700/30 hover:border-zinc-600/50 hover:bg-zinc-800/70 transition-all duration-200 max-w-[85%]">
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-zinc-800/50 border border-zinc-700/30 hover:border-zinc-600/50 hover:bg-accent/90/70 transition-all duration-200 max-w-[85%]">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <div className="w-6 h-6 rounded bg-zinc-700 flex items-center justify-center">
                         <FileCode className="w-3 h-3 text-zinc-300" />
@@ -274,7 +274,7 @@ export function ChatMessage({
                       <span className="text-sm text-zinc-300 font-mono truncate">{file}</span>
                     </div>
                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                      <button className="p-1 rounded hover:bg-zinc-700 transition-colors duration-150">
+                      <button className="p-1 rounded hover:bg-accent/90 transition-colors duration-150">
                         <Copy className="w-3 h-3 text-zinc-400 hover:text-zinc-300" />
                       </button>
                     </div>

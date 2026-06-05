@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Navbar } from "@/components/ui/navbar"
 import { FooterSection } from "@/components/sections/footer-section"
-import { Check, ArrowLeft, Loader2, Sparkles, ShieldCheck } from "lucide-react"
+import { Check, ArrowLeft, Loader2, Leaf, ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/auth-context"
 import {
@@ -136,7 +136,7 @@ export default function PricingPage() {
   // ─── UI ──────────────────────────────────────────────────────────────────────
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[#f5f5f2]">
+    <main className="min-h-screen overflow-x-hidden bg-background">
       <Navbar />
 
       <div className="mx-auto w-full max-w-5xl px-4 pb-24 pt-20 sm:px-6 sm:pt-28 lg:px-8">
@@ -145,7 +145,7 @@ export default function PricingPage() {
         <div className="mb-8 flex items-center justify-between">
           <Link
             href="/"
-            className="group inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3.5 py-2 text-[13px] font-medium text-zinc-600 transition-all hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900"
+            className="group inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3.5 py-2 text-[13px] font-medium text-zinc-600 transition-all hover:border-zinc-300 hover:bg-zinc-50 hover:text-foreground"
           >
             <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />
             Back
@@ -161,12 +161,12 @@ export default function PricingPage() {
           <div className="flex flex-col justify-between border-b border-zinc-100 px-8 py-8 lg:border-b-0 lg:border-r lg:py-10">
             <div>
               <div className="mb-5 inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1.5">
-                <Sparkles className="h-3 w-3 text-zinc-500" />
+                <Leaf className="h-3 w-3 text-zinc-500" />
                 <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-500">
                   Pricing
                 </span>
               </div>
-              <h1 className="text-[30px] font-bold leading-[1.1] tracking-[-0.03em] text-zinc-900 sm:text-[36px]">
+              <h1 className="text-[30px] font-bold leading-[1.1] tracking-[-0.03em] text-foreground sm:text-[36px]">
                 Build, launch,{" "}
                 <span className="text-zinc-400">ship</span> — pick the plan that fits.
               </h1>
@@ -177,7 +177,7 @@ export default function PricingPage() {
           </div>
 
           {/* Right: plan guide */}
-          <div className="bg-[#fafaf8] px-8 py-8 lg:py-10">
+          <div className="bg-background px-8 py-8 lg:py-10">
             <p className="mb-4 text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-400">
               Which plan is right for you?
             </p>
@@ -211,7 +211,7 @@ export default function PricingPage() {
               <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-400">
                 Current plan
               </p>
-              <p className="mt-1 text-xl font-bold tracking-tight text-zinc-900">{planName}</p>
+              <p className="mt-1 text-xl font-bold tracking-tight text-foreground">{planName}</p>
             </div>
 
             <div className="hidden h-10 w-px bg-zinc-100 sm:block" />
@@ -219,7 +219,7 @@ export default function PricingPage() {
             {/* Usage bar */}
             <div className="min-w-0 flex-1">
               <div className="mb-2 flex items-baseline gap-2">
-                <span className="text-2xl font-bold tracking-tight text-zinc-900">
+                <span className="text-2xl font-bold tracking-tight text-foreground">
                   {remaining.toLocaleString()}
                 </span>
                 <span className="text-[12px] text-zinc-400">
@@ -228,7 +228,7 @@ export default function PricingPage() {
               </div>
               <div className="h-[3px] w-full overflow-hidden rounded-full bg-zinc-100">
                 <div
-                  className="h-full rounded-full bg-zinc-900 transition-all duration-500"
+                  className="h-full rounded-full bg-primary transition-all duration-500"
                   style={{
                     width: `${tokensLimit ? Math.min(100, (remaining / tokensLimit) * 100) : 0}%`,
                   }}
@@ -302,7 +302,7 @@ export default function PricingPage() {
                     "relative flex flex-col",
                     // dividers between columns
                     planIdx > 0 && "border-t border-zinc-200 md:border-l md:border-t-0",
-                    recommended ? "bg-zinc-900" : "bg-white"
+                    recommended ? "bg-accent" : "bg-white"
                   )}
                 >
                   {/* Plan header */}
@@ -313,17 +313,17 @@ export default function PricingPage() {
                     )}
                   >
                     {recommended && (
-                      <div className="mb-3 inline-block rounded-[4px] bg-white px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-zinc-900">
+                      <div className="mb-3 inline-block rounded-[4px] bg-white px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-foreground">
                         Recommended
                       </div>
                     )}
-                    <div className={cn("mb-4", recommended ? "text-white" : "text-zinc-900")}>
+                    <div className={cn("mb-4", recommended ? "text-white" : "text-foreground")}>
                       {planKey === "free" ? <img src="/Images/leaf-svgrepo-com.svg" className="h-8 w-8" alt="Starter" /> : planKey === "pro" ? <img src="/Images/lotus-flower-svgrepo-com.svg" className="h-8 w-8" alt="Pro" /> : <img src="/Images/enterprise-svgrepo-com.svg" className="h-8 w-8" alt="Enterprise" />}
                     </div>
                     <h2
                       className={cn(
                         "text-[18px] font-bold tracking-tight",
-                        recommended ? "text-white" : "text-zinc-900"
+                        recommended ? "text-white" : "text-foreground"
                       )}
                     >
                       {plan.name}
@@ -348,7 +348,7 @@ export default function PricingPage() {
                     <span
                       className={cn(
                         "text-[32px] font-bold leading-none tracking-[-0.03em]",
-                        recommended ? "text-white" : "text-zinc-900"
+                        recommended ? "text-white" : "text-foreground"
                       )}
                     >
                       {priceStr}
@@ -501,8 +501,8 @@ export default function PricingPage() {
                         className={cn(
                           "h-10 w-full rounded-lg border-0 text-[13px] font-semibold transition-all active:scale-[0.99]",
                           recommended
-                            ? "bg-white text-zinc-900 hover:bg-zinc-100"
-                            : "bg-zinc-900 text-white hover:bg-zinc-800"
+                            ? "bg-white text-foreground hover:bg-zinc-100"
+                            : "bg-accent text-accent-foreground hover:bg-accent/90"
                         )}
                         onClick={() => handleSubscribe(effectivePriceId!, effectiveQuantity)}
                       >
@@ -518,8 +518,8 @@ export default function PricingPage() {
                         className={cn(
                           "h-10 w-full rounded-lg border-0 text-[13px] font-semibold opacity-60",
                           recommended
-                            ? "bg-white text-zinc-900"
-                            : "bg-zinc-900 text-white"
+                            ? "bg-white text-foreground"
+                            : "bg-accent text-accent-foreground"
                         )}
                       >
                         Subscribe to {plan.name}

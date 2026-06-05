@@ -347,7 +347,7 @@ export function WebsiteSettingsPanel({ projectId, initialSettings, projectName, 
   return (
     <div className="space-y-6">
       <section className="rounded-2xl border border-zinc-200 bg-white p-5">
-        <h3 className="text-sm font-semibold text-zinc-900">General</h3>
+        <h3 className="text-sm font-semibold text-foreground">General</h3>
         <div className="mt-4 grid gap-4">
           <div>
             <Label className="text-zinc-700">Site Name</Label>
@@ -357,7 +357,7 @@ export function WebsiteSettingsPanel({ projectId, initialSettings, projectName, 
       </section>
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-5">
-        <h3 className="text-sm font-semibold text-zinc-900">GitHub</h3>
+        <h3 className="text-sm font-semibold text-foreground">GitHub</h3>
         <p className="mt-1 text-xs text-zinc-500">Connect once, then publish your full project files to GitHub in one click.</p>
         <div className="mt-4 flex items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5">
           <span className="text-sm text-zinc-700">Account</span>
@@ -388,7 +388,7 @@ export function WebsiteSettingsPanel({ projectId, initialSettings, projectName, 
             type="button"
             onClick={handleConnectAndPublish}
             disabled={githubLoading || githubSyncing}
-            className="bg-zinc-900 text-white hover:bg-zinc-800 disabled:opacity-60"
+            className="bg-accent text-accent-foreground hover:bg-accent/90 disabled:opacity-60"
           >
             {githubLoading || githubSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             {!githubConnected ? "Connect & Publish" : githubIntegration?.repoFullName ? "Sync Latest Changes" : "Publish to GitHub"}
@@ -415,7 +415,7 @@ export function WebsiteSettingsPanel({ projectId, initialSettings, projectName, 
       </section>
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-5">
-        <h3 className="text-sm font-semibold text-zinc-900">Stripe</h3>
+        <h3 className="text-sm font-semibold text-foreground">Stripe</h3>
         <div className="mt-4 grid gap-4">
           <div>
             <Label className="text-zinc-700">Publishable Key</Label>
@@ -433,7 +433,7 @@ export function WebsiteSettingsPanel({ projectId, initialSettings, projectName, 
       </section>
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-5">
-        <h3 className="text-sm font-semibold text-zinc-900">Database</h3>
+        <h3 className="text-sm font-semibold text-foreground">Database</h3>
         <div className="mt-4 flex items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5">
           <span className="text-sm text-zinc-700">Supabase</span>
           <span className="inline-flex items-center gap-1 rounded-full border border-zinc-300 bg-white px-2.5 py-1 text-xs text-zinc-700">
@@ -447,7 +447,7 @@ export function WebsiteSettingsPanel({ projectId, initialSettings, projectName, 
               type="button"
               onClick={handleConnectSupabase}
               disabled={supabaseConnectLoading || supabaseChecking}
-              className="bg-zinc-900 text-white hover:bg-zinc-800 w-full"
+              className="bg-accent text-accent-foreground hover:bg-accent/90 w-full"
             >
               {supabaseConnectLoading
                 ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -477,7 +477,7 @@ export function WebsiteSettingsPanel({ projectId, initialSettings, projectName, 
         <section className="rounded-2xl border border-zinc-200 bg-white">
           <CollapsibleTrigger className="flex w-full items-center justify-between px-5 py-4 text-left">
             <div>
-              <h3 className="text-sm font-semibold text-zinc-900">Advanced</h3>
+              <h3 className="text-sm font-semibold text-foreground">Advanced</h3>
               <p className="text-xs text-zinc-500">Environment Variables</p>
             </div>
             <ChevronDown className={`h-4 w-4 text-zinc-500 transition-transform ${advancedOpen ? "rotate-180" : ""}`} />
@@ -513,7 +513,7 @@ export function WebsiteSettingsPanel({ projectId, initialSettings, projectName, 
       </Collapsible>
 
       <div className="flex justify-end">
-        <Button type="button" onClick={saveSettings} disabled={saving} className="bg-zinc-900 text-white hover:bg-zinc-800">
+        <Button type="button" onClick={saveSettings} disabled={saving} className="bg-accent text-accent-foreground hover:bg-accent/90">
           <Save className="mr-2 h-4 w-4" />
           {saving ? "Saving..." : "Save Website Settings"}
         </Button>

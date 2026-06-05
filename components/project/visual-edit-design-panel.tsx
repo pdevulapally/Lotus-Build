@@ -165,7 +165,7 @@ export function VisualEditDesignPanel({
   return (
     <div
       className={cn(
-        "flex h-full flex-col overflow-hidden border-l border-zinc-200 bg-[#f5f5f2] text-zinc-900",
+        "flex h-full flex-col overflow-hidden border-l border-zinc-200 bg-background text-foreground",
         className
       )}
     >
@@ -173,7 +173,7 @@ export function VisualEditDesignPanel({
         <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 min-w-0">
             <Type className="h-4 w-4 shrink-0 text-zinc-500" />
-            <span className="truncate text-sm font-medium text-zinc-900">{description || "Element"}</span>
+            <span className="truncate text-sm font-medium text-foreground">{description || "Element"}</span>
         </div>
         <Button
           type="button"
@@ -199,7 +199,7 @@ export function VisualEditDesignPanel({
             onChange={handleContentChange}
             onBlur={handleContentBlur}
             placeholder="Edit text..."
-            className="min-h-[90px] resize-none border-zinc-200 bg-[#f8f8f5] text-sm text-zinc-900 focus-visible:ring-zinc-300"
+            className="min-h-[90px] resize-none border-zinc-200 bg-muted text-sm text-foreground focus-visible:ring-zinc-300"
           />
         </section>
 
@@ -214,7 +214,7 @@ export function VisualEditDesignPanel({
               <select
                 value={fontFamily || "Default"}
                 onChange={(e) => updateStyle("fontFamily", e.target.value === "Default" ? "" : e.target.value)}
-                className="h-9 w-full rounded-lg border border-zinc-200 bg-[#f8f8f5] px-2 text-xs text-zinc-800"
+                className="h-9 w-full rounded-lg border border-zinc-200 bg-muted px-2 text-xs text-zinc-800"
               >
                 {fontFamily && !FONT_FAMILIES.includes(fontFamily) && (
                   <option value={fontFamily}>{fontFamily.split(",")[0]?.trim() || fontFamily}</option>
@@ -230,7 +230,7 @@ export function VisualEditDesignPanel({
                 <select
                   value={fontWeight || "Default"}
                   onChange={(e) => updateStyle("fontWeight", e.target.value === "Default" ? "" : e.target.value)}
-                  className="h-9 w-full rounded-lg border border-zinc-200 bg-[#f8f8f5] px-2 text-xs text-zinc-800"
+                  className="h-9 w-full rounded-lg border border-zinc-200 bg-muted px-2 text-xs text-zinc-800"
                 >
                   {fontWeight && !FONT_WEIGHTS.includes(fontWeight) && (
                     <option value={fontWeight}>{fontWeight}</option>
@@ -248,7 +248,7 @@ export function VisualEditDesignPanel({
                     onChange={(e) => updateStyle("fontSize", e.target.value)}
                     onFocus={() => setShowFontSizeOptions(true)}
                     placeholder="Choose or type a size"
-                    className="h-9 border-zinc-200 bg-[#f8f8f5] pr-8 text-xs"
+                    className="h-9 border-zinc-200 bg-muted pr-8 text-xs"
                   />
                   <button
                     type="button"
@@ -286,7 +286,7 @@ export function VisualEditDesignPanel({
                   value={lineHeight}
                   onChange={(e) => updateStyle("lineHeight", e.target.value)}
                   placeholder="e.g. 1.5"
-                  className="h-9 border-zinc-200 bg-[#f8f8f5] text-xs"
+                  className="h-9 border-zinc-200 bg-muted text-xs"
                 />
               </div>
               <div>
@@ -295,7 +295,7 @@ export function VisualEditDesignPanel({
                   value={letterSpacing}
                   onChange={(e) => updateStyle("letterSpacing", e.target.value)}
                   placeholder="e.g. 0.05em"
-                  className="h-9 border-zinc-200 bg-[#f8f8f5] text-xs"
+                  className="h-9 border-zinc-200 bg-muted text-xs"
                 />
               </div>
             </div>
@@ -310,8 +310,8 @@ export function VisualEditDesignPanel({
                     className={cn(
                       "h-8 w-8 flex items-center justify-center rounded border transition-colors",
                       textAlign === value
-                        ? "border-zinc-900 bg-zinc-900 text-white"
-                        : "border-zinc-200 bg-[#f8f8f5] text-zinc-500 hover:bg-zinc-100"
+                        ? "border-zinc-900 bg-accent text-accent-foreground"
+                        : "border-zinc-200 bg-muted text-zinc-500 hover:bg-zinc-100"
                     )}
                     title={value}
                   >
@@ -326,7 +326,7 @@ export function VisualEditDesignPanel({
                 onClick={() => updateStyle("fontStyle", fontStyle === "italic" ? "" : "italic")}
                 className={cn(
                   "h-8 px-2 text-xs font-medium rounded border",
-                  fontStyle === "italic" ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-200 bg-[#f8f8f5] text-zinc-700"
+                  fontStyle === "italic" ? "border-zinc-900 bg-accent text-accent-foreground" : "border-zinc-200 bg-muted text-zinc-700"
                 )}
               >
                 I
@@ -336,7 +336,7 @@ export function VisualEditDesignPanel({
                 onClick={() => updateStyle("textDecoration", textDecoration.includes("underline") ? "" : "underline")}
                 className={cn(
                   "h-8 px-2 text-xs font-medium rounded border",
-                  textDecoration.includes("underline") ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-200 bg-[#f8f8f5] text-zinc-700"
+                  textDecoration.includes("underline") ? "border-zinc-900 bg-accent text-accent-foreground" : "border-zinc-200 bg-muted text-zinc-700"
                 )}
               >
                 U
@@ -346,7 +346,7 @@ export function VisualEditDesignPanel({
                 onClick={() => updateStyle("textDecoration", textDecoration.includes("line-through") ? "" : "line-through")}
                 className={cn(
                   "h-8 px-2 text-xs font-medium rounded border",
-                  textDecoration.includes("line-through") ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-200 bg-[#f8f8f5] text-zinc-700"
+                  textDecoration.includes("line-through") ? "border-zinc-900 bg-accent text-accent-foreground" : "border-zinc-200 bg-muted text-zinc-700"
                 )}
               >
                 S
@@ -357,7 +357,7 @@ export function VisualEditDesignPanel({
               <select
                 value={textTransform}
                 onChange={(e) => updateStyle("textTransform", e.target.value)}
-                className="h-9 w-full rounded-lg border border-zinc-200 bg-[#f8f8f5] px-2 text-xs text-zinc-800"
+                className="h-9 w-full rounded-lg border border-zinc-200 bg-muted px-2 text-xs text-zinc-800"
               >
                 {TEXT_TRANSFORMS.map((t) => (
                   <option key={t} value={t}>{t}</option>
@@ -384,7 +384,7 @@ export function VisualEditDesignPanel({
               value={color}
               onChange={(e) => updateStyle("color", e.target.value)}
               placeholder="e.g. #c92a2a or rgb(201,42,42)"
-              className="h-9 flex-1 border-zinc-200 bg-[#f8f8f5] font-mono text-xs"
+              className="h-9 flex-1 border-zinc-200 bg-muted font-mono text-xs"
             />
           </div>
         </section>
@@ -405,7 +405,7 @@ export function VisualEditDesignPanel({
               value={backgroundColor}
               onChange={(e) => updateStyle("backgroundColor", e.target.value)}
               placeholder="transparent or #..."
-              className="h-9 flex-1 border-zinc-200 bg-[#f8f8f5] font-mono text-xs"
+              className="h-9 flex-1 border-zinc-200 bg-muted font-mono text-xs"
             />
           </div>
         </section>
@@ -419,7 +419,7 @@ export function VisualEditDesignPanel({
             value={opacity}
             onChange={(e) => updateStyle("opacity", e.target.value)}
             placeholder="e.g. 1 or 0.8"
-            className="h-9 border-zinc-200 bg-[#f8f8f5] text-xs"
+            className="h-9 border-zinc-200 bg-muted text-xs"
           />
         </section>
 
@@ -435,7 +435,7 @@ export function VisualEditDesignPanel({
                 value={borderWidth}
                 onChange={(e) => updateStyle("borderWidth", e.target.value)}
                 placeholder="e.g. 1px"
-                className="h-9 border-zinc-200 bg-[#f8f8f5] text-xs"
+                className="h-9 border-zinc-200 bg-muted text-xs"
               />
             </div>
             <div>
@@ -444,7 +444,7 @@ export function VisualEditDesignPanel({
                 value={borderColor}
                 onChange={(e) => updateStyle("borderColor", e.target.value)}
                 placeholder="e.g. #ccc"
-                className="h-9 border-zinc-200 bg-[#f8f8f5] font-mono text-xs"
+                className="h-9 border-zinc-200 bg-muted font-mono text-xs"
               />
             </div>
             <div>
@@ -453,7 +453,7 @@ export function VisualEditDesignPanel({
                 value={borderRadius}
                 onChange={(e) => updateStyle("borderRadius", e.target.value)}
                 placeholder="e.g. 0.5rem"
-                className="h-9 border-zinc-200 bg-[#f8f8f5] text-xs"
+                className="h-9 border-zinc-200 bg-muted text-xs"
               />
             </div>
           </div>
@@ -468,7 +468,7 @@ export function VisualEditDesignPanel({
             value={boxShadow}
             onChange={(e) => updateStyle("boxShadow", e.target.value)}
             placeholder="e.g. 0 1px 3px rgba(0,0,0,0.2)"
-            className="h-9 border-zinc-200 bg-[#f8f8f5] font-mono text-xs"
+            className="h-9 border-zinc-200 bg-muted font-mono text-xs"
           />
         </section>
 
@@ -485,7 +485,7 @@ export function VisualEditDesignPanel({
                 value={padding}
                 onChange={(e) => updateStyle("padding", e.target.value)}
                 placeholder="e.g. 1rem 0.5rem"
-                className="h-9 border-zinc-200 bg-[#f8f8f5] text-xs"
+                className="h-9 border-zinc-200 bg-muted text-xs"
               />
             </div>
             <div>
@@ -494,7 +494,7 @@ export function VisualEditDesignPanel({
                 value={margin}
                 onChange={(e) => updateStyle("margin", e.target.value)}
                 placeholder="e.g. 0 1rem"
-                className="h-9 border-zinc-200 bg-[#f8f8f5] text-xs"
+                className="h-9 border-zinc-200 bg-muted text-xs"
               />
             </div>
           </div>

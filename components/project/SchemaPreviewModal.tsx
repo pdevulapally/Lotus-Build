@@ -27,7 +27,7 @@ export function SchemaPreviewModal({
 }: Props) {
   return (
     <Dialog open={open} onOpenChange={(next) => (!next ? onClose() : null)}>
-      <DialogContent className="border-zinc-200 bg-white text-zinc-900 sm:max-w-2xl">
+      <DialogContent className="border-zinc-200 bg-white text-foreground sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Database schema ready</DialogTitle>
           <DialogDescription>
@@ -66,7 +66,7 @@ export function SchemaPreviewModal({
           <Button type="button" variant="outline" onClick={onClose} className="border-zinc-300">
             Cancel
           </Button>
-          <Button type="button" onClick={onPush} disabled={!sql || generating || pushing} className="bg-zinc-900 text-white hover:bg-zinc-800">
+          <Button type="button" onClick={onPush} disabled={!sql || generating || pushing} className="bg-accent text-accent-foreground hover:bg-accent/90">
             {pushing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Push to Supabase
           </Button>

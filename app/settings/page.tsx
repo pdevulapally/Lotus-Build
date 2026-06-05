@@ -15,7 +15,7 @@ import {
   ExternalLink,
   Loader2,
   Mail,
-  Sparkles,
+  Leaf,
   Trash2,
   XCircle,
 } from "lucide-react"
@@ -186,12 +186,12 @@ function ContributionCalendar({ items, loading }: { items: ContributionActivityI
     <section className="mb-6 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="text-sm font-semibold text-zinc-900">
+          <h2 className="text-sm font-semibold text-foreground">
             {loading ? "Loading activity..." : `${total.toLocaleString()} contribution${total === 1 ? "" : "s"} in the last year`}
           </h2>
           <p className="mt-1 text-xs text-zinc-500">Project builds, edits, and computer-agent activity from your workspace.</p>
         </div>
-        <Link href="/projects" className="text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-900">
+        <Link href="/projects" className="text-xs font-medium text-zinc-500 transition-colors hover:text-foreground">
           View projects
         </Link>
       </div>
@@ -271,7 +271,7 @@ function SettingsSection({
 }) {
   return (
     <section id={id} className="scroll-mt-24 pb-12">
-      <h2 className="mb-7 text-[15px] font-semibold text-zinc-950">{title}</h2>
+      <h2 className="mb-7 text-[15px] font-semibold text-foreground">{title}</h2>
       <div className="divide-y divide-zinc-200/80 border-y border-zinc-200/80">
         {children}
       </div>
@@ -291,7 +291,7 @@ function SettingsRow({
   return (
     <div className="grid gap-3 py-4 sm:grid-cols-[minmax(180px,0.75fr)_minmax(0,1fr)] sm:items-center">
       <div>
-        <p className="text-sm text-zinc-950">{label}</p>
+        <p className="text-sm text-foreground">{label}</p>
         {description && <p className="mt-1 max-w-sm text-xs leading-relaxed text-zinc-500">{description}</p>}
       </div>
       <div className="min-w-0 sm:justify-self-end">{children}</div>
@@ -464,7 +464,7 @@ function SettingsContent() {
 
   if (loading || !user || !userData) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#faf9f5]">
+      <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
       </div>
     )
@@ -562,19 +562,19 @@ function SettingsContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[#faf9f5] text-zinc-950">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto grid w-full max-w-7xl gap-8 px-5 py-8 sm:px-8 md:grid-cols-[220px_minmax(0,1fr)] md:gap-12 lg:px-12 lg:py-12">
         <aside className="md:sticky md:top-10 md:h-fit">
           <div className="mb-7 flex items-center gap-3">
             <button
               type="button"
               onClick={() => router.back()}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-950"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-foreground"
               aria-label="Go back"
             >
               <ArrowLeft className="h-4 w-4" />
             </button>
-            <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">Settings</h1>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Settings</h1>
           </div>
 
           <nav className="-mx-1 space-y-1 text-sm sm:mx-0">
@@ -585,8 +585,8 @@ function SettingsContent() {
                 onClick={() => setActivePage(item.key)}
                 className={`block w-full whitespace-nowrap rounded-lg px-3 py-2 text-left transition-colors ${
                   activePage === item.key
-                    ? "bg-[#efeee9] text-zinc-950"
-                    : "text-zinc-600 hover:bg-[#efeee9] hover:text-zinc-950"
+                    ? "bg-muted text-foreground"
+                    : "text-zinc-600 hover:bg-muted hover:text-foreground"
                 }`}
               >
                 {item.label}
@@ -611,7 +611,7 @@ function SettingsContent() {
                           </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0 pb-1">
-                          <h3 className="truncate text-xl font-semibold text-zinc-950">{userData.displayName || "Account"}</h3>
+                          <h3 className="truncate text-xl font-semibold text-foreground">{userData.displayName || "Account"}</h3>
                         </div>
                       </div>
                     </div>
@@ -647,7 +647,7 @@ function SettingsContent() {
                   <button
                     type="button"
                     onClick={() => signOut()}
-                    className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-950"
+                    className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-foreground"
                   >
                     Sign out
                   </button>
@@ -670,16 +670,16 @@ function SettingsContent() {
 
           {activePage === "billing" && (
           <section className="pb-12">
-            <h2 className="mb-7 text-[15px] font-semibold text-zinc-950">Billing</h2>
+            <h2 className="mb-7 text-[15px] font-semibold text-foreground">Billing</h2>
 
             <div className="space-y-12">
               <div className="grid gap-5 border-b border-zinc-200/80 pb-10 sm:grid-cols-[64px_minmax(0,1fr)_auto] sm:items-start">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-900">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full border border-zinc-200 bg-white text-foreground">
                   {isFreePlan ? <img src="/Images/leaf-svgrepo-com.svg" className="h-6 w-6" alt="Starter" /> : userData.planId === "pro" ? <img src="/Images/lotus-flower-svgrepo-com.svg" className="h-6 w-6" alt="Pro" /> : <img src="/Images/enterprise-svgrepo-com.svg" className="h-6 w-6" alt="Enterprise" />}
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-zinc-950">{userData.planName || "Free"} plan</p>
-                  <p className="mt-2 text-sm text-zinc-950">{isFreePlan ? "Free workspace" : "Active subscription"}</p>
+                  <p className="text-sm font-semibold text-foreground">{userData.planName || "Free"} plan</p>
+                  <p className="mt-2 text-sm text-foreground">{isFreePlan ? "Free workspace" : "Active subscription"}</p>
                   <p className="mt-1 text-sm text-zinc-600">
                     {periodEnd
                       ? `${isFreePlan ? "Credits reset" : "Your subscription renews"} on ${periodEnd.toLocaleDateString(undefined, {
@@ -699,7 +699,7 @@ function SettingsContent() {
               </div>
 
               <div>
-                <h3 className="mb-7 text-[15px] font-semibold text-zinc-950">Payment</h3>
+                <h3 className="mb-7 text-[15px] font-semibold text-foreground">Payment</h3>
                 <div className="flex flex-col gap-4 border-b border-zinc-200/80 pb-10 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm text-zinc-700">
                     {isFreePlan ? "No payment method is attached to your free plan." : "Payment details are managed from your billing portal."}
@@ -725,7 +725,7 @@ function SettingsContent() {
               </div>
 
               <div>
-                <h3 className="mb-7 text-[15px] font-semibold text-zinc-950">Invoices</h3>
+                <h3 className="mb-7 text-[15px] font-semibold text-foreground">Invoices</h3>
                 <div className="border-b border-zinc-200/80 pb-10">
                   {isFreePlan ? (
                     <p className="text-sm text-zinc-500">Invoices are available after a paid subscription is active.</p>
@@ -759,7 +759,7 @@ function SettingsContent() {
                               <tr key={inv.id} className="hover:bg-zinc-50 transition-colors">
                                 <td className="px-4 py-3 font-mono text-xs text-zinc-600">{inv.number ?? inv.id.slice(-8).toUpperCase()}</td>
                                 <td className="px-4 py-3 text-zinc-700">{date}</td>
-                                <td className="px-4 py-3 font-medium text-zinc-900">{amount}</td>
+                                <td className="px-4 py-3 font-medium text-foreground">{amount}</td>
                                 <td className="px-4 py-3">
                                   <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold capitalize ${statusColor}`}>
                                     {inv.status}
@@ -772,7 +772,7 @@ function SettingsContent() {
                                         href={inv.pdfUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="flex h-7 w-7 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 transition-colors hover:border-zinc-300 hover:text-zinc-900"
+                                        className="flex h-7 w-7 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 transition-colors hover:border-zinc-300 hover:text-foreground"
                                         title="Download PDF"
                                       >
                                         <Download className="h-3.5 w-3.5" />
@@ -783,7 +783,7 @@ function SettingsContent() {
                                         href={inv.hostedUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="flex h-7 w-7 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 transition-colors hover:border-zinc-300 hover:text-zinc-900"
+                                        className="flex h-7 w-7 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 transition-colors hover:border-zinc-300 hover:text-foreground"
                                         title="View invoice"
                                       >
                                         <ExternalLink className="h-3.5 w-3.5" />
@@ -802,7 +802,7 @@ function SettingsContent() {
               </div>
 
               <div>
-                <h3 className="mb-7 text-[15px] font-semibold text-zinc-950">Cancellation</h3>
+                <h3 className="mb-7 text-[15px] font-semibold text-foreground">Cancellation</h3>
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm text-zinc-700">{isFreePlan ? "There is no active subscription to cancel." : "Manage or cancel your subscription from your billing portal."}</p>
                   {!isFreePlan && (
@@ -835,7 +835,7 @@ function SettingsContent() {
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-zinc-200">
                       <div
-                        className={`h-full rounded-full ${tokenPct >= 90 ? "bg-red-500" : tokenPct >= 60 ? "bg-amber-500" : "bg-zinc-950"}`}
+                        className={`h-full rounded-full ${tokenPct >= 90 ? "bg-red-500" : tokenPct >= 60 ? "bg-amber-500" : "bg-primary"}`}
                         style={{ width: `${tokenPct}%` }}
                       />
                     </div>
@@ -855,7 +855,7 @@ function SettingsContent() {
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-zinc-200">
                       <div
-                        className="h-full rounded-full bg-zinc-950"
+                        className="h-full rounded-full bg-primary"
                         style={{ width: `${agentRunLimit > 0 ? Math.min(100, Math.round((agentUsed / agentRunLimit) * 100)) : 0}%` }}
                       />
                     </div>
@@ -864,7 +864,7 @@ function SettingsContent() {
               </SettingsSection>
 
               <section id="activity" className="scroll-mt-24 pb-12">
-                <h2 className="mb-7 text-[15px] font-semibold text-zinc-950">Activity</h2>
+                <h2 className="mb-7 text-[15px] font-semibold text-foreground">Activity</h2>
                 <ContributionCalendar items={contributionItems} loading={projectsLoading || computerActivityLoading} />
               </section>
             </>
@@ -901,7 +901,7 @@ function SettingsContent() {
               )}
             </SettingsRow>
             <SettingsRow label="All projects">
-              <Link href="/projects" className="text-sm font-medium text-zinc-700 underline underline-offset-4 hover:text-zinc-950">
+              <Link href="/projects" className="text-sm font-medium text-zinc-700 underline underline-offset-4 hover:text-foreground">
                 Open projects
               </Link>
             </SettingsRow>
@@ -910,7 +910,7 @@ function SettingsContent() {
 
           {activePage === "memory" && (
             <div className="pb-12">
-              <h2 className="mb-2 text-[15px] font-semibold text-zinc-950">Memory</h2>
+              <h2 className="mb-2 text-[15px] font-semibold text-foreground">Memory</h2>
               <p className="mb-8 text-sm text-zinc-500">
                 Memory lets the AI agent carry context across sessions. Global memory applies to every project; project memory is scoped to a single project.
               </p>
@@ -938,7 +938,7 @@ function SettingsContent() {
                         type="button"
                         onClick={handleSaveGlobalMemory}
                         disabled={globalMemorySaving}
-                        className="inline-flex h-9 items-center gap-2 rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:opacity-50"
+                        className="inline-flex h-9 items-center gap-2 rounded-lg bg-accent px-4 text-sm font-medium text-white transition-colors hover:bg-accent/90 disabled:opacity-50"
                       >
                         {globalMemorySaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                         {globalMemorySaving ? "Saving…" : "Save"}
@@ -1025,7 +1025,7 @@ function SettingsContent() {
                 <Trash2 className="h-5 w-5 text-red-500" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-zinc-900">Delete your account</h3>
+                <h3 className="text-base font-semibold text-foreground">Delete your account</h3>
                 <p className="mt-0.5 text-sm text-zinc-500">This action is permanent and cannot be reversed.</p>
               </div>
             </div>

@@ -86,7 +86,7 @@ export function SupabaseAutoSetupFlow({ open, projectId, onClose, onSetupComplet
   if (phase === "oauth") {
     return (
       <Dialog open={open} onOpenChange={(next) => (!next ? onClose() : null)}>
-        <DialogContent className="border-zinc-200 bg-white text-zinc-900 sm:max-w-md">
+        <DialogContent className="border-zinc-200 bg-white text-foreground sm:max-w-md">
           <DialogHeader>
             <div className="flex items-center justify-center">
               <div className="rounded-full bg-blue-50 p-3">
@@ -128,7 +128,7 @@ export function SupabaseAutoSetupFlow({ open, projectId, onClose, onSetupComplet
 
     return (
       <Dialog open={open} onOpenChange={(next) => (!next ? onClose() : null)}>
-        <DialogContent className="border-zinc-200 bg-white text-zinc-900 sm:max-w-md">
+        <DialogContent className="border-zinc-200 bg-white text-foreground sm:max-w-md">
           <DialogHeader>
             <div className="flex items-center justify-center">
               <div className="rounded-full bg-blue-50 p-3">
@@ -158,7 +158,7 @@ export function SupabaseAutoSetupFlow({ open, projectId, onClose, onSetupComplet
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          <p className="font-medium text-zinc-900">{project.name}</p>
+                          <p className="font-medium text-foreground">{project.name}</p>
                           <p className="text-xs text-zinc-500">{project.ref}</p>
                         </div>
                         <ChevronRight className="h-4 w-4 text-zinc-400" />
@@ -195,7 +195,7 @@ export function SupabaseAutoSetupFlow({ open, projectId, onClose, onSetupComplet
   if (phase === "provisioning" || phase === "selecting") {
     return (
       <Dialog open={open} onOpenChange={() => {}}>
-        <DialogContent className="border-zinc-200 bg-white text-zinc-900 sm:max-w-md" hideClose>
+        <DialogContent className="border-zinc-200 bg-white text-foreground sm:max-w-md" hideClose>
           <DialogHeader>
             <div className="flex items-center justify-center">
               <div className="rounded-full bg-blue-50 p-3">
@@ -226,7 +226,7 @@ export function SupabaseAutoSetupFlow({ open, projectId, onClose, onSetupComplet
   if (phase === "success") {
     return (
       <Dialog open={open} onOpenChange={() => {}}>
-        <DialogContent className="border-zinc-200 bg-white text-zinc-900 sm:max-w-md" hideClose>
+        <DialogContent className="border-zinc-200 bg-white text-foreground sm:max-w-md" hideClose>
           <DialogHeader>
             <div className="flex items-center justify-center">
               <div className="rounded-full bg-green-50 p-3">
@@ -270,7 +270,7 @@ export function SupabaseAutoSetupFlow({ open, projectId, onClose, onSetupComplet
   if (phase === "error") {
     return (
       <Dialog open={open} onOpenChange={(next) => (!next ? onClose() : null)}>
-        <DialogContent className="border-zinc-200 bg-white text-zinc-900 sm:max-w-md">
+        <DialogContent className="border-zinc-200 bg-white text-foreground sm:max-w-md">
           <DialogHeader>
             <div className="flex items-center justify-center">
               <div className="rounded-full bg-red-50 p-3">
@@ -307,7 +307,7 @@ export function SupabaseAutoSetupFlow({ open, projectId, onClose, onSetupComplet
   // Checking Phase (default)
   return (
     <Dialog open={open} onOpenChange={() => {}}>
-      <DialogContent className="border-zinc-200 bg-white text-zinc-900 sm:max-w-md" hideClose>
+      <DialogContent className="border-zinc-200 bg-white text-foreground sm:max-w-md" hideClose>
         <DialogHeader>
           <div className="flex items-center justify-center">
             <div className="rounded-full bg-blue-50 p-3">

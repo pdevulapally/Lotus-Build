@@ -19,7 +19,7 @@ function SummaryRow(props: { label: string; value?: string; muted?: boolean; mul
       <p
         className={cn(
           "mt-1 text-sm leading-6",
-          muted ? "text-zinc-500" : "text-zinc-900",
+          muted ? "text-zinc-500" : "text-foreground",
           multiline && "whitespace-pre-wrap"
         )}
       >
@@ -115,7 +115,7 @@ export function CreationBlueprintPanel(props: {
   return (
     <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white">
       <div className="border-b border-zinc-100 px-5 pb-4 pt-5">
-        <h2 className="text-base font-semibold tracking-tight text-zinc-900">Version-one build plan</h2>
+        <h2 className="text-base font-semibold tracking-tight text-foreground">Version-one build plan</h2>
         <p className="mt-1 text-sm leading-6 text-zinc-500">{introCopy}</p>
       </div>
 

@@ -52,7 +52,7 @@ export function SupabaseCreateProjectModal({ open, loading, error, regions = [],
 
   return (
     <Dialog open={open} onOpenChange={(next) => (!next ? handleClose() : null)}>
-      <DialogContent className="border-zinc-200 bg-white text-zinc-900 sm:max-w-md">
+      <DialogContent className="border-zinc-200 bg-white text-foreground sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center justify-center">
             <div className="rounded-full bg-green-50 p-3">
@@ -87,7 +87,7 @@ export function SupabaseCreateProjectModal({ open, loading, error, regions = [],
             />
           </div>
 
-          <div className="rounded-2xl border border-[#e8e1d6] bg-[#faf7f2] px-4 py-4">
+          <div className="rounded-2xl border border-border bg-card px-4 py-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">What happens next</p>
             <ol className="mt-3 space-y-2 text-sm leading-6 text-zinc-700">
               <li>1. We create the Supabase project in your account.</li>

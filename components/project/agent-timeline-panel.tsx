@@ -28,7 +28,7 @@ function LiveDot() {
   return (
     <div className="relative flex h-1.5 w-1.5">
       <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-zinc-900 opacity-20" />
-      <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-zinc-900" />
+      <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
     </div>
   )
 }
@@ -90,7 +90,7 @@ function AgentRunHeader({
   const pct = Math.round(progress * 100)
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-[#e0dbd1] bg-white shadow-sm">
+    <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
       {/* Top row */}
       <div className="flex items-center justify-between px-4 pt-3.5">
         <div className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5">
@@ -122,7 +122,7 @@ function AgentRunHeader({
             {activeStep.title}
           </TextShimmer>
         ) : (
-          <p className="text-[15px] font-semibold leading-snug tracking-tight text-zinc-950">
+          <p className="text-[15px] font-semibold leading-snug tracking-tight text-foreground">
             Wrapping up
           </p>
         )}
@@ -135,7 +135,7 @@ function AgentRunHeader({
       </div>
 
       {/* Progress */}
-      <div className="mt-3 border-t border-[#f3f0e9] px-4 py-3 bg-[#faf9f6]/50">
+      <div className="mt-3 border-t border-border px-4 py-3 bg-card/50">
         <div className="mb-1.5 flex items-center justify-between">
           <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-400">
             Progress
@@ -147,7 +147,7 @@ function AgentRunHeader({
 
         <div className="h-[2px] w-full overflow-hidden rounded-full bg-zinc-100">
           <div
-            className="h-full rounded-full bg-zinc-900 transition-all duration-1000 ease-in-out"
+            className="h-full rounded-full bg-primary transition-all duration-1000 ease-in-out"
             style={{ width: `${pct}%` }}
           />
         </div>

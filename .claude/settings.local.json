@@ -10,7 +10,30 @@
       "Bash(e2b template *)",
       "Bash(git push *)",
       "mcp__plugin_claude-mem_mcp-search__smart_outline",
-      "mcp__plugin_claude-mem_mcp-search__get_observations"
+      "mcp__plugin_claude-mem_mcp-search__get_observations",
+      "Bash(xargs sed -i 's/text-zinc-900/text-foreground/g; s/text-zinc-950/text-foreground/g')",
+      "Bash(xargs sed -i 's/bg-zinc-900 text-white hover:bg-zinc-800/bg-accent text-accent-foreground hover:bg-accent\\\\/90/g; s/bg-zinc-900 text-white hover:bg-zinc-700/bg-accent text-accent-foreground hover:bg-accent\\\\/90/g; s/bg-zinc-900 text-white hover:bg-black/bg-accent text-accent-foreground hover:bg-accent\\\\/90/g; s/bg-zinc-900 text-white shadow-sm/bg-accent text-accent-foreground shadow-sm/g; s/bg-zinc-900 text-white/bg-accent text-accent-foreground/g; s/hover:bg-zinc-800/hover:bg-accent\\\\/90/g; s/hover:bg-zinc-700/hover:bg-accent\\\\/90/g')",
+      "Bash(xargs sed -i 's/bg-zinc-900 text-\\\\[13\\\\.5px\\\\]/bg-accent text-[13.5px]/g; s/bg-zinc-900 text-sm/bg-accent text-sm/g; s/bg-zinc-900 text-\\\\[12px\\\\]/bg-accent text-[12px]/g; s/bg-zinc-900 text-\\\\[11px\\\\]/bg-accent text-[11px]/g; s/bg-zinc-900 text-xs/bg-accent text-xs/g; s/bg-zinc-900 px-/bg-accent px-/g')",
+      "Bash(sed -i 's/bg-zinc-950 relative overflow-hidden/bg-primary relative overflow-hidden/g' app/login/page.tsx app/signup/page.tsx)",
+      "Bash(sed -i 's/rounded-lg bg-zinc-900 flex/rounded-lg bg-primary flex/g' app/login/page.tsx app/signup/page.tsx)",
+      "Bash(sed -i 's/bg-zinc-950 flex items-center justify-center\"/bg-background flex items-center justify-center\"/g' components/auth/protected-route.tsx)",
+      "Bash(sed -i 's/bg-zinc-950 flex items-center justify-center p-4/bg-background flex items-center justify-center p-4/g' components/auth/protected-route.tsx)",
+      "Bash(sed -i 's/rounded-full bg-zinc-900 transition-all duration-500/rounded-full bg-primary transition-all duration-500/g' app/pricing/page.tsx)",
+      "Bash(sed -i \"s/recommended ? \\\\\"bg-zinc-900\\\\\" : \\\\\"bg-white\\\\\"/recommended ? \\\\\"bg-accent\\\\\" : \\\\\"bg-white\\\\\"/g\" app/pricing/page.tsx)",
+      "Bash(sed -i \"s/\\\\\"bg-zinc-950\\\\\"\\\\`/\\\\\"bg-primary\\\\\"\\\\`/g\" app/settings/page.tsx)",
+      "Bash(sed -i 's/rounded-full bg-zinc-950\"/rounded-full bg-primary\"/g' app/settings/page.tsx)",
+      "Bash(sed -i 's/rounded-full bg-zinc-900 transition-all duration-1000/rounded-full bg-primary transition-all duration-1000/g' components/project/agent-timeline-panel.tsx)",
+      "Bash(sed -i 's/rounded-full bg-zinc-900 transition-all duration-500/rounded-full bg-primary transition-all duration-500/g' components/project/agent-thinking-stream.tsx)",
+      "Bash(sed -i 's/rounded-full bg-zinc-900\" \\\\/>/rounded-full bg-primary\" \\\\/>/g' components/project/agent-timeline-panel.tsx components/project/dynamic-agent-timeline.tsx components/preview/build-timeline.tsx app/computer/\\\\[id\\\\]/page.tsx)",
+      "Bash(sed -i 's/rounded-full bg-zinc-900\" \\\\/>/rounded-full bg-primary\" \\\\/>/g' components/project/agent-timeline-panel.tsx)",
+      "Bash(sed -i 's/color=\"bg-zinc-900\"/color=\"bg-primary\"/g' app/computer/\\\\[id\\\\]/page.tsx)",
+      "Bash(sed -i 's/rounded-xl bg-zinc-900\">/rounded-xl bg-primary\">/g' components/cookie-banner.tsx)",
+      "Bash(sed -i 's/rounded-xl bg-zinc-900 \"/rounded-xl bg-primary \"/g' components/cookie-banner.tsx)",
+      "Bash(sed -i 's/bg-zinc-950 px-2 text-xs font-medium text-white transition-colors/bg-accent px-2 text-xs font-medium text-accent-foreground transition-colors/g' components/project/edit-tool.tsx)",
+      "Bash(sed -i 's/bg-zinc-950 flex items-center justify-center p-8/bg-background flex items-center justify-center p-8/g' components/project/error-boundary.tsx)",
+      "Bash(xargs sed -i 's/import { Sparkles } from \"lucide-react\"/import { Leaf } from \"lucide-react\"/g')",
+      "Bash(xargs sed -i 's/, Sparkles,/, Leaf,/g; s/, Sparkles }/, Leaf }/g; s/{ Sparkles,/{ Leaf,/g; s/{ Sparkles }/{ Leaf }/g')",
+      "Bash(xargs sed -i 's/<Sparkles /<Leaf /g; s/Sparkles,$/Leaf,/g')"
     ]
   }
 }

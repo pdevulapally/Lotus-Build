@@ -401,7 +401,7 @@ const SimpleFolder = ({ name, defaultOpen = false, children }: SimpleFolderProps
     <div className="select-none">
       <button
         type="button"
-        className="flex items-center gap-1.5 w-full px-2 py-1 text-sm rounded-md hover:bg-zinc-800 transition-colors"
+        className="flex items-center gap-1.5 w-full px-2 py-1 text-sm rounded-md hover:bg-accent/90 transition-colors"
         onClick={() => setIsOpen(!isOpen)}
       >
         {isOpen ? (
@@ -432,7 +432,7 @@ const SimpleFile = ({ name, isSelected, onClick }: SimpleFileProps) => {
       type="button"
       className={cn(
         "flex items-center gap-1.5 w-full px-2 py-1 text-sm rounded-md transition-colors",
-        isSelected ? "bg-zinc-800 text-zinc-100" : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-300"
+        isSelected ? "bg-zinc-800 text-zinc-100" : "text-zinc-400 hover:bg-accent/90/50 hover:text-zinc-300"
       )}
       onClick={onClick}
     >

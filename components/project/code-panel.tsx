@@ -15,14 +15,14 @@ export interface CodePanelProps {
 
 export function CodePanel({ files, selectedFile, onSelectFile, isGenerating }: CodePanelProps) {
   return (
-    <div className="flex h-full min-w-0 bg-[#fcfcfa]">
+    <div className="flex h-full min-w-0 bg-card">
       <ProjectFileTree
         files={files}
         selectedFile={selectedFile}
         onSelectFile={onSelectFile}
         isGenerating={isGenerating}
       />
-      <div className="flex flex-1 flex-col bg-[#fcfcfa]">
+      <div className="flex flex-1 flex-col bg-card">
         {!selectedFile ? (
           <div className="flex flex-1 items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(244,244,245,0.92),_rgba(252,252,250,1)_56%)]">
             <div className="text-center text-zinc-500">Select a file</div>
@@ -40,7 +40,7 @@ export function CodePanel({ files, selectedFile, onSelectFile, isGenerating }: C
                 value={selectedFile.content}
                 theme="vs-light"
                 loading={
-                  <div className="flex h-full items-center justify-center bg-[#fcfcfa]">
+                  <div className="flex h-full items-center justify-center bg-card">
                     <div className="text-sm text-zinc-500">Loading editor...</div>
                   </div>
                 }

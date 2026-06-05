@@ -70,7 +70,7 @@ export function TestimonialsSection() {
         >
           <div className="border border-zinc-200 py-1.5 px-4 rounded-full text-sm text-zinc-600">Testimonials</div>
 
-          <h2 className="font-display text-4xl md:text-5xl font-bold text-zinc-900 mt-6 text-center tracking-tight">
+          <h2 className="font-display text-4xl md:text-5xl font-bold text-foreground mt-6 text-center tracking-tight">
             Loved by builders
           </h2>
           <p className="text-center mt-4 text-zinc-500 text-lg text-balance">

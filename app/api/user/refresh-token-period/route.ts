@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server"
 import { adminAuth, adminDb } from "@/lib/firebase-admin"
 import { Timestamp } from "firebase-admin/firestore"
-import { DEFAULT_PLANS } from "@/lib/firebase"
 import { getAgentRunLimitForPlan } from "@/lib/agent-quotas"
 
 function getFirstDayOfNextMonth(date: Date): Date {
@@ -40,10 +39,11 @@ export async function POST(req: NextRequest) {
 
   const data = userSnap.data() as Record<string, unknown>
   const planId = (data?.planId as string) || "free"
+  const planSnap = await adminDb.collection("plans").doc(planId).get()
   const planTokensPerMonth =
     data?.tokensLimit != null
       ? Number(data.tokensLimit)
-      : (DEFAULT_PLANS[planId as keyof typeof DEFAULT_PLANS]?.tokensPerMonth ?? 10000)
+      : (planSnap.exists ? Number(planSnap.data()?.tokensPerMonth ?? 10000) : 10000)
   const agentRunLimit = getAgentRunLimitForPlan(planId, data?.agentRunLimit)
 
   const periodEnd = getPeriodEndDate(data?.tokenUsage && (data.tokenUsage as Record<string, unknown>)?.periodEnd)

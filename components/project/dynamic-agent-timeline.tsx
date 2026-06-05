@@ -92,9 +92,9 @@ export function DynamicAgentTimeline({
   }, [timelineSteps, thinkingSteps, currentGeneratingFile])
 
   return (
-    <div className={cn("overflow-hidden rounded-xl border border-[#e7dfd2] bg-white", className)}>
+    <div className={cn("overflow-hidden rounded-xl border border-border bg-white", className)}>
       {/* Header — LiveIndicator + "Step X of Y", no progress bar */}
-      <div className="flex items-center justify-between border-b border-[#eee6da] bg-[#f8f5ef] px-4 py-2.5">
+      <div className="flex items-center justify-between border-b border-border bg-muted px-4 py-2.5">
         {isStreaming ? (
           <LiveIndicator />
         ) : (
@@ -137,7 +137,7 @@ export function DynamicAgentTimeline({
                     {isActive && (
                       <span className="relative flex h-2 w-2">
                         <span className="absolute inset-0 animate-ping rounded-full bg-zinc-600 opacity-50" />
-                        <span className="relative h-2 w-2 rounded-full bg-zinc-900" />
+                        <span className="relative h-2 w-2 rounded-full bg-primary" />
                       </span>
                     )}
                     {/* pending: empty column for alignment, no icon */}
@@ -182,7 +182,7 @@ export function DynamicAgentTimeline({
       </div>
 
       {/* Files counter — monospace, like a terminal output line */}
-      <div className="border-t border-[#eee6da] bg-[#faf8f4] px-4 py-2.5">
+      <div className="border-t border-border bg-card px-4 py-2.5">
         <span className="font-mono text-xs text-zinc-500">
           → {generatedFileCount} files written
         </span>

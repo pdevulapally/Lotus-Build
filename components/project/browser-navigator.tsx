@@ -134,7 +134,7 @@ export function BrowserNavigator({
             variant="ghost"
             className={cn(
               "h-8 w-8 p-0 rounded-md transition-all duration-200",
-              historyIndex > 0 ? "text-zinc-300 hover:bg-zinc-800/60" : "text-zinc-600 cursor-not-allowed opacity-50"
+              historyIndex > 0 ? "text-zinc-300 hover:bg-accent/90/60" : "text-zinc-600 cursor-not-allowed opacity-50"
             )}
             onClick={handleBack}
             disabled={historyIndex === 0}
@@ -149,7 +149,7 @@ export function BrowserNavigator({
             className={cn(
               "h-8 w-8 p-0 rounded-md transition-all duration-200",
               historyIndex < navigationHistory.length - 1
-                ? "text-zinc-300 hover:bg-zinc-800/60"
+                ? "text-zinc-300 hover:bg-accent/90/60"
                 : "text-zinc-600 cursor-not-allowed opacity-50"
             )}
             onClick={handleForward}
@@ -164,7 +164,7 @@ export function BrowserNavigator({
             variant="ghost"
             className={cn(
               "h-8 w-8 p-0 rounded-md transition-all duration-200",
-              isLoading ? "text-primary animate-spin" : "text-zinc-300 hover:bg-zinc-800/60"
+              isLoading ? "text-primary animate-spin" : "text-zinc-300 hover:bg-accent/90/60"
             )}
             onClick={onRefresh}
             disabled={isLoading}
@@ -179,7 +179,7 @@ export function BrowserNavigator({
             className={cn(
               "flex-1 flex items-center gap-2 px-3 h-8 rounded-lg",
               "bg-zinc-800/50 border border-zinc-700/50",
-              "hover:bg-zinc-800 hover:border-zinc-600/70 transition-all",
+              "hover:bg-accent/90 hover:border-zinc-600/70 transition-all",
               isEditing && "bg-zinc-800 border-primary/50 ring-1 ring-primary/20"
             )}
             onClick={() => setIsEditing(true)}
@@ -221,7 +221,7 @@ export function BrowserNavigator({
                             "text-xs px-1.5 py-0.5 rounded transition-all cursor-pointer shrink-0",
                             idx === pathParts.length - 1
                               ? "bg-primary/15 text-primary font-medium"
-                              : "text-zinc-300 hover:bg-zinc-700/50"
+                              : "text-zinc-300 hover:bg-accent/90/50"
                           )}
                           onClick={() => {
                             const newPath = "/" + pathParts.slice(0, idx + 1).join("/")
@@ -253,7 +253,7 @@ export function BrowserNavigator({
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="flex items-center gap-1.5 px-2 py-1.5 rounded-md hover:bg-zinc-800/60 transition-all text-zinc-400 hover:text-zinc-200"
+                className="flex items-center gap-1.5 px-2 py-1.5 rounded-md hover:bg-accent/90/60 transition-all text-zinc-400 hover:text-zinc-200"
                 title="Select device preview"
               >
                 <CurrentDeviceIcon className="w-3.5 h-3.5" />
@@ -275,7 +275,7 @@ export function BrowserNavigator({
                     key={device}
                     className={cn(
                       "flex items-center gap-2 px-2 py-1.5 text-xs cursor-pointer",
-                      isActive ? "bg-primary/20 text-primary" : "text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
+                      isActive ? "bg-primary/20 text-primary" : "text-zinc-300 hover:bg-accent/90 hover:text-zinc-100"
                     )}
                     onClick={() => onDeviceChange?.(device)}
                   >
@@ -294,7 +294,7 @@ export function BrowserNavigator({
 
           <button
             type="button"
-            className="p-1.5 rounded-md hover:bg-zinc-800/60 transition-all text-zinc-400 hover:text-zinc-200"
+            className="p-1.5 rounded-md hover:bg-accent/90/60 transition-all text-zinc-400 hover:text-zinc-200"
             onClick={() => handleNavigate("/")}
             title="Home"
           >

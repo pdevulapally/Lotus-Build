@@ -51,7 +51,7 @@ function ApprovalFooter({ isRunning, approval }: { isRunning: boolean; approval:
         : null
 
   return (
-    <div className="flex items-center justify-between border-t border-[#e0dbd1] bg-[#f3f1ec] py-1.5 pl-3 pr-2">
+    <div className="flex items-center justify-between border-t border-border bg-muted py-1.5 pl-3 pr-2">
       {status ? (
         <span className="text-xs text-zinc-500">
           {status.label}
@@ -69,7 +69,7 @@ function ApprovalFooter({ isRunning, approval }: { isRunning: boolean; approval:
             approval.onSkip?.()
           }}
           disabled={Boolean(decision)}
-          className="inline-flex h-6 items-center gap-1 rounded-[4px] px-1.5 text-xs text-zinc-500 transition-colors hover:bg-white hover:text-zinc-900 disabled:opacity-60"
+          className="inline-flex h-6 items-center gap-1 rounded-[4px] px-1.5 text-xs text-zinc-500 transition-colors hover:bg-white hover:text-foreground disabled:opacity-60"
         >
           <X className="h-3 w-3" />
           {decision === "rejected" ? "Skipped" : approval.skipLabel ?? "Skip"}
@@ -82,7 +82,7 @@ function ApprovalFooter({ isRunning, approval }: { isRunning: boolean; approval:
             approval.onRun?.()
           }}
           disabled={Boolean(decision)}
-          className="inline-flex h-6 items-center gap-1 rounded-[4px] bg-zinc-950 px-1.5 text-xs font-medium text-white transition-colors hover:bg-zinc-800 disabled:opacity-60"
+          className="inline-flex h-6 items-center gap-1 rounded-[4px] bg-zinc-950 px-1.5 text-xs font-medium text-white transition-colors hover:bg-accent/90 disabled:opacity-60"
         >
           <Check className="h-3 w-3" />
           {decision === "approved" ? "Approved" : approval.runLabel ?? "Run"}
@@ -103,7 +103,7 @@ export const BashTool = React.memo(function BashTool({
   const summary = extractCommandSummary(command)
 
   return (
-    <div className={cn("overflow-hidden rounded-[10px] border border-[#e0dbd1] bg-[#f3f1ec] shadow-sm", className)}>
+    <div className={cn("overflow-hidden rounded-[10px] border border-border bg-muted shadow-sm", className)}>
       <div className="flex h-8 items-center justify-between gap-3 pl-2.5 pr-2">
         <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
           <Terminal className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
@@ -118,10 +118,10 @@ export const BashTool = React.memo(function BashTool({
         {isRunning && <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-zinc-500" />}
       </div>
 
-      <div className="border-t border-[#e0dbd1] bg-white px-2.5 py-1.5 font-mono text-[12px] leading-4">
+      <div className="border-t border-border bg-white px-2.5 py-1.5 font-mono text-[12px] leading-4">
         <div className="break-all">
           <span className="select-none text-amber-600">$ </span>
-          <span className="text-zinc-900">{command}</span>
+          <span className="text-foreground">{command}</span>
         </div>
         {!isRunning && output && (
           <div className="mt-1 max-h-24 overflow-hidden whitespace-pre-line text-zinc-500">

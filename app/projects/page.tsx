@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { deleteDoc, doc } from "firebase/firestore"
@@ -8,21 +8,18 @@ import {
   Settings,
   Search,
   Clock,
-  Menu,
-  X,
   Trash2,
   LogOut,
-  User,
   Users,
-  Globe,
-  Lock,
-  FolderOpen,
   CreditCard,
-  LayoutGrid,
-  List,
-  ArrowUpRight,
   Terminal,
   AppWindow,
+  ArrowUpRight,
+  Zap,
+  Plus,
+  FolderOpen,
+  PanelLeft,
+  X,
 } from "lucide-react"
 
 import { ProtectedRoute } from "@/components/auth/protected-route"
@@ -37,7 +34,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { AnimatedAIInput } from "@/components/ui/animated-ai-input"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { db } from "@/lib/firebase"
@@ -71,73 +67,234 @@ function toDate(value: any): Date | null {
 function sectionLabel(d: Date | null): "Today" | "Yesterday" | "Previous" {
   if (!d) return "Previous"
   const now = new Date()
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const startOfYesterday = new Date(startOfToday)
-  startOfYesterday.setDate(startOfYesterday.getDate() - 1)
-  if (d >= startOfToday) return "Today"
-  if (d >= startOfYesterday) return "Yesterday"
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1)
+  if (d >= today) return "Today"
+  if (d >= yesterday) return "Yesterday"
   return "Previous"
 }
 
-function projectTitle(prompt: string): string {
-  const trimmed = (prompt || "").trim()
-  if (!trimmed) return "Untitled project"
-  return trimmed.length > 52 ? `${trimmed.slice(0, 52)}...` : trimmed
+function projectTitle(prompt: string, max = 48): string {
+  const t = (prompt || "").trim()
+  if (!t) return "Untitled build"
+  return t.length > max ? `${t.slice(0, max)}…` : t
 }
 
-function statusPill(status: ProjectStatus) {
-  if (status === "complete") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-600 ring-1 ring-emerald-200">
-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-        Ready
-      </span>
-    )
-  }
-  if (status === "error") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-red-600 ring-1 ring-red-200">
-        <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-        Error
-      </span>
-    )
-  }
-  if (status === "generating") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-blue-600 ring-1 ring-blue-200">
-        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500" />
-        Building
-      </span>
-    )
-  }
+function formatRelative(value: any): string {
+  const d = toDate(value)
+  if (!d) return "—"
+  const diff = Date.now() - d.getTime()
+  const m = Math.floor(diff / 60000)
+  if (m < 1) return "just now"
+  if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h ago`
+  const days = Math.floor(h / 24)
+  if (days === 1) return "yesterday"
+  if (days < 7) return `${days}d ago`
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" })
+}
+
+function statusAccent(status: ProjectStatus) {
+  if (status === "complete") return "bg-emerald-400"
+  if (status === "generating") return "bg-blue-400 animate-pulse"
+  if (status === "error") return "bg-red-400"
+  return "bg-zinc-300"
+}
+
+function statusText(status: ProjectStatus) {
+  if (status === "complete") return "Ready"
+  if (status === "generating") return "Building"
+  if (status === "error") return "Error"
+  return "Queued"
+}
+
+function statusBadgeClass(status: ProjectStatus) {
+  if (status === "complete") return "bg-emerald-50 text-emerald-700 ring-emerald-200"
+  if (status === "generating") return "bg-blue-50 text-blue-700 ring-blue-200"
+  if (status === "error") return "bg-red-50 text-red-600 ring-red-200"
+  return "bg-zinc-100 text-zinc-500 ring-zinc-200"
+}
+
+function statusTextColor(status: ProjectStatus) {
+  if (status === "complete") return "text-emerald-600"
+  if (status === "generating") return "text-blue-500"
+  if (status === "error") return "text-red-500"
+  return "text-zinc-400"
+}
+
+// ── Sidebar history item ────────────────────────────────────────────────────
+function HistoryItem({ p, onNavigate, onDelete }: {
+  p: ProjectSummary
+  onNavigate: () => void
+  onDelete: (e: React.MouseEvent) => void
+}) {
+  const href = p.kind === "computer" ? `/computer/${p.id}` : `/project/${p.id}`
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-500 ring-1 ring-zinc-200">
-      <span className="h-1.5 w-1.5 rounded-full bg-zinc-400" />
-      Queued
-    </span>
+    <div className="group/item relative rounded-xl border border-transparent px-1 transition-all hover:border-border hover:bg-white/70">
+      <button
+        type="button"
+        onClick={onNavigate}
+        className="flex w-full items-start gap-2.5 px-2 py-2.5 text-left"
+      >
+        {/* Kind + status */}
+        <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border bg-white">
+          {p.kind === "computer"
+            ? <Terminal className="h-3.5 w-3.5 text-zinc-500" />
+            : <AppWindow className="h-3.5 w-3.5 text-zinc-500" />}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[12.5px] font-medium leading-snug text-zinc-800">
+            {projectTitle(p.prompt, 30)}
+          </p>
+          <div className="mt-1 flex items-center gap-1.5">
+            <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", statusAccent(p.status))} />
+            <span className={cn("text-[10.5px] font-medium", statusTextColor(p.status))}>
+              {statusText(p.status)}
+            </span>
+            <span className="text-[10px] text-zinc-400">· {formatRelative(p.createdAt)}</span>
+          </div>
+        </div>
+      </button>
+      {/* Delete — visible on hover */}
+      <button
+        type="button"
+        onClick={onDelete}
+        className="absolute right-2 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded-lg text-zinc-300 opacity-0 transition-all hover:bg-red-50 hover:text-red-400 group-hover/item:opacity-100"
+        aria-label="Delete"
+      >
+        <Trash2 className="h-3 w-3" />
+      </button>
+    </div>
   )
 }
 
+// ── Sidebar panel content (reused in desktop aside + mobile drawer) ─────────
+function SidebarContent({ grouped, filtered, projectsLoading, search, stats, router, handleDeleteProject, onClose }: {
+  grouped: Record<"Today" | "Yesterday" | "Previous", ProjectSummary[]>
+  filtered: ProjectSummary[]
+  projectsLoading: boolean
+  search: string
+  stats: { planName: string; tokenPct: number; tokensUsed: number; tokensLimit: number }
+  router: ReturnType<typeof useRouter>
+  handleDeleteProject: (e: React.MouseEvent, id: string, kind?: string) => void
+  onClose?: () => void
+}) {
+  return (
+    <>
+      {/* Logo + close (mobile only) */}
+      <div className="flex h-14 items-center justify-between border-b border-border px-4">
+        <Link href="/" className="flex items-center gap-2" onClick={onClose}>
+          <img src="/Images/lotus-official-logo.png" alt="lotus.build" className="h-7 w-7 object-contain" />
+          <span className="text-[14px] font-semibold tracking-tight text-foreground">lotus.build</span>
+        </Link>
+        {onClose && (
+          <button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-muted">
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
+      {/* New build button */}
+      <div className="px-3 pt-3 pb-2">
+        <button
+          type="button"
+          onClick={() => {
+            onClose?.()
+            setTimeout(() => {
+              const el = document.querySelector<HTMLElement>("[data-animated-ai-input]")
+              el?.focus()
+              el?.scrollIntoView({ behavior: "smooth", block: "center" })
+            }, 150)
+          }}
+          className="flex w-full items-center gap-2 rounded-xl border border-border bg-white px-3 py-2.5 text-left text-[12.5px] text-zinc-400 transition-colors hover:border-zinc-300 hover:text-zinc-600"
+        >
+          <Plus className="h-3.5 w-3.5 shrink-0" />
+          New build…
+        </button>
+      </div>
+
+      {/* History list */}
+      <div className="flex-1 overflow-y-auto px-2 pb-4 [scrollbar-width:thin]">
+        {projectsLoading ? (
+          <div className="space-y-2 px-2 pt-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-[52px] animate-pulse rounded-xl bg-muted" />
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center px-4 py-10 text-center">
+            <FolderOpen className="h-5 w-5 text-zinc-400" />
+            <p className="mt-2 text-xs text-zinc-400">{search ? "No results" : "No builds yet"}</p>
+          </div>
+        ) : (
+          (["Today", "Yesterday", "Previous"] as const).map((key) => {
+            if (grouped[key].length === 0) return null
+            return (
+              <div key={key} className="mt-3">
+                <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">{key}</p>
+                <div className="space-y-0.5">
+                  {grouped[key].map((p) => (
+                    <HistoryItem
+                      key={p.id}
+                      p={p}
+                      onNavigate={() => {
+                        onClose?.()
+                        router.push(p.kind === "computer" ? `/computer/${p.id}` : `/project/${p.id}`)
+                      }}
+                      onDelete={(e) => handleDeleteProject(e, p.id, p.kind)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )
+          })
+        )}
+      </div>
+
+      {/* Credits footer */}
+      <div className="border-t border-border px-3 py-3">
+        <div className="rounded-xl border border-border bg-white/60 px-3 py-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">{stats.planName} plan</span>
+            <Link href="/pricing" onClick={onClose} className="text-[10px] font-medium text-zinc-400 hover:text-zinc-700 hover:underline underline-offset-2">
+              Upgrade
+            </Link>
+          </div>
+          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className={cn("h-full rounded-full transition-all", stats.tokenPct >= 90 ? "bg-red-400" : stats.tokenPct >= 70 ? "bg-amber-400" : "bg-primary")}
+              style={{ width: `${stats.tokenPct}%` }}
+            />
+          </div>
+          <p className="mt-1.5 text-[10.5px] text-zinc-400">
+            {stats.tokensUsed.toLocaleString()} / {stats.tokensLimit.toLocaleString()} credits
+          </p>
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ── Page ────────────────────────────────────────────────────────────────────
 export default function ProjectsPage() {
   const router = useRouter()
   const { user, userData, signOut } = useAuth()
 
   const isTeamsPlan = !!userData?.planId && planIdForDisplay(userData.planId) === "team"
-
   const [scope, setScope] = useState<"user" | "team">("user")
   const [search, setSearch] = useState("")
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const [hasMounted, setHasMounted] = useState(false)
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => {
     if (!isTeamsPlan && scope === "team") setScope("user")
   }, [isTeamsPlan, scope])
 
+  // Lock body scroll when mobile drawer open
   useEffect(() => {
-    setHasMounted(true)
-    setIsSidebarOpen(false)
-  }, [])
+    document.body.style.overflow = sidebarOpen ? "hidden" : ""
+    return () => { document.body.style.overflow = "" }
+  }, [sidebarOpen])
 
   const getAuthHeader = useCallback(async (): Promise<Record<string, string>> => {
     if (!user) return {}
@@ -159,460 +316,300 @@ export default function ProjectsPage() {
 
   const grouped = useMemo(() => {
     const result: Record<"Today" | "Yesterday" | "Previous", ProjectSummary[]> = {
-      Today: [],
-      Yesterday: [],
-      Previous: [],
+      Today: [], Yesterday: [], Previous: [],
     }
-    for (const p of filtered) {
-      const d = toDate(p.createdAt)
-      result[sectionLabel(d)].push(p)
-    }
+    for (const p of filtered) result[sectionLabel(toDate(p.createdAt))].push(p)
     return result
   }, [filtered])
+
+  const stats = useMemo(() => {
+    const total = projects.length
+    const complete = projects.filter((p) => p.status === "complete").length
+    const tokensUsed = userData?.tokenUsage?.used ?? 0
+    const tokensLimit = Math.max(Number(userData?.tokensLimit ?? 0), tokensUsed + Math.max(0, userData?.tokenUsage?.remaining ?? 0))
+    const tokenPct = tokensLimit > 0 ? Math.min(100, Math.round((tokensUsed / tokensLimit) * 100)) : 0
+    const planName = userData?.planName || "Free"
+    return { total, complete, tokensUsed, tokensLimit, tokenPct, planName }
+  }, [projects, userData])
 
   const handleDeleteProject = async (e: React.MouseEvent, projectId: string, kind?: string) => {
     e.preventDefault()
     e.stopPropagation()
     try {
-      const collectionName = kind === "computer" ? "computerSessions" : "projects"
-      await deleteDoc(doc(db, collectionName, projectId))
+      await deleteDoc(doc(db, kind === "computer" ? "computerSessions" : "projects", projectId))
     } catch (err) {
       console.error(`Failed to delete ${kind || "project"}:`, err)
     }
   }
 
+  const initials = user?.displayName
+    ? user.displayName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
+    : user?.email?.slice(0, 1).toUpperCase() ?? "U"
+
+  const greeting = (() => {
+    const h = new Date().getHours()
+    if (h < 12) return "Good morning"
+    if (h < 17) return "Good afternoon"
+    return "Good evening"
+  })()
+
+  const firstName = user?.displayName?.split(" ")[0] ?? ""
+
+  const sidebarProps = { grouped, filtered, projectsLoading, search, stats, router, handleDeleteProject }
+
   return (
     <ProtectedRoute>
-      <div className="relative min-h-screen bg-[#f5f5f2] text-zinc-900">
+      <div className="flex h-[100dvh] overflow-hidden bg-background text-foreground">
 
-        {/* Sidebar backdrop */}
+        {/* ── Mobile sidebar drawer ── */}
+        {/* Backdrop */}
         <div
           className={cn(
-            "fixed inset-0 z-40 bg-zinc-900/20 backdrop-blur-sm duration-300",
-            hasMounted && "transition-all",
-            isSidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"
+            "fixed inset-0 z-40 bg-primary/30 backdrop-blur-sm transition-opacity lg:hidden",
+            sidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"
           )}
-          onClick={() => setIsSidebarOpen(false)}
-          aria-hidden="true"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden
         />
-
-        {/* ─── Sidebar ─── */}
-        <aside
+        {/* Drawer panel */}
+        <div
           className={cn(
-            "fixed inset-y-0 right-0 z-50 w-full max-w-sm border-l border-zinc-200 bg-[#f5f5f2] shadow-2xl shadow-zinc-900/10 duration-300 ease-in-out",
-            hasMounted && "transition-transform"
+            "fixed inset-y-0 left-0 z-50 flex w-[280px] flex-col border-r border-border bg-muted shadow-xl transition-transform duration-300 ease-in-out lg:hidden",
+            sidebarOpen ? "translate-x-0" : "-translate-x-full"
           )}
-          style={{ transform: isSidebarOpen ? "translateX(0)" : "translateX(100%)" }}
         >
-          <div className="flex h-full flex-col">
-            <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-4">
-              <div>
-                <h2 className="text-sm font-semibold text-zinc-900">All Projects</h2>
-                <p className="text-xs text-zinc-500">{filtered.length} project{filtered.length !== 1 ? "s" : ""}</p>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 rounded-lg p-0 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-900"
-                onClick={() => setIsSidebarOpen(false)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
+          <SidebarContent {...sidebarProps} onClose={() => setSidebarOpen(false)} />
+        </div>
 
-            <div className="border-b border-zinc-200 px-5 py-3">
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search projects…"
-                  className="h-9 w-full rounded-lg border-zinc-200 bg-white pl-9 text-sm placeholder:text-zinc-400"
-                />
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto px-5 pb-6 pt-4">
-              {(["Today", "Yesterday", "Previous"] as const).map((key) => {
-                if (grouped[key].length === 0) return null
-                return (
-                  <div key={key} className="mb-6">
-                    <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-widest text-zinc-400">{key}</p>
-                    <div className="space-y-1.5">
-                      {grouped[key].map((p) => (
-                        <div
-                          key={p.id}
-                          className="group/item flex items-center gap-1 rounded-xl border border-zinc-200 bg-white transition-all hover:border-zinc-300 hover:shadow-sm"
-                        >
-                          <button
-                            type="button"
-                            onClick={() => { router.push(p.kind === "computer" ? `/computer/${p.id}` : `/project/${p.id}`); setIsSidebarOpen(false) }}
-                            className="min-w-0 flex-1 px-3.5 py-3 text-left"
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <span className="truncate text-[13px] font-medium leading-snug text-zinc-800 flex items-center gap-1.5">
-                                {p.kind === "computer" ? <Terminal className="h-3.5 w-3.5 text-zinc-400" /> : <AppWindow className="h-3.5 w-3.5 text-zinc-400" />}
-                                {projectTitle(p.prompt)}
-                              </span>
-                              <span className="shrink-0">{statusPill(p.status)}</span>
-                            </div>
-                            <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-zinc-400">
-                              <Clock className="h-3 w-3 shrink-0" />
-                              {toDate(p.createdAt)?.toLocaleDateString(undefined, { month: "short", day: "numeric" }) || "—"}
-                            </div>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => handleDeleteProject(e, p.id, p.kind)}
-                            className="flex h-full w-10 shrink-0 items-center justify-center rounded-r-xl text-zinc-300 opacity-0 transition-all hover:bg-red-50 hover:text-red-400 group-hover/item:opacity-100"
-                            aria-label={`Delete ${projectTitle(p.prompt)}`}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })}
-
-              {filtered.length === 0 && !projectsLoading && (
-                <div className="flex flex-col items-center justify-center py-16 text-center">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-zinc-200 bg-white">
-                    <FolderOpen className="h-5 w-5 text-zinc-400" />
-                  </div>
-                  <p className="mt-3 text-sm font-medium text-zinc-700">No projects found</p>
-                  <p className="mt-1 text-xs text-zinc-400">Try a different search term</p>
-                </div>
-              )}
-            </div>
-          </div>
+        {/* ── Desktop sidebar (always visible ≥ lg) ── */}
+        <aside className="hidden w-[260px] shrink-0 flex-col border-r border-border bg-muted lg:flex">
+          <SidebarContent {...sidebarProps} />
         </aside>
 
-        {/* ─── Header ─── */}
-        <header className="sticky top-0 z-30 border-b border-zinc-200/80 bg-[#f5f5f2]/80 backdrop-blur-md">
-          <div className="mx-auto grid w-full max-w-5xl grid-cols-[auto_1fr_auto] items-center gap-4 px-4 py-3 sm:px-6">
-            <Link href="/" className="shrink-0 text-[15px] font-semibold text-zinc-900">
-              Lotus.build
-            </Link>
+        {/* ── Main panel ── */}
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
 
-            <div className="relative">
-              <div className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center">
-                <Search className="h-4 w-4 text-zinc-500" />
-              </div>
+          {/* Top bar */}
+          <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border bg-background/90 px-4 backdrop-blur-sm sm:px-5">
+            {/* Left: hamburger (mobile) + logo (mobile) */}
+            <div className="flex items-center gap-2 lg:hidden">
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-white text-zinc-600 transition-colors hover:bg-muted"
+                aria-label="Open history"
+              >
+                <PanelLeft className="h-4 w-4" />
+              </button>
+              <Link href="/" className="flex items-center gap-1.5">
+                <img src="/Images/lotus-official-logo.png" alt="lotus.build" className="h-6 w-6 object-contain" />
+                <span className="text-[13.5px] font-semibold text-foreground">lotus.build</span>
+              </Link>
+            </div>
+
+            {/* Search (desktop) */}
+            <div className="relative hidden max-w-xs flex-1 lg:block">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search projects…"
-                className="h-9 w-full rounded-xl border-zinc-200 bg-white/70 pl-10 text-sm placeholder:text-zinc-400 focus:bg-white"
+                placeholder="Search builds…"
+                className="h-8 w-full rounded-lg border-border bg-white pl-9 text-sm placeholder:text-zinc-400 focus:bg-white"
               />
             </div>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-zinc-200 bg-white shadow-sm transition-all hover:border-zinc-300"
-                >
-                  <Avatar className="h-8 w-8 rounded-full">
-                    <AvatarImage src={user?.photoURL ?? undefined} alt="" className="object-cover" />
-                    <AvatarFallback className="rounded-full bg-zinc-100 text-sm font-medium text-zinc-600">
-                      {user?.displayName?.slice(0, 1)?.toUpperCase() ?? user?.email?.slice(0, 1)?.toUpperCase() ?? <User className="h-4 w-4" />}
-                    </AvatarFallback>
-                  </Avatar>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent side="bottom" align="end" sideOffset={8} className="w-64 border-zinc-200 bg-white text-zinc-900 shadow-lg">
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex items-center gap-3 py-1">
-                    <Avatar className="h-8 w-8 rounded-full border border-zinc-200">
-                      <AvatarImage src={user?.photoURL ?? undefined} alt="" />
-                      <AvatarFallback className="rounded-full bg-zinc-100 text-sm text-zinc-600">
-                        {user?.displayName?.slice(0, 1)?.toUpperCase() ?? "?"}
-                      </AvatarFallback>
+            {/* Right */}
+            <div className="flex items-center gap-2">
+              {isTeamsPlan && (
+                <div className="inline-flex items-center rounded-lg border border-border bg-white p-0.5">
+                  <button type="button" onClick={() => setScope("user")} className={cn("rounded-md px-2.5 py-1 text-xs font-medium transition-all", scope === "user" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground/80")}>Mine</button>
+                  <button type="button" onClick={() => setScope("team")} className={cn("flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-all", scope === "team" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground/80")}><Users className="h-3 w-3" />Team</button>
+                </div>
+              )}
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button type="button" className="flex h-8 w-8 shrink-0 overflow-hidden rounded-full border border-border bg-white shadow-sm transition-all hover:border-zinc-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1f1f1f]">
+                    <Avatar className="h-8 w-8 rounded-full">
+                      <AvatarImage src={user?.photoURL ?? undefined} alt="" className="object-cover" />
+                      <AvatarFallback className="rounded-full bg-zinc-100 text-xs font-semibold text-zinc-600">{initials}</AvatarFallback>
                     </Avatar>
-                    <div className="flex min-w-0 flex-col">
-                      <span className="truncate text-sm font-semibold text-zinc-900">{user?.displayName ?? "User"}</span>
-                      <span className="truncate text-xs text-zinc-500">{user?.email ?? ""}</span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent side="bottom" align="end" sideOffset={8} className="w-60 border-border bg-white shadow-lg">
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex items-center gap-3 py-1">
+                      <Avatar className="h-8 w-8 rounded-full border border-border">
+                        <AvatarImage src={user?.photoURL ?? undefined} alt="" />
+                        <AvatarFallback className="rounded-full bg-zinc-100 text-xs font-semibold text-zinc-600">{initials}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex min-w-0 flex-col">
+                        <span className="truncate text-sm font-semibold text-foreground">{user?.displayName ?? "User"}</span>
+                        <span className="truncate text-xs text-zinc-500">{user?.email ?? ""}</span>
+                      </div>
                     </div>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator className="bg-zinc-100" />
-                <DropdownMenuItem className="cursor-pointer gap-2 text-zinc-700 focus:bg-zinc-50" onClick={() => router.push("/pricing")}>
-                  <CreditCard className="h-4 w-4" />
-                  Billing & Plans
-                </DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer gap-2 text-zinc-700 focus:bg-zinc-50" onClick={() => router.push("/settings")}>
-                  <Settings className="h-4 w-4" />
-                  Settings
-                </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-zinc-100" />
-                <DropdownMenuItem className="cursor-pointer gap-2 text-red-500 focus:bg-red-50 focus:text-red-500" onClick={() => signOut()}>
-                  <LogOut className="h-4 w-4" />
-                  Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </header>
-
-        <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 lg:py-14">
-
-          {/* ─── Hero ─── */}
-          <section className="mx-auto w-full max-w-2xl text-center">
-            <h1 className="text-balance text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl lg:text-[2.6rem]">
-              What do you want to build today?
-            </h1>
-            <p className="mx-auto mt-3 max-w-xl text-sm text-zinc-500 sm:text-[15px]">
-              Describe your idea in plain English — we'll turn it into a working app in seconds.
-            </p>
-
-            <div className="mt-7">
-              <AnimatedAIInput />
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator className="bg-zinc-100" />
+                  <DropdownMenuItem className="cursor-pointer gap-2 text-zinc-700 focus:bg-zinc-50" onClick={() => router.push("/pricing")}>
+                    <CreditCard className="h-4 w-4" />Billing &amp; Plans
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="cursor-pointer gap-2 text-zinc-700 focus:bg-zinc-50" onClick={() => router.push("/settings")}>
+                    <Settings className="h-4 w-4" />Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-zinc-100" />
+                  <DropdownMenuItem className="cursor-pointer gap-2 text-red-500 focus:bg-red-50 focus:text-red-500" onClick={() => signOut()}>
+                    <LogOut className="h-4 w-4" />Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
+          </header>
 
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-              {["Landing page", "Dashboard", "Portfolio", "Booking form", "Pricing page"].map((label) => (
-                <button
-                  key={label}
-                  type="button"
-                  className="rounded-full border border-zinc-200 bg-white px-3.5 py-1.5 text-xs text-zinc-600 transition-colors hover:bg-zinc-50 active:scale-95"
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </section>
+          {/* Scrollable body */}
+          <div className="flex-1 overflow-y-auto">
 
-          {/* ─── Projects ─── */}
-          <section className="mt-12">
-            {/* Section toolbar */}
-            <div className="mb-5 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <h2 className="text-sm font-semibold text-zinc-900">
-                  Your Projects
-                  {!projectsLoading && filtered.length > 0 && (
-                    <span className="ml-2 text-xs font-normal text-zinc-400">{filtered.length}</span>
-                  )}
-                </h2>
-                {isTeamsPlan && (
-                  <div className="inline-flex rounded-lg border border-zinc-200 bg-white p-0.5">
-                    <button
-                      type="button"
-                      onClick={() => setScope("user")}
-                      className={cn(
-                        "rounded-md px-2.5 py-1 text-xs font-medium transition-all",
-                        scope === "user" ? "bg-zinc-900 text-white" : "text-zinc-500 hover:text-zinc-700"
-                      )}
-                    >
-                      Mine
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setScope("team")}
-                      className={cn(
-                        "rounded-md px-2.5 py-1 text-xs font-medium transition-all",
-                        scope === "team" ? "bg-zinc-900 text-white" : "text-zinc-500 hover:text-zinc-700"
-                      )}
-                    >
-                      <Users className="mr-1 inline h-3 w-3" />
-                      Team
-                    </button>
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                {/* View toggle */}
-                <div className="inline-flex rounded-lg border border-zinc-200 bg-white p-0.5">
-                  <button
-                    type="button"
-                    onClick={() => setViewMode("grid")}
-                    className={cn(
-                      "flex h-7 w-7 items-center justify-center rounded-md transition-all",
-                      viewMode === "grid" ? "bg-zinc-900 text-white shadow-sm" : "text-zinc-400 hover:text-zinc-700"
-                    )}
-                    aria-label="Grid view"
-                  >
-                    <LayoutGrid className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setViewMode("list")}
-                    className={cn(
-                      "flex h-7 w-7 items-center justify-center rounded-md transition-all",
-                      viewMode === "list" ? "bg-zinc-900 text-white shadow-sm" : "text-zinc-400 hover:text-zinc-700"
-                    )}
-                    aria-label="List view"
-                  >
-                    <List className="h-3.5 w-3.5" />
-                  </button>
+            {/* ── Hero ── */}
+            <section className="relative flex flex-col items-center overflow-hidden px-4 pb-10 pt-12 sm:pb-12 sm:pt-16">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_0%,rgba(180,165,140,0.15),transparent_70%)]" />
+              <div className="relative z-10 w-full max-w-2xl text-center">
+                <p className="mb-2.5 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">
+                  {greeting}{firstName ? `, ${firstName}` : ""}
+                </p>
+                <h1 className="text-balance text-[1.75rem] font-bold leading-tight tracking-tight text-foreground sm:text-4xl">
+                  What do you want to build?
+                </h1>
+                <p className="mx-auto mt-2.5 max-w-sm text-sm text-zinc-500">
+                  Describe your idea — lotus turns it into a working app in seconds.
+                </p>
+                <div className="mt-7">
+                  <AnimatedAIInput />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setIsSidebarOpen(true)}
-                  className="flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-500 transition-colors hover:text-zinc-800"
-                >
-                  <Menu className="h-3.5 w-3.5" />
-                  Browse all
-                </button>
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                  {["Landing page", "SaaS dashboard", "Portfolio site", "Booking form", "Pricing page"].map((label) => (
+                    <button key={label} type="button" className="rounded-full border border-border bg-white/80 px-3 py-1.5 text-xs text-zinc-600 transition-colors hover:bg-white hover:text-foreground active:scale-95">
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            {/* ── Mobile search ── */}
+            <div className="px-4 pb-4 lg:hidden">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
+                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search builds…" className="h-9 w-full rounded-xl border-border bg-white pl-9 text-sm placeholder:text-zinc-400" />
               </div>
             </div>
 
-            {projectsError && (
-              <div className="mb-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
-                Failed to load projects. {projectsError}
-              </div>
-            )}
-
-            {projectsLoading ? (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="h-36 animate-pulse rounded-2xl border border-zinc-200 bg-white" />
-                ))}
-              </div>
-            ) : filtered.length === 0 ? (
-              <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-200 bg-white/50 px-6 py-16 text-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-zinc-200 bg-white">
-                  <FolderOpen className="h-5 w-5 text-zinc-400" />
+            {/* ── Workspace ── */}
+            <section className="border-t border-border px-4 py-7 sm:px-6">
+              <div className="mb-5 flex items-end justify-between">
+                <div>
+                  <h2 className="text-[15px] font-semibold text-foreground">Your workspace</h2>
+                  <p className="mt-0.5 text-xs text-zinc-400">
+                    {projectsLoading ? "Loading…" : `${stats.total} build${stats.total !== 1 ? "s" : ""} · ${stats.complete} ready`}
+                  </p>
                 </div>
-                <p className="mt-3 text-sm font-medium text-zinc-700">No projects yet</p>
-                <p className="mt-1 text-xs text-zinc-400">Use the prompt above to generate your first project.</p>
+                <div className="hidden items-center gap-4 sm:flex">
+                  <div className="text-right">
+                    <p className="text-[12px] font-semibold text-foreground">{stats.tokenPct}%</p>
+                    <p className="text-[10px] text-zinc-400">credits used</p>
+                  </div>
+                  <div className="h-8 w-px bg-muted" />
+                  <div className="text-right">
+                    <p className="text-[12px] font-semibold text-foreground">{stats.complete}</p>
+                    <p className="text-[10px] text-zinc-400">live</p>
+                  </div>
+                </div>
               </div>
-            ) : (
-              <div className="space-y-8">
-                {(["Today", "Yesterday", "Previous"] as const).map((key) => {
-                  if (grouped[key].length === 0) return null
-                  return (
-                    <div key={key}>
-                      <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-zinc-400">{key}</p>
 
-                      {viewMode === "grid" ? (
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                          {grouped[key].map((p) => {
-                            const date = toDate(p.createdAt)
-                            const dateStr = date?.toLocaleDateString(undefined, {
-                              month: "short",
-                              day: "numeric",
-                              year: date.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
-                            }) || "—"
-                            return (
-                              <div
-                                key={p.id}
-                                className="group/card relative flex flex-col rounded-2xl border border-zinc-200 bg-white transition-all duration-200 hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-md"
-                              >
-                                {/* Status accent bar */}
-                                <div className={cn(
-                                  "h-1 w-full rounded-t-2xl",
-                                  p.status === "complete" && "bg-emerald-400",
-                                  p.status === "generating" && "bg-blue-400",
-                                  p.status === "error" && "bg-red-400",
-                                  p.status === "pending" && "bg-zinc-200",
-                                )} />
+              {projectsError && (
+                <div className="mb-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
+                  Failed to load builds. {projectsError}
+                </div>
+              )}
 
-                                <button
-                                  type="button"
-                                  onClick={() => router.push(p.kind === "computer" ? `/computer/${p.id}` : `/project/${p.id}`)}
-                                  className="flex flex-1 flex-col p-4 text-left"
-                                >
-                                  <p className="line-clamp-2 text-[13px] font-medium leading-snug text-zinc-900 flex items-center gap-1.5">
-                                    {p.kind === "computer" ? <Terminal className="h-4 w-4 shrink-0 text-zinc-400" /> : <AppWindow className="h-4 w-4 shrink-0 text-zinc-400" />}
-                                    <span>{projectTitle(p.prompt)}</span>
-                                  </p>
-
-                                  <div className="mt-auto pt-4 flex items-center justify-between gap-2">
-                                    <div className="flex items-center gap-1.5 text-[11px] text-zinc-400">
-                                      <Clock className="h-3 w-3 shrink-0" />
-                                      {dateStr}
-                                    </div>
-                                    <div className="flex items-center gap-1.5">
-                                      {statusPill(p.status)}
-                                    </div>
-                                  </div>
-                                </button>
-
-                                {/* Hover actions */}
-                                <div className="absolute right-2.5 top-3.5 flex items-center gap-1 opacity-0 transition-opacity group-hover/card:opacity-100">
-                                  <button
-                                    type="button"
-                                    onClick={(e) => handleDeleteProject(e, p.id, p.kind)}
-                                    className="flex h-6 w-6 items-center justify-center rounded-md bg-white text-zinc-300 shadow-sm ring-1 ring-zinc-200 transition-colors hover:bg-red-50 hover:text-red-400"
-                                    aria-label={`Delete ${projectTitle(p.prompt)}`}
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => router.push(p.kind === "computer" ? `/computer/${p.id}` : `/project/${p.id}`)}
-                                    className="flex h-6 w-6 items-center justify-center rounded-md bg-white text-zinc-400 shadow-sm ring-1 ring-zinc-200 transition-colors hover:bg-zinc-50 hover:text-zinc-700"
-                                    aria-label="Open project"
-                                  >
-                                    <ArrowUpRight className="h-3 w-3" />
-                                  </button>
-                                </div>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      ) : (
-                        <div className="space-y-1.5">
+              {projectsLoading ? (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="h-[116px] animate-pulse rounded-2xl border border-border bg-white/60" />
+                  ))}
+                </div>
+              ) : filtered.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-white/50 px-6 py-14 text-center">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-white">
+                    <FolderOpen className="h-5 w-5 text-zinc-300" />
+                  </div>
+                  <p className="mt-3 text-sm font-medium text-zinc-600">{search ? "No builds match your search" : "Nothing here yet"}</p>
+                  <p className="mt-1 text-xs text-zinc-400">Use the input above to create your first build.</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {(["Today", "Yesterday", "Previous"] as const).map((key) => {
+                    if (grouped[key].length === 0) return null
+                    return (
+                      <div key={key}>
+                        <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">{key}</p>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                           {grouped[key].map((p) => (
-                            <div
-                              key={p.id}
-                              className="group/item flex items-center rounded-xl border border-zinc-200 bg-white transition-all hover:border-zinc-300 hover:shadow-sm"
-                            >
+                            <div key={p.id} className="group/card relative flex flex-col rounded-2xl border border-border bg-white transition-all duration-150 hover:border-zinc-300 hover:shadow-sm">
+                              <div className={cn("h-[3px] w-full rounded-t-2xl", statusAccent(p.status))} />
                               <button
                                 type="button"
                                 onClick={() => router.push(p.kind === "computer" ? `/computer/${p.id}` : `/project/${p.id}`)}
-                                className="min-w-0 flex-1 px-4 py-3.5 text-left"
+                                className="flex flex-1 flex-col px-4 pb-4 pt-3.5 text-left"
                               >
-                                <div className="flex items-center justify-between gap-3">
-                                  <span className="truncate text-[13px] font-medium text-zinc-900 flex items-center gap-1.5">
-                                    {p.kind === "computer" ? <Terminal className="h-4 w-4 shrink-0 text-zinc-400" /> : <AppWindow className="h-4 w-4 shrink-0 text-zinc-400" />}
-                                    {projectTitle(p.prompt)}
-                                  </span>
-                                  <div className="flex shrink-0 items-center gap-2">
-                                    {statusPill(p.status)}
-                                    <span className="hidden items-center gap-1 rounded-full bg-zinc-50 px-2 py-0.5 text-[10px] font-medium text-zinc-500 ring-1 ring-zinc-200 sm:inline-flex">
-                                      {p.visibility === "public" || p.visibility === "link-only" ? (
-                                        <><Globe className="h-2.5 w-2.5" />Public</>
-                                      ) : (
-                                        <><Lock className="h-2.5 w-2.5" />Private</>
-                                      )}
-                                    </span>
+                                <div className="flex items-start gap-2.5">
+                                  <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border bg-background">
+                                    {p.kind === "computer" ? <Terminal className="h-3.5 w-3.5 text-zinc-500" /> : <AppWindow className="h-3.5 w-3.5 text-zinc-500" />}
                                   </div>
+                                  <p className="line-clamp-2 flex-1 text-[13px] font-medium leading-snug text-zinc-800">
+                                    {projectTitle(p.prompt)}
+                                  </p>
                                 </div>
-                                <div className="mt-1 flex items-center gap-1.5 text-[11px] text-zinc-400">
-                                  <Clock className="h-3 w-3 shrink-0" />
-                                  {toDate(p.createdAt)?.toLocaleDateString(undefined, {
-                                    month: "short",
-                                    day: "numeric",
-                                    year: toDate(p.createdAt)?.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
-                                  }) || "—"}
-                                  {p.workspaceName && scope === "team" && (
-                                    <span className="ml-1 text-zinc-400">· {p.workspaceName}</span>
-                                  )}
+                                <div className="mt-3 flex items-center justify-between gap-2">
+                                  <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-medium ring-1", statusBadgeClass(p.status))}>
+                                    {statusText(p.status)}
+                                  </span>
+                                  <span className="flex items-center gap-1 text-[11px] text-zinc-400">
+                                    <Clock className="h-3 w-3" />
+                                    {formatRelative(p.updatedAt ?? p.createdAt)}
+                                  </span>
                                 </div>
                               </button>
-                              <button
-                                type="button"
-                                onClick={(e) => handleDeleteProject(e, p.id, p.kind)}
-                                className="flex h-full w-11 shrink-0 items-center justify-center rounded-r-xl text-zinc-300 opacity-0 transition-all hover:bg-red-50 hover:text-red-400 group-hover/item:opacity-100"
-                                aria-label={`Delete ${projectTitle(p.prompt)}`}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
+                              {/* Actions: always visible on mobile, hover on desktop */}
+                              <div className="absolute right-2.5 top-3.5 flex items-center gap-1 opacity-100 sm:opacity-0 sm:transition-opacity sm:group-hover/card:opacity-100">
+                                <button type="button" onClick={() => router.push(p.kind === "computer" ? `/computer/${p.id}` : `/project/${p.id}`)} className="flex h-6 w-6 items-center justify-center rounded-lg bg-white text-zinc-400 shadow-sm ring-1 ring-[#e4e2db] hover:text-zinc-700" aria-label="Open">
+                                  <ArrowUpRight className="h-3 w-3" />
+                                </button>
+                                <button type="button" onClick={(e) => handleDeleteProject(e, p.id, p.kind)} className="flex h-6 w-6 items-center justify-center rounded-lg bg-white text-zinc-300 shadow-sm ring-1 ring-[#e4e2db] hover:bg-red-50 hover:text-red-400" aria-label="Delete">
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+                              </div>
                             </div>
                           ))}
                         </div>
-                      )}
-                    </div>
-                  )
-                })}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </section>
+
+            {/* ── Footer ── */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-4 sm:px-6">
+              <div className="flex items-center gap-1.5 text-xs text-zinc-400">
+                <Zap className="h-3 w-3" />
+                <span>{stats.tokensUsed.toLocaleString()} / {stats.tokensLimit.toLocaleString()} credits used</span>
               </div>
-            )}
-          </section>
-        </main>
+              <div className="flex items-center gap-4 text-xs text-zinc-400">
+                <Link href="/pricing" className="transition-colors hover:text-zinc-700">Upgrade</Link>
+                <Link href="/settings" className="transition-colors hover:text-zinc-700">Settings</Link>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </ProtectedRoute>
   )

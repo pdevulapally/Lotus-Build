@@ -19,7 +19,7 @@ import {
   Settings,
   LogOut,
   Coins,
-  Sparkles,
+  Leaf,
   ChevronDown,
   LayoutDashboard,
 } from "lucide-react"
@@ -69,8 +69,9 @@ export function Navbar() {
     <header className="fixed top-0 left-0 right-0 z-40 p-4">
       <nav className="relative max-w-5xl w-full mx-auto flex h-12 items-center justify-between px-4 sm:px-6 rounded-full bg-white border border-zinc-200 md:grid md:grid-cols-[1fr_auto_1fr]">
         {/* Left: Logo */}
-        <Link href="/" className="font-display text-lg font-semibold text-zinc-900 shrink-0 md:justify-self-start">
-          Lotus.build
+        <Link href="/" className="flex items-center gap-2 shrink-0 md:justify-self-start">
+          <img src="/Images/lotus-official-logo.png" alt="lotus.build" className="h-7 w-7 object-contain" />
+          <span className="font-display text-lg font-semibold text-foreground">Lotus.build</span>
         </Link>
 
         {/* Center Nav Links (desktop/tablet) */}
@@ -79,7 +80,7 @@ export function Navbar() {
             <Link
               key={link.href}
               href={link.href}
-              className="px-4 py-1.5 text-sm rounded-full transition-colors text-zinc-600 hover:text-zinc-900"
+              className="px-4 py-1.5 text-sm rounded-full transition-colors text-muted-foreground hover:text-foreground"
             >
               {link.label}
             </Link>
@@ -109,7 +110,7 @@ export function Navbar() {
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
-                className="w-72 bg-white border-zinc-200 text-zinc-900"
+                className="w-72 bg-white border-zinc-200 text-foreground"
                 sideOffset={8}
               >
                 {/* User Info */}
@@ -122,7 +123,7 @@ export function Navbar() {
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col min-w-0">
-                      <span className="text-sm font-medium text-zinc-900 truncate">
+                      <span className="text-sm font-medium text-foreground truncate">
                         {userData.displayName || "User"}
                       </span>
                       <span className="text-xs text-zinc-500 truncate">{userData.email}</span>
@@ -134,15 +135,15 @@ export function Navbar() {
 
                 {/* Plan & Tokens */}
                 <div className="px-2 py-3">
-                  <div className="rounded-2xl border border-zinc-200 bg-[#fbfbf8] p-3 shadow-[0_8px_24px_-20px_rgba(0,0,0,0.35)]">
+                  <div className="rounded-2xl border border-zinc-200 bg-card p-3 shadow-[0_8px_24px_-20px_rgba(0,0,0,0.35)]">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-zinc-600" />
+                      <Leaf className="w-4 h-4 text-zinc-600" />
                       <span className="text-sm font-medium text-zinc-800 capitalize">{userData.planName} Plan</span>
                     </div>
                     <Link
                       href="/pricing"
-                      className="text-xs font-medium text-zinc-600 hover:text-zinc-900 transition-colors"
+                      className="text-xs font-medium text-zinc-600 hover:text-foreground transition-colors"
                       onClick={() => setIsOpen(false)}
                     >
                       Upgrade
@@ -172,7 +173,7 @@ export function Navbar() {
 
                 {/* Menu Items */}
                 <DropdownMenuItem
-                  className="text-zinc-700 focus:bg-zinc-100 focus:text-zinc-900 cursor-pointer"
+                  className="text-zinc-700 focus:bg-zinc-100 focus:text-foreground cursor-pointer"
                   onClick={() => {
                     setIsOpen(false)
                     router.push("/projects")
@@ -183,7 +184,7 @@ export function Navbar() {
                 </DropdownMenuItem>
 
                 <DropdownMenuItem
-                  className="text-zinc-700 focus:bg-zinc-100 focus:text-zinc-900 cursor-pointer"
+                  className="text-zinc-700 focus:bg-zinc-100 focus:text-foreground cursor-pointer"
                   onClick={() => {
                     setIsOpen(false)
                     router.push("/settings")
@@ -208,7 +209,7 @@ export function Navbar() {
             <Link href="/login">
               <Button
                 size="sm"
-                className="px-4 py-1.5 text-sm rounded-full bg-zinc-100 text-zinc-900 font-medium hover:bg-zinc-200 transition-colors"
+                className="px-4 py-1.5 text-sm rounded-full bg-zinc-100 text-foreground font-medium hover:bg-zinc-200 transition-colors"
               >
                 Get Started
               </Button>
@@ -233,7 +234,7 @@ export function Navbar() {
                 </SheetTrigger>
                 <SheetContent
                   side="top"
-                  className="h-screen bg-[#f5f5f2] px-6 pb-10 pt-16 text-zinc-900"
+                  className="h-screen bg-background px-6 pb-10 pt-16 text-foreground"
                 >
                   <SheetHeader className="p-0 pb-4">
                     <SheetTitle className="text-sm font-medium uppercase tracking-[0.14em] text-zinc-500">
@@ -245,7 +246,7 @@ export function Navbar() {
                       <Link
                         key={link.href}
                         href={link.href}
-                        className="block rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-2xl font-medium leading-tight tracking-wide text-zinc-900 transition-colors hover:bg-zinc-100 sm:text-3xl"
+                        className="block rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-2xl font-medium leading-tight tracking-wide text-foreground transition-colors hover:bg-zinc-100 sm:text-3xl"
                       >
                         {link.label}
                       </Link>

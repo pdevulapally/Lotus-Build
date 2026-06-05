@@ -351,7 +351,6 @@ async function parseGenerateResponse(
   }
 
   text += decoder.decode()
-  console.log("FULL GEN OUTPUT:", text)
 
   if (!res.ok) {
     if (contentType.includes("application/json")) {
@@ -1486,8 +1485,11 @@ export async function POST(req: Request) {
     }
     const globalMemory: string = (userMemSnap.data()?.globalMemory as string | undefined) || ""
     const sessionMemory: MemoryContext = { global: globalMemory, project: projectMemory }
-    const callAgent = (params: Parameters<typeof createComputerAgentMessage>[1]) =>
-      callAgent(params, { memory: sessionMemory })
+    const callAgent = (
+      params: Parameters<typeof createComputerAgentMessage>[1],
+      options?: { enableMcp?: boolean }
+    ) =>
+      createComputerAgentMessage(anthropic, params, { ...options, memory: sessionMemory })
 
     const storedPrompt = typeof data.prompt === "string" ? data.prompt.trim() : ""
     let prompt = parsed.data.prompt?.trim() || storedPrompt || "No prompt provided"
@@ -1515,7 +1517,18 @@ export async function POST(req: Request) {
       const transactionData = transactionSnap.data() as Record<string, unknown> | undefined
 
       if (transactionData?.status === "running") {
-        throw new Error("RUN_ALREADY_IN_PROGRESS")
+        const lastUpdate = transactionData?.updatedAt
+        const lastUpdateMs = lastUpdate instanceof Date
+          ? lastUpdate.getTime()
+          : typeof lastUpdate?.toDate === "function"
+            ? lastUpdate.toDate().getTime()
+            : typeof lastUpdate === "string" || typeof lastUpdate === "number"
+              ? new Date(lastUpdate).getTime()
+              : 0
+        const isStale = !lastUpdateMs || (Date.now() - lastUpdateMs) > maxDuration * 1000
+        if (!isStale) {
+          throw new Error("RUN_ALREADY_IN_PROGRESS")
+        }
       }
 
       const timeline = Array.isArray(transactionData?.timeline)

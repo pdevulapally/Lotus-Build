@@ -1,6 +1,6 @@
 "use client"
 
-import { Sparkles } from "lucide-react"
+import { Leaf } from "lucide-react"
 import { motion, cubicBezier } from "motion/react"
 import { AnimatedAIInput } from "@/components/ui/animated-ai-input"
 import { PromptSuggestion } from "@/components/prompt-kit/prompt-suggestion"
@@ -77,7 +77,7 @@ export function HeroSection() {
             {/* Badge */}
             <motion.div variants={item}>
               <span className="mb-8 inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-zinc-100 px-4 py-1.5 shadow-sm">
-                <Sparkles className="h-3.5 w-3.5 text-zinc-600" />
+                <Leaf className="h-3.5 w-3.5 text-zinc-600" />
                 <span className="text-xs font-medium tracking-wide text-zinc-600 sm:text-sm">
                   AI powered full-stack application builder
                 </span>
@@ -89,7 +89,7 @@ export function HeroSection() {
               variants={item}
               className="mb-5 mt-2 font-display text-[2.25rem] font-bold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl lg:text-7xl"
             >
-              <span className="block text-zinc-900">Describe your idea.</span>
+              <span className="block text-foreground">Describe your idea.</span>
               <span className="mt-1 block text-zinc-700 sm:mt-2">
                 We build it.
               </span>

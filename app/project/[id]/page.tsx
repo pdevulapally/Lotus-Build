@@ -28,7 +28,7 @@ import {
   FileCode,
   FolderOpen,
   Folder as FolderIcon,
-  Sparkles,
+  Leaf,
   Coins,
   Copy,
   Check,
@@ -1323,14 +1323,14 @@ function ProjectContent() {
     if (!showSupabaseChatPrompt) return null
 
     return (
-      <div className="mr-auto max-w-[92%] rounded-2xl border border-[#e7dfd2] bg-[#f7f3ec] px-4 py-3">
+      <div className="mr-auto max-w-[92%] rounded-2xl border border-border bg-muted px-4 py-3">
         <div className="flex items-start gap-2">
           <div className="min-w-0 flex-1">
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#e7dfd2] bg-white px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-600">
+            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-white px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-600">
               <Database className="h-3.5 w-3.5" />
               Supabase
             </div>
-            <p className="mt-3 text-sm font-medium leading-6 text-zinc-900">This website likely needs a database connection.</p>
+            <p className="mt-3 text-sm font-medium leading-6 text-foreground">This website likely needs a database connection.</p>
             <p className="mt-1 text-sm leading-6 text-zinc-600">
               Connect Supabase in Website Settings so we can wire up auth, data, and schema changes.
             </p>
@@ -1338,7 +1338,7 @@ function ProjectContent() {
               <Button
                 type="button"
                 size="sm"
-                className="h-9 rounded-lg bg-zinc-900 px-4 text-sm text-white hover:bg-zinc-800"
+                className="h-9 rounded-lg bg-accent px-4 text-sm text-white hover:bg-accent/90"
                 onClick={async () => {
                   try {
                     const idToken = await user?.getIdToken()
@@ -1360,7 +1360,7 @@ function ProjectContent() {
                 type="button"
                 size="sm"
                 variant="ghost"
-                className="h-9 rounded-lg px-1 text-sm text-zinc-600 hover:bg-transparent hover:text-zinc-900"
+                className="h-9 rounded-lg px-1 text-sm text-zinc-600 hover:bg-transparent hover:text-foreground"
                 onClick={() => setSuggestBackendDismissed(true)}
               >
                 Not now
@@ -3676,7 +3676,7 @@ function ProjectContent() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-[#f5f5f2] flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-10 h-10 rounded-full border border-zinc-200 bg-white flex items-center justify-center">
             <Loader2 className="w-5 h-5 text-zinc-600 animate-spin" />
@@ -3689,15 +3689,15 @@ function ProjectContent() {
 
   if (accessError === "private") {
     return (
-      <div className="min-h-screen bg-[#f5f5f2] flex items-center justify-center p-4">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="text-center max-w-md rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
           <div className="w-12 h-12 rounded-full border border-zinc-200 bg-zinc-100 flex items-center justify-center mx-auto mb-4">
             <Share className="w-6 h-6 text-zinc-600" />
           </div>
-          <h1 className="text-xl font-semibold text-zinc-900 mb-2">This project is private</h1>
+          <h1 className="text-xl font-semibold text-foreground mb-2">This project is private</h1>
           <p className="text-zinc-500 text-sm mb-6">Sign in to request access or open your own project.</p>
           <Link href={`/login?redirect=${encodeURIComponent(`/project/${projectId}`)}`}>
-            <Button className="bg-zinc-900 text-white hover:bg-zinc-800 border-0">Sign in</Button>
+            <Button className="bg-accent text-accent-foreground hover:bg-accent/90 border-0">Sign in</Button>
           </Link>
         </div>
       </div>
@@ -3706,9 +3706,9 @@ function ProjectContent() {
 
   if (accessError === "forbidden") {
     return (
-      <div className="min-h-screen bg-[#f5f5f2] flex items-center justify-center p-4">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="text-center max-w-md rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
-          <h1 className="text-xl font-semibold text-zinc-900 mb-2">You don&apos;t have access</h1>
+          <h1 className="text-xl font-semibold text-foreground mb-2">You don&apos;t have access</h1>
           <p className="text-zinc-500 text-sm mb-6">This project is private and you aren&apos;t an owner or editor.</p>
           <Link href="/">
             <Button variant="outline" className="border-zinc-300 text-zinc-700 hover:bg-zinc-100">Back home</Button>
@@ -3720,9 +3720,9 @@ function ProjectContent() {
 
   if (!project) {
     return (
-      <div className="min-h-screen bg-[#f5f5f2] flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-zinc-900 mb-2">Project not found</h1>
+          <h1 className="text-2xl font-bold text-foreground mb-2">Project not found</h1>
           <p className="text-zinc-500 mb-6">This project doesn&apos;t exist or has been deleted.</p>
           <Link href="/">
             <Button variant="outline" className="border-zinc-300 text-zinc-700 hover:bg-zinc-100 bg-transparent">
@@ -3763,23 +3763,23 @@ function ProjectContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f1eee8] text-[#1f1f1f]">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_82%_54%_at_50%_-10%,rgba(214,203,186,0.3),transparent)]" />
       <div className="mx-auto flex min-h-screen max-w-[1880px] flex-col px-3 py-3 sm:px-5 sm:py-4 lg:h-screen lg:px-6">
         <header className="mb-3 sm:mb-4">
-          <div className="rounded-[1.75rem] border border-[#e2ddd3] bg-[rgba(251,249,244,0.9)] px-4 py-3 shadow-[0_24px_70px_-54px_rgba(24,24,27,0.35)] backdrop-blur-sm sm:px-5 sm:py-4">
+          <div className="rounded-[1.75rem] border border-border bg-card/90 px-4 py-3 shadow-[0_24px_70px_-54px_rgba(24,24,27,0.35)] backdrop-blur-sm sm:px-5 sm:py-4">
             <div className="flex items-start justify-between gap-3 sm:items-center">
             <div className="flex min-w-0 items-center gap-4">
               <Link href="/projects" className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500 transition-colors hover:text-zinc-800">
                 Studio
               </Link>
               <div className="flex min-w-0 items-center gap-2">
-                <h1 className="truncate text-base font-semibold text-[#1f1f1f] sm:text-lg lg:text-xl">{displayProjectName}</h1>
+                <h1 className="truncate text-base font-semibold text-foreground sm:text-lg lg:text-xl">{displayProjectName}</h1>
                 {canEdit && (
                   <button
                     type="button"
                     onClick={() => setWebsiteSettingsOpen(true)}
-                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
+                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-foreground"
                     aria-label="Open website settings"
                     title="Website Settings"
                   >
@@ -3792,7 +3792,7 @@ function ProjectContent() {
             <Button type="button" size="sm" variant="outline" className="hidden h-9 rounded-lg border-zinc-300 bg-white px-3 text-zinc-700 hover:bg-zinc-100 lg:inline-flex" onClick={() => setWebsiteSettingsOpen(true)}>
               Website Settings
             </Button>
-            <Button type="button" size="sm" className="h-9 rounded-lg bg-[#1f1f1f] px-3 text-white hover:bg-zinc-800" onClick={() => setDeployOpen(true)}>
+            <Button type="button" size="sm" className="h-9 rounded-lg bg-accent px-3 text-accent-foreground hover:bg-accent/90" onClick={() => setDeployOpen(true)}>
               Go Live
             </Button>
             </div>
@@ -3807,7 +3807,7 @@ function ProjectContent() {
               onClick={() => setMobileTab("chat")}
               className={cn(
                 "flex-1 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
-                mobileTab === "chat" ? "bg-zinc-900 text-white" : "text-zinc-600 hover:bg-zinc-100"
+                mobileTab === "chat" ? "bg-accent text-accent-foreground" : "text-zinc-600 hover:bg-zinc-100"
               )}
             >
               Talk to Builder
@@ -3820,7 +3820,7 @@ function ProjectContent() {
               }}
               className={cn(
                 "flex-1 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
-                mobileTab === "preview" ? "bg-zinc-900 text-white" : "text-zinc-600 hover:bg-zinc-100"
+                mobileTab === "preview" ? "bg-accent text-accent-foreground" : "text-zinc-600 hover:bg-zinc-100"
               )}
             >
               Website Preview
@@ -3851,9 +3851,9 @@ function ProjectContent() {
             {visualEditActive ? (
               <>
                 <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5">
-                  <div className="rounded-2xl border border-zinc-200 bg-[#f8f8f6] px-4 py-3">
+                  <div className="rounded-2xl border border-zinc-200 bg-muted px-4 py-3">
                     <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Current focus</p>
-                    <p className="mt-2 text-sm text-zinc-900">
+                    <p className="mt-2 text-sm text-foreground">
                       {selectedElementDescription ? getSelectionBadgeDisplay(selectedElementDescription, selectedElementCount) : "Entire page"}
                     </p>
                   </div>
@@ -3876,8 +3876,8 @@ function ProjectContent() {
                           className={cn(
                             "rounded-xl border px-3 py-2 transition-colors",
                             selectedVisualSectionId === section.id
-                              ? "border-zinc-900 bg-zinc-900 text-white"
-                              : "border-zinc-200 bg-[#fafaf8] text-zinc-800"
+                              ? "border-zinc-900 bg-accent text-accent-foreground"
+                              : "border-zinc-200 bg-muted text-zinc-800"
                           )}
                         >
                           <button
@@ -3989,7 +3989,7 @@ function ProjectContent() {
                         }}
                         onClose={requestVisualEditClear}
                       />
-                      <div className="border-t border-zinc-100 bg-[#fafaf8] p-3">
+                      <div className="border-t border-zinc-100 bg-muted p-3">
                         <Button
                           type="button"
                           size="sm"
@@ -4011,7 +4011,7 @@ function ProjectContent() {
                       </div>
                     </div>
                   ) : (
-                    <div className="rounded-2xl border border-dashed border-zinc-300 bg-[#fafaf8] px-4 py-6 text-center">
+                    <div className="rounded-2xl border border-dashed border-zinc-300 bg-muted px-4 py-6 text-center">
                       <p className="text-sm font-medium text-zinc-800">Pick a section in the canvas</p>
                       <p className="mt-1 text-xs text-zinc-500">Then adjust it directly or ask AI for a focused change.</p>
                     </div>
@@ -4055,13 +4055,13 @@ function ProjectContent() {
             ) : isVisualEditPanelMode ? (
               <>
               <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5">
-                <div className="overflow-hidden rounded-[24px] border border-zinc-200 bg-[#f5f5f2]">
+                <div className="overflow-hidden rounded-[24px] border border-zinc-200 bg-background">
                   <div className="flex items-center justify-between border-b border-zinc-200 bg-white px-4 py-3">
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-8 rounded-full px-0 text-xs text-zinc-600 hover:bg-transparent hover:text-zinc-900"
+                      className="h-8 rounded-full px-0 text-xs text-zinc-600 hover:bg-transparent hover:text-foreground"
                       onClick={exitVisualEdit}
                     >
                       <ArrowLeft className="mr-1 h-3.5 w-3.5" />
@@ -4171,11 +4171,11 @@ function ProjectContent() {
                     <span className="text-[11px] font-medium text-zinc-400">You</span>
                   </div>
                   {editingTarget?.kind === "prompt" ? (
-                    <div className="rounded-2xl border border-zinc-200 bg-white px-3 py-3 text-zinc-900">
+                    <div className="rounded-2xl border border-zinc-200 bg-white px-3 py-3 text-foreground">
                       <textarea
                         value={editingDraft}
                         onChange={(e) => setEditingDraft(e.target.value)}
-                        className="w-full resize-none bg-transparent text-sm text-zinc-900 outline-none"
+                        className="w-full resize-none bg-transparent text-sm text-foreground outline-none"
                         rows={3}
                         autoFocus
                       />
@@ -4192,7 +4192,7 @@ function ProjectContent() {
                         <Button
                           type="button"
                           size="sm"
-                          className="h-8 bg-zinc-900 text-white hover:bg-zinc-800"
+                          className="h-8 bg-accent text-accent-foreground hover:bg-accent/90"
                           onClick={() => handleEditSubmit(editingDraft)}
                           disabled={!editingDraft.trim()}
                         >
@@ -4202,7 +4202,7 @@ function ProjectContent() {
                     </div>
                   ) : (
                     <>
-                      <div className="relative rounded-2xl bg-[#f4f4f4] px-4 py-3 text-sm leading-relaxed text-zinc-900">
+                      <div className="relative rounded-2xl bg-muted px-4 py-3 text-sm leading-relaxed text-foreground">
                         {project.prompt}
                         {canEdit && (
                           <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
@@ -4216,7 +4216,7 @@ function ProjectContent() {
                                   toast({ title: "Copy failed", description: "Could not copy prompt.", variant: "destructive" })
                                 }
                               }}
-                              className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-zinc-200 bg-white/90 text-zinc-600 transition-colors hover:bg-white hover:text-zinc-900"
+                              className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-zinc-200 bg-white/90 text-zinc-600 transition-colors hover:bg-white hover:text-foreground"
                               aria-label="Copy prompt"
                               title="Copy"
                             >
@@ -4228,7 +4228,7 @@ function ProjectContent() {
                                 setEditingTarget({ kind: "prompt" })
                                 setEditingDraft(project.prompt || "")
                               }}
-                              className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-zinc-200 bg-white/90 text-zinc-600 transition-colors hover:bg-white hover:text-zinc-900"
+                              className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-zinc-200 bg-white/90 text-zinc-600 transition-colors hover:bg-white hover:text-foreground"
                               aria-label="Edit prompt"
                               title="Edit"
                             >
@@ -4258,11 +4258,11 @@ function ProjectContent() {
                       </div>
 
                       {isEditingMessage ? (
-                        <div className="rounded-3xl border border-zinc-200 bg-white px-3 py-3 text-zinc-900">
+                        <div className="rounded-3xl border border-zinc-200 bg-white px-3 py-3 text-foreground">
                           <textarea
                             value={editingDraft}
                             onChange={(e) => setEditingDraft(e.target.value)}
-                            className="w-full resize-none bg-transparent text-sm text-zinc-900 outline-none"
+                            className="w-full resize-none bg-transparent text-sm text-foreground outline-none"
                             rows={3}
                             autoFocus
                           />
@@ -4279,7 +4279,7 @@ function ProjectContent() {
                             <Button
                               type="button"
                               size="sm"
-                              className="h-8 bg-zinc-900 text-white hover:bg-zinc-800"
+                              className="h-8 bg-accent text-accent-foreground hover:bg-accent/90"
                               onClick={() => handleEditSubmit(editingDraft)}
                               disabled={!editingDraft.trim()}
                             >
@@ -4292,7 +4292,7 @@ function ProjectContent() {
                           className={cn(
                             "relative text-sm leading-7 transition-colors",
                             isUserMessage
-                              ? "rounded-2xl bg-[#f4f4f4] px-4 py-3 text-zinc-900"
+                              ? "rounded-2xl bg-muted px-4 py-3 text-foreground"
                               : "px-1 text-zinc-800"
                           )}
                         >
@@ -4310,7 +4310,7 @@ function ProjectContent() {
                                     toast({ title: "Copy failed", description: "Could not copy message.", variant: "destructive" })
                                   }
                                 }}
-                                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-zinc-200 bg-white/80 text-zinc-500 transition-colors hover:bg-white hover:text-zinc-900"
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-zinc-200 bg-white/80 text-zinc-500 transition-colors hover:bg-white hover:text-foreground"
                                 aria-label="Copy message"
                                 title="Copy"
                               >
@@ -4322,7 +4322,7 @@ function ProjectContent() {
                                   setEditingTarget({ kind: "message", index: i })
                                   setEditingDraft(msg.content)
                                 }}
-                                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-zinc-200 bg-white/80 text-zinc-500 transition-colors hover:bg-white hover:text-zinc-900"
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-zinc-200 bg-white/80 text-zinc-500 transition-colors hover:bg-white hover:text-foreground"
                                 aria-label="Edit message"
                                 title="Edit"
                               >
@@ -4343,14 +4343,14 @@ function ProjectContent() {
                     <div className="border-b border-zinc-100 bg-[radial-gradient(circle_at_top_left,_rgba(244,244,245,0.95),_rgba(255,255,255,0.98)_58%)] px-4 py-4">
                       <div className="flex flex-col gap-3">
                         <div className="flex items-center gap-2">
-                          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-[#e7dfd2] bg-[#f7f3ec] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-600">
+                          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-border bg-muted px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-600">
                             <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                             Builder Run Live
                           </div>
                         </div>
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                           <div className="space-y-1">
-                            <p className="text-sm font-semibold text-zinc-900">
+                            <p className="text-sm font-semibold text-foreground">
                               The agent is shaping, implementing, and validating this update
                             </p>
                             <TextShimmer className="text-sm text-zinc-600">
@@ -4393,7 +4393,7 @@ function ProjectContent() {
                           )}
                           <span className={cn(
                             "text-xs",
-                            step.status === "running" && "text-zinc-900 font-medium",
+                            step.status === "running" && "text-foreground font-medium",
                             step.status === "success" && "text-zinc-400",
                             step.status === "failed" && "text-red-600",
                             step.status === "idle" && "text-zinc-300"
@@ -4406,8 +4406,8 @@ function ProjectContent() {
                         <p className="text-xs text-red-600 font-mono">{buildError}</p>
                         {onFixWithAI && (
                           <button onClick={handleFixWithAI} disabled={isFixing}
-                          className="text-xs bg-zinc-900 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 disabled:opacity-50">
-                            <Sparkles className="h-3 w-3" />
+                          className="text-xs bg-accent text-accent-foreground px-3 py-1.5 rounded-lg flex items-center gap-1.5 disabled:opacity-50">
+                            <Leaf className="h-3 w-3" />
                             {isFixing ? "Fixing..." : "Fix with AI"}
                           </button>
                         )}
@@ -4435,7 +4435,7 @@ function ProjectContent() {
                           )}
                           <span className={cn(
                             "text-xs",
-                            step.status === "running" && "text-zinc-900 font-medium",
+                            step.status === "running" && "text-foreground font-medium",
                             step.status === "success" && "text-zinc-400",
                             step.status === "failed" && "text-red-600",
                             step.status === "idle" && "text-zinc-300"
@@ -4523,7 +4523,7 @@ function ProjectContent() {
                 </div>
                 {visualEditActive ? (
                   <div className="flex shrink-0 items-center gap-2">
-                    <form onSubmit={handlePreviewPathSubmit} className="hidden items-center rounded-lg border border-zinc-200 bg-[#fafaf8] px-2.5 py-1.5 sm:flex">
+                    <form onSubmit={handlePreviewPathSubmit} className="hidden items-center rounded-lg border border-zinc-200 bg-muted px-2.5 py-1.5 sm:flex">
                       <span className="mr-2 text-xs text-zinc-400">/</span>
                       <input
                         value={previewPathDraft.replace(/^\//, "")}
@@ -4533,7 +4533,7 @@ function ProjectContent() {
                         aria-label="Preview page path"
                       />
                     </form>
-                    <div className="inline-flex items-center rounded-lg border border-zinc-200 bg-[#fafaf8] p-1">
+                    <div className="inline-flex items-center rounded-lg border border-zinc-200 bg-muted p-1">
                       {previewDeviceOptions.map(({ key, icon: Icon, label }) => (
                         <button
                           key={key}
@@ -4541,7 +4541,7 @@ function ProjectContent() {
                           onClick={() => setPreviewDevice(key)}
                           className={cn(
                             "inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-xs transition-colors",
-                            previewDevice === key ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-600 hover:text-zinc-900"
+                            previewDevice === key ? "bg-white text-foreground shadow-sm" : "text-zinc-600 hover:text-foreground"
                           )}
                           aria-label={label}
                           title={label}
@@ -4571,7 +4571,7 @@ function ProjectContent() {
                   <div className="flex h-full w-full flex-col items-center justify-center gap-4 px-8 text-center">
                     <div className="h-8 w-8 rounded-full border-2 border-zinc-200 border-t-zinc-900 animate-spin" />
                     <div>
-                      <p className="text-sm font-semibold text-zinc-900">Setting up your database...</p>
+                      <p className="text-sm font-semibold text-foreground">Setting up your database...</p>
                       <p className="mt-1 text-xs text-zinc-500">Preview will load once Supabase is fully connected.</p>
                     </div>
                   </div>
@@ -4638,7 +4638,7 @@ function ProjectContent() {
       >
         <AlertDialogContent className="border-zinc-200 bg-white">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-zinc-900">Discard visual edits?</AlertDialogTitle>
+            <AlertDialogTitle className="text-foreground">Discard visual edits?</AlertDialogTitle>
             <AlertDialogDescription className="text-zinc-600">
               You have unsaved visual edits. If you leave now, those manual changes will be lost.
             </AlertDialogDescription>
@@ -4651,7 +4651,7 @@ function ProjectContent() {
               Keep editing
             </AlertDialogCancel>
             <AlertDialogAction
-              className="bg-zinc-900 text-white hover:bg-zinc-800"
+              className="bg-accent text-accent-foreground hover:bg-accent/90"
               onClick={() => {
                 const nextAction = visualEditConfirmAction
                 setVisualEditConfirmAction(null)
@@ -4670,14 +4670,14 @@ function ProjectContent() {
       </AlertDialog>
 
       <Dialog open={deployOpen} onOpenChange={setDeployOpen}>
-        <DialogContent className="grid-rows-[auto,minmax(0,1fr)] max-h-[calc(100dvh-1.5rem)] w-[calc(100vw-1rem)] max-w-[72rem] overflow-hidden border-zinc-200 bg-[#f8f8f5] p-0 sm:max-h-[calc(100dvh-3rem)] sm:w-[min(92vw,72rem)]">
+        <DialogContent className="grid-rows-[auto,minmax(0,1fr)] max-h-[calc(100dvh-1.5rem)] w-[calc(100vw-1rem)] max-w-[72rem] overflow-hidden border-zinc-200 bg-card p-0 sm:max-h-[calc(100dvh-3rem)] sm:w-[min(92vw,72rem)]">
           <DialogHeader>
             <div className="border-b border-zinc-200 bg-[radial-gradient(circle_at_top_left,_rgba(244,244,245,0.95),_rgba(255,255,255,0.98)_58%)] px-5 py-5 sm:px-7 sm:py-6">
               <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-500">
                 <span className="h-2 w-2 rounded-full bg-emerald-500" />
                 Publish
               </div>
-              <DialogTitle className="mt-4 text-xl text-zinc-900 sm:text-2xl">Go Live</DialogTitle>
+              <DialogTitle className="mt-4 text-xl text-foreground sm:text-2xl">Go Live</DialogTitle>
               <DialogDescription className="mt-2 max-w-2xl text-sm text-zinc-600 sm:text-base">
                 Publish your website with a cleaner deployment flow, compare providers, and share your live URL once it is ready.
               </DialogDescription>
@@ -4691,7 +4691,7 @@ function ProjectContent() {
                   onClick={() => setDeployTab("netlify")}
                   className={cn(
                     "rounded-lg px-4 py-2 text-sm font-medium transition-colors",
-                    deployTab === "netlify" ? "bg-zinc-900 text-white" : "text-zinc-600 hover:bg-zinc-100"
+                    deployTab === "netlify" ? "bg-accent text-accent-foreground" : "text-zinc-600 hover:bg-zinc-100"
                   )}
                 >
                   Netlify
@@ -4701,7 +4701,7 @@ function ProjectContent() {
                   onClick={() => setDeployTab("vercel")}
                   className={cn(
                     "rounded-lg px-4 py-2 text-sm font-medium transition-colors",
-                    deployTab === "vercel" ? "bg-zinc-900 text-white" : "text-zinc-600 hover:bg-zinc-100"
+                    deployTab === "vercel" ? "bg-accent text-accent-foreground" : "text-zinc-600 hover:bg-zinc-100"
                   )}
                 >
                   Vercel
@@ -4734,7 +4734,7 @@ function ProjectContent() {
                       >
                         <div className="min-w-0">
                           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">Open live site</p>
-                          <p className="mt-1 break-all text-sm font-semibold text-zinc-900">{netlifyDeployment.siteUrl}</p>
+                          <p className="mt-1 break-all text-sm font-semibold text-foreground">{netlifyDeployment.siteUrl}</p>
                         </div>
                         <ExternalLink className="h-4 w-4 shrink-0 text-zinc-500" />
                       </a>
@@ -4756,7 +4756,7 @@ function ProjectContent() {
                         </Button>
                         <Button
                           type="button"
-                          className="min-h-[40px] flex-1 rounded-xl bg-zinc-900 text-white hover:bg-zinc-800"
+                          className="min-h-[40px] flex-1 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90"
                           onClick={async () => {
                             try {
                               if (navigator.share) {
@@ -4779,7 +4779,7 @@ function ProjectContent() {
                   )}
                   <Button
                     type="button"
-                    className="min-h-[44px] w-full rounded-xl bg-[#1f1f1f] text-white hover:bg-zinc-800"
+                    className="min-h-[44px] w-full rounded-xl bg-accent text-accent-foreground hover:bg-accent/90"
                     onClick={netlifyConnected ? handleDeployToNetlify : handleConnectNetlify}
                     disabled={isDeploying || netlifyConnected === null}
                   >
@@ -4825,7 +4825,7 @@ function ProjectContent() {
                       >
                         <div className="min-w-0">
                           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">Open live site</p>
-                          <p className="mt-1 break-all text-sm font-semibold text-zinc-900">{vercelDeployment.siteUrl}</p>
+                          <p className="mt-1 break-all text-sm font-semibold text-foreground">{vercelDeployment.siteUrl}</p>
                         </div>
                         <ExternalLink className="h-4 w-4 shrink-0 text-zinc-500" />
                       </a>
@@ -4847,7 +4847,7 @@ function ProjectContent() {
                         </Button>
                         <Button
                           type="button"
-                          className="min-h-[40px] flex-1 rounded-xl bg-zinc-900 text-white hover:bg-zinc-800"
+                          className="min-h-[40px] flex-1 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90"
                           onClick={async () => {
                             try {
                               if (navigator.share) {
@@ -4889,7 +4889,7 @@ function ProjectContent() {
                       />
                       <Button
                         type="button"
-                        className="mt-2 w-full bg-[#1f1f1f] text-white hover:bg-zinc-800"
+                        className="mt-2 w-full bg-accent text-accent-foreground hover:bg-accent/90"
                         onClick={handleSaveVercelToken}
                         disabled={!vercelTokenInput.trim() || isVercelDeploying}
                       >
@@ -4956,9 +4956,9 @@ function ProjectContent() {
       </Dialog>
 
       <Sheet open={websiteSettingsOpen} onOpenChange={setWebsiteSettingsOpen}>
-        <SheetContent side="right" className="w-full max-w-[760px] overflow-y-auto border-l border-zinc-200 bg-[#f5f5f2] p-0 sm:max-w-[760px]">
+        <SheetContent side="right" className="w-full max-w-[760px] overflow-y-auto border-l border-zinc-200 bg-background p-0 sm:max-w-[760px]">
           <SheetHeader className="border-b border-zinc-200 bg-white px-6 py-5">
-            <SheetTitle className="text-zinc-900">Website Settings</SheetTitle>
+            <SheetTitle className="text-foreground">Website Settings</SheetTitle>
             <SheetDescription className="text-zinc-500">Configure your website experience for this project.</SheetDescription>
           </SheetHeader>
           <div className="p-6">

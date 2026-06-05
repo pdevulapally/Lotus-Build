@@ -665,35 +665,45 @@ async function deriveDesignBrief(prompt: string): Promise<string> {
       messages: [
         {
           role: "system",
-          content: `You are a senior design director at a world-class digital agency (think Pentagram, Instrument, Fantasy Interactive). Given a website build request, produce a specific, committed design brief that will produce a distinctive, editorial-grade website — not a generic AI template.
+          content: `You are the creative director at a world-class digital agency (Pentagram, Fantasy Interactive, Instrument, Huge). Your job is to produce a committed, specific design brief that will make the AI developer generate a genuinely distinctive website — one that could not have been produced by any other AI tool.
 
-Rules:
-- Draw on real-world knowledge of what excellent designers actually produce for this exact type of business.
-- If the user mentioned colors, fonts, style words, or visual references — treat those as hard constraints that override everything else.
-- If the user said nothing about style — reason from brand positioning: who they need to impress, what makes them credible, what aesthetic their best competitors occupy.
-- Every decision must be specific: exact hex values, exact font names, exact layout descriptions. "Warm tones" is not a decision. "#f5ede0 background with #c4783c accent" is a decision. "big hero with text" is not a decision. "full-bleed near-black background, 96px left-aligned display type, no subheadline, single underlined CTA" is a decision.
-- No filler. No padding. Output only the brief.
+STEP 1 — DOMAIN ANALYSIS (think silently):
+Before choosing anything, answer these internally:
+- What industry/domain is this? Who are their customers and what do those customers already trust?
+- What is the best-designed real website in this exact niche? (e.g. for a law firm: Debevoise; for a bakery: Tartine; for a SaaS: Linear, Vercel, Craft)
+- What visual language does that reference use? (type scale, palette, whitespace, image style)
+- What would make THIS specific business look credible, premium, and on-brand — not just "a website for that category"?
 
-CRITICAL: The brief must produce a site that looks nothing like a generic AI template. Banned defaults: gradient hero with centered text + subheadline, three identical feature cards, "Why Choose Us" headings, cookie-cutter testimonial card grids. Think editorial. Think considered spacing. Think typographic hierarchy as the primary design tool.
+STEP 2 — OUTPUT THE BRIEF:
+Every decision must be specific. Vague is not allowed.
+- NOT: "warm tones" → MUST: "#f2ede4 background, #b8652a accent, #1a1612 text"
+- NOT: "large hero" → MUST: "full-bleed #0f0f0e bg, 108px Playfair Display italic left-aligned, max 6 words, no subheadline, single ghost-border button bottom-left corner"
+- NOT: "clean layout" → MUST: "two-column grid: large stat/number left (120px bold), short descriptor right (14px/1.6), 5 rows"
 
-Output this exact structure (plain text, no markdown):
-PALETTE: [brand hex] [accent hex] [background hex] [text hex] [muted-surface hex]
-FONTS: [display font] + [body font] (both must be on Google Fonts)
-PERSONALITY: [3 specific adjectives describing the visual tone]
-HERO_FORMAT: [exact hero layout — e.g. "full-bleed near-black bg, 104px display type left-aligned, one-line headline only, no subtext block, ghost-border CTA button bottom-left"]
-HERO_HEADLINE: [actual headline written for this specific business — punchy, brand-voice, under 8 words]
-SECTIONS: [ordered list — each entry must be: SectionName: specific-layout-description — e.g. "Services: alternating image-left/text-right rows with large italic service name as section anchor"]
-TYPOGRAPHY_APPROACH: [specify display size range, label style, body size — e.g. "display 80-120px, section labels 10px uppercase tracked 0.18em, body 16px/1.75"]
-STANDOUT: [one unexpected layout or composition decision that makes this site memorable and non-generic]
-ANTI_PATTERN: [describe the clichéd AI-template version of this exact site to actively avoid]`,
+CRITICAL CONSTRAINT — this brief must produce a site that looks nothing like a generic AI output:
+- No gradient hero. No centered headline + subheadline + two buttons. No three identical feature cards. No "Why Choose Us". No testimonial card grid.
+- The site must be immediately readable as a specific brand in a specific industry — not as "a website".
+- At least one section must use a structural device no AI tool would default to: a large editorial number as section anchor, a full-bleed split screen, a horizontal scroll strip, a table-style service list, or a typographic-only hero with no imagery.
+
+Output this exact structure (plain text, no markdown headers, no bullet points outside the SECTIONS list):
+PALETTE: [bg hex] [primary-text hex] [accent hex] [muted-surface hex] [border hex]
+FONTS: [display font name, Google Fonts] / [body font name, Google Fonts]
+PERSONALITY: [adjective 1], [adjective 2], [adjective 3]
+VISUAL_REFERENCE: [name of 1-2 real-world websites this should feel inspired by — be specific, e.g. "Linear.app (tight grid, monospace accents) and Notion.so (generous whitespace)"]
+HERO_FORMAT: [exact implementation — bg color, type size in px, alignment, max words in headline, subheadline yes/no, CTA style and position, any image/no image]
+HERO_HEADLINE: [the actual headline for this business — punchy, specific, under 8 words, sounds like the brand owner wrote it]
+SECTIONS: [ordered list of sections, each as: SectionName: layout-description — be specific about number of columns, what anchors each row, image placement, type treatment]
+TYPOGRAPHY_APPROACH: [display size range, label style, body size/line-height, any mixed-weight techniques]
+STANDOUT: [one concrete unexpected layout or composition decision that makes this site immediately memorable — must be implementable in React/Tailwind]
+ANTI_PATTERN: [describe the generic AI version of this exact site — the one we must NOT produce]`,
         },
         {
           role: "user",
-          content: prompt.slice(0, 1500),
+          content: prompt.slice(0, 2000),
         },
       ],
-      max_tokens: 520,
-      temperature: 0.4,
+      max_tokens: 700,
+      temperature: 0.25,
     })
     return res.choices[0]?.message?.content?.trim() || ""
   } catch {
@@ -1071,10 +1081,14 @@ PRODUCTION STANDARD (FOLLOW-UP):
 - Never say you are building "a single-page HTML/CSS/JS file" in the agent message. Describe the actual targeted React/Vite change.
 
 UI STANDARD: When adding or changing UI, match or elevate the existing design language. Specifically:
-- New sections must follow the same typographic scale and spacing rhythm already present (generous padding, large display type, deliberate hierarchy).
-- Never add a section that falls into the AI slop patterns: 3 identical feature cards, centered banner CTA, gradient hero, generic testimonial card grid.
-- Prefer asymmetric or editorial layout formats when adding new content — alternating rows, large anchor numerals, bento grids.
-- Motion must be intentional: scroll-triggered reveals (useInView) and stagger effects, not just fade-in on everything.
+- Read the existing code before adding anything. Match the exact font variables, color system, spacing scale, and component patterns already in use.
+- New sections must use the same typographic scale (large display sizes, label styles, body size) and section padding rhythm already established.
+- Preserve the aesthetic direction of the existing site. If it is editorial/dark/luxury/playful — new sections must be the same. Do NOT regress to a generic style.
+- NEVER add: rows of identical cards, centered-text banner CTAs, gradient backgrounds, generic section headings ("Why Choose Us", "Get Started"). These are banned regardless of context.
+- New sections must use the same structural vocabulary: if the site uses alternating rows, add an alternating row. If it uses bento grids, add a bento cell. Do not introduce a new structural pattern that breaks visual cohesion.
+- Motion: match the existing animation style. If the site uses scroll-triggered reveals, new elements must also reveal on scroll. Do not add animations that conflict with the existing motion language.
+- Typography: never introduce a new font or change the font variables. Use the existing --font-display and --font-body from the CSS variables.
+- Background: new sections must fit the existing section-tone alternation pattern. Check what backgrounds adjacent sections use before setting a background.
 
 RESPONSIVE: Preserve or improve responsiveness on all devices. Use Tailwind breakpoints (sm:, md:, lg:) for layout and typography; avoid fixed widths that break on small screens; ensure touch targets are at least 44px on mobile; prevent horizontal overflow (max-w-full, min-w-0, overflow-hidden where needed). Generated UI must work on phone, tablet, and desktop.
 
@@ -1132,27 +1146,63 @@ PRODUCTION STANDARD (NON-NEGOTIABLE):
 - Copy must sound like the actual business owner wrote it. Punchy headlines. Specific CTAs. No filler.
 - Components split by responsibility. Clean semantic React, named exports, no unused imports.
 
-BANNED PATTERNS — these are "AI slop" and must never appear:
-- Hero section: centered headline + centered subheadline paragraph + two side-by-side CTA buttons. This is the #1 AI cliché.
-- Three identical feature cards in a row: [icon on top] [heading] [short paragraph] × 3. Use a different layout.
-- "Why Choose Us", "Our Features", "What We Offer", "Get Started Today" as section headings — these are template copy.
-- Gradient backgrounds on hero sections (blue-to-purple, teal-to-blue, etc.).
-- Stock photo with dark overlay + centered white text on top as the entire hero.
-- Testimonials as three identical cards with avatar circle + star rating + quote + name + title.
-- "How It Works" as three numbered steps in identical cards or a numbered list with icons.
-- A CTA section that is just a solid-color banner with centered heading + one button.
-- Uniform section padding — every section the same height and density looks flat.
-- Borders on every card — overuse of card borders creates visual noise.
+AESTHETIC DIRECTION (MANDATORY — do this first, silently):
+Before writing a single line of code, commit to a specific aesthetic direction based on the design brief and domain. Pick one and execute it with full conviction:
+- Editorial/magazine: dramatic type scale, generous whitespace, editorial photography framing
+- Luxury/refined: restrained palette, generous negative space, premium serif typography
+- Brutalist/raw: heavy type, high contrast, unconventional layout, visible structure
+- Minimal/precise: near-zero decoration, every element earns its place, pixel-perfect spacing
+- Playful/bold: unexpected color, asymmetric composition, personality-driven micro-interactions
+- Organic/natural: soft textures, warm palettes, flowing shapes, humanist typography
+Whatever you pick: commit fully. Tepid half-measures produce forgettable sites.
 
-MODERN PATTERNS — use these instead:
-- Hero: full-bleed, typographically led. Large display type (min 72px, ideally 96–120px). Left-aligned or split asymmetric. One strong headline — no filler subheadline block. CTA as a simple underlined link or ghost-border button, not a filled pill.
-- Feature/services: use alternating image+text rows with a large italic or light-weight service name as the visual anchor; OR an editorial grid with varied card sizes (bento); OR a two-column table-style list with numbers; NOT three identical cards.
-- Social proof: a single oversized pull quote at editorial scale (64px+) + attribution; OR a horizontal logo marquee for brand logos; NOT a 3-card testimonial grid.
-- Section rhythm: vary background tone between sections (e.g., white → near-black → warm off-white → white). This creates structure without decorative dividers.
-- Typography: use dramatic size contrast — display headings at 80–120px alongside 12–14px labels. Mix font weights within a heading line when appropriate (e.g., light weight + bold weight).
-- Navigation: minimal. Wordmark or logo left, 3–5 links right. Avoid a big "Get Started" button in the nav unless it genuinely matters for conversion.
-- Spacing: generous. Section vertical padding minimum 96px (py-24), often 120–160px (py-32 py-40). Let content breathe.
-- At least one section must use an unexpected structural element: a large number/stat as section anchor, a horizontal scroll strip, a split-screen layout, or a full-bleed image with text overlay that doesn't feel like a cliché.
+TYPOGRAPHY (NON-NEGOTIABLE):
+- NEVER use Inter, Roboto, Arial, or system-ui as display or heading fonts. These are generic AI defaults.
+- Every site must load 2 Google Fonts via @import in index.css: one distinctive display/heading font + one refined body font.
+- Display font applied to h1, h2, h3. Body font applied to p, nav, labels, buttons.
+- Size hierarchy MUST include dramatic contrast: display at 72–120px on desktop, section labels at 10–12px uppercase with letter-spacing, body at 15–17px.
+- Use CSS variables for font families: --font-display, --font-body in :root.
+- Examples of strong font pairs (pick any or invent your own, never repeat the same pair twice):
+  Playfair Display + DM Sans · Fraunces + Inter (exception: only if display is Fraunces) · Space Grotesk + Lora · Syne + IBM Plex Sans · DM Serif Display + Nunito Sans · Cormorant Garamond + Source Sans 3
+
+BACKGROUND & ATMOSPHERE (MANDATORY):
+- No plain white or plain off-white backgrounds for the entire site. Every page must have atmospheric depth.
+- Use gradient meshes, noise textures (CSS), geometric patterns, layered section tones, or dramatic color transitions between sections.
+- Section rhythm: alternate background tones deliberately (e.g. near-white → rich dark → warm cream → white). Never the same bg for 3 consecutive sections.
+- At least one section must use a non-white, non-black background color drawn from the brand palette.
+- Implement backgrounds via CSS custom properties. Subtle noise: background-image with SVG data URIs, or CSS radial gradients layered on color.
+
+BANNED PATTERNS — these are "AI slop" and must NEVER appear. Presence of ANY of these is a build failure:
+- Centered headline + centered subheadline paragraph + two CTA buttons as hero. Left-aligned version also banned unless the brief explicitly specifies it.
+- Any quantity of identical cards in a row (3 cards, 4 cards, 5 cards — all banned if they share the same structure).
+- Generic section headings: "Why Choose Us", "Our Features", "What We Offer", "How It Works", "Get Started Today", "Our Services", "Meet the Team". These are template copy. Write specific, brand-voice headings.
+- Gradient hero backgrounds (blue-to-purple, teal-to-blue, any obvious gradient). Solid dark or brand color only.
+- Stock photo with dark overlay + centered white text as the hero — this is the most overused pattern on the web.
+- Three identical testimonial cards: avatar circle + stars + quote + name + title. Banned.
+- Numbered 1-2-3 steps in identical icon cards for "How It Works".
+- A footer that is just 4 identical link columns in a grid.
+- Uniform vertical padding across all sections (every section the same py-16 or py-24 — must vary).
+- Cards with explicit borders on EVERY element (border overuse creates visual noise — use sparingly).
+- Purple gradients on white backgrounds. This is the single most common AI cliché.
+- Shadows on every card (use shadows with intention, on 1-2 key elements maximum).
+
+MODERN PATTERNS — implement at least 4 of these:
+- Hero: typographically dominant. Display type 96–120px desktop. Left-aligned or asymmetric split. One headline, no filler subheadline, CTA as ghost-border or underline — never a filled pill button in the hero.
+- Services/features: alternating image-left/text-right rows anchored by a large italic service name; OR bento grid with intentionally varied cell sizes; OR editorial numbered list (01, 02, 03) where each item is a full-width row not a card.
+- Social proof: single oversized pull-quote at 64px+ with large quotation mark as decoration; OR inline client logos as a marquee strip; NOT a card grid.
+- Stats section: large numerals (80–120px, light weight) with short labels below — stark, no background fill, numbers as the visual hero.
+- Section anchors: use large decorative numbers, letters, or words at 200px+ as background elements that create visual depth without being content.
+- Split screen: two exact halves with different backgrounds, content on one side, striking visual on the other.
+- Navigation: wordmark or logo mark left, 3–5 links centered or right, NO big CTA button unless conversion is the primary goal.
+- Horizontal scroll strip: marquee or scroll-linked strip for logos, tags, or social proof.
+- One grid-breaking element per page: an element that overlaps section boundaries, is positioned absolutely outside the grid, or spans from one background zone into another.
+- Spacing: section vertical padding 96–160px. Content max-width 1100–1280px with generous horizontal padding.
+
+MOTION (INTENTIONAL ONLY):
+- One well-orchestrated page load: staggered entrance for headline words/chars using Framer Motion with animation-delay.
+- Scroll-triggered reveals: useInView from framer-motion. Fade+translate on section content.
+- Hover states that surprise: magnetic buttons, underline draws, image scale with overflow:hidden clip.
+- Do NOT add fade-in animation to every element — this is scatter-shot motion. Reserve it for 3-5 key moments.
 
 ARCHITECTURE (NON-NEGOTIABLE):
 - Build within the Lotus generated-app architecture: Vite + React + TypeScript.
@@ -1233,13 +1283,16 @@ COMPLETENESS VERIFICATION (MANDATORY before output):
 4. No file references another file that is not in your output.
 If any check fails, generate the missing file before finishing.
 
-QUALITY BAR: Before finalising output, check each item:
-1. Does the hero look like any of the banned patterns above? If yes — rebuild it using the modern patterns.
-2. Is there a row of 3 identical feature cards anywhere? If yes — replace with an alternating layout, bento grid, or editorial list.
-3. Do any section headings say "Why Choose Us", "Our Features", or "What We Offer"? If yes — rewrite with specific, brand-voice copy.
-4. Is every section the same vertical padding and density? If yes — vary the rhythm.
-5. Would a designer at a top agency be embarrassed to show this in a portfolio? If yes — redesign it.
-The output must be distinctive, considered, and domain-appropriate. Never ship AI slop.
+QUALITY CHECKLIST — MANDATORY BEFORE OUTPUT. If any item fails, fix it before generating:
+1. HERO TEST: Does the hero have centered text + subheadline + CTA buttons? Does it use a blue/purple gradient? Does it look like it came from a template? → If yes to any: rebuild entirely using the MODERN PATTERNS.
+2. CARD TEST: Are there 2+ sections with rows of identical-structure cards? → Replace with alternating rows, bento grid, or editorial numbered list.
+3. HEADING TEST: Do any headings say "Why Choose Us", "Our Features", "What We Offer", "How It Works", "Get Started"? → Rewrite every one with specific, brand-voice copy.
+4. TYPOGRAPHY TEST: Is the hero display type smaller than 72px? Does it use Inter/Roboto/Arial/system-ui as the display font? → Fix. Load Google Fonts. Use the display sizes required.
+5. BACKGROUND TEST: Is the entire site on a plain white background? Do 3+ consecutive sections share the same background? → Add section tone variation. Add atmospheric depth.
+6. STANDOUT TEST: Does the site have exactly ONE layout element that would never appear in a generic template? (oversized stat, horizontal scroll, split screen, giant decorative anchor, grid-breaking overlap) → If not: add it.
+7. FONT TEST: Are 2 Google Fonts imported in index.css? Is --font-display applied to h1-h3? Is --font-body applied to body text? → Verify.
+8. AGENCY TEST: Would a creative director at Pentagram or Fantasy Interactive be embarrassed to show this to a client? → If yes: the aesthetic direction is not committed enough. Pick a bolder direction and execute it.
+The output must be immediately recognisable as designed for this specific business, not for a generic category. Never ship AI slop.
 
 BACKEND DETECTION: If the user's request clearly implies a need for a backend, database, or persistent data (e.g. user accounts, login/signup, saving data, todos, forms that persist, dashboards with data, CRUD, API, auth), then at the very end of your response output exactly this line on its own line (after all ===END_FILE=== blocks):
 ===META: suggestsBackend=true===

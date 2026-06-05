@@ -146,7 +146,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body className={`${manrope.variable} font-sans antialiased bg-[#f5f5f2] text-[#1f1f1f] overflow-x-hidden`}>
+      <body className={`${manrope.variable} font-sans antialiased bg-background text-foreground overflow-x-hidden`}>
         <AuthProvider>
           {children}
         </AuthProvider>

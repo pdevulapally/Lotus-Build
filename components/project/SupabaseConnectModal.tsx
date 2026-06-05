@@ -15,7 +15,7 @@ type Props = {
 export function SupabaseConnectModal({ open, loading, error, onClose, onConnect }: Props) {
   return (
     <Dialog open={open} onOpenChange={(next) => (!next ? onClose() : null)}>
-      <DialogContent className="border-zinc-200 bg-white text-zinc-900 sm:max-w-md">
+      <DialogContent className="border-zinc-200 bg-white text-foreground sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Connect Supabase</DialogTitle>
           <DialogDescription>
@@ -27,7 +27,7 @@ export function SupabaseConnectModal({ open, loading, error, onClose, onConnect 
           <Button type="button" variant="outline" onClick={onClose} className="border-zinc-300">
             Cancel
           </Button>
-          <Button type="button" onClick={onConnect} className="bg-zinc-900 text-white hover:bg-zinc-800" disabled={loading}>
+          <Button type="button" onClick={onConnect} className="bg-accent text-accent-foreground hover:bg-accent/90" disabled={loading}>
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Connect Supabase
           </Button>

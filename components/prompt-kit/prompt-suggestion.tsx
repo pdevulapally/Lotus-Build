@@ -1,7 +1,7 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-import { Sparkles } from "lucide-react"
+import { Leaf } from "lucide-react"
 import { useState } from "react"
 
 interface PromptSuggestionProps {
@@ -54,7 +54,7 @@ export function PromptSuggestion({
         className
       )}
     >
-      <Sparkles
+      <Leaf
         className={cn(
           "size-2.5 transition-all duration-200",
           isHovered ? "text-primary scale-110" : "text-muted-foreground/60"

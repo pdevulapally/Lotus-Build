@@ -70,7 +70,7 @@ function SectionAnchor({ id }: { id: string }) {
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="mt-12 mb-5 text-xl font-semibold tracking-tight text-zinc-900 first:mt-0">
+    <h2 className="mt-12 mb-5 text-xl font-semibold tracking-tight text-foreground first:mt-0">
       {children}
     </h2>
   )
@@ -152,7 +152,7 @@ export default function PrivacyPage() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-[#f5f5f2] font-sans">
+    <div className="min-h-screen bg-background font-sans">
       <Navbar />
 
       {/* â”€â”€ Hero header â”€â”€ */}
@@ -164,7 +164,7 @@ export default function PrivacyPage() {
             <ChevronRight className="h-3 w-3" />
             <span>Privacy Policy</span>
           </div>
-          <h1 className="mt-4 text-4xl font-semibold tracking-tight text-zinc-900 sm:text-5xl">
+          <h1 className="mt-4 text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
             Privacy Policy
           </h1>
           <p className="mt-3 max-w-2xl text-base leading-relaxed text-zinc-600">
@@ -210,8 +210,8 @@ export default function PrivacyPage() {
                     className={cn(
                       "block w-full text-left rounded-lg px-3 py-1.5 text-sm transition-colors",
                       active === id
-                        ? "bg-zinc-900 text-white font-medium"
-                        : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+                        ? "bg-accent text-accent-foreground font-medium"
+                        : "text-zinc-500 hover:bg-zinc-100 hover:text-foreground"
                     )}
                   >
                     {label}
@@ -223,7 +223,7 @@ export default function PrivacyPage() {
                 <p className="mt-1 text-xs text-zinc-500">Exercise your rights or ask questions.</p>
                 <a
                   href="mailto:arpkwebsitedevelopment@gmail.com"
-                  className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-zinc-900 underline-offset-2 hover:underline"
+                  className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-foreground underline-offset-2 hover:underline"
                 >
                   arpkwebsitedevelopment@gmail.com
                 </a>
@@ -241,7 +241,7 @@ export default function PrivacyPage() {
               This Privacy Policy explains how Lotus.build (&ldquo;Lotus.build&rdquo;,
               &ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;) collects, uses, shares, and
               protects personal data when you use our website and services at{" "}
-              <a href="https://lotus-build.vercel.app" className="font-medium text-zinc-900 underline-offset-2 hover:underline">
+              <a href="https://lotus-build.vercel.app" className="font-medium text-foreground underline-offset-2 hover:underline">
                 https://lotus-build.vercel.app
               </a>{" "}
               (the &ldquo;Service&rdquo;).
@@ -510,7 +510,7 @@ export default function PrivacyPage() {
             <p>
               Depending on your location, you have the following rights in relation to your
               personal data. To exercise any of these rights, contact us at{" "}
-              <a href="mailto:arpkwebsitedevelopment@gmail.com" className="font-medium text-zinc-900 underline-offset-2 hover:underline">
+              <a href="mailto:arpkwebsitedevelopment@gmail.com" className="font-medium text-foreground underline-offset-2 hover:underline">
                 arpkwebsitedevelopment@gmail.com
               </a>
               . We will respond within 30 days (or within the timeframe required by applicable law).
@@ -581,7 +581,7 @@ export default function PrivacyPage() {
             <p className="mt-4">
               You may request a copy of the safeguards we use for international transfers by
               contacting us at{" "}
-              <a href="mailto:arpkwebsitedevelopment@gmail.com" className="font-medium text-zinc-900 underline-offset-2 hover:underline">
+              <a href="mailto:arpkwebsitedevelopment@gmail.com" className="font-medium text-foreground underline-offset-2 hover:underline">
                 arpkwebsitedevelopment@gmail.com
               </a>
               .
@@ -617,7 +617,7 @@ export default function PrivacyPage() {
             </p>
             <p className="mt-4">
               If you discover a security vulnerability, please report it responsibly to{" "}
-              <a href="mailto:arpkwebsitedevelopment@gmail.com" className="font-medium text-zinc-900 underline-offset-2 hover:underline">
+              <a href="mailto:arpkwebsitedevelopment@gmail.com" className="font-medium text-foreground underline-offset-2 hover:underline">
                 arpkwebsitedevelopment@gmail.com
               </a>
               .
@@ -694,7 +694,7 @@ export default function PrivacyPage() {
               The Service is not directed to, and we do not knowingly collect personal data from,
               individuals under the age of 18. If you are a parent or guardian and believe your
               child has provided us with personal data without your consent, please contact us at{" "}
-              <a href="mailto:arpkwebsitedevelopment@gmail.com" className="font-medium text-zinc-900 underline-offset-2 hover:underline">
+              <a href="mailto:arpkwebsitedevelopment@gmail.com" className="font-medium text-foreground underline-offset-2 hover:underline">
                 arpkwebsitedevelopment@gmail.com
               </a>{" "}
               and we will promptly delete that data.
@@ -735,7 +735,7 @@ export default function PrivacyPage() {
             </div>
             <p className="mt-4">
               To exercise your California rights, contact us at{" "}
-              <a href="mailto:arpkwebsitedevelopment@gmail.com" className="font-medium text-zinc-900 underline-offset-2 hover:underline">
+              <a href="mailto:arpkwebsitedevelopment@gmail.com" className="font-medium text-foreground underline-offset-2 hover:underline">
                 arpkwebsitedevelopment@gmail.com
               </a>
               . We will verify your identity before processing your request. You may also designate
@@ -774,12 +774,12 @@ export default function PrivacyPage() {
             </p>
             <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-5 space-y-2 text-sm">
               <p><span className="font-medium text-zinc-700">Email:</span>{" "}
-                <a href="mailto:arpkwebsitedevelopment@gmail.com" className="text-zinc-900 underline-offset-2 hover:underline">
+                <a href="mailto:arpkwebsitedevelopment@gmail.com" className="text-foreground underline-offset-2 hover:underline">
                   arpkwebsitedevelopment@gmail.com
                 </a>
               </p>
               <p><span className="font-medium text-zinc-700">Website:</span>{" "}
-                <a href="https://lotus-build.vercel.app" target="_blank" rel="noopener noreferrer" className="text-zinc-900 underline-offset-2 hover:underline">
+                <a href="https://lotus-build.vercel.app" target="_blank" rel="noopener noreferrer" className="text-foreground underline-offset-2 hover:underline">
                   https://lotus-build.vercel.app
                 </a>
               </p>
@@ -790,7 +790,7 @@ export default function PrivacyPage() {
               If you are located in the European Economic Area, you have the right to lodge a
               complaint with your local data protection supervisory authority. A list of EU
               supervisory authorities is available at{" "}
-              <a href="https://edpb.europa.eu/about-edpb/about-edpb/members_en" target="_blank" rel="noopener noreferrer" className="font-medium text-zinc-900 underline-offset-2 hover:underline">
+              <a href="https://edpb.europa.eu/about-edpb/about-edpb/members_en" target="_blank" rel="noopener noreferrer" className="font-medium text-foreground underline-offset-2 hover:underline">
                 edpb.europa.eu
               </a>
               .
@@ -798,7 +798,7 @@ export default function PrivacyPage() {
             <p className="mt-4">
               If you are located in the United Kingdom, you may lodge a complaint with the
               Information Commissioner&rsquo;s Office (ICO) at{" "}
-              <a href="https://ico.org.uk" target="_blank" rel="noopener noreferrer" className="font-medium text-zinc-900 underline-offset-2 hover:underline">
+              <a href="https://ico.org.uk" target="_blank" rel="noopener noreferrer" className="font-medium text-foreground underline-offset-2 hover:underline">
                 ico.org.uk
               </a>
               . We would, however, appreciate the opportunity to address your concerns before you
@@ -824,7 +824,7 @@ export default function PrivacyPage() {
         <button
           type="button"
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="fixed bottom-6 right-6 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-zinc-900 text-white shadow-lg transition-opacity hover:bg-zinc-700"
+          className="fixed bottom-6 right-6 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-lg transition-opacity hover:bg-accent/90"
           aria-label="Back to top"
         >
           <ArrowUp className="h-4 w-4" />

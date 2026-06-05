@@ -29,7 +29,7 @@ export function SupabaseProjectSelector({
 }: Props) {
   return (
     <Dialog open={open} onOpenChange={(next) => (!next ? onClose() : null)}>
-      <DialogContent className="border-zinc-200 bg-white text-zinc-900 sm:max-w-lg">
+      <DialogContent className="border-zinc-200 bg-white text-foreground sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Select Supabase Project</DialogTitle>
           <DialogDescription>
@@ -45,7 +45,7 @@ export function SupabaseProjectSelector({
                 onClick={() => onChange(p.id)}
                 className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
                   selectedId === p.id
-                    ? "border-zinc-400 bg-white text-zinc-900"
+                    ? "border-zinc-400 bg-white text-foreground"
                     : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300"
                 }`}
               >
@@ -55,15 +55,15 @@ export function SupabaseProjectSelector({
             ))}
           </div>
         ) : (
-          <div className="space-y-4 rounded-[1.5rem] border border-[#e7dfd3] bg-[#faf7f2] p-5">
+          <div className="space-y-4 rounded-[1.5rem] border border-border bg-card p-5">
             <div>
-              <p className="text-sm font-semibold text-zinc-900">No Supabase projects yet</p>
+              <p className="text-sm font-semibold text-foreground">No Supabase projects yet</p>
               <p className="mt-1 text-sm leading-6 text-zinc-600">
                 Create one here and we will link it automatically, or create it in Supabase first and then come back to refresh this list.
               </p>
             </div>
 
-            <div className="space-y-2 rounded-2xl border border-[#ece3d7] bg-white px-4 py-4">
+            <div className="space-y-2 rounded-2xl border border-border bg-white px-4 py-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">Simple steps</p>
               <ol className="space-y-2 text-sm leading-6 text-zinc-700">
                 <li>1. Create a Supabase project here and we will keep the flow moving.</li>
@@ -82,7 +82,7 @@ export function SupabaseProjectSelector({
               Create New Project
             </Button>
           ) : null}
-          <Button type="button" onClick={onConfirm} disabled={!selectedId || loading} className="bg-zinc-900 text-white hover:bg-zinc-800">
+          <Button type="button" onClick={onConfirm} disabled={!selectedId || loading} className="bg-accent text-accent-foreground hover:bg-accent/90">
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Link Project
           </Button>

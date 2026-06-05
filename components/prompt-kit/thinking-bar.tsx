@@ -2,7 +2,7 @@
 
 import React, { useMemo } from "react"
 import { cn } from "@/lib/utils"
-import { Loader2, Check, Sparkles, AlertCircle } from "lucide-react"
+import { Loader2, Check, Leaf, AlertCircle } from "lucide-react"
 import { TextShimmer } from "@/components/prompt-kit/text-shimmer"
 import { AnimatePresence, motion } from "framer-motion"
 
@@ -58,7 +58,7 @@ function statusStyles(status: StepStatus, phase: StepPhase) {
     return {
       dot: "border-zinc-700 bg-zinc-700 text-white shadow-[0_0_0_6px_rgba(63,63,70,0.14)]",
       card: `border-zinc-400 bg-gradient-to-r ${phaseTone} to-white shadow-[0_0_24px_rgba(24,24,27,0.08)]`,
-      title: "text-zinc-900",
+      title: "text-foreground",
       line: "bg-gradient-to-b from-zinc-500/90 via-zinc-400/70 to-zinc-300",
       phase: "text-zinc-600",
     }
@@ -116,12 +116,12 @@ export function ThinkingBar({
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <div className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-300 bg-white">
-            {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-700" /> : <Sparkles className="h-3.5 w-3.5 text-zinc-700" />}
+            {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-700" /> : <Leaf className="h-3.5 w-3.5 text-zinc-700" />}
           </div>
           {isGenerating ? (
-            <TextShimmer className="text-sm font-medium tracking-tight text-zinc-900">{text || "Making updates"}</TextShimmer>
+            <TextShimmer className="text-sm font-medium tracking-tight text-foreground">{text || "Making updates"}</TextShimmer>
           ) : (
-            <p className="text-sm font-medium tracking-tight text-zinc-900">{text || "Build complete"}</p>
+            <p className="text-sm font-medium tracking-tight text-foreground">{text || "Build complete"}</p>
           )}
         </div>
         {currentFile ? <p className="truncate text-xs text-zinc-500">{currentFile}</p> : <Check className="h-4 w-4 text-zinc-600" />}
