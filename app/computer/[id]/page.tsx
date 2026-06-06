@@ -1427,7 +1427,7 @@ function LaptopSwitcher({ label, title, url, icon, onClick }: {
 
 function WorkspaceContent({
   session, activeTab, browserInspection, isEnsuringPreview, previewEnsureError, onSwitchView,
-  runtimeError, fixingError, onFixError, onDismissError,
+  runtimeError, fixingError, onFixError, onDismissError, onRetryPreview,
 }: {
   session: ComputerSessionResponse; activeTab: WorkspaceTab
   browserInspection: BrowserInspection | null
@@ -1438,6 +1438,7 @@ function WorkspaceContent({
   fixingError: boolean
   onFixError: () => void
   onDismissError: () => void
+  onRetryPreview: () => void
 }) {
   if (activeTab === "research") {
     return <ResearchPanel events={session.timeline} />
@@ -1496,6 +1497,27 @@ function WorkspaceContent({
         <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-border bg-white shadow-sm">
           <iframe src={session.previewUrl} className="h-full w-full"
             sandbox="allow-scripts allow-same-origin allow-forms" title="Live preview" />
+          {isEnsuringPreview && (
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-end justify-center pb-4">
+              <div className="rounded-full border border-border bg-card/90 px-3 py-1.5 text-[11px] font-medium text-zinc-500 shadow-sm backdrop-blur-sm">
+                Refreshing preview…
+              </div>
+            </div>
+          )}
+          {previewEnsureError && !isEnsuringPreview && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-white/85 backdrop-blur-sm">
+              <p className="max-w-[260px] text-center text-[12px] leading-relaxed text-zinc-600">
+                {previewEnsureError}
+              </p>
+              <button
+                type="button"
+                onClick={onRetryPreview}
+                className="rounded-lg border border-border bg-white px-3 py-1.5 text-[12px] font-medium text-zinc-700 shadow-sm hover:bg-zinc-50"
+              >
+                Retry
+              </button>
+            </div>
+          )}
           {browserInspection && !browserInspection.isExpired && (
             <LaptopSwitcher label="Browser" title={browserInspection.title} url={browserInspection.url}
               icon={<Globe2 className="h-3.5 w-3.5" />} onClick={() => onSwitchView("browser")} />
@@ -1627,6 +1649,7 @@ export default function ComputerPage() {
   const [tokenLimitModalOpen, setTokenLimitModalOpen] = useState(false)
   const [isEnsuringPreview, setIsEnsuringPreview] = useState(false)
   const [previewEnsureError, setPreviewEnsureError] = useState<string | null>(null)
+  const [previewRetryNonce, setPreviewRetryNonce] = useState(0)
   const [runtimeError,      setRuntimeError]      = useState<{ message: string; stack: string } | null>(null)
   const [fixingError,       setFixingError]       = useState(false)
   const hasStartedRef = useRef(false)
@@ -1839,7 +1862,7 @@ export default function ComputerPage() {
     return () => {
       cancelled = true
     }
-  }, [authLoading, getOptionalAuthHeader, session, session?.projectId, session?.status, session?.previewUrl, setActiveTab, setMobileView, user])
+  }, [authLoading, getOptionalAuthHeader, session, session?.projectId, session?.status, session?.previewUrl, setActiveTab, setMobileView, user, previewRetryNonce])
 
   // ── Runtime error listener — receives postMessage from sandbox iframe ─────
   useEffect(() => {
@@ -2541,6 +2564,11 @@ export default function ComputerPage() {
                     setFixingError(false)
                   }}
                   onDismissError={() => setRuntimeError(null)}
+                  onRetryPreview={() => {
+                    previewEnsureKeyRef.current = null
+                    setPreviewEnsureError(null)
+                    setPreviewRetryNonce((n) => n + 1)
+                  }}
                 />
               </motion.div>
             </AnimatePresence>

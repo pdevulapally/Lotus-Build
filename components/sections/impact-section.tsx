@@ -7,13 +7,13 @@ const metrics = [
 
 export function ImpactSection() {
   return (
-    <section id="features" className="px-4 py-20 sm:px-6 sm:py-24">
+    <section id="metrics" className="px-4 py-20 sm:px-6 sm:py-24">
       <div className="mx-auto max-w-6xl rounded-[2rem] border border-zinc-200 bg-white px-5 py-10 sm:px-8 sm:py-12 lg:px-12">
         <div className="mb-12 text-center">
           <p className="text-sm font-medium text-zinc-500 uppercase tracking-wider mb-4">By the numbers</p>
           <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-4">Powering the next generation</h2>
           <p className="text-zinc-500 max-w-lg mx-auto text-balance">
-            Builders around the world are creating amazing apps with Lotus.build.
+            Builders around the world are creating polished web apps faster with Lotus.build.
           </p>
         </div>
 

@@ -2762,6 +2762,7 @@ Instructions:
                   : typeof event?.data?.url === "string"
                   ? event.data.url
                   : null
+              const nextSandboxId = typeof event?.sandboxId === "string" ? event.sandboxId : null
 
               if (!sandboxUrl && nextSandboxUrl) {
                 sandboxUrl = nextSandboxUrl
@@ -2771,6 +2772,16 @@ Instructions:
                     previewUrl: sandboxUrl,
                     updatedAt: new Date(),
                   })
+
+                  // Persist sandboxUrl + sandboxId to projects so ensure-preview's
+                  // fast-path (PATCH + responsiveness check) works on every page reload,
+                  // instead of triggering a full 2–5 min npm-install recreation each time.
+                  if (sandboxProjectId && nextSandboxId) {
+                    await adminDb.collection("projects").doc(sandboxProjectId).set(
+                      { sandboxUrl: sandboxUrl, sandboxId: nextSandboxId, previewEnsuredAt: new Date() },
+                      { merge: true }
+                    )
+                  }
 
                   await appendRunEvent({
                     id: crypto.randomUUID(),

@@ -1,36 +1,36 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
   /* Base surfaces */
-  --background:          oklch(0.961 0.004 85);
-  --foreground:          oklch(0.13 0.008 60);
+  --background:          oklch(0.982 0.002 250);
+  --foreground:          oklch(0.09 0.006 250);
 
   /* Cards / popovers */
   --card:                oklch(1 0 0);
-  --card-foreground:     oklch(0.13 0.008 60);
+  --card-foreground:     oklch(0.09 0.006 250);
   --popover:             oklch(1 0 0);
-  --popover-foreground:  oklch(0.13 0.008 60);
+  --popover-foreground:  oklch(0.09 0.006 250);
 
   /* Primary = slate #2E3440 */
   --primary:             oklch(0.265 0.018 250);
   --primary-foreground:  oklch(0.97 0.002 85);
 
   /* Secondary = off-white surface */
-  --secondary:           oklch(0.935 0.004 85);
-  --secondary-foreground:oklch(0.13 0.008 60);
+  --secondary:           oklch(0.955 0.003 250);
+  --secondary-foreground:oklch(0.09 0.006 250);
 
   /* Muted */
-  --muted:               oklch(0.935 0.004 85);
-  --muted-foreground:    oklch(0.48 0.01 60);
+  --muted:               oklch(0.955 0.003 250);
+  --muted-foreground:    oklch(0.46 0.012 250);
 
   /* Accent = vivid red #E8362A */
   --accent:              oklch(0.545 0.215 27);
   --accent-foreground:   oklch(1 0 0);
 
-  /* Accent soft — vivid red tint for badges/tags */
+  /* Accent soft â€” vivid red tint for badges/tags */
   --accent-soft:         oklch(0.962 0.018 27);
   --accent-soft-foreground: oklch(0.36 0.15 27);
 
@@ -70,32 +70,32 @@
 
 .dark {
   /* Base surfaces */
-  --background:          oklch(0.961 0.004 85);
-  --foreground:          oklch(0.13 0.008 60);
+  --background:          oklch(0.982 0.002 250);
+  --foreground:          oklch(0.09 0.006 250);
 
   /* Cards / popovers */
   --card:                oklch(1 0 0);
-  --card-foreground:     oklch(0.13 0.008 60);
+  --card-foreground:     oklch(0.09 0.006 250);
   --popover:             oklch(1 0 0);
-  --popover-foreground:  oklch(0.13 0.008 60);
+  --popover-foreground:  oklch(0.09 0.006 250);
 
   /* Primary = slate #2E3440 */
   --primary:             oklch(0.265 0.018 250);
   --primary-foreground:  oklch(0.97 0.002 85);
 
   /* Secondary = off-white surface */
-  --secondary:           oklch(0.935 0.004 85);
-  --secondary-foreground:oklch(0.13 0.008 60);
+  --secondary:           oklch(0.955 0.003 250);
+  --secondary-foreground:oklch(0.09 0.006 250);
 
   /* Muted */
-  --muted:               oklch(0.935 0.004 85);
-  --muted-foreground:    oklch(0.48 0.01 60);
+  --muted:               oklch(0.955 0.003 250);
+  --muted-foreground:    oklch(0.46 0.012 250);
 
   /* Accent = vivid red #E8362A */
   --accent:              oklch(0.545 0.215 27);
   --accent-foreground:   oklch(1 0 0);
 
-  /* Accent soft — vivid red tint for badges/tags */
+  /* Accent soft â€” vivid red tint for badges/tags */
   --accent-soft:         oklch(0.962 0.018 27);
   --accent-soft-foreground: oklch(0.36 0.15 27);
 

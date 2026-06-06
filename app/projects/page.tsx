@@ -1,25 +1,24 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { deleteDoc, doc } from "firebase/firestore"
 import {
   Settings,
   Search,
-  Clock,
   Trash2,
   LogOut,
   Users,
   CreditCard,
-  Terminal,
-  AppWindow,
-  ArrowUpRight,
-  Zap,
   Plus,
-  FolderOpen,
-  PanelLeft,
   X,
+  ChevronRight,
+  Monitor,
+  Pencil,
+  PanelLeft,
+  SlidersHorizontal,
+  Gift
 } from "lucide-react"
 
 import { ProtectedRoute } from "@/components/auth/protected-route"
@@ -28,13 +27,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { AnimatedAIInput } from "@/components/ui/animated-ai-input"
-import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { db } from "@/lib/firebase"
 import { planIdForDisplay } from "@/lib/plans"
@@ -56,23 +53,9 @@ type ProjectSummary = {
   kind?: "project" | "computer"
 }
 
-function toDate(value: any): Date | null {
-  if (!value) return null
-  if (value instanceof Date) return value
-  if (typeof value?.toDate === "function") return value.toDate()
-  const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime()) ? null : parsed
-}
+// Date helpers removed for clean modern look
 
-function sectionLabel(d: Date | null): "Today" | "Yesterday" | "Previous" {
-  if (!d) return "Previous"
-  const now = new Date()
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1)
-  if (d >= today) return "Today"
-  if (d >= yesterday) return "Yesterday"
-  return "Previous"
-}
+// Section labels removed for clean modern look
 
 function projectTitle(prompt: string, max = 48): string {
   const t = (prompt || "").trim()
@@ -80,271 +63,395 @@ function projectTitle(prompt: string, max = 48): string {
   return t.length > max ? `${t.slice(0, max)}…` : t
 }
 
-function formatRelative(value: any): string {
-  const d = toDate(value)
-  if (!d) return "—"
-  const diff = Date.now() - d.getTime()
-  const m = Math.floor(diff / 60000)
-  if (m < 1) return "just now"
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
-  const days = Math.floor(h / 24)
-  if (days === 1) return "yesterday"
-  if (days < 7) return `${days}d ago`
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" })
-}
+// Dates removed for clean modern look
 
-function statusAccent(status: ProjectStatus) {
-  if (status === "complete") return "bg-emerald-400"
-  if (status === "generating") return "bg-blue-400 animate-pulse"
-  if (status === "error") return "bg-red-400"
-  return "bg-zinc-300"
-}
+// Status dots removed for clean modern look
 
-function statusText(status: ProjectStatus) {
-  if (status === "complete") return "Ready"
-  if (status === "generating") return "Building"
-  if (status === "error") return "Error"
-  return "Queued"
-}
-
-function statusBadgeClass(status: ProjectStatus) {
-  if (status === "complete") return "bg-emerald-50 text-emerald-700 ring-emerald-200"
-  if (status === "generating") return "bg-blue-50 text-blue-700 ring-blue-200"
-  if (status === "error") return "bg-red-50 text-red-600 ring-red-200"
-  return "bg-zinc-100 text-zinc-500 ring-zinc-200"
-}
-
-function statusTextColor(status: ProjectStatus) {
-  if (status === "complete") return "text-emerald-600"
-  if (status === "generating") return "text-blue-500"
-  if (status === "error") return "text-red-500"
-  return "text-zinc-400"
-}
-
-// ── Sidebar history item ────────────────────────────────────────────────────
-function HistoryItem({ p, onNavigate, onDelete }: {
+// ─────────────────────────────────────────────────────────────────────────────
+// Sidebar task row — Clean, no icons, spacious
+// ─────────────────────────────────────────────────────────────────────────────
+function TaskRow({
+  p,
+  onNavigate,
+  onDelete,
+}: {
   p: ProjectSummary
   onNavigate: () => void
   onDelete: (e: React.MouseEvent) => void
 }) {
-  const href = p.kind === "computer" ? `/computer/${p.id}` : `/project/${p.id}`
   return (
-    <div className="group/item relative rounded-xl border border-transparent px-1 transition-all hover:border-border hover:bg-white/70">
+    <div className="group/row relative">
       <button
         type="button"
         onClick={onNavigate}
-        className="flex w-full items-start gap-2.5 px-2 py-2.5 text-left"
+        className="flex w-full items-center rounded-xl px-4 py-[12px] text-left transition-all duration-150 hover:bg-white hover:shadow-sm"
       >
-        {/* Kind + status */}
-        <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border bg-white">
-          {p.kind === "computer"
-            ? <Terminal className="h-3.5 w-3.5 text-zinc-500" />
-            : <AppWindow className="h-3.5 w-3.5 text-zinc-500" />}
-        </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[12.5px] font-medium leading-snug text-zinc-800">
-            {projectTitle(p.prompt, 30)}
+          <p className="truncate text-[15px] leading-[1.4] text-zinc-800 font-medium">
+            {projectTitle(p.prompt, 32)}
           </p>
-          <div className="mt-1 flex items-center gap-1.5">
-            <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", statusAccent(p.status))} />
-            <span className={cn("text-[10.5px] font-medium", statusTextColor(p.status))}>
-              {statusText(p.status)}
-            </span>
-            <span className="text-[10px] text-zinc-400">· {formatRelative(p.createdAt)}</span>
-          </div>
         </div>
       </button>
-      {/* Delete — visible on hover */}
       <button
         type="button"
         onClick={onDelete}
-        className="absolute right-2 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded-lg text-zinc-300 opacity-0 transition-all hover:bg-red-50 hover:text-red-400 group-hover/item:opacity-100"
         aria-label="Delete"
+        className="absolute right-2 top-1/2 -translate-y-1/2 flex h-[28px] w-[28px] items-center justify-center rounded-lg text-zinc-300 opacity-0 transition-all hover:text-red-400 hover:bg-red-50 group-hover/row:opacity-100"
       >
-        <Trash2 className="h-3 w-3" />
+        <Trash2 className="h-[11px] w-[11px]" />
       </button>
     </div>
   )
 }
 
-// ── Sidebar panel content (reused in desktop aside + mobile drawer) ─────────
-function SidebarContent({ grouped, filtered, projectsLoading, search, stats, router, handleDeleteProject, onClose }: {
-  grouped: Record<"Today" | "Yesterday" | "Previous", ProjectSummary[]>
+// ─────────────────────────────────────────────────────────────────────────────
+// Sidebar — Manus AI Design with lotus.build Content
+// ─────────────────────────────────────────────────────────────────────────────
+function Sidebar({
+  filtered,
+  projectsLoading,
+  search,
+  onSearchChange,
+  stats,
+  router,
+  handleDeleteProject,
+  user,
+  signOut,
+  onClose,
+  onNewBuild,
+  isTeamsPlan,
+  scope,
+  setScope,
+}: {
   filtered: ProjectSummary[]
   projectsLoading: boolean
   search: string
+  onSearchChange: (v: string) => void
   stats: { planName: string; tokenPct: number; tokensUsed: number; tokensLimit: number }
   router: ReturnType<typeof useRouter>
   handleDeleteProject: (e: React.MouseEvent, id: string, kind?: string) => void
+  user: any
+  signOut: () => void
   onClose?: () => void
+  onNewBuild: () => void
+  isTeamsPlan: boolean
+  scope: "user" | "team"
+  setScope: (s: "user" | "team") => void
 }) {
+  const initials = user?.displayName
+    ? user.displayName.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
+    : user?.email?.slice(0, 1).toUpperCase() ?? "U"
+
   return (
-    <>
-      {/* Logo + close (mobile only) */}
-      <div className="flex h-14 items-center justify-between border-b border-border px-4">
-        <Link href="/" className="flex items-center gap-2" onClick={onClose}>
-          <img src="/Images/lotus-official-logo.png" alt="lotus.build" className="h-7 w-7 object-contain" />
-          <span className="text-[14px] font-semibold tracking-tight text-foreground">lotus.build</span>
+    <div className="flex h-full flex-col overflow-hidden bg-[#f4f3f0]">
+
+      {/* ── Logo row — spacious ── */}
+      <div className="flex h-[60px] shrink-0 items-center justify-between px-[18px]">
+        <Link href="/" onClick={onClose} className="flex items-center gap-[7px]">
+          <img
+            src="/Images/lotus-official-logo.png"
+            alt="lotus.build"
+            className="h-7 w-7 object-contain"
+          />
+          <span className="text-[16px] font-semibold tracking-tight text-zinc-800">
+            lotus.build
+          </span>
         </Link>
-        {onClose && (
-          <button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-muted">
-            <X className="h-4 w-4" />
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            className="flex h-[26px] w-[26px] items-center justify-center rounded-md text-zinc-400 hover:bg-black/[0.06] hover:text-zinc-600"
+          >
+            <Search className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            className="flex h-[26px] w-[26px] items-center justify-center rounded-md text-zinc-400 hover:bg-black/[0.06] hover:text-zinc-600"
+          >
+            <PanelLeft className="h-3.5 w-3.5" />
+          </button>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex h-[26px] w-[26px] items-center justify-center rounded-md text-zinc-400 hover:bg-black/[0.06] hover:text-zinc-600"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ── Modern New Build — prominent button ── */}
+      <div className="px-[14px] pb-[10px]">
+        <button
+          type="button"
+          onClick={() => { onClose?.(); onNewBuild() }}
+          className="flex w-full items-center gap-[10px] rounded-xl border border-zinc-200 bg-white px-[14px] py-[11px] text-[14px] font-medium text-zinc-700 shadow-sm transition-all duration-150 hover:bg-zinc-50 hover:border-zinc-300 hover:shadow-md active:scale-[0.98]"
+        >
+          <Pencil className="h-[16px] w-[16px] shrink-0 text-zinc-500" />
+          New build
+        </button>
+      </div>
+
+      {/* ── Team scope toggle — existing functionality, Manus style ── */}
+      {isTeamsPlan && (
+        <div className="px-[14px] pb-[10px]">
+          <button
+            type="button"
+            onClick={() => setScope(scope === "user" ? "team" : "user")}
+            className="flex w-full items-center gap-[10px] rounded-md px-[12px] py-[9px] text-[14px] text-zinc-600 transition-colors hover:bg-black/[0.04] hover:text-zinc-800"
+          >
+            <Users className="h-[16px] w-[16px] shrink-0 text-zinc-400" />
+            {scope === "team" ? "My builds" : "Team"}
+          </button>
+        </div>
+      )}
+
+      {/* ── Divider ── */}
+      <div className="mx-[14px] mb-[14px] h-px bg-zinc-200/70" />
+
+      {/* ── Projects section header — Manus design: "Projects" + "+" button ── */}
+      <div className="flex items-center justify-between px-[14px] pb-[8px]">
+        <span className="text-[12px] font-medium uppercase tracking-[0.08em] text-zinc-400">
+          Projects
+        </span>
+        <button
+          type="button"
+          onClick={() => { onClose?.(); onNewBuild() }}
+          className="flex h-[22px] w-[22px] items-center justify-center rounded text-zinc-400 hover:bg-black/[0.06] hover:text-zinc-600"
+        >
+          <Plus className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {/* ── All tasks section header — Manus design: "All tasks" + filter icon ── */}
+      <div className="flex items-center justify-between px-[14px] pb-[6px] pt-[6px]">
+        <span className="text-[12px] font-medium uppercase tracking-[0.08em] text-zinc-400">
+          All tasks
+        </span>
+        {isTeamsPlan && (
+          <button
+            type="button"
+            onClick={() => setScope(scope === "user" ? "team" : "user")}
+            className="flex h-[22px] w-[22px] items-center justify-center rounded text-zinc-400 hover:bg-black/[0.06] hover:text-zinc-600"
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5" />
           </button>
         )}
       </div>
 
-      {/* New build button */}
-      <div className="px-3 pt-3 pb-2">
-        <button
-          type="button"
-          onClick={() => {
-            onClose?.()
-            setTimeout(() => {
-              const el = document.querySelector<HTMLElement>("[data-animated-ai-input]")
-              el?.focus()
-              el?.scrollIntoView({ behavior: "smooth", block: "center" })
-            }, 150)
-          }}
-          className="flex w-full items-center gap-2 rounded-xl border border-border bg-white px-3 py-2.5 text-left text-[12.5px] text-zinc-400 transition-colors hover:border-zinc-300 hover:text-zinc-600"
-        >
-          <Plus className="h-3.5 w-3.5 shrink-0" />
-          New build…
-        </button>
-      </div>
-
-      {/* History list */}
-      <div className="flex-1 overflow-y-auto px-2 pb-4 [scrollbar-width:thin]">
+      {/* ── Task list — flat, modern, no sections ── */}
+      <div className="flex-1 overflow-y-auto px-[10px] pb-4 [scrollbar-width:thin] [scrollbar-color:rgba(0,0,0,0.12)_transparent]">
         {projectsLoading ? (
-          <div className="space-y-2 px-2 pt-3">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-[52px] animate-pulse rounded-xl bg-muted" />
+          <div className="space-y-[3px] pt-1">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-[42px] animate-pulse rounded-md bg-black/[0.04]"
+                style={{ opacity: 1 - i * 0.07 }}
+              />
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center px-4 py-10 text-center">
-            <FolderOpen className="h-5 w-5 text-zinc-400" />
-            <p className="mt-2 text-xs text-zinc-400">{search ? "No results" : "No builds yet"}</p>
+          <div className="px-2 py-8 text-center text-[12px] text-zinc-400">
+            {search ? "No results found" : "No builds yet"}
           </div>
         ) : (
-          (["Today", "Yesterday", "Previous"] as const).map((key) => {
-            if (grouped[key].length === 0) return null
-            return (
-              <div key={key} className="mt-3">
-                <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">{key}</p>
-                <div className="space-y-0.5">
-                  {grouped[key].map((p) => (
-                    <HistoryItem
-                      key={p.id}
-                      p={p}
-                      onNavigate={() => {
-                        onClose?.()
-                        router.push(p.kind === "computer" ? `/computer/${p.id}` : `/project/${p.id}`)
-                      }}
-                      onDelete={(e) => handleDeleteProject(e, p.id, p.kind)}
-                    />
-                  ))}
-                </div>
-              </div>
-            )
-          })
+          filtered.map((p) => (
+            <TaskRow
+              key={p.id}
+              p={p}
+              onNavigate={() => {
+                onClose?.()
+                router.push(
+                  p.kind === "computer" ? `/computer/${p.id}` : `/project/${p.id}`
+                )
+              }}
+              onDelete={(e) => handleDeleteProject(e, p.id, p.kind)}
+            />
+          ))
         )}
       </div>
 
-      {/* Credits footer */}
-      <div className="border-t border-border px-3 py-3">
-        <div className="rounded-xl border border-border bg-white/60 px-3 py-2.5">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">{stats.planName} plan</span>
-            <Link href="/pricing" onClick={onClose} className="text-[10px] font-medium text-zinc-400 hover:text-zinc-700 hover:underline underline-offset-2">
-              Upgrade
-            </Link>
+      {/* ── Share/Referral card — Manus design style, lotus.build content ── */}
+      <div className="shrink-0 px-[14px] pb-[14px]">
+        <button
+          type="button"
+          onClick={() => router.push("/pricing")}
+          className="flex w-full items-center gap-[10px] rounded-lg border border-zinc-200/80 bg-white/50 px-[14px] py-[12px] text-left transition-colors hover:bg-white/80"
+        >
+          <div className="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-md bg-[#7a6244]/10">
+            <Gift className="h-[14px] w-[14px] text-[#7a6244]" />
           </div>
-          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-            <div
-              className={cn("h-full rounded-full transition-all", stats.tokenPct >= 90 ? "bg-red-400" : stats.tokenPct >= 70 ? "bg-amber-400" : "bg-primary")}
-              style={{ width: `${stats.tokenPct}%` }}
-            />
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-medium leading-tight text-zinc-700">
+              Share lotus.build with a friend
+            </p>
+            <p className="mt-[1px] text-[12px] leading-tight text-zinc-400">
+              Get 500 credits each
+            </p>
           </div>
-          <p className="mt-1.5 text-[10.5px] text-zinc-400">
-            {stats.tokensUsed.toLocaleString()} / {stats.tokensLimit.toLocaleString()} credits
-          </p>
+          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-zinc-300" />
+        </button>
+      </div>
+
+      {/* ── Bottom: user row — spacious, no icons ── */}
+      <div className="shrink-0 border-t border-zinc-200/70 px-[14px] py-[14px]">
+        <div className="flex items-center justify-between">
+          {/* User info — avatar + name */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="flex items-center gap-[8px] rounded-md px-[6px] py-[4px] transition-colors hover:bg-black/[0.04]"
+              >
+                <Avatar className="h-[36px] w-[36px] shrink-0 rounded-[6px]">
+                  <AvatarImage
+                    src={user?.photoURL ?? undefined}
+                    alt=""
+                    className="rounded-[6px] object-cover"
+                  />
+                  <AvatarFallback className="rounded-[6px] bg-[#7a6244]/20 text-[9px] font-semibold text-[#7a6244]">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 text-left">
+                  <p className="truncate text-[14px] font-medium leading-tight text-zinc-700">
+                    {user?.displayName ?? "User"}
+                  </p>
+                </div>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              side="top"
+              align="start"
+              sideOffset={6}
+              className="w-52 border-zinc-200 bg-white shadow-lg"
+            >
+              <DropdownMenuItem
+                className="cursor-pointer gap-2 text-[13px] text-zinc-700 focus:bg-zinc-50"
+                onClick={() => router.push("/pricing")}
+              >
+                <CreditCard className="h-3.5 w-3.5" /> Billing &amp; Plans
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="cursor-pointer gap-2 text-[13px] text-zinc-700 focus:bg-zinc-50"
+                onClick={() => router.push("/settings")}
+              >
+                <Settings className="h-3.5 w-3.5" /> Settings
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="bg-zinc-100" />
+              <DropdownMenuItem
+                className="cursor-pointer gap-2 text-[13px] text-red-500 focus:bg-red-50 focus:text-red-500"
+                onClick={() => signOut()}
+              >
+                <LogOut className="h-3.5 w-3.5" /> Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Right side — empty, no icons */}
+          <div />
         </div>
       </div>
-    </>
+    </div>
   )
 }
 
-// ── Page ────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Page
+// ─────────────────────────────────────────────────────────────────────────────
 export default function ProjectsPage() {
   const router = useRouter()
   const { user, userData, signOut } = useAuth()
 
-  const isTeamsPlan = !!userData?.planId && planIdForDisplay(userData.planId) === "team"
+  const isTeamsPlan =
+    !!userData?.planId && planIdForDisplay(userData.planId) === "team"
   const [scope, setScope] = useState<"user" | "team">("user")
   const [search, setSearch] = useState("")
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
 
   useEffect(() => {
     if (!isTeamsPlan && scope === "team") setScope("user")
   }, [isTeamsPlan, scope])
 
-  // Lock body scroll when mobile drawer open
   useEffect(() => {
-    document.body.style.overflow = sidebarOpen ? "hidden" : ""
-    return () => { document.body.style.overflow = "" }
-  }, [sidebarOpen])
+    document.body.style.overflow = mobileSidebarOpen ? "hidden" : ""
+    return () => {
+      document.body.style.overflow = ""
+    }
+  }, [mobileSidebarOpen])
 
-  const getAuthHeader = useCallback(async (): Promise<Record<string, string>> => {
-    if (!user) return {}
-    const token = await user.getIdToken()
-    return { Authorization: `Bearer ${token}` }
-  }, [user])
+  const getAuthHeader = useCallback(
+    async (): Promise<Record<string, string>> => {
+      if (!user) return {}
+      const token = await user.getIdToken()
+      return { Authorization: `Bearer ${token}` }
+    },
+    [user]
+  )
 
-  const { projects, loading: projectsLoading, error: projectsError } = useProjectList({
+  const { projects, loading: projectsLoading } = useProjectList({
     scope,
     uid: user?.uid ?? null,
-    workspaceId: scope === "team" ? userData?.currentWorkspaceId || null : null,
+    workspaceId:
+      scope === "team" ? userData?.currentWorkspaceId || null : null,
     getAuthHeader,
   })
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    return projects.filter((p) => !q || (p.prompt || "").toLowerCase().includes(q))
+    return projects.filter(
+      (p) => !q || (p.prompt || "").toLowerCase().includes(q)
+    )
   }, [projects, search])
 
-  const grouped = useMemo(() => {
-    const result: Record<"Today" | "Yesterday" | "Previous", ProjectSummary[]> = {
-      Today: [], Yesterday: [], Previous: [],
-    }
-    for (const p of filtered) result[sectionLabel(toDate(p.createdAt))].push(p)
-    return result
-  }, [filtered])
+  // grouped removed - flat list
 
   const stats = useMemo(() => {
-    const total = projects.length
-    const complete = projects.filter((p) => p.status === "complete").length
     const tokensUsed = userData?.tokenUsage?.used ?? 0
-    const tokensLimit = Math.max(Number(userData?.tokensLimit ?? 0), tokensUsed + Math.max(0, userData?.tokenUsage?.remaining ?? 0))
-    const tokenPct = tokensLimit > 0 ? Math.min(100, Math.round((tokensUsed / tokensLimit) * 100)) : 0
+    const tokensLimit = Math.max(
+      Number(userData?.tokensLimit ?? 0),
+      tokensUsed + Math.max(0, userData?.tokenUsage?.remaining ?? 0)
+    )
+    const tokenPct =
+      tokensLimit > 0
+        ? Math.min(100, Math.round((tokensUsed / tokensLimit) * 100))
+        : 0
     const planName = userData?.planName || "Free"
-    return { total, complete, tokensUsed, tokensLimit, tokenPct, planName }
-  }, [projects, userData])
+    return { tokensUsed, tokensLimit, tokenPct, planName }
+  }, [userData])
 
-  const handleDeleteProject = async (e: React.MouseEvent, projectId: string, kind?: string) => {
+  const handleDeleteProject = async (
+    e: React.MouseEvent,
+    projectId: string,
+    kind?: string
+  ) => {
     e.preventDefault()
     e.stopPropagation()
     try {
-      await deleteDoc(doc(db, kind === "computer" ? "computerSessions" : "projects", projectId))
+      await deleteDoc(
+        doc(
+          db,
+          kind === "computer" ? "computerSessions" : "projects",
+          projectId
+        )
+      )
     } catch (err) {
       console.error(`Failed to delete ${kind || "project"}:`, err)
     }
   }
 
-  const initials = user?.displayName
-    ? user.displayName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
-    : user?.email?.slice(0, 1).toUpperCase() ?? "U"
+  const handleNewBuild = () => {
+    setTimeout(() => {
+      const el = document.querySelector<HTMLElement>(
+        "[data-animated-ai-input]"
+      )
+      el?.focus()
+      el?.scrollIntoView({ behavior: "smooth", block: "center" })
+    }, 150)
+  }
 
   const greeting = (() => {
     const h = new Date().getHours()
@@ -355,261 +462,149 @@ export default function ProjectsPage() {
 
   const firstName = user?.displayName?.split(" ")[0] ?? ""
 
-  const sidebarProps = { grouped, filtered, projectsLoading, search, stats, router, handleDeleteProject }
+  const sidebarProps = {
+    filtered,
+    projectsLoading,
+    search,
+    onSearchChange: setSearch,
+    stats,
+    router,
+    handleDeleteProject,
+    user,
+    signOut,
+    onNewBuild: handleNewBuild,
+    isTeamsPlan,
+    scope,
+    setScope,
+  }
 
   return (
     <ProtectedRoute>
-      <div className="flex h-[100dvh] overflow-hidden bg-background text-foreground">
+      <div className="flex h-[100dvh] overflow-hidden bg-white">
 
-        {/* ── Mobile sidebar drawer ── */}
-        {/* Backdrop */}
+        {/* ── Mobile overlay ── */}
         <div
           className={cn(
-            "fixed inset-0 z-40 bg-primary/30 backdrop-blur-sm transition-opacity lg:hidden",
-            sidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"
+            "fixed inset-0 z-40 bg-black/20 transition-opacity duration-200 lg:hidden",
+            mobileSidebarOpen
+              ? "opacity-100"
+              : "pointer-events-none opacity-0"
           )}
-          onClick={() => setSidebarOpen(false)}
+          onClick={() => setMobileSidebarOpen(false)}
           aria-hidden
         />
-        {/* Drawer panel */}
+
+        {/* ── Mobile drawer — 320px ── */}
         <div
           className={cn(
-            "fixed inset-y-0 left-0 z-50 flex w-[280px] flex-col border-r border-border bg-muted shadow-xl transition-transform duration-300 ease-in-out lg:hidden",
-            sidebarOpen ? "translate-x-0" : "-translate-x-full"
+            "fixed inset-y-0 left-0 z-50 w-[320px] border-r border-zinc-200 shadow-xl transition-transform duration-200 ease-in-out lg:hidden",
+            mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
           )}
         >
-          <SidebarContent {...sidebarProps} onClose={() => setSidebarOpen(false)} />
+          <Sidebar {...sidebarProps} onClose={() => setMobileSidebarOpen(false)} />
         </div>
 
-        {/* ── Desktop sidebar (always visible ≥ lg) ── */}
-        <aside className="hidden w-[260px] shrink-0 flex-col border-r border-border bg-muted lg:flex">
-          <SidebarContent {...sidebarProps} />
+        {/* ── Desktop sidebar — 320px ── */}
+        <aside className="hidden w-[320px] shrink-0 border-r border-zinc-200/80 lg:flex lg:flex-col">
+          <Sidebar {...sidebarProps} />
         </aside>
 
-        {/* ── Main panel ── */}
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        {/* ── Main ── */}
+        <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-[#faf9f6]">
 
-          {/* Top bar */}
-          <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border bg-background/90 px-4 backdrop-blur-sm sm:px-5">
-            {/* Left: hamburger (mobile) + logo (mobile) */}
-            <div className="flex items-center gap-2 lg:hidden">
-              <button
-                type="button"
-                onClick={() => setSidebarOpen(true)}
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-white text-zinc-600 transition-colors hover:bg-muted"
-                aria-label="Open history"
-              >
-                <PanelLeft className="h-4 w-4" />
-              </button>
-              <Link href="/" className="flex items-center gap-1.5">
-                <img src="/Images/lotus-official-logo.png" alt="lotus.build" className="h-6 w-6 object-contain" />
-                <span className="text-[13.5px] font-semibold text-foreground">lotus.build</span>
-              </Link>
-            </div>
+          {/* Ambient background — warm gradient */}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#faf9f6] via-[#f5f3ef] to-[#f0ece4]" />
 
-            {/* Search (desktop) */}
-            <div className="relative hidden max-w-xs flex-1 lg:block">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search builds…"
-                className="h-8 w-full rounded-lg border-border bg-white pl-9 text-sm placeholder:text-zinc-400 focus:bg-white"
+          {/* Ambient radial glow behind input */}
+          <div className="pointer-events-none absolute left-1/2 top-[45%] h-[600px] w-[800px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#7a6244] opacity-[0.03] blur-[120px]" />
+
+          {/* Subtle floating shapes — brand tones */}
+          <div className="pointer-events-none absolute left-[10%] top-[20%] h-[300px] w-[300px] rounded-full bg-[#7a6244] opacity-[0.02] blur-[100px]" />
+          <div className="pointer-events-none absolute right-[15%] top-[60%] h-[250px] w-[250px] rounded-full bg-[#a08b6d] opacity-[0.025] blur-[80px]" />
+
+          {/* Dot grid texture */}
+          <div
+            className="pointer-events-none absolute inset-0 opacity-[0.4]"
+            style={{
+              backgroundImage: `radial-gradient(circle, #d4cfc7 0.5px, transparent 0.5px)`,
+              backgroundSize: `24px 24px`,
+            }}
+          />
+
+          {/* Mobile top bar */}
+          <div className="flex h-[52px] shrink-0 items-center gap-3 border-b border-zinc-100 px-4 lg:hidden">
+            <button
+              type="button"
+              onClick={() => setMobileSidebarOpen(true)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100"
+              aria-label="Open sidebar"
+            >
+              <PanelLeft className="h-4 w-4" />
+            </button>
+            <Link href="/" className="flex items-center gap-[7px]">
+              <img
+                src="/Images/lotus-official-logo.png"
+                alt="lotus.build"
+                className="h-7 w-7 object-contain"
               />
-            </div>
+              <span className="text-[15px] font-semibold text-zinc-800">
+                lotus.build
+              </span>
+            </Link>
+          </div>
 
-            {/* Right */}
-            <div className="flex items-center gap-2">
-              {isTeamsPlan && (
-                <div className="inline-flex items-center rounded-lg border border-border bg-white p-0.5">
-                  <button type="button" onClick={() => setScope("user")} className={cn("rounded-md px-2.5 py-1 text-xs font-medium transition-all", scope === "user" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground/80")}>Mine</button>
-                  <button type="button" onClick={() => setScope("team")} className={cn("flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-all", scope === "team" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground/80")}><Users className="h-3 w-3" />Team</button>
-                </div>
-              )}
+          {/* ── Hero: vertically centered, nothing else ── */}
+          <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-4 pb-[10vh] pt-4">
+            <div className="w-full max-w-[620px]">
 
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button type="button" className="flex h-8 w-8 shrink-0 overflow-hidden rounded-full border border-border bg-white shadow-sm transition-all hover:border-zinc-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1f1f1f]">
-                    <Avatar className="h-8 w-8 rounded-full">
-                      <AvatarImage src={user?.photoURL ?? undefined} alt="" className="object-cover" />
-                      <AvatarFallback className="rounded-full bg-zinc-100 text-xs font-semibold text-zinc-600">{initials}</AvatarFallback>
-                    </Avatar>
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent side="bottom" align="end" sideOffset={8} className="w-60 border-border bg-white shadow-lg">
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex items-center gap-3 py-1">
-                      <Avatar className="h-8 w-8 rounded-full border border-border">
-                        <AvatarImage src={user?.photoURL ?? undefined} alt="" />
-                        <AvatarFallback className="rounded-full bg-zinc-100 text-xs font-semibold text-zinc-600">{initials}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex min-w-0 flex-col">
-                        <span className="truncate text-sm font-semibold text-foreground">{user?.displayName ?? "User"}</span>
-                        <span className="truncate text-xs text-zinc-500">{user?.email ?? ""}</span>
-                      </div>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator className="bg-zinc-100" />
-                  <DropdownMenuItem className="cursor-pointer gap-2 text-zinc-700 focus:bg-zinc-50" onClick={() => router.push("/pricing")}>
-                    <CreditCard className="h-4 w-4" />Billing &amp; Plans
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="cursor-pointer gap-2 text-zinc-700 focus:bg-zinc-50" onClick={() => router.push("/settings")}>
-                    <Settings className="h-4 w-4" />Settings
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator className="bg-zinc-100" />
-                  <DropdownMenuItem className="cursor-pointer gap-2 text-red-500 focus:bg-red-50 focus:text-red-500" onClick={() => signOut()}>
-                    <LogOut className="h-4 w-4" />Sign out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </header>
+              {/* Plan badge — like Manus's "Free plan | Start free trial" */}
+              <div className="mb-5 flex items-center justify-center gap-2">
+                <span className="rounded-full border border-zinc-200 px-3 py-[3px] text-[12px] text-zinc-500">
+                  {stats.planName} plan
+                </span>
+                <span className="text-zinc-300">·</span>
+                <Link
+                  href="/pricing"
+                  className="text-[12px] text-zinc-500 underline-offset-2 hover:text-zinc-800 hover:underline"
+                >
+                  Upgrade
+                </Link>
+              </div>
 
-          {/* Scrollable body */}
-          <div className="flex-1 overflow-y-auto">
-
-            {/* ── Hero ── */}
-            <section className="relative flex flex-col items-center overflow-hidden px-4 pb-10 pt-12 sm:pb-12 sm:pt-16">
-              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_0%,rgba(180,165,140,0.15),transparent_70%)]" />
-              <div className="relative z-10 w-full max-w-2xl text-center">
-                <p className="mb-2.5 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">
+              {/* Greeting */}
+              <div className="mb-6 text-center">
+                <h1 className="text-[2.15rem] font-semibold tracking-[-0.025em] text-zinc-900 sm:text-[2.5rem]">
                   {greeting}{firstName ? `, ${firstName}` : ""}
-                </p>
-                <h1 className="text-balance text-[1.75rem] font-bold leading-tight tracking-tight text-foreground sm:text-4xl">
-                  What do you want to build?
                 </h1>
-                <p className="mx-auto mt-2.5 max-w-sm text-sm text-zinc-500">
-                  Describe your idea — lotus turns it into a working app in seconds.
-                </p>
-                <div className="mt-7">
-                  <AnimatedAIInput />
-                </div>
-                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-                  {["Landing page", "SaaS dashboard", "Portfolio site", "Booking form", "Pricing page"].map((label) => (
-                    <button key={label} type="button" className="rounded-full border border-border bg-white/80 px-3 py-1.5 text-xs text-zinc-600 transition-colors hover:bg-white hover:text-foreground active:scale-95">
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </section>
-
-            {/* ── Mobile search ── */}
-            <div className="px-4 pb-4 lg:hidden">
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
-                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search builds…" className="h-9 w-full rounded-xl border-border bg-white pl-9 text-sm placeholder:text-zinc-400" />
-              </div>
-            </div>
-
-            {/* ── Workspace ── */}
-            <section className="border-t border-border px-4 py-7 sm:px-6">
-              <div className="mb-5 flex items-end justify-between">
-                <div>
-                  <h2 className="text-[15px] font-semibold text-foreground">Your workspace</h2>
-                  <p className="mt-0.5 text-xs text-zinc-400">
-                    {projectsLoading ? "Loading…" : `${stats.total} build${stats.total !== 1 ? "s" : ""} · ${stats.complete} ready`}
-                  </p>
-                </div>
-                <div className="hidden items-center gap-4 sm:flex">
-                  <div className="text-right">
-                    <p className="text-[12px] font-semibold text-foreground">{stats.tokenPct}%</p>
-                    <p className="text-[10px] text-zinc-400">credits used</p>
-                  </div>
-                  <div className="h-8 w-px bg-muted" />
-                  <div className="text-right">
-                    <p className="text-[12px] font-semibold text-foreground">{stats.complete}</p>
-                    <p className="text-[10px] text-zinc-400">live</p>
-                  </div>
-                </div>
               </div>
 
-              {projectsError && (
-                <div className="mb-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
-                  Failed to load builds. {projectsError}
-                </div>
-              )}
-
-              {projectsLoading ? (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i} className="h-[116px] animate-pulse rounded-2xl border border-border bg-white/60" />
-                  ))}
-                </div>
-              ) : filtered.length === 0 ? (
-                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-white/50 px-6 py-14 text-center">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-white">
-                    <FolderOpen className="h-5 w-5 text-zinc-300" />
-                  </div>
-                  <p className="mt-3 text-sm font-medium text-zinc-600">{search ? "No builds match your search" : "Nothing here yet"}</p>
-                  <p className="mt-1 text-xs text-zinc-400">Use the input above to create your first build.</p>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {(["Today", "Yesterday", "Previous"] as const).map((key) => {
-                    if (grouped[key].length === 0) return null
-                    return (
-                      <div key={key}>
-                        <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">{key}</p>
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                          {grouped[key].map((p) => (
-                            <div key={p.id} className="group/card relative flex flex-col rounded-2xl border border-border bg-white transition-all duration-150 hover:border-zinc-300 hover:shadow-sm">
-                              <div className={cn("h-[3px] w-full rounded-t-2xl", statusAccent(p.status))} />
-                              <button
-                                type="button"
-                                onClick={() => router.push(p.kind === "computer" ? `/computer/${p.id}` : `/project/${p.id}`)}
-                                className="flex flex-1 flex-col px-4 pb-4 pt-3.5 text-left"
-                              >
-                                <div className="flex items-start gap-2.5">
-                                  <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border bg-background">
-                                    {p.kind === "computer" ? <Terminal className="h-3.5 w-3.5 text-zinc-500" /> : <AppWindow className="h-3.5 w-3.5 text-zinc-500" />}
-                                  </div>
-                                  <p className="line-clamp-2 flex-1 text-[13px] font-medium leading-snug text-zinc-800">
-                                    {projectTitle(p.prompt)}
-                                  </p>
-                                </div>
-                                <div className="mt-3 flex items-center justify-between gap-2">
-                                  <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-medium ring-1", statusBadgeClass(p.status))}>
-                                    {statusText(p.status)}
-                                  </span>
-                                  <span className="flex items-center gap-1 text-[11px] text-zinc-400">
-                                    <Clock className="h-3 w-3" />
-                                    {formatRelative(p.updatedAt ?? p.createdAt)}
-                                  </span>
-                                </div>
-                              </button>
-                              {/* Actions: always visible on mobile, hover on desktop */}
-                              <div className="absolute right-2.5 top-3.5 flex items-center gap-1 opacity-100 sm:opacity-0 sm:transition-opacity sm:group-hover/card:opacity-100">
-                                <button type="button" onClick={() => router.push(p.kind === "computer" ? `/computer/${p.id}` : `/project/${p.id}`)} className="flex h-6 w-6 items-center justify-center rounded-lg bg-white text-zinc-400 shadow-sm ring-1 ring-[#e4e2db] hover:text-zinc-700" aria-label="Open">
-                                  <ArrowUpRight className="h-3 w-3" />
-                                </button>
-                                <button type="button" onClick={(e) => handleDeleteProject(e, p.id, p.kind)} className="flex h-6 w-6 items-center justify-center rounded-lg bg-white text-zinc-300 shadow-sm ring-1 ring-[#e4e2db] hover:bg-red-50 hover:text-red-400" aria-label="Delete">
-                                  <Trash2 className="h-3 w-3" />
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </section>
-
-            {/* ── Footer ── */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-4 sm:px-6">
-              <div className="flex items-center gap-1.5 text-xs text-zinc-400">
-                <Zap className="h-3 w-3" />
-                <span>{stats.tokensUsed.toLocaleString()} / {stats.tokensLimit.toLocaleString()} credits used</span>
+              {/* ── Input card ── Manus has a tall textarea with bottom toolbar */}
+              <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_1px_6px_rgba(0,0,0,0.06),0_4px_24px_rgba(0,0,0,0.04)]">
+                <AnimatedAIInput />
               </div>
-              <div className="flex items-center gap-4 text-xs text-zinc-400">
-                <Link href="/pricing" className="transition-colors hover:text-zinc-700">Upgrade</Link>
-                <Link href="/settings" className="transition-colors hover:text-zinc-700">Settings</Link>
+
+              {/* Quick-prompt chips */}
+              <div className="mt-[14px] flex flex-wrap items-center justify-center gap-[7px]">
+                {[
+                  "Landing page",
+                  "SaaS dashboard",
+                  "Portfolio",
+                  "Booking form",
+                  "Pricing page",
+                  "Blog",
+                ].map((label) => (
+                  <button
+                    key={label}
+                    type="button"
+                    className="rounded-full border border-zinc-200 bg-transparent px-[12px] py-[5px] text-[12px] text-zinc-500 transition-all duration-100 hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-700 active:scale-[0.97]"
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
-        </div>
+        </main>
       </div>
     </ProtectedRoute>
   )

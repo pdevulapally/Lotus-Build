@@ -351,27 +351,29 @@ export function AnimatedAIInput({
     <div className="group w-full max-w-2xl">
       <div
         className={cn(
-          "relative rounded-3xl border bg-background shadow-sm transition-all duration-200",
+          "relative rounded-2xl border transition-all duration-300",
+          "bg-white/80 backdrop-blur-2xl",
+          "shadow-[0_8px_32px_-8px_rgba(0,0,0,0.18),0_0_0_1px_rgba(255,255,255,0.6)_inset]",
           disabled
-            ? "border-border opacity-70"
+            ? "border-white/20 opacity-60"
             : isFocused
-              ? "border-accent/60 ring-2 ring-accent/15"
-              : "border-border hover:border-border-strong"
+              ? "border-white/50 shadow-[0_16px_48px_-12px_rgba(0,0,0,0.22),0_0_0_1px_rgba(255,255,255,0.7)_inset]"
+              : "border-white/30 hover:border-white/45 hover:shadow-[0_12px_40px_-10px_rgba(0,0,0,0.20),0_0_0_1px_rgba(255,255,255,0.65)_inset]"
         )}
       >
         <div className="relative px-4 pb-4 pt-4 sm:px-5 sm:pb-5 sm:pt-5">
           {contextBadge ? (
             <div className="mb-3 flex max-w-[calc(100%-4rem)] items-center">
-              <div className="inline-flex min-h-10 items-center gap-2 rounded-2xl bg-muted px-3 py-2 text-xs text-zinc-700">
-                <span className="font-medium text-muted-foreground">{contextBadge.label}</span>
-                <span className="rounded-full bg-border px-2 py-0.5 font-medium text-foreground">
+              <div className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-black/5 px-3 py-2 text-xs text-zinc-700">
+                <span className="font-medium text-zinc-500">{contextBadge.label}</span>
+                <span className="rounded-full bg-black/8 px-2 py-0.5 font-medium text-zinc-800">
                   {contextBadge.value}
                 </span>
                 {contextBadge.onClear ? (
                   <button
                     type="button"
                     onClick={contextBadge.onClear}
-                    className="inline-flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    className="inline-flex h-5 w-5 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-black/8 hover:text-zinc-700"
                     aria-label="Clear selected context"
                   >
                     <X className="h-3 w-3" />
@@ -386,10 +388,10 @@ export function AnimatedAIInput({
             value={value}
             placeholder={resolvedPlaceholder}
             className={cn(
-              "w-full resize-none border-none bg-transparent px-0 pb-16 pt-0 text-[15px] text-foreground sm:text-base",
-              "placeholder:text-zinc-500",
+              "w-full resize-none border-none bg-transparent px-0 pb-16 pt-0 text-[15px] text-zinc-900 sm:text-base",
+              "placeholder:text-zinc-400",
               "focus-visible:ring-0 focus-visible:ring-offset-0",
-              "scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-300",
+              "scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-200",
               compact ? "min-h-[88px]" : "min-h-[132px]",
             )}
             ref={textareaRef}
@@ -403,26 +405,26 @@ export function AnimatedAIInput({
             }}
           />
 
-          <div className="absolute bottom-3 left-3 flex max-w-[calc(100%-4.5rem)] items-center gap-2 sm:bottom-4 sm:left-4">
+          <div className="absolute bottom-3 left-3 flex max-w-[calc(100%-4.5rem)] items-center gap-1.5 sm:bottom-4 sm:left-4">
             {mode === "create" && !compact ? (
-              <div className="inline-flex shrink-0 items-center gap-2 rounded-full border border-border bg-background/90 p-1 shadow-sm">
+              <div className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-black/8 bg-black/5 p-1 backdrop-blur-sm">
                 <div className="group/build relative">
                   <button
                     type="button"
                     onClick={() => setCreationMode("build")}
                     className={cn(
-                      "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                      "rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-150",
                       creationMode === "build"
-                        ? "bg-accent text-accent-foreground"
-                        : "text-muted-foreground hover:text-foreground"
+                        ? "bg-accent text-white shadow-sm"
+                        : "text-zinc-500 hover:text-zinc-800"
                     )}
                   >
                     Build
                   </button>
                   {userData ? (
-                    <div className="pointer-events-none absolute bottom-[calc(100%+10px)] left-1/2 z-20 hidden max-w-[80vw] -translate-x-1/2 whitespace-normal rounded-xl bg-primary px-3 py-2 text-center text-[11px] font-medium text-primary-foreground shadow-lg group-hover/build:md:block">
+                    <div className="pointer-events-none absolute bottom-[calc(100%+10px)] left-1/2 z-20 hidden max-w-[80vw] -translate-x-1/2 whitespace-normal rounded-xl bg-zinc-900 px-3 py-2 text-center text-[11px] font-medium text-white shadow-lg group-hover/build:md:block">
                       Build tokens left: {buildRemaining}/{buildTokenLimit}
-                      <span className="absolute left-1/2 top-full -translate-x-1/2 border-x-[6px] border-t-[6px] border-x-transparent border-t-primary" />
+                      <span className="absolute left-1/2 top-full -translate-x-1/2 border-x-[6px] border-t-[6px] border-x-transparent border-t-zinc-900" />
                     </div>
                   ) : null}
                 </div>
@@ -430,10 +432,10 @@ export function AnimatedAIInput({
                   type="button"
                   onClick={() => setCreationMode("agent")}
                   className={cn(
-                    "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                    "rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-150",
                     creationMode === "agent"
-                      ? "bg-accent text-accent-foreground"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? "bg-accent text-white shadow-sm"
+                      : "text-zinc-500 hover:text-zinc-800"
                   )}
                 >
                   Agent
@@ -442,60 +444,58 @@ export function AnimatedAIInput({
             ) : null}
 
             {mode === "chat" && visualEditToggle && (
-              <Button
+              <button
                 type="button"
-                variant="outline"
-                size="sm"
                 onClick={visualEditToggle.onToggle}
                 className={cn(
-                  "h-8 rounded-full border-border bg-background px-3 text-xs text-muted-foreground hover:bg-muted",
-                  visualEditToggle.active && "border-zinc-400 text-foreground"
+                  "h-8 rounded-full border px-3 text-xs font-medium transition-all duration-150",
+                  visualEditToggle.active
+                    ? "border-zinc-300 bg-zinc-900 text-white"
+                    : "border-black/8 bg-black/5 text-zinc-500 hover:text-zinc-800"
                 )}
               >
                 {visualEditToggle.active ? "Visual Edit On" : "Visual Edit"}
-              </Button>
+              </button>
             )}
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button
+                <button
                   type="button"
-                  variant="outline"
-                  size="sm"
-                className={cn(
-                  "h-8 rounded-full px-3 text-xs hover:bg-muted",
-                  "border-border bg-background text-muted-foreground"
+                  className={cn(
+                    "h-8 rounded-full border border-black/8 bg-black/5 px-3 text-xs font-medium text-zinc-500 transition-all duration-150 hover:text-zinc-800",
+                    "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-400/40"
                   )}
                 >
-                  {autoMode ? "Model: Auto" : `Model: ${selectedModel}`}
-                </Button>
+                  {autoMode ? "Auto" : getModelMeta(selectedModel).label}
+                </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="start"
                 side="top"
                 sideOffset={10}
                 avoidCollisions={false}
-                className="max-h-[24rem] w-[23rem] overflow-y-auto overscroll-contain border-border bg-background p-2"
+                className="max-h-[24rem] w-[23rem] overflow-y-auto overscroll-contain border-zinc-200/80 bg-white/95 p-2 shadow-xl backdrop-blur-xl"
               >
-                <DropdownMenuLabel className="px-2 pb-1 text-xs font-medium text-zinc-500">Response model</DropdownMenuLabel>
+                <DropdownMenuLabel className="px-2 pb-1 text-xs font-medium text-zinc-400">Response model</DropdownMenuLabel>
                 <DropdownMenuItem
                   onSelect={() => setAutoMode(true)}
-                  className="rounded-2xl border border-border/80 px-3 py-3 text-foreground focus:bg-muted"
+                  className="rounded-xl border border-zinc-100 px-3 py-3 text-foreground focus:bg-zinc-50"
                 >
                   <div className="flex w-full items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <Leaf className="h-4 w-4 text-zinc-500" />
-                        <span className="text-sm font-medium text-foreground">Automatic</span>
+                        <Leaf className="h-4 w-4 text-zinc-400" />
+                        <span className="text-sm font-medium text-zinc-900">Automatic</span>
                       </div>
                       <p className="mt-1 text-xs leading-5 text-zinc-500">
                         Uses the default balanced model for the smoothest generation flow.
                       </p>
                     </div>
-                    {autoMode ? <Check className="mt-0.5 h-4 w-4 text-foreground" /> : null}
+                    {autoMode ? <Check className="mt-0.5 h-4 w-4 text-zinc-900" /> : null}
                   </div>
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
+                <DropdownMenuSeparator className="bg-zinc-100" />
                 {isPaidUser ? (
                   availableModels.map((model) => {
                     const meta = getModelMeta(model);
@@ -508,16 +508,16 @@ export function AnimatedAIInput({
                           setAutoMode(false);
                           setSelectedModel(model);
                         }}
-                        className="rounded-2xl border border-transparent px-3 py-3 text-foreground focus:border-border focus:bg-muted"
+                        className="rounded-xl border border-transparent px-3 py-3 text-foreground focus:border-zinc-100 focus:bg-zinc-50"
                       >
                         <div className="flex w-full items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium text-foreground">{meta.label}</span>
+                              <span className="text-sm font-medium text-zinc-900">{meta.label}</span>
                               {meta.badges.slice(0, 2).map((badge) => (
                                 <span
                                   key={`${model}-${badge}`}
-                                  className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground"
+                                  className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500"
                                 >
                                   {badge}
                                 </span>
@@ -528,15 +528,15 @@ export function AnimatedAIInput({
                             </p>
                             <p className="mt-2 truncate text-[11px] text-zinc-400">{model}</p>
                           </div>
-                          {isSelected ? <Check className="mt-0.5 h-4 w-4 shrink-0 text-foreground" /> : null}
+                          {isSelected ? <Check className="mt-0.5 h-4 w-4 shrink-0 text-zinc-900" /> : null}
                         </div>
                       </DropdownMenuItem>
                     );
                   })
                 ) : (
                   <div className="px-2 py-2">
-                    <p className="text-xs text-zinc-600">Custom model choice is available on paid plans.</p>
-                    <Link href="/pricing" className="mt-2 inline-flex text-xs font-medium text-foreground hover:text-black">
+                    <p className="text-xs text-zinc-500">Custom model choice is available on paid plans.</p>
+                    <Link href="/pricing" className="mt-2 inline-flex text-xs font-medium text-zinc-900 hover:underline">
                       Upgrade
                     </Link>
                   </div>
@@ -548,25 +548,23 @@ export function AnimatedAIInput({
           <motion.button
             type="button"
             className={cn(
-              "absolute bottom-3 right-3 sm:bottom-4 sm:right-4 flex h-10 items-center justify-center gap-2 rounded-full transition-all duration-200 px-3",
-              "focus-visible:ring-1 focus-visible:ring-accent/30 focus-visible:ring-offset-0",
+              "absolute bottom-3 right-3 sm:bottom-4 sm:right-4 flex h-9 items-center justify-center gap-1.5 rounded-full transition-all duration-200",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/20 focus-visible:ring-offset-0",
               canStop
-                ? "bg-accent text-accent-foreground hover:bg-accent/90 active:scale-95"
+                ? "bg-zinc-900 px-3 text-white hover:bg-zinc-800 active:scale-95"
                 : canSubmit
-                ? creationMode === "agent"
-                  ? "bg-accent text-accent-foreground hover:bg-accent/90 active:scale-95"
-                  : "bg-accent text-accent-foreground hover:bg-accent/90 active:scale-95"
-                : "bg-muted text-muted-foreground cursor-not-allowed"
+                ? "w-9 bg-zinc-900 text-white shadow-[0_4px_12px_-2px_rgba(0,0,0,0.3)] hover:bg-zinc-800 active:scale-95"
+                : "w-9 bg-black/8 text-zinc-400 cursor-not-allowed"
             )}
             aria-label={canStop ? "Stop generating" : submitAriaLabel}
             title={canStop ? "Stop generating" : submitAriaLabel}
             disabled={!canSubmit && !canStop}
             onClick={canStop ? onStop : handleSubmit}
-            whileTap={canSubmit || canStop ? { scale: 0.92 } : {}}
+            whileTap={canSubmit || canStop ? { scale: 0.93 } : {}}
           >
             {canStop ? (
               <>
-                <Square className="h-4 w-4" />
+                <Square className="h-3.5 w-3.5" />
                 <span className="text-xs font-medium">Stop</span>
               </>
             ) : isCreating || isLoading ? (
