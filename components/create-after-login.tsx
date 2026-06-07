@@ -49,7 +49,7 @@ export function CreateAfterLogin() {
           },
           body: JSON.stringify({
             prompt: data.prompt.trim(),
-            model: data.model || "GPT-4-1 Mini",
+            model: data.model || "GPT-5.5",
           }),
         })
         const payload = (await response.json().catch(() => ({}))) as { id?: string; error?: string }
@@ -62,7 +62,7 @@ export function CreateAfterLogin() {
 
       const projectData: Record<string, unknown> = {
         prompt: data.prompt.trim(),
-        model: data.model || "GPT-4-1 Mini",
+        model: data.model || "GPT-5.5",
         status: "pending",
         creationMode: "build",
         suggestsBackend: promptSuggestsSupabaseBackend(data.prompt.trim()),

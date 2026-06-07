@@ -587,7 +587,7 @@ function ProjectContent() {
 
   const usesNvidiaVerificationGate = useCallback((model?: string) => {
     if (!model) return false
-    return !["GPT-4-1 Mini", "GPT-4-1", "o3-mini"].includes(model)
+    return !["GPT-5.5", "GPT-4-1", "o3-mini"].includes(model)
   }, [])
 
   const verifyFilesInSandbox = useCallback(async (files: GeneratedFile[]) => {
@@ -2392,7 +2392,7 @@ function ProjectContent() {
           creationMode?: "build" | "agent"
         } = {
           prompt: followUpPrompt,
-          model: model || "GPT-4-1 Mini",
+          model: model || "GPT-5.5",
           idToken,
           existingFiles: baseFiles.map((file) => ({ path: file.path, content: file.content })),
           creationMode: "build",
@@ -2449,7 +2449,7 @@ function ProjectContent() {
         cloneContext?: { title: string; description: string; markdown: string; sourceUrl: string }
       } = {
         prompt: generationPrompt,
-        model: model || "GPT-4-1 Mini",
+        model: model || "GPT-5.5",
         idToken,
         creationMode: "build",
         ...(cloneContext ? { cloneContext } : {}),

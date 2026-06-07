@@ -347,7 +347,7 @@ function SettingsContent() {
         next.push({
           id: d.id,
           prompt: data.prompt || "",
-          model: data.model || "GPT-4-1 Mini",
+          model: data.model || "GPT-5.5",
           status: (data.status as ProjectStatus) || "pending",
           createdAt: data.createdAt,
           updatedAt: data.updatedAt,

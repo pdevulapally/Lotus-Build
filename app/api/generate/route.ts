@@ -11,7 +11,7 @@ const nvidia = new OpenAI({
   baseURL: "https://integrate.api.nvidia.com/v1",
 })
 
-const DEFAULT_MODEL = "GPT-5.5"
+const DEFAULT_MODEL = "GPT-5.5"  // Full model (not mini) - more capable for better library knowledge and code quality
 const OPENAI_MODEL_MAP: Record<string, string> = {
   "o3-mini": "o3-mini",
   "GPT-5.5 Pro": "gpt-5.5-pro",
@@ -22,7 +22,6 @@ const OPENAI_MODEL_MAP: Record<string, string> = {
   "GPT-5.4 Nano": "gpt-5.4-nano",
   "GPT-5 Mini": "gpt-5-mini",
   "GPT-5 Nano": "gpt-5-nano",
-  "GPT-4-1 Mini": "gpt-4.1-mini",
   "GPT-4-1": "gpt-4.1",
 }
 
@@ -1141,8 +1140,8 @@ PRODUCTION STANDARD (NON-NEGOTIABLE):
 - Implement palette via CSS custom properties in :root. Load Google Fonts via @import in src/index.css.
 - Apply display font to h1–h3, body font to p/nav/buttons/labels. Follow TYPOGRAPHY_APPROACH from the brief exactly.
 - Every interactive element has a hover state, focus state, and transition. No static buttons.
-- Framer Motion: entrance animations, scroll-triggered reveals (useInView), stagger on lists. Motion must feel intentional — not just fade-in on every element.
-- Images: real Unsplash URLs https://images.unsplash.com/photo-[ID]?w=1200&q=80&auto=format&fit=crop — IDs must genuinely match content.
+- Framer Motion: entrance animations, scroll-triggered reveals (whileInView on motion elements), stagger on lists. Motion must feel intentional — not just fade-in on every element.
+- Images: Use relevant, contextual images from freely licensed sources (Unsplash, Pexels, or CDN). Image URLs must match the visual concept and business domain.
 - Copy must sound like the actual business owner wrote it. Punchy headlines. Specific CTAs. No filler.
 - Components split by responsibility. Clean semantic React, named exports, no unused imports.
 
@@ -1160,10 +1159,8 @@ TYPOGRAPHY (NON-NEGOTIABLE):
 - NEVER use Inter, Roboto, Arial, or system-ui as display or heading fonts. These are generic AI defaults.
 - Every site must load 2 Google Fonts via @import in index.css: one distinctive display/heading font + one refined body font.
 - Display font applied to h1, h2, h3. Body font applied to p, nav, labels, buttons.
-- Size hierarchy MUST include dramatic contrast: display at 72–120px on desktop, section labels at 10–12px uppercase with letter-spacing, body at 15–17px.
-- Use CSS variables for font families: --font-display, --font-body in :root.
-- Examples of strong font pairs (pick any or invent your own, never repeat the same pair twice):
-  Playfair Display + DM Sans · Fraunces + Inter (exception: only if display is Fraunces) · Space Grotesk + Lora · Syne + IBM Plex Sans · DM Serif Display + Nunito Sans · Cormorant Garamond + Source Sans 3
+- Size hierarchy MUST include dramatic contrast between heading and body sizes. Use CSS variables for font families: --font-display, --font-body in :root.
+- Choose fonts that match the design brief's PERSONALITY and aesthetic direction. Fonts must be distinctive and deliberate, not generic or placeholder.
 
 BACKGROUND & ATMOSPHERE (MANDATORY):
 - No plain white or plain off-white backgrounds for the entire site. Every page must have atmospheric depth.
@@ -1187,22 +1184,27 @@ BANNED PATTERNS — these are "AI slop" and must NEVER appear. Presence of ANY o
 - Shadows on every card (use shadows with intention, on 1-2 key elements maximum).
 
 MODERN PATTERNS — implement at least 4 of these:
-- Hero: typographically dominant. Display type 96–120px desktop. Left-aligned or asymmetric split. One headline, no filler subheadline, CTA as ghost-border or underline — never a filled pill button in the hero.
-- Services/features: alternating image-left/text-right rows anchored by a large italic service name; OR bento grid with intentionally varied cell sizes; OR editorial numbered list (01, 02, 03) where each item is a full-width row not a card.
-- Social proof: single oversized pull-quote at 64px+ with large quotation mark as decoration; OR inline client logos as a marquee strip; NOT a card grid.
-- Stats section: large numerals (80–120px, light weight) with short labels below — stark, no background fill, numbers as the visual hero.
-- Section anchors: use large decorative numbers, letters, or words at 200px+ as background elements that create visual depth without being content.
+- Hero: typographically dominant. Large display type on desktop. Left-aligned or asymmetric split. One headline, no filler subheadline, CTA as ghost-border or underline — never a filled pill button in the hero.
+- Services/features: alternating image-left/text-right rows anchored by a large service name; OR bento grid with intentionally varied cell sizes; OR editorial numbered list (01, 02, 03) where each item is a full-width row not a card.
+- Social proof: single oversized pull-quote with large quotation mark as decoration; OR inline client logos as a marquee strip; NOT a card grid.
+- Stats section: large numerals with short labels below — stark, no background fill, numbers as the visual hero.
+- Section anchors: use large decorative numbers, letters, or words as background elements that create visual depth without being content.
 - Split screen: two exact halves with different backgrounds, content on one side, striking visual on the other.
 - Navigation: wordmark or logo mark left, 3–5 links centered or right, NO big CTA button unless conversion is the primary goal.
 - Horizontal scroll strip: marquee or scroll-linked strip for logos, tags, or social proof.
 - One grid-breaking element per page: an element that overlaps section boundaries, is positioned absolutely outside the grid, or spans from one background zone into another.
-- Spacing: section vertical padding 96–160px. Content max-width 1100–1280px with generous horizontal padding.
+- Spacing: generous section vertical padding and content max-width with appropriate horizontal padding.
 
 MOTION (INTENTIONAL ONLY):
 - One well-orchestrated page load: staggered entrance for headline words/chars using Framer Motion with animation-delay.
-- Scroll-triggered reveals: useInView from framer-motion. Fade+translate on section content.
+- Scroll-triggered reveals: use whileInView prop on motion.div. Pattern: <motion.div whileInView={{ opacity: 1, y: 0 }} initial={{ opacity: 0, y: 20 }} transition={{ duration: 0.6 }}> — NO useInView hook.
 - Hover states that surprise: magnetic buttons, underline draws, image scale with overflow:hidden clip.
 - Do NOT add fade-in animation to every element — this is scatter-shot motion. Reserve it for 3-5 key moments.
+- FRAMER MOTION RULES (CRITICAL):
+  * NEVER import useInView — it doesn't exist in v10+. Use whileInView prop on motion elements instead.
+  * NEVER import useAnimation with useInView together for scroll reveals. Use motion + whileInView prop.
+  * For imperative animation control, use useAnimation ONLY if you need to manually trigger animations (e.g. on button click).
+  * Correct patterns: motion.div with whileInView + initial + animate + transition props. NOT useInView hooks.
 
 ARCHITECTURE (NON-NEGOTIABLE):
 - Build within the Lotus generated-app architecture: Vite + React + TypeScript.
@@ -1262,6 +1264,13 @@ Dependencies requirements (MUST follow):
 - NEVER hallucinate lucide-react icon names. 'RocketLaunch' does not exist, use 'Rocket'. Use exact lucide casing: 'Github' not 'GitHub', 'Linkedin' not 'LinkedIn', 'Youtube' not 'YouTube'.
 - If you import lucide-react, add "lucide-react": "^0.400.0" to dependencies if not already present.
 - If you use Tailwind CSS, include tailwindcss, postcss, and autoprefixer in devDependencies.
+- FRAMER MOTION API RULES (CRITICAL):
+  * The ONLY safe framer-motion imports are: motion, AnimatePresence, and useAnimation. All other imports must NOT be used.
+  * NEVER import useInView, useViewportScroll, useScroll, useMotionValueEvent, or any other hooks from framer-motion. These are internal/deprecated.
+  * NEVER try to use framer-motion hooks for scroll detection. ONLY use the whileInView prop on motion components.
+  * CORRECT PATTERN for scroll reveals: <motion.div whileInView={{ opacity: 1 }} initial={{ opacity: 0 }} /> — the whileInView prop is a config object, not a hook.
+  * NEVER combine useAnimation + useInView or try to manually track viewport with framer-motion hooks.
+  * If you need scroll detection that isn't available via whileInView, use react-intersection-observer package instead (add to dependencies first).
 - Do not reference any package in code unless it exists in package.json.
 - NEVER use packages that don't exist on npm (e.g., @shadcn/ui is not a real package).
 - For the favicon in index.html, ALWAYS use an inline SVG: <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>"> to prevent 404 errors.

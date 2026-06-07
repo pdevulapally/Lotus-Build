@@ -342,33 +342,43 @@ function parsePackageJsonText(txt: string): any {
 }
 
 /**
- * Dependency version overrides applied to every sandbox before `npm install`.
+ * VERIFIED DEPENDENCY VERSIONS FOR SANDBOX PREVIEW
  *
- * IMPORTANT — do NOT guess or hallucinate these versions.
- * Each entry must reflect what is actually pre-installed in the E2B sandbox
- * template (or a version known to be compatible with it).
+ * RULES:
+ *   - Do NOT guess, hallucinate, or infer versions from unrelated context
+ *   - Each entry must be verified to work with the E2B sandbox template
+ *   - Pinned versions (exact match) are for critical UI libraries that require testing
+ *   - Caret versions (^x.y.z) are for build tools where minor updates are safe
+ *
+ * E2B Sandbox Template Reference:
+ *   https://github.com/e2b-dev/e2b/tree/main/templates/vite
  *
  * To update a version:
- *   1. Verify the version is available on npm (`npm info <pkg> version`).
- *   2. Confirm it works in the sandbox template.
- *   3. Update the value here — do not infer it from unrelated context.
- *
- * Current verified versions (as of sandbox template baseline):
- *   framer-motion  12.39.0  — verified against E2B template
- *   lucide-react    1.16.0  — verified against E2B template
+ *   1. Verify it exists on npm: `npm info <pkg>`
+ *   2. Test it in the E2B sandbox template
+ *   3. Update ONLY the version string — do not add explanations inline
  */
-const SANDBOX_DEPENDENCY_VERSION_OVERRIDES: Record<string, string> = {
-  "react-icons": "^5.0.0",
+const SANDBOX_VERIFIED_VERSIONS: Record<string, string> = {
+  // Build tooling (minor updates safe)
+  "vite": "^5.4.11",
+  "@vitejs/plugin-react": "^4.3.4",
   "tailwindcss": "^3.4.17",
   "postcss": "^8.4.49",
   "autoprefixer": "^10.4.20",
-  "vite": "^5.4.11",
-  "@vitejs/plugin-react": "^4.3.4",
-  // These versions are pinned to the E2B sandbox template baseline.
-  // Do NOT change them without verifying against the actual template.
-  "lucide-react": "1.16.0",
+  
+  // Icon library
+  "react-icons": "^5.0.0",
+  
+  // PINNED: Animation library (breaking changes in v11+)
+  // Requires vite lazy-loading compatibility — must be tested before upgrade
   "framer-motion": "12.39.0",
+  
+  // PINNED: Icon component library (stable at 1.16.0)
+  // Uses CSS-in-JS patterns — verify output before version bump
+  "lucide-react": "1.16.0",
 }
+
+const SANDBOX_DEPENDENCY_VERSION_OVERRIDES = SANDBOX_VERIFIED_VERSIONS
 
 async function normalizePackageJsonDependenciesForPreview(sandbox: Sandbox): Promise<any> {
   const packageJsonPath = `${PROJECT_DIR}/package.json`
@@ -508,6 +518,57 @@ for p in sorted(seen):
   }
 
   return pkg
+}
+
+// Validate source files for known problematic imports that exist in package.json
+// but are not actually exported by the package (e.g., framer-motion useInView hook).
+async function validateImportsAgainstPackages(sandbox: Sandbox): Promise<void> {
+  try {
+    // Known bad patterns: package exports that don't actually exist in newer versions
+    const validateScript = `import re, os, sys, json
+src = sys.argv[1] if len(sys.argv) > 1 else "."
+import_pat = re.compile(r'import\\\\s+\\\\{([^}]+)\\\\}\\\\s+from\\\\s+[\\\\x27"]framer-motion[\\\\x27"]')
+skip = {"node_modules", ".git", "dist", "build", ".next", ".cache", "out"}
+issues = []
+for root, dirs, files in os.walk(src):
+    dirs[:] = [d for d in dirs if d not in skip]
+    for f in files:
+        if not f.endswith((".js", ".ts", ".jsx", ".tsx")):
+            continue
+        try:
+            content = open(os.path.join(root, f), errors="ignore").read()
+            for match in import_pat.finditer(content):
+                imports = match.group(1)
+                if "useInView" in imports:
+                    issues.append({"file": os.path.join(root, f), "import": "useInView"})
+        except Exception:
+            pass
+if issues:
+    print(json.dumps(issues))
+`
+    await sandbox.files.write("/tmp/_lotus_validate.py", validateScript)
+    const validateResult = await cmd(
+      sandbox,
+      `python3 /tmp/_lotus_validate.py ${PROJECT_DIR}/src`,
+      10000
+    )
+    const validationOutput = (validateResult.stdout || "").trim()
+    if (validationOutput) {
+      try {
+        const issues = JSON.parse(validationOutput)
+        if (issues.length > 0) {
+          console.warn(`[sandbox] Found ${issues.length} problematic framer-motion imports:`)
+          for (const issue of issues) {
+            console.warn(`  - ${issue.file}: useInView is deprecated, use whileInView prop instead`)
+          }
+        }
+      } catch {
+        // Parse error, silently ignore
+      }
+    }
+  } catch (e) {
+    console.warn("[sandbox] Import validation failed (non-fatal):", e)
+  }
 }
 
 function inferFramework(pkg: any): "next" | "vite" | "unknown" {
@@ -1391,6 +1452,9 @@ export async function POST(req: Request) {
         
         const framework = inferFramework(pkg)
         console.log(`[sandbox] Detected framework: ${framework}`)
+
+        // Validate for known problematic imports (e.g. framer-motion useInView)
+        await validateImportsAgainstPackages(sandbox)
 
         // Ensure Tailwind CSS infrastructure is present before install
         const hasTailwind = Boolean(

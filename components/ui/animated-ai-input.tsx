@@ -83,14 +83,14 @@ const MODEL_META: Record<string, { label: string; description: string; badges: s
     description: "Fast reasoning model for structured edits, debugging, and technical prompts.",
     badges: ["Reasoning", "Coding"],
   },
-  "GPT-4-1 Mini": {
-    label: "GPT-4.1 Mini",
-    description: "Balanced default for fast site generation, UI updates, and follow-up edits.",
-    badges: ["Default", "Fast"],
+  "GPT-5.5": {
+    label: "GPT-5.5",
+    description: "Latest advanced model for high-quality site generation, complex refactors, and detailed builds.",
+    badges: ["Latest", "Advanced"],
   },
   "GPT-4-1": {
     label: "GPT-4.1",
-    description: "Stronger general-purpose model for larger refactors and more detailed builds.",
+    description: "Strong general-purpose model for larger refactors and more detailed builds.",
     badges: ["Premium", "General"],
   },
   "Claude Sonnet 4.6": {
@@ -177,10 +177,10 @@ export function AnimatedAIInput({
   const [creationMode, setCreationMode] = useState<"build" | "agent">("agent");
   const [autoMode, setAutoMode] = useState(true);
   const [wasLoading, setWasLoading] = useState(false);
-  const [selectedModel, setSelectedModel] = useState("GPT-4-1 Mini");
+  const [selectedModel, setSelectedModel] = useState("GPT-5.5");
   const [availableModels, setAvailableModels] = useState([
     "o3-mini",
-    "GPT-4-1 Mini",
+    "GPT-5.5",
     "GPT-4-1",
     "Claude Sonnet 4.6",
     "minimaxai/minimax-m2.1",
@@ -198,7 +198,7 @@ export function AnimatedAIInput({
   const buildUsed = Math.max(0, Number(userData?.tokenUsage?.used ?? 0));
   const buildRemaining = Math.max(0, Number(userData?.tokenUsage?.remaining ?? 0));
   const buildTokenLimit = Math.max(0, Number(userData?.tokensLimit ?? 0), buildUsed + buildRemaining);
-  const effectiveModel = autoMode ? "GPT-4-1 Mini" : selectedModel;
+  const effectiveModel = autoMode ? "GPT-5.5" : selectedModel;
 
   const PENDING_CREATE_KEY = "lotus-build_pending_create";
 
@@ -223,9 +223,9 @@ export function AnimatedAIInput({
   useEffect(() => {
     if (!initialModel) return;
 
-    if (initialModel === "GPT-4-1 Mini") {
+    if (initialModel === "GPT-5.5") {
       setAutoMode(true);
-      setSelectedModel("GPT-4-1 Mini");
+      setSelectedModel("GPT-5.5");
       return;
     }
 
