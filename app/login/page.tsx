@@ -150,7 +150,7 @@ export default function LoginPage() {
           className="pointer-events-none absolute inset-0"
           style={{
             background:
-              "radial-gradient(ellipse 70% 60% at 20% 20%, rgba(255,255,255,0.04) 0%, transparent 70%), radial-gradient(ellipse 50% 50% at 80% 80%, rgba(201,122,43,0.08) 0%, transparent 70%)",
+              "radial-gradient(ellipse 70% 60% at 20% 20%, color-mix(in oklch, var(--primary-foreground) 6%, transparent) 0%, transparent 70%), radial-gradient(ellipse 50% 50% at 80% 80%, color-mix(in oklch, var(--brand-glow) 14%, transparent) 0%, transparent 70%)",
           }}
         />
 
@@ -158,7 +158,7 @@ export default function LoginPage() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 w-fit group">
             <img src="/Images/lotus-official-logo.png" alt="lotus.build" className="h-9 w-9 object-contain" />
-            <span className="text-[15px] font-semibold tracking-tight text-white">Lotus.build</span>
+            <span className="text-[15px] font-semibold tracking-tight text-primary-foreground">Lotus.build</span>
           </Link>
 
           {/* Main copy */}
@@ -168,13 +168,13 @@ export default function LoginPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, ease: "easeOut" }}
             >
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500 mb-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary-foreground/60 mb-5">
                 Welcome back
               </p>
-              <h1 className="text-4xl xl:text-5xl font-bold leading-[1.08] tracking-tight text-white">
+              <h1 className="text-4xl xl:text-5xl font-bold leading-[1.08] tracking-tight text-primary-foreground">
                 Sign in and get<br />back to building.
               </h1>
-              <p className="mt-5 text-[15px] leading-relaxed text-zinc-400 max-w-sm">
+              <p className="mt-5 text-[15px] leading-relaxed text-primary-foreground/65 max-w-sm">
                 Your projects, previews, and deployments are waiting. Pick up exactly where you left off.
               </p>
             </motion.div>
@@ -187,12 +187,12 @@ export default function LoginPage() {
             >
               {FEATURES.map(({ icon: Icon, title, desc }) => (
                 <div key={title} className="flex items-start gap-4">
-                  <div className="mt-0.5 h-8 w-8 shrink-0 rounded-lg bg-white/8 border border-white/10 flex items-center justify-center">
-                    <Icon className="h-3.5 w-3.5 text-zinc-300" />
+                  <div className="mt-0.5 h-8 w-8 shrink-0 rounded-lg bg-primary-foreground/10 border border-primary-foreground/10 flex items-center justify-center">
+                    <Icon className="h-3.5 w-3.5 text-primary-foreground/70" />
                   </div>
                   <div>
-                    <p className="text-[13.5px] font-semibold text-white">{title}</p>
-                    <p className="text-[12.5px] leading-relaxed text-zinc-500">{desc}</p>
+                    <p className="text-[13.5px] font-semibold text-primary-foreground">{title}</p>
+                    <p className="text-[12.5px] leading-relaxed text-primary-foreground/55">{desc}</p>
                   </div>
                 </div>
               ))}
@@ -200,7 +200,7 @@ export default function LoginPage() {
           </div>
 
           {/* Bottom */}
-          <p className="text-[11.5px] text-zinc-600 mt-10" suppressHydrationWarning>
+          <p className="text-[11.5px] text-primary-foreground/45 mt-10" suppressHydrationWarning>
             © {new Date().getFullYear()} Lotus.build · All rights reserved
           </p>
         </div>
@@ -233,7 +233,7 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <div className="rounded-2xl border border-zinc-200 bg-white shadow-[0_4px_24px_-6px_rgba(0,0,0,0.08)] p-6 sm:p-7">
+          <div className="rounded-2xl border border-border bg-card shadow-[0_4px_24px_-6px_var(--primary)] p-6 sm:p-7">
             {error && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.97 }}

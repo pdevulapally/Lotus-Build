@@ -57,12 +57,12 @@ export function HeroSection() {
           initial={{ opacity: 0, y: 24, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-          className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-white px-5 py-10 shadow-sm sm:rounded-3xl sm:px-10 sm:py-14 lg:px-16 lg:py-20"
+          className="relative overflow-hidden rounded-2xl border border-border bg-card px-5 py-10 shadow-[0_24px_90px_-68px_var(--primary)] sm:rounded-3xl sm:px-10 sm:py-14 lg:px-16 lg:py-20"
         >
           {/* Inner highlight border */}
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-px rounded-[inherit] ring-1 ring-inset ring-white/[.04]"
+            className="pointer-events-none absolute inset-px rounded-[inherit] ring-1 ring-inset ring-primary-foreground/40"
           />
 
           {/* Subtle top‑edge shine */}
@@ -76,9 +76,9 @@ export function HeroSection() {
           >
             {/* Badge */}
             <motion.div variants={item}>
-              <span className="mb-8 inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-zinc-100 px-4 py-1.5 shadow-sm">
-                <Leaf className="h-3.5 w-3.5 text-zinc-600" />
-                <span className="text-xs font-medium tracking-wide text-zinc-600 sm:text-sm">
+              <span className="mb-8 inline-flex items-center gap-2 rounded-full border border-border bg-muted px-4 py-1.5 shadow-sm">
+                <Leaf className="h-3.5 w-3.5 text-accent" />
+                <span className="text-xs font-medium tracking-wide text-muted-foreground sm:text-sm">
                   AI powered full-stack application builder
                 </span>
               </span>
@@ -90,7 +90,7 @@ export function HeroSection() {
               className="mb-5 mt-2 font-display text-[2.25rem] font-bold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl lg:text-7xl"
             >
               <span className="block text-foreground">Describe your idea.</span>
-              <span className="mt-1 block text-zinc-700 sm:mt-2">
+              <span className="mt-1 block text-muted-foreground sm:mt-2">
                 We build it.
               </span>
             </motion.h1>
@@ -98,7 +98,7 @@ export function HeroSection() {
             {/* Subheadline */}
             <motion.p
               variants={item}
-              className="mb-10 max-w-xl text-pretty text-sm leading-relaxed text-zinc-500 sm:max-w-2xl sm:text-base md:text-lg lg:text-xl"
+              className="mb-10 max-w-xl text-pretty text-sm leading-relaxed text-muted-foreground sm:max-w-2xl sm:text-base md:text-lg lg:text-xl"
             >
               Turn your ideas into full-stack web applications with AI. Just
               describe what you want to build and watch your app come to life in

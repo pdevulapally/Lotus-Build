@@ -19,7 +19,7 @@ export function TextShimmer({
     <span
       className={cn(
         "inline-flex animate-shimmer bg-[length:250%_100%] bg-clip-text text-transparent",
-        "bg-gradient-to-r from-zinc-500 via-zinc-950 to-zinc-500",
+        "bg-gradient-to-r from-muted-foreground via-primary to-muted-foreground",
         className
       )}
       style={{

@@ -8,6 +8,11 @@ import { requireUserUid } from "@/lib/server-auth"
 import type { ComputerTimelineEvent } from "@/lib/computer-agent/types"
 import { createComputerAgentMessage } from "@/lib/computer-agent/agent-config"
 import type { MemoryContext } from "@/lib/computer-agent/agent-config"
+import {
+  ensureGeneratedProjectScaffold,
+  injectMissingComponentStubs,
+  validateGeneratedProjectFiles,
+} from "@/lib/generated-project-validation"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -41,6 +46,21 @@ type GenerationDecision = {
 type GeneratedFile = {
   path: string
   content: string
+}
+
+function mergeGeneratedFiles(baseFiles: GeneratedFile[], updateFiles: GeneratedFile[]) {
+  const byPath = new Map<string, GeneratedFile>()
+  for (const file of baseFiles) {
+    if (typeof file?.path === "string" && typeof file.content === "string") {
+      byPath.set(file.path, file)
+    }
+  }
+  for (const file of updateFiles) {
+    if (typeof file?.path === "string" && typeof file.content === "string") {
+      byPath.set(file.path, file)
+    }
+  }
+  return Array.from(byPath.values())
 }
 
 async function persistGeneratedFilesForSession(
@@ -361,6 +381,12 @@ async function parseGenerateResponse(
     throw new Error(text || `Generation failed with ${res.status}`)
   }
 
+  // Detect error emitted by the generate route stream (replaces abrupt "fetch failed")
+  const genErrorMatch = text.match(/===GENERATION_ERROR:\s*(.*?)===/)
+  if (genErrorMatch) {
+    throw new Error(genErrorMatch[1]?.trim() || "Generation failed")
+  }
+
   const suggestsBackend = text.includes("===META: suggestsBackend=true===")
   const { contentWithoutAgent } = extractAgentMessage(text)
   const files = parseStreamingFiles(contentWithoutAgent)
@@ -551,56 +577,14 @@ async function callErrorFixRoute(params: {
   }
 }
 
-/**
- * Scans relative imports in generated files and returns issues for any that
- * don't resolve to a file in the generated set. Used for pre-sandbox validation
- * to catch missing-import build errors before they reach the sandbox.
- */
-function validateGeneratedImports(files: GeneratedFile[]): string[] {
-  const availablePaths = new Set(files.map((f) => f.path))
-  const issues: string[] = []
+/** Deterministic preview repair: inject scaffold + stub missing local modules. */
+function repairGeneratedFilesForPreview(files: GeneratedFile[]): GeneratedFile[] {
+  return injectMissingComponentStubs(ensureGeneratedProjectScaffold(files))
+}
 
-  for (const file of files) {
-    if (!/\.(tsx?|jsx?)$/.test(file.path)) continue
-
-    const importerDir = file.path.includes("/")
-      ? file.path.slice(0, file.path.lastIndexOf("/"))
-      : ""
-    const importRegex = /from\s+["'](\.[^"']+)["']|import\s+["'](\.[^"']+)["']/g
-    let match: RegExpExecArray | null
-
-    while ((match = importRegex.exec(file.content)) !== null) {
-      const rawImport = match[1] || match[2]
-      if (!rawImport) continue
-
-      const normalizedBase = rawImport
-        .split("/")
-        .reduce<string[]>((parts, seg) => {
-          if (!seg || seg === ".") return parts
-          if (seg === "..") { parts.pop(); return parts }
-          parts.push(seg)
-          return parts
-        }, importerDir ? importerDir.split("/") : [])
-        .join("/")
-
-      const candidates = [
-        normalizedBase,
-        `${normalizedBase}.ts`,
-        `${normalizedBase}.tsx`,
-        `${normalizedBase}.js`,
-        `${normalizedBase}.jsx`,
-        `${normalizedBase}/index.ts`,
-        `${normalizedBase}/index.tsx`,
-      ]
-
-      if (!candidates.some((c) => availablePaths.has(c))) {
-        issues.push(`Missing import "${rawImport}" in ${file.path}`)
-        if (issues.length >= 20) return issues
-      }
-    }
-  }
-
-  return issues
+/** Shared validation used before sandbox startup. */
+function getGeneratedPreviewIssues(files: GeneratedFile[]): string[] {
+  return validateGeneratedProjectFiles(files, { requireNewAppScaffold: true }).issueMessages
 }
 
 function normalizeTinyFishEvent(raw: unknown): Record<string, unknown> | null {
@@ -1340,7 +1324,17 @@ function parseAgentWebPlan(text: string, prompt: string, profile?: ComputerRunPr
   }
 }
 
-async function createAgentWebPlan(prompt: string, planText: string, profile?: ComputerRunProfile): Promise<AgentWebPlan> {
+type AgentCaller = (
+  params: Parameters<typeof createComputerAgentMessage>[1],
+  options?: { enableMcp?: boolean }
+) => ReturnType<typeof createComputerAgentMessage>
+
+async function createAgentWebPlan(
+  callAgent: AgentCaller,
+  prompt: string,
+  planText: string,
+  profile?: ComputerRunProfile,
+): Promise<AgentWebPlan> {
   const heuristic = buildHeuristicWebPlan(prompt, profile)
   if (profile && !profile.shouldUseWebTools) {
     return heuristic
@@ -1730,7 +1724,7 @@ Return ONLY valid JSON, no markdown:
 
     // Planning now runs AFTER research so the build brief is grounded in real evidence.
     // Pass empty planText here — web plan can derive research strategy from the prompt alone.
-    const webPlan = await createAgentWebPlan(prompt, "", runProfile)
+    const webPlan = await createAgentWebPlan(callAgent, prompt, "", runProfile)
 
     if (runProfile.shouldUseWebTools) {
       await appendRunEvent({
@@ -2643,7 +2637,7 @@ Instructions:
             const { files: fixedFiles } = await parseGenerateResponse(fixRes)
 
             if (fixedFiles.length > 0) {
-              generatedFiles = fixedFiles
+              generatedFiles = mergeGeneratedFiles(generatedFiles, fixedFiles)
               await persistGeneratedFilesForSession(docRef, generatedFiles)
             }
 
@@ -2675,6 +2669,91 @@ Instructions:
       }
     }
 
+    // — Preview preflight repair —
+    if (generatedFiles.length > 0) {
+      // Deterministic repair first: scaffold config files and stub any local
+      // component imports the model referenced but never generated.
+      generatedFiles = repairGeneratedFilesForPreview(generatedFiles)
+      await persistGeneratedFilesForSession(docRef, generatedFiles)
+
+      let previewIssues = getGeneratedPreviewIssues(generatedFiles)
+
+      if (previewIssues.length > 0) {
+        const preflightEventId = crypto.randomUUID()
+        await appendRunEvent({
+          id: preflightEventId,
+          title: "Fixing preview",
+          description: "Checking the generated app before starting the preview.",
+          status: "running",
+          kind: "code",
+          createdAt: new Date().toISOString(),
+        })
+
+        const previewFixPrompt = `Fix the generated application so it can start in the preview sandbox.
+
+Detected issues:
+${previewIssues.map((issue) => `- ${issue}`).join("\n")}
+
+Rules:
+- Keep the same app intent and design direction
+- Add or repair only the files needed for a valid Vite React app
+- Resolve missing relative imports by creating the referenced files or correcting the import paths
+- Do not rewrite the whole project
+- Return the complete corrected project`
+
+        try {
+          const controller = new AbortController()
+          const timeout = setTimeout(() => controller.abort(), 90000)
+          let previewFixRes: Response
+
+          try {
+            previewFixRes = await fetch(`${baseUrl}/api/generate`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: authHeader,
+              },
+              body: JSON.stringify({
+                prompt: previewFixPrompt,
+                model: builderModel,
+                existingFiles: generatedFiles,
+                creationMode: "build",
+              }),
+              signal: controller.signal,
+            })
+          } finally {
+            clearTimeout(timeout)
+          }
+
+          const { files: previewFixedFiles } = await parseGenerateResponse(previewFixRes)
+
+          if (previewFixedFiles.length > 0) {
+            generatedFiles = mergeGeneratedFiles(generatedFiles, previewFixedFiles)
+            await persistGeneratedFilesForSession(docRef, generatedFiles)
+          }
+
+          generatedFiles = repairGeneratedFilesForPreview(generatedFiles)
+          await persistGeneratedFilesForSession(docRef, generatedFiles)
+          previewIssues = getGeneratedPreviewIssues(generatedFiles)
+
+          await updateTimelineEvent(docRef, runId, preflightEventId, {
+            title: previewFixRes.ok && previewIssues.length === 0 ? "Fix applied" : "Fix failed",
+            description: previewFixRes.ok && previewIssues.length === 0
+              ? "Preview files are ready."
+              : "The app still needs repair before a preview can start.",
+            status: previewFixRes.ok && previewIssues.length === 0 ? "complete" : "error",
+          })
+        } catch (err) {
+          console.error("Computer preview preflight fix failed:", err)
+          await updateTimelineEvent(docRef, runId, preflightEventId, {
+            title: "Fix failed",
+            description: "The app still needs repair before a preview can start.",
+            status: "error",
+          }).catch(() => {})
+        }
+      }
+    }
+
     // — Sandbox validation phase —
     if (!generatedFiles.length) {
       await appendRunEvent({
@@ -2687,15 +2766,16 @@ Instructions:
       })
     }
 
-    const hasEntry =
-      generatedFiles.some((f) => typeof f?.path === "string" && f.path === "package.json") &&
-      generatedFiles.some((f) => typeof f?.path === "string" && f.path.includes("main.tsx"))
+    const previewReadinessIssues = generatedFiles.length > 0
+      ? getGeneratedPreviewIssues(generatedFiles)
+      : []
+    const hasEntry = generatedFiles.length > 0 && previewReadinessIssues.length === 0
 
     if (generatedFiles.length > 0 && !hasEntry) {
       await appendRunEvent({
         id: crypto.randomUUID(),
         title: "Preview skipped",
-        description: "Missing required project files",
+        description: "The generated app needs a little more repair before the preview can start.",
         status: "complete",
         kind: "sandbox",
         createdAt: new Date().toISOString(),
@@ -2947,7 +3027,7 @@ Rules:
             const { files: runtimeFixedFiles } = await parseGenerateResponse(runtimeFixRes)
 
             if (runtimeFixedFiles.length > 0) {
-              generatedFiles = runtimeFixedFiles
+              generatedFiles = mergeGeneratedFiles(generatedFiles, runtimeFixedFiles)
               await persistGeneratedFilesForSession(docRef, generatedFiles)
             }
 

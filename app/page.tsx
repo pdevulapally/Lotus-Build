@@ -33,17 +33,17 @@ export default function Home() {
             }}
           />
 
-          <div className="absolute inset-0 -z-20 bg-gradient-to-b from-black/40 via-black/20 to-black/60" />
-          <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_50%_20%,rgba(255,255,255,0.25),transparent_60%)]" />
+          <div className="absolute inset-0 -z-20 bg-[linear-gradient(to_bottom,color-mix(in_oklch,var(--primary)_72%,transparent),color-mix(in_oklch,var(--primary)_38%,transparent),color-mix(in_oklch,var(--primary)_84%,transparent))]" />
+          <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_50%_20%,color-mix(in_oklch,var(--primary-foreground)_26%,transparent),transparent_60%)]" />
 
           <div className="relative z-10 mx-auto flex min-h-[calc(100vh-7rem)] max-w-5xl items-center justify-center pb-20 text-center sm:pb-24">
             <div className="w-full">
-              <h1 className="font-display text-5xl font-bold leading-[0.92] tracking-tight text-white sm:text-6xl md:text-7xl lg:text-[5.5rem]">
+              <h1 className="font-display text-5xl font-bold leading-[0.92] tracking-tight text-primary-foreground sm:text-6xl md:text-7xl lg:text-[5.5rem]">
                 Describe your idea.
-                <span className="mt-2 block text-white/90">We build it.</span>
+                <span className="mt-2 block text-primary-foreground/90">We build it.</span>
               </h1>
 
-              <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-white/80 sm:text-lg md:text-xl">
+              <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-primary-foreground/80 sm:text-lg md:text-xl">
                 Turn your ideas into full-stack web applications with AI.
                 Just describe what you want to build and watch it come to life.
               </p>
@@ -75,7 +75,7 @@ export default function Home() {
                     idx % 2 === 0 ? "bg-muted" : "bg-muted"
                   }`}
                 >
-                  <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white/70 text-foreground/80">
+                  <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-card/80 text-accent">
                     <Icon className="h-5 w-5" />
                   </div>
                   <h3 className="mt-4 text-lg font-semibold text-foreground">{item.title}</h3>
@@ -100,7 +100,7 @@ export default function Home() {
         <section className="bg-muted px-4 py-12 sm:px-6 lg:px-8">
           <div className="mx-auto grid max-w-6xl gap-4 md:grid-cols-2 lg:grid-cols-3">
             {lotusBuildUseCases.map((useCase) => (
-              <article key={useCase.title} className="rounded-2xl bg-white/70 p-6">
+              <article key={useCase.title} className="rounded-2xl bg-card/80 p-6">
                 <h3 className="text-lg font-semibold text-foreground">{useCase.title}</h3>
                 <p className="mt-2 text-sm text-muted-foreground">{useCase.description}</p>
               </article>
@@ -115,7 +115,7 @@ export default function Home() {
               <h2 className="mt-1 text-2xl font-semibold text-foreground sm:text-3xl">Loved by builders</h2>
             </div>
 
-            <div className="flex gap-4 overflow-x-auto pb-2 [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-300/80 hover:[&::-webkit-scrollbar-thumb]:bg-zinc-400/80">
+            <div className="flex gap-4 overflow-x-auto pb-2 [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border/80 hover:[&::-webkit-scrollbar-thumb]:bg-border-strong/80">
               {lotusBuildTestimonials.map((testimonial) => (
                 <blockquote
                   key={testimonial.name}

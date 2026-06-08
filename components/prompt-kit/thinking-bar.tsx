@@ -38,46 +38,46 @@ function resolvePhase(label: string, index: number, total: number): StepPhase {
 function statusStyles(status: StepStatus, phase: StepPhase) {
   const phaseTone =
     phase === "Planning"
-      ? "from-zinc-200/85"
+      ? "from-muted/85"
       : phase === "Building"
-        ? "from-zinc-100/90"
+        ? "from-surface-raised/90"
         : phase === "Validating"
-          ? "from-[#ecece6]/90"
-          : "from-[#e8e7df]/90"
+          ? "from-info-soft/90"
+          : "from-accent-soft/90"
 
   if (status === "complete") {
     return {
-      dot: "border-zinc-700 bg-zinc-700 text-white shadow-[0_0_0_2px_rgba(63,63,70,0.1)]",
-      card: `border-zinc-300 bg-gradient-to-r ${phaseTone} to-white opacity-85`,
-      title: "text-zinc-800",
-      line: "bg-zinc-300",
-      phase: "text-zinc-500",
+      dot: "border-primary bg-primary text-primary-foreground shadow-[0_0_0_2px_var(--border)]",
+      card: `border-border-strong bg-gradient-to-r ${phaseTone} to-card opacity-85`,
+      title: "text-foreground",
+      line: "bg-border-strong",
+      phase: "text-muted-foreground",
     }
   }
   if (status === "running") {
     return {
-      dot: "border-zinc-700 bg-zinc-700 text-white shadow-[0_0_0_6px_rgba(63,63,70,0.14)]",
-      card: `border-zinc-400 bg-gradient-to-r ${phaseTone} to-white shadow-[0_0_24px_rgba(24,24,27,0.08)]`,
+      dot: "border-primary bg-primary text-primary-foreground shadow-[0_0_0_6px_var(--border)]",
+      card: `border-border-strong bg-gradient-to-r ${phaseTone} to-card shadow-[0_0_24px_-12px_var(--primary)]`,
       title: "text-foreground",
-      line: "bg-gradient-to-b from-zinc-500/90 via-zinc-400/70 to-zinc-300",
-      phase: "text-zinc-600",
+      line: "bg-gradient-to-b from-primary/90 via-muted-foreground/70 to-border-strong",
+      phase: "text-muted-foreground",
     }
   }
   if (status === "error") {
     return {
-      dot: "border-rose-500 bg-rose-500 text-white",
-      card: "border-rose-200 bg-rose-50/85",
-      title: "text-rose-700",
-      line: "bg-rose-300",
-      phase: "text-rose-500",
+      dot: "border-destructive bg-destructive text-destructive-foreground",
+      card: "border-destructive/20 bg-destructive/10",
+      title: "text-destructive",
+      line: "bg-destructive/30",
+      phase: "text-destructive",
     }
   }
   return {
-    dot: "border-zinc-300 bg-white text-zinc-400",
-    card: "border-zinc-200 bg-white/80",
-    title: "text-zinc-500",
-    line: "bg-zinc-200",
-    phase: "text-zinc-400",
+    dot: "border-border-strong bg-card text-muted-foreground",
+    card: "border-border bg-card/80",
+    title: "text-muted-foreground",
+    line: "bg-border",
+    phase: "text-muted-foreground/80",
   }
 }
 
@@ -105,18 +105,18 @@ export function ThinkingBar({
     <div
       role="status"
       aria-live="polite"
-      className={cn("rounded-2xl border border-zinc-200 bg-white/75 p-4 shadow-[0_16px_40px_-24px_rgba(0,0,0,0.45)] backdrop-blur-md", className)}
+      className={cn("rounded-2xl border border-border bg-card/75 p-4 shadow-[0_16px_40px_-24px_var(--primary)] backdrop-blur-md", className)}
     >
       {isGenerating ? (
         <div className="mb-4">
-          <TextShimmer className="text-xs uppercase tracking-widest text-zinc-500">Lotus.build Agent Orchestrating Build</TextShimmer>
+          <TextShimmer className="text-xs uppercase tracking-widest text-muted-foreground">Lotus.build Agent Orchestrating Build</TextShimmer>
         </div>
       ) : null}
 
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-300 bg-white">
-            {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-700" /> : <Leaf className="h-3.5 w-3.5 text-zinc-700" />}
+          <div className="flex h-7 w-7 items-center justify-center rounded-full border border-border bg-card">
+            {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin text-foreground" /> : <Leaf className="h-3.5 w-3.5 text-foreground" />}
           </div>
           {isGenerating ? (
             <TextShimmer className="text-sm font-medium tracking-tight text-foreground">{text || "Making updates"}</TextShimmer>
@@ -124,7 +124,7 @@ export function ThinkingBar({
             <p className="text-sm font-medium tracking-tight text-foreground">{text || "Build complete"}</p>
           )}
         </div>
-        {currentFile ? <p className="truncate text-xs text-zinc-500">{currentFile}</p> : <Check className="h-4 w-4 text-zinc-600" />}
+        {currentFile ? <p className="truncate text-xs text-muted-foreground">{currentFile}</p> : <Check className="h-4 w-4 text-foreground" />}
       </div>
 
       <motion.div
@@ -138,7 +138,7 @@ export function ThinkingBar({
       >
         <motion.div
           aria-hidden
-          className={cn("absolute bottom-1 left-[9px] top-1 w-px rounded-full", isGenerating ? "bg-gradient-to-b from-zinc-500 via-zinc-300 to-zinc-200" : "bg-zinc-300")}
+          className={cn("absolute bottom-1 left-[9px] top-1 w-px rounded-full", isGenerating ? "bg-gradient-to-b from-primary via-border-strong to-border" : "bg-border-strong")}
           animate={isGenerating ? { opacity: [0.45, 1, 0.45] } : { opacity: 0.8 }}
           transition={isGenerating ? { duration: 1.8, repeat: Infinity, ease: "easeInOut" } : { duration: 0.25 }}
         />
@@ -161,7 +161,7 @@ export function ThinkingBar({
                   animate={isActive ? { scale: [1, 1.08, 1] } : { scale: 1 }}
                   transition={isActive ? { duration: 1.1, repeat: Infinity, ease: "easeInOut" } : { duration: 0.2 }}
                 >
-                  {step.status === "complete" ? <Check className="h-3 w-3" /> : step.status === "error" ? <AlertCircle className="h-3 w-3" /> : <div className={cn("rounded-full", isActive ? "h-2 w-2 bg-white animate-pulse" : "h-1.5 w-1.5 bg-zinc-400")} />}
+                  {step.status === "complete" ? <Check className="h-3 w-3" /> : step.status === "error" ? <AlertCircle className="h-3 w-3" /> : <div className={cn("rounded-full", isActive ? "h-2 w-2 bg-primary-foreground animate-pulse" : "h-1.5 w-1.5 bg-muted-foreground")} />}
                 </motion.div>
                 <div className="min-w-0">
                   <p className={cn("mb-0.5 text-[11px] uppercase tracking-wide", styles.phase)}>{step.phase}</p>

@@ -1,8 +1,10 @@
 import { NextRequest } from "next/server"
 import Stripe from "stripe"
 import { adminDb } from "@/lib/firebase-admin"
-import { Timestamp } from "firebase-admin/firestore"
+import { Timestamp, FieldValue } from "firebase-admin/firestore"
 import { getAgentRunLimitForPlan } from "@/lib/agent-quotas"
+
+const REFERRAL_CREDITS = 500
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
@@ -85,6 +87,58 @@ async function syncSubscriptionToUser(subscriptionId: string, uid: string) {
   const tokensPerMonth = Math.max(1, baseTokensPerMonth) * quantity
 
   await setUserPlan(uid, planId, tokensPerMonth, subscriptionId)
+
+  // Referral reward is earned only when the referred user pays for a plan.
+  if (planId && planId !== "free") {
+    await grantReferralReward(uid)
+  }
+}
+
+/**
+ * Grants 500 credits to both the referred user and their referrer the first
+ * time the referred user activates a paid subscription. Idempotent via the
+ * `referralClaimed` flag, so subscription renewals/updates never re-award.
+ */
+async function grantReferralReward(refereeUid: string) {
+  const refereeRef = adminDb.collection("users").doc(refereeUid)
+  try {
+    await adminDb.runTransaction(async (tx) => {
+      const refereeSnap = await tx.get(refereeRef)
+      if (!refereeSnap.exists) return
+
+      const referee = refereeSnap.data() as Record<string, unknown>
+      const referrerUid = typeof referee.referredBy === "string" ? referee.referredBy : ""
+
+      // No referrer, already rewarded, or self-referral → nothing to do.
+      if (!referrerUid || referrerUid === refereeUid || referee.referralClaimed === true) {
+        return
+      }
+
+      const referrerRef = adminDb.collection("users").doc(referrerUid)
+      const referrerSnap = await tx.get(referrerRef)
+      if (!referrerSnap.exists) {
+        // Referrer no longer exists — close out so we don't re-check forever.
+        tx.update(refereeRef, { referralClaimed: true })
+        return
+      }
+
+      // Bumping tokensLimit keeps the bonus persistent across monthly resets.
+      tx.update(refereeRef, {
+        referralClaimed: true,
+        tokensLimit: FieldValue.increment(REFERRAL_CREDITS),
+        "tokenUsage.remaining": FieldValue.increment(REFERRAL_CREDITS),
+      })
+      tx.update(referrerRef, {
+        referralCount: FieldValue.increment(1),
+        referralCreditsEarned: FieldValue.increment(REFERRAL_CREDITS),
+        tokensLimit: FieldValue.increment(REFERRAL_CREDITS),
+        "tokenUsage.remaining": FieldValue.increment(REFERRAL_CREDITS),
+      })
+    })
+  } catch (err) {
+    // Never let referral bookkeeping break subscription provisioning.
+    console.error("[Stripe webhook] Referral reward failed for", refereeUid, err)
+  }
 }
 
 function getFirstDayOfNextMonth(date: Date): Date {

@@ -270,7 +270,7 @@ export function PreviewWithVisualEdit({
 
         {canEdit && enabled && hover && (
           <div
-            className="pointer-events-none absolute z-10 rounded border-2 border-blue-500/70 transition-all duration-75"
+            className="pointer-events-none absolute z-10 rounded border-2 border-accent/70 transition-all duration-75"
             style={hoverStyle}
           />
         )}
@@ -281,7 +281,7 @@ export function PreviewWithVisualEdit({
           return (
             <div
               key={item.id}
-              className="absolute z-20 rounded border-2 border-blue-600 bg-blue-500/12 shadow-[0_0_0_1px_rgba(37,99,235,0.14)]"
+              className="absolute z-20 rounded border-2 border-accent bg-accent/12 shadow-[0_0_0_1px_color-mix(in_oklch,var(--accent)_18%,transparent)]"
               style={{
                 left: item.rect.x * scaleX,
                 top: item.rect.y * scaleY,

@@ -24,16 +24,16 @@ export function CodePanel({ files, selectedFile, onSelectFile, isGenerating }: C
       />
       <div className="flex flex-1 flex-col bg-card">
         {!selectedFile ? (
-          <div className="flex flex-1 items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(244,244,245,0.92),_rgba(252,252,250,1)_56%)]">
-            <div className="text-center text-zinc-500">Select a file</div>
+          <div className="flex flex-1 items-center justify-center bg-[radial-gradient(circle_at_top,color-mix(in_oklch,var(--surface-raised)_92%,transparent),var(--card)_56%)]">
+            <div className="text-center text-muted-foreground">Select a file</div>
           </div>
         ) : (
           <>
-            <div className="flex h-11 items-center border-b border-zinc-200 bg-white px-4 shadow-sm">
-              <FileCode className={cn("mr-2 h-4 w-4 text-zinc-500")} />
-              <span className="text-sm text-zinc-700">{selectedFile.path}</span>
+            <div className="flex h-11 items-center border-b border-border bg-card px-4 shadow-sm">
+              <FileCode className={cn("mr-2 h-4 w-4 text-muted-foreground")} />
+              <span className="text-sm text-foreground">{selectedFile.path}</span>
             </div>
-            <div className="min-h-0 flex-1 bg-white">
+            <div className="min-h-0 flex-1 bg-card">
               <Editor
                 height="100%"
                 language={getLanguageFromPath(selectedFile.path)}
@@ -41,7 +41,7 @@ export function CodePanel({ files, selectedFile, onSelectFile, isGenerating }: C
                 theme="vs-light"
                 loading={
                   <div className="flex h-full items-center justify-center bg-card">
-                    <div className="text-sm text-zinc-500">Loading editor...</div>
+                    <div className="text-sm text-muted-foreground">Loading editor...</div>
                   </div>
                 }
                 options={{

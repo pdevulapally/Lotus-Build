@@ -1,7 +1,7 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import { ArrowUp, Check, Loader2, Square, Leaf, X } from "lucide-react";
+import { ArrowUp, Check, Loader2, Mic, Square, Leaf, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Textarea } from "@/components/ui/textarea";
@@ -70,12 +70,37 @@ interface AnimatedAIInputProps {
   placeholder?: string;
   isLoading?: boolean;
   compact?: boolean;
+  compactSize?: "default" | "slim";
   visualEditToggle?: { active: boolean; onToggle: () => void };
   disabled?: boolean;
   initialModel?: string;
   contextBadge?: { label: string; value: string; onClear?: () => void } | null;
   submitLabel?: string;
 }
+
+type SpeechRecognitionResultLike = {
+  isFinal: boolean;
+  0?: { transcript?: string };
+};
+
+type SpeechRecognitionEventLike = Event & {
+  resultIndex: number;
+  results: ArrayLike<SpeechRecognitionResultLike>;
+};
+
+type SpeechRecognitionLike = EventTarget & {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onend: (() => void) | null;
+  onerror: (() => void) | null;
+};
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
 
 const MODEL_META: Record<string, { label: string; description: string; badges: string[] }> = {
   "o3-mini": {
@@ -163,6 +188,7 @@ export function AnimatedAIInput({
   placeholder = "What can I help you build today?",
   isLoading = false,
   compact = false,
+  compactSize = "default",
   visualEditToggle,
   disabled = false,
   initialModel,
@@ -178,6 +204,8 @@ export function AnimatedAIInput({
   const [autoMode, setAutoMode] = useState(true);
   const [wasLoading, setWasLoading] = useState(false);
   const [selectedModel, setSelectedModel] = useState("GPT-5.5");
+  const [isListening, setIsListening] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(false);
   const [availableModels, setAvailableModels] = useState([
     "o3-mini",
     "GPT-5.5",
@@ -189,9 +217,11 @@ export function AnimatedAIInput({
     "qwen/qwen2.5-coder-32b-instruct",
   ]);
 
+  const isSlimCompact = compact && compactSize === "slim";
+  const compactMinHeight = isSlimCompact ? 68 : 88;
   const { textareaRef, adjustHeight } = useAutoResizeTextarea({
-    minHeight: compact ? 88 : 132,
-    maxHeight: compact ? 220 : 360,
+    minHeight: compact ? compactMinHeight : 132,
+    maxHeight: compact ? (isSlimCompact ? 180 : 220) : 360,
   });
 
   const isPaidUser = userData?.planId && userData.planId !== "free";
@@ -201,10 +231,28 @@ export function AnimatedAIInput({
   const effectiveModel = autoMode ? "GPT-5.5" : selectedModel;
 
   const PENDING_CREATE_KEY = "lotus-build_pending_create";
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const speechBaseValueRef = useRef("");
+
+  const syncTextareaHeight = useCallback(() => {
+    requestAnimationFrame(() => adjustHeight());
+  }, [adjustHeight]);
 
   useEffect(() => {
     if (!isPaidUser) setAutoMode(true);
   }, [isPaidUser]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setSpeechSupported(Boolean(
+      (window as Window & { SpeechRecognition?: SpeechRecognitionConstructor; webkitSpeechRecognition?: SpeechRecognitionConstructor }).SpeechRecognition ||
+      (window as Window & { SpeechRecognition?: SpeechRecognitionConstructor; webkitSpeechRecognition?: SpeechRecognitionConstructor }).webkitSpeechRecognition
+    ));
+    return () => {
+      recognitionRef.current?.abort();
+      recognitionRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     if (mode !== "create") setCreationMode("build");
@@ -264,6 +312,8 @@ export function AnimatedAIInput({
 
   const handleSubmit = async () => {
     if (!value.trim() || isCreating || isLoading || disabled) return;
+    recognitionRef.current?.stop();
+    setIsListening(false);
 
     if (mode === "chat" && onSubmit) {
       const submittedValue = value.trim();
@@ -333,6 +383,59 @@ export function AnimatedAIInput({
     }
   };
 
+  const handleToggleSpeech = () => {
+    if (disabled || isCreating || isLoading || !speechSupported) return;
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const SpeechRecognitionCtor =
+      (window as Window & { SpeechRecognition?: SpeechRecognitionConstructor; webkitSpeechRecognition?: SpeechRecognitionConstructor }).SpeechRecognition ||
+      (window as Window & { SpeechRecognition?: SpeechRecognitionConstructor; webkitSpeechRecognition?: SpeechRecognitionConstructor }).webkitSpeechRecognition;
+
+    if (!SpeechRecognitionCtor) {
+      setSpeechSupported(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognitionCtor();
+    recognitionRef.current = recognition;
+    speechBaseValueRef.current = value.trimEnd();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = typeof navigator !== "undefined" ? navigator.language || "en-US" : "en-US";
+
+    recognition.onresult = (event) => {
+      let transcript = "";
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        transcript += event.results[index]?.[0]?.transcript ?? "";
+      }
+      const nextTranscript = transcript.trim();
+      if (!nextTranscript) return;
+      const prefix = speechBaseValueRef.current;
+      setValue(prefix ? `${prefix} ${nextTranscript}` : nextTranscript);
+      syncTextareaHeight();
+    };
+
+    recognition.onerror = () => {
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    try {
+      recognition.start();
+      setIsListening(true);
+    } catch {
+      setIsListening(false);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const isSubmitKey = (e.key === "Enter" && !e.shiftKey) || ((e.ctrlKey || e.metaKey) && e.key === "Enter");
     if (isSubmitKey && value.trim() && !isCreating && !isLoading) {
@@ -345,35 +448,43 @@ export function AnimatedAIInput({
   const canSubmit = value.trim().length > 0 && !isCreating && !isLoading && !disabled;
   const canStop = mode === "chat" && isLoading && !disabled && typeof onStop === "function";
   const resolvedPlaceholder = placeholder;
-  const submitAriaLabel = creationMode === "agent" ? "Start agent session" : "Start build";
+  const hasSubmitLabel = Boolean(submitLabel?.trim());
+  const submitAriaLabel = hasSubmitLabel
+    ? submitLabel!.trim()
+    : creationMode === "agent"
+      ? "Start agent session"
+      : "Start build";
 
   return (
     <div className="group w-full max-w-2xl">
       <div
         className={cn(
           "relative rounded-2xl border transition-all duration-300",
-          "bg-white/80 backdrop-blur-2xl",
-          "shadow-[0_8px_32px_-8px_rgba(0,0,0,0.18),0_0_0_1px_rgba(255,255,255,0.6)_inset]",
+          "bg-card/85 backdrop-blur-2xl",
+          "shadow-[0_8px_32px_-8px_var(--primary),0_0_0_1px_var(--primary-foreground)_inset]",
           disabled
-            ? "border-white/20 opacity-60"
+            ? "border-border/50 opacity-60"
             : isFocused
-              ? "border-white/50 shadow-[0_16px_48px_-12px_rgba(0,0,0,0.22),0_0_0_1px_rgba(255,255,255,0.7)_inset]"
-              : "border-white/30 hover:border-white/45 hover:shadow-[0_12px_40px_-10px_rgba(0,0,0,0.20),0_0_0_1px_rgba(255,255,255,0.65)_inset]"
+              ? "border-ring/50 shadow-[0_16px_48px_-12px_var(--primary),0_0_0_1px_var(--primary-foreground)_inset]"
+              : "border-border hover:border-border-strong hover:shadow-[0_12px_40px_-10px_var(--primary),0_0_0_1px_var(--primary-foreground)_inset]"
         )}
       >
-        <div className="relative px-4 pb-4 pt-4 sm:px-5 sm:pb-5 sm:pt-5">
+        <div className={cn(
+          "relative px-4 pb-4 pt-4 sm:px-5 sm:pb-5 sm:pt-5",
+          isSlimCompact && "px-3 pb-3 pt-3 sm:px-3.5 sm:pb-3.5 sm:pt-3.5"
+        )}>
           {contextBadge ? (
             <div className="mb-3 flex max-w-[calc(100%-4rem)] items-center">
-              <div className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-black/5 px-3 py-2 text-xs text-zinc-700">
-                <span className="font-medium text-zinc-500">{contextBadge.label}</span>
-                <span className="rounded-full bg-black/8 px-2 py-0.5 font-medium text-zinc-800">
+              <div className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-muted px-3 py-2 text-xs text-foreground">
+                <span className="font-medium text-muted-foreground">{contextBadge.label}</span>
+                <span className="rounded-full bg-surface-inset px-2 py-0.5 font-medium text-foreground">
                   {contextBadge.value}
                 </span>
                 {contextBadge.onClear ? (
                   <button
                     type="button"
                     onClick={contextBadge.onClear}
-                    className="inline-flex h-5 w-5 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-black/8 hover:text-zinc-700"
+                    className="inline-flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-surface-inset hover:text-foreground"
                     aria-label="Clear selected context"
                   >
                     <X className="h-3 w-3" />
@@ -388,11 +499,11 @@ export function AnimatedAIInput({
             value={value}
             placeholder={resolvedPlaceholder}
             className={cn(
-              "w-full resize-none border-none bg-transparent px-0 pb-16 pt-0 text-[15px] text-zinc-900 sm:text-base",
-              "placeholder:text-zinc-400",
+              "w-full resize-none border-none bg-transparent px-0 pt-0 text-[15px] text-foreground sm:text-base",
+              "placeholder:text-muted-foreground",
               "focus-visible:ring-0 focus-visible:ring-offset-0",
-              "scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-200",
-              compact ? "min-h-[88px]" : "min-h-[132px]",
+              "scrollbar-thin scrollbar-track-transparent scrollbar-thumb-border",
+              compact ? (isSlimCompact ? "min-h-[68px] pb-12" : "min-h-[88px] pb-16") : "min-h-[132px] pb-16",
             )}
             ref={textareaRef}
             onKeyDown={handleKeyDown}
@@ -405,9 +516,15 @@ export function AnimatedAIInput({
             }}
           />
 
-          <div className="absolute bottom-3 left-3 flex max-w-[calc(100%-4.5rem)] items-center gap-1.5 sm:bottom-4 sm:left-4">
+          <div
+            className={cn(
+              "absolute bottom-3 left-3 flex items-center gap-1.5 sm:bottom-4 sm:left-4",
+              isSlimCompact && "bottom-2.5 left-2.5 sm:bottom-3 sm:left-3",
+              hasSubmitLabel ? "max-w-[calc(100%-8.75rem)]" : "max-w-[calc(100%-6.5rem)]"
+            )}
+          >
             {mode === "create" && !compact ? (
-              <div className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-black/8 bg-black/5 p-1 backdrop-blur-sm">
+              <div className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-border bg-muted p-1 backdrop-blur-sm">
                 <div className="group/build relative">
                   <button
                     type="button"
@@ -415,16 +532,16 @@ export function AnimatedAIInput({
                     className={cn(
                       "rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-150",
                       creationMode === "build"
-                        ? "bg-accent text-white shadow-sm"
-                        : "text-zinc-500 hover:text-zinc-800"
+                        ? "bg-accent text-accent-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
                     )}
                   >
                     Build
                   </button>
                   {userData ? (
-                    <div className="pointer-events-none absolute bottom-[calc(100%+10px)] left-1/2 z-20 hidden max-w-[80vw] -translate-x-1/2 whitespace-normal rounded-xl bg-zinc-900 px-3 py-2 text-center text-[11px] font-medium text-white shadow-lg group-hover/build:md:block">
+                    <div className="pointer-events-none absolute bottom-[calc(100%+10px)] left-1/2 z-20 hidden max-w-[80vw] -translate-x-1/2 whitespace-normal rounded-xl bg-primary px-3 py-2 text-center text-[11px] font-medium text-primary-foreground shadow-lg group-hover/build:md:block">
                       Build tokens left: {buildRemaining}/{buildTokenLimit}
-                      <span className="absolute left-1/2 top-full -translate-x-1/2 border-x-[6px] border-t-[6px] border-x-transparent border-t-zinc-900" />
+                      <span className="absolute left-1/2 top-full -translate-x-1/2 border-x-[6px] border-t-[6px] border-x-transparent border-t-primary" />
                     </div>
                   ) : null}
                 </div>
@@ -434,8 +551,8 @@ export function AnimatedAIInput({
                   className={cn(
                     "rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-150",
                     creationMode === "agent"
-                      ? "bg-accent text-white shadow-sm"
-                      : "text-zinc-500 hover:text-zinc-800"
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
                   )}
                 >
                   Agent
@@ -450,8 +567,8 @@ export function AnimatedAIInput({
                 className={cn(
                   "h-8 rounded-full border px-3 text-xs font-medium transition-all duration-150",
                   visualEditToggle.active
-                    ? "border-zinc-300 bg-zinc-900 text-white"
-                    : "border-black/8 bg-black/5 text-zinc-500 hover:text-zinc-800"
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-muted text-muted-foreground hover:text-foreground"
                 )}
               >
                 {visualEditToggle.active ? "Visual Edit On" : "Visual Edit"}
@@ -463,8 +580,8 @@ export function AnimatedAIInput({
                 <button
                   type="button"
                   className={cn(
-                    "h-8 rounded-full border border-black/8 bg-black/5 px-3 text-xs font-medium text-zinc-500 transition-all duration-150 hover:text-zinc-800",
-                    "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-400/40"
+                    "h-8 rounded-full border border-border bg-muted px-3 text-xs font-medium text-muted-foreground transition-all duration-150 hover:text-foreground",
+                    "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/40"
                   )}
                 >
                   {autoMode ? "Auto" : getModelMeta(selectedModel).label}
@@ -475,27 +592,27 @@ export function AnimatedAIInput({
                 side="top"
                 sideOffset={10}
                 avoidCollisions={false}
-                className="max-h-[24rem] w-[23rem] overflow-y-auto overscroll-contain border-zinc-200/80 bg-white/95 p-2 shadow-xl backdrop-blur-xl"
+                className="max-h-[24rem] w-[23rem] overflow-y-auto overscroll-contain border-border bg-popover/95 p-2 shadow-xl backdrop-blur-xl"
               >
-                <DropdownMenuLabel className="px-2 pb-1 text-xs font-medium text-zinc-400">Response model</DropdownMenuLabel>
+                <DropdownMenuLabel className="px-2 pb-1 text-xs font-medium text-muted-foreground">Response model</DropdownMenuLabel>
                 <DropdownMenuItem
                   onSelect={() => setAutoMode(true)}
-                  className="rounded-xl border border-zinc-100 px-3 py-3 text-foreground focus:bg-zinc-50"
+                  className="rounded-xl border border-border px-3 py-3 text-foreground focus:bg-muted"
                 >
                   <div className="flex w-full items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <Leaf className="h-4 w-4 text-zinc-400" />
-                        <span className="text-sm font-medium text-zinc-900">Automatic</span>
+                        <Leaf className="h-4 w-4 text-accent" />
+                        <span className="text-sm font-medium text-foreground">Automatic</span>
                       </div>
-                      <p className="mt-1 text-xs leading-5 text-zinc-500">
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
                         Uses the default balanced model for the smoothest generation flow.
                       </p>
                     </div>
-                    {autoMode ? <Check className="mt-0.5 h-4 w-4 text-zinc-900" /> : null}
+                    {autoMode ? <Check className="mt-0.5 h-4 w-4 text-foreground" /> : null}
                   </div>
                 </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-zinc-100" />
+                <DropdownMenuSeparator className="bg-border" />
                 {isPaidUser ? (
                   availableModels.map((model) => {
                     const meta = getModelMeta(model);
@@ -508,35 +625,35 @@ export function AnimatedAIInput({
                           setAutoMode(false);
                           setSelectedModel(model);
                         }}
-                        className="rounded-xl border border-transparent px-3 py-3 text-foreground focus:border-zinc-100 focus:bg-zinc-50"
+                        className="rounded-xl border border-transparent px-3 py-3 text-foreground focus:border-border focus:bg-muted"
                       >
                         <div className="flex w-full items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium text-zinc-900">{meta.label}</span>
+                              <span className="text-sm font-medium text-foreground">{meta.label}</span>
                               {meta.badges.slice(0, 2).map((badge) => (
                                 <span
                                   key={`${model}-${badge}`}
-                                  className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500"
+                                  className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground"
                                 >
                                   {badge}
                                 </span>
                               ))}
                             </div>
-                            <p className="mt-1 line-clamp-2 text-xs leading-5 text-zinc-500">
+                            <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
                               {meta.description}
                             </p>
-                            <p className="mt-2 truncate text-[11px] text-zinc-400">{model}</p>
+                            <p className="mt-2 truncate text-[11px] text-muted-foreground/70">{model}</p>
                           </div>
-                          {isSelected ? <Check className="mt-0.5 h-4 w-4 shrink-0 text-zinc-900" /> : null}
+                          {isSelected ? <Check className="mt-0.5 h-4 w-4 shrink-0 text-foreground" /> : null}
                         </div>
                       </DropdownMenuItem>
                     );
                   })
                 ) : (
                   <div className="px-2 py-2">
-                    <p className="text-xs text-zinc-500">Custom model choice is available on paid plans.</p>
-                    <Link href="/pricing" className="mt-2 inline-flex text-xs font-medium text-zinc-900 hover:underline">
+                    <p className="text-xs text-muted-foreground">Custom model choice is available on paid plans.</p>
+                    <Link href="/pricing" className="mt-2 inline-flex text-xs font-medium text-accent hover:underline">
                       Upgrade
                     </Link>
                   </div>
@@ -545,39 +662,69 @@ export function AnimatedAIInput({
             </DropdownMenu>
           </div>
 
-          <motion.button
-            type="button"
+          <div
             className={cn(
-              "absolute bottom-3 right-3 sm:bottom-4 sm:right-4 flex h-9 items-center justify-center gap-1.5 rounded-full transition-all duration-200",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/20 focus-visible:ring-offset-0",
-              canStop
-                ? "bg-zinc-900 px-3 text-white hover:bg-zinc-800 active:scale-95"
-                : canSubmit
-                ? "w-9 bg-zinc-900 text-white shadow-[0_4px_12px_-2px_rgba(0,0,0,0.3)] hover:bg-zinc-800 active:scale-95"
-                : "w-9 bg-black/8 text-zinc-400 cursor-not-allowed"
+              "absolute bottom-3 right-3 flex items-center gap-1.5 sm:bottom-4 sm:right-4",
+              isSlimCompact && "bottom-2.5 right-2.5 sm:bottom-3 sm:right-3"
             )}
-            aria-label={canStop ? "Stop generating" : submitAriaLabel}
-            title={canStop ? "Stop generating" : submitAriaLabel}
-            disabled={!canSubmit && !canStop}
-            onClick={canStop ? onStop : handleSubmit}
-            whileTap={canSubmit || canStop ? { scale: 0.93 } : {}}
           >
-            {canStop ? (
-              <>
-                <Square className="h-3.5 w-3.5" />
-                <span className="text-xs font-medium">Stop</span>
-              </>
-            ) : isCreating || isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : submitLabel ? (
-              <>
-                <ArrowUp className="h-4 w-4" />
-                <span className="text-xs font-medium">{submitLabel}</span>
-              </>
-            ) : (
-              <ArrowUp className="h-4 w-4" />
+            {!canStop && (
+              <button
+                type="button"
+                onClick={handleToggleSpeech}
+                disabled={disabled || isCreating || isLoading || !speechSupported}
+                aria-label={isListening ? "Stop voice input" : "Start voice input"}
+                title={speechSupported ? (isListening ? "Stop voice input" : "Speak your prompt") : "Speech input is not supported in this browser"}
+                className={cn(
+                  "flex h-8 w-8 items-center justify-center rounded-full border text-muted-foreground transition-all duration-200",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20",
+                  isListening
+                    ? "border-accent bg-accent-soft text-accent-soft-foreground shadow-[0_6px_18px_-12px_var(--primary)]"
+                    : "border-border bg-card hover:bg-muted hover:text-foreground",
+                  (disabled || isCreating || isLoading || !speechSupported) && "cursor-not-allowed opacity-45 hover:bg-card hover:text-muted-foreground"
+                )}
+              >
+                {isListening ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mic className="h-3.5 w-3.5" />}
+              </button>
             )}
-          </motion.button>
+            <motion.button
+              type="button"
+              className={cn(
+                "flex h-8 items-center justify-center gap-1 rounded-full font-medium transition-all duration-200",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:ring-offset-0",
+                canStop
+                  ? "bg-primary px-3 text-primary-foreground hover:bg-primary/90 active:scale-95"
+                  : hasSubmitLabel && canSubmit
+                  ? "min-w-[3.8rem] px-2.5 bg-primary text-primary-foreground shadow-[0_8px_18px_-12px_var(--primary)] hover:bg-primary/90 active:scale-95"
+                  : hasSubmitLabel
+                  ? "min-w-[3.8rem] px-2.5 border border-border bg-muted text-muted-foreground cursor-not-allowed"
+                  : canSubmit
+                  ? "w-9 bg-primary text-primary-foreground shadow-[0_4px_12px_-2px_var(--primary)] hover:bg-primary/90 active:scale-95"
+                  : "w-9 bg-muted text-muted-foreground cursor-not-allowed"
+              )}
+              aria-label={canStop ? "Stop generating" : submitAriaLabel}
+              title={canStop ? "Stop generating" : submitAriaLabel}
+              disabled={!canSubmit && !canStop}
+              onClick={canStop ? onStop : handleSubmit}
+              whileTap={canSubmit || canStop ? { scale: 0.93 } : {}}
+            >
+              {canStop ? (
+                <>
+                  <Square className="h-3.5 w-3.5" />
+                  <span className="text-xs font-medium">Stop</span>
+                </>
+              ) : isCreating || isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : submitLabel ? (
+                <>
+                  <ArrowUp className="h-3.5 w-3.5" />
+                  <span className="text-[11px] font-semibold">{submitLabel}</span>
+                </>
+              ) : (
+                <ArrowUp className="h-4 w-4" />
+              )}
+            </motion.button>
+          </div>
         </div>
       </div>
     </div>

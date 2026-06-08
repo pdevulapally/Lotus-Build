@@ -67,7 +67,7 @@ export function Navbar() {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-40 p-4">
-      <nav className="relative max-w-5xl w-full mx-auto flex h-12 items-center justify-between px-4 sm:px-6 rounded-full bg-white border border-zinc-200 md:grid md:grid-cols-[1fr_auto_1fr]">
+      <nav className="relative max-w-5xl w-full mx-auto flex h-12 items-center justify-between px-4 sm:px-6 rounded-full bg-card/90 border border-border shadow-[0_18px_60px_-42px_var(--primary)] backdrop-blur-xl md:grid md:grid-cols-[1fr_auto_1fr]">
         {/* Left: Logo */}
         <Link href="/" className="flex items-center gap-2 shrink-0 md:justify-self-start">
           <img src="/Images/lotus-official-logo.png" alt="lotus.build" className="h-7 w-7 object-contain" />
@@ -91,34 +91,34 @@ export function Navbar() {
         <div className="ml-auto flex items-center gap-2 md:ml-0 md:justify-self-end">
           {/* User/profile + auth (all breakpoints) */}
           {!mounted || loading ? (
-            <div className="w-8 h-8 rounded-full bg-zinc-100 animate-pulse" />
+            <div className="w-8 h-8 rounded-full bg-muted animate-pulse" />
           ) : user && userData ? (
             <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="flex items-center gap-2 px-2 py-1 rounded-full hover:bg-zinc-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-700"
+                  className="flex items-center gap-2 px-2 py-1 rounded-full hover:bg-muted transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <Avatar className="h-8 w-8 border border-zinc-300">
+                  <Avatar className="h-8 w-8 border border-border">
                     <AvatarImage src={userData.photoURL || undefined} alt={userData.displayName || "User"} />
-                    <AvatarFallback className="bg-zinc-100 text-zinc-700 text-xs">
+                    <AvatarFallback className="bg-muted text-foreground text-xs">
                       {getInitials(userData.displayName, userData.email)}
                     </AvatarFallback>
                   </Avatar>
-                  <ChevronDown className="w-4 h-4 text-zinc-500 hidden xs:block" />
+                  <ChevronDown className="w-4 h-4 text-muted-foreground hidden xs:block" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
-                className="w-72 bg-white border-zinc-200 text-foreground"
+                className="w-72 bg-popover border-border text-popover-foreground"
                 sideOffset={8}
               >
                 {/* User Info */}
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex items-center gap-3 py-1">
-                    <Avatar className="h-10 w-10 border border-zinc-300">
+                    <Avatar className="h-10 w-10 border border-border">
                       <AvatarImage src={userData.photoURL || undefined} />
-                      <AvatarFallback className="bg-zinc-100 text-zinc-700">
+                      <AvatarFallback className="bg-muted text-foreground">
                         {getInitials(userData.displayName, userData.email)}
                       </AvatarFallback>
                     </Avatar>
@@ -126,24 +126,24 @@ export function Navbar() {
                       <span className="text-sm font-medium text-foreground truncate">
                         {userData.displayName || "User"}
                       </span>
-                      <span className="text-xs text-zinc-500 truncate">{userData.email}</span>
+                      <span className="text-xs text-muted-foreground truncate">{userData.email}</span>
                     </div>
                   </div>
                 </DropdownMenuLabel>
 
-                <DropdownMenuSeparator className="bg-zinc-100" />
+                <DropdownMenuSeparator className="bg-border" />
 
                 {/* Plan & Tokens */}
                 <div className="px-2 py-3">
-                  <div className="rounded-2xl border border-zinc-200 bg-card p-3 shadow-[0_8px_24px_-20px_rgba(0,0,0,0.35)]">
+                  <div className="rounded-2xl border border-border bg-surface-raised p-3 shadow-[0_8px_24px_-20px_var(--primary)]">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <Leaf className="w-4 h-4 text-zinc-600" />
-                      <span className="text-sm font-medium text-zinc-800 capitalize">{userData.planName} Plan</span>
+                      <Leaf className="w-4 h-4 text-accent" />
+                      <span className="text-sm font-medium text-foreground capitalize">{userData.planName} Plan</span>
                     </div>
                     <Link
                       href="/pricing"
-                      className="text-xs font-medium text-zinc-600 hover:text-foreground transition-colors"
+                      className="text-xs font-medium text-accent hover:text-accent-soft-foreground transition-colors"
                       onClick={() => setIsOpen(false)}
                     >
                       Upgrade
@@ -153,27 +153,27 @@ export function Navbar() {
                   {/* Token Usage Bar */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-zinc-600 flex items-center gap-1">
+                      <span className="text-muted-foreground flex items-center gap-1">
                         <Coins className="w-3 h-3" />
                         Tokens used
                       </span>
-                      <span className="text-zinc-700 font-medium">
+                      <span className="text-foreground font-medium">
                         {userData.tokenUsage.used.toLocaleString()} / {tokensLimit.toLocaleString()}
                       </span>
                     </div>
-                    <div className="h-1.5 bg-zinc-200/80 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full bg-zinc-700 transition-all" style={{ width: `${Math.min(tokenPercentage, 100)}%` }} />
+                    <div className="h-1.5 bg-surface-inset rounded-full overflow-hidden">
+                      <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${Math.min(tokenPercentage, 100)}%` }} />
                     </div>
-                    <p className="pt-0.5 text-[11px] text-zinc-500">{Math.max(0, remainingClamped).toLocaleString()} tokens available</p>
+                    <p className="pt-0.5 text-[11px] text-muted-foreground">{Math.max(0, remainingClamped).toLocaleString()} tokens available</p>
                   </div>
                   </div>
                 </div>
 
-                <DropdownMenuSeparator className="bg-zinc-100" />
+                <DropdownMenuSeparator className="bg-border" />
 
                 {/* Menu Items */}
                 <DropdownMenuItem
-                  className="text-zinc-700 focus:bg-zinc-100 focus:text-foreground cursor-pointer"
+                  className="text-foreground focus:bg-muted focus:text-foreground cursor-pointer"
                   onClick={() => {
                     setIsOpen(false)
                     router.push("/projects")
@@ -184,7 +184,7 @@ export function Navbar() {
                 </DropdownMenuItem>
 
                 <DropdownMenuItem
-                  className="text-zinc-700 focus:bg-zinc-100 focus:text-foreground cursor-pointer"
+                  className="text-foreground focus:bg-muted focus:text-foreground cursor-pointer"
                   onClick={() => {
                     setIsOpen(false)
                     router.push("/settings")
@@ -194,10 +194,10 @@ export function Navbar() {
                   Account Settings
                 </DropdownMenuItem>
 
-                <DropdownMenuSeparator className="bg-zinc-100" />
+                <DropdownMenuSeparator className="bg-border" />
 
                 <DropdownMenuItem
-                  className="text-red-400 focus:bg-zinc-100 focus:text-red-400 cursor-pointer"
+                  className="text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer"
                   onClick={handleSignOut}
                 >
                   <LogOut className="w-4 h-4 mr-2" />
@@ -209,7 +209,7 @@ export function Navbar() {
             <Link href="/login">
               <Button
                 size="sm"
-                className="px-4 py-1.5 text-sm rounded-full bg-zinc-100 text-foreground font-medium hover:bg-zinc-200 transition-colors"
+                className="px-4 py-1.5 text-sm rounded-full bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
               >
                 Get Started
               </Button>
@@ -223,7 +223,7 @@ export function Navbar() {
                 <SheetTrigger asChild>
                   <button
                     type="button"
-                    className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-200 bg-white px-3 text-zinc-700 transition-colors hover:bg-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-700"
+                    className="inline-flex h-9 items-center justify-center rounded-full border border-border bg-card px-3 text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     aria-label="Open navigation"
                   >
                     <span className="relative block h-3.5 w-4.5">
@@ -237,7 +237,7 @@ export function Navbar() {
                   className="h-screen bg-background px-6 pb-10 pt-16 text-foreground"
                 >
                   <SheetHeader className="p-0 pb-4">
-                    <SheetTitle className="text-sm font-medium uppercase tracking-[0.14em] text-zinc-500">
+                    <SheetTitle className="text-sm font-medium uppercase tracking-[0.14em] text-muted-foreground">
                       Navigation
                     </SheetTitle>
                   </SheetHeader>
@@ -246,7 +246,7 @@ export function Navbar() {
                       <Link
                         key={link.href}
                         href={link.href}
-                        className="block rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-2xl font-medium leading-tight tracking-wide text-foreground transition-colors hover:bg-zinc-100 sm:text-3xl"
+                        className="block rounded-2xl border border-border bg-card px-4 py-3 text-2xl font-medium leading-tight tracking-wide text-foreground transition-colors hover:bg-muted sm:text-3xl"
                       >
                         {link.label}
                       </Link>
@@ -257,7 +257,7 @@ export function Navbar() {
             ) : (
               <button
                 type="button"
-                className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-200 bg-white px-3 text-zinc-700"
+                className="inline-flex h-9 items-center justify-center rounded-full border border-border bg-card px-3 text-foreground"
                 aria-label="Open navigation"
                 disabled
               >

@@ -13,6 +13,7 @@ import {
   Check,
   ChevronsDown,
   ChevronsUp,
+  ChevronDown,
   ChevronRight,
   Code2,
   Copy,
@@ -131,11 +132,11 @@ type LocalMessage = {
 // ─── Constants (unchanged) ────────────────────────────────────────────────────
 
 const STATUS_STYLES: Record<ComputerSessionStatus, string> = {
-  idle:     "border-zinc-200 bg-zinc-50 text-zinc-500",
-  planning: "border-indigo-100 bg-indigo-50 text-indigo-700",
-  running:  "border-amber-100 bg-amber-50 text-amber-700",
-  error:    "border-red-100 bg-red-50 text-red-700",
-  complete: "border-green-100 bg-green-50 text-green-700",
+  idle:     "border-border bg-muted text-muted-foreground",
+  planning: "border-info/20 bg-info-soft text-info-soft-foreground",
+  running:  "border-warning/25 bg-warning-soft text-warning-soft-foreground",
+  error:    "border-destructive/20 bg-destructive/10 text-destructive",
+  complete: "border-success/25 bg-success-soft text-success-soft-foreground",
 }
 
 const STATUS_LABELS: Record<ComputerSessionStatus, string> = {
@@ -147,11 +148,11 @@ const STATUS_LABELS: Record<ComputerSessionStatus, string> = {
 }
 
 const STATUS_DOT: Record<ComputerSessionStatus, string> = {
-  idle:     "bg-zinc-300",
-  planning: "bg-indigo-400",
-  running:  "bg-amber-400",
-  error:    "bg-red-400",
-  complete: "bg-green-500",
+  idle:     "bg-border-strong",
+  planning: "bg-info",
+  running:  "bg-warning",
+  error:    "bg-destructive",
+  complete: "bg-success",
 }
 
 type KindConfig = {
@@ -163,19 +164,19 @@ type KindConfig = {
 }
 
 const KIND_CONFIG: Record<string, KindConfig> = {
-  understanding: { icon: Brain,     bg: "bg-violet-50",  border: "border-violet-200", iconColor: "text-violet-500", label: "Understanding" },
-  research:      { icon: Search,    bg: "bg-blue-50",    border: "border-blue-200",   iconColor: "text-blue-500",   label: "Research"      },
-  browser:       { icon: Globe2,    bg: "bg-sky-50",     border: "border-sky-200",    iconColor: "text-sky-500",    label: "Browser"       },
-  planning:      { icon: Activity,  bg: "bg-amber-50",   border: "border-amber-200",  iconColor: "text-amber-500",  label: "Planning"      },
-  code:          { icon: Code2,     bg: "bg-emerald-50", border: "border-emerald-200",iconColor: "text-emerald-500",label: "Coding"        },
-  sandbox:       { icon: Terminal,  bg: "bg-zinc-50",    border: "border-zinc-200",   iconColor: "text-zinc-500",   label: "Sandbox"       },
-  fix:           { icon: Wrench,    bg: "bg-orange-50",  border: "border-orange-200", iconColor: "text-orange-500", label: "Fixing"        },
-  security:      { icon: ShieldAlert,bg: "bg-red-50",   border: "border-red-200",    iconColor: "text-red-500",    label: "Security"      },
-  user:          { icon: MessageSquare,bg:"bg-zinc-50",  border: "border-zinc-200",   iconColor: "text-zinc-400",   label: "User"          },
+  understanding: { icon: Brain,     bg: "bg-accent-soft",  border: "border-accent/20", iconColor: "text-accent", label: "Understanding" },
+  research:      { icon: Search,    bg: "bg-info-soft",    border: "border-info/20",   iconColor: "text-info",   label: "Research"      },
+  browser:       { icon: Globe2,    bg: "bg-info-soft",    border: "border-info/20",   iconColor: "text-info",   label: "Browser"       },
+  planning:      { icon: Activity,  bg: "bg-warning-soft", border: "border-warning/25",iconColor: "text-warning",label: "Planning"      },
+  code:          { icon: Code2,     bg: "bg-success-soft", border: "border-success/25",iconColor: "text-success",label: "Coding"        },
+  sandbox:       { icon: Terminal,  bg: "bg-muted",        border: "border-border",    iconColor: "text-muted-foreground", label: "Sandbox" },
+  fix:           { icon: Wrench,    bg: "bg-warning-soft", border: "border-warning/25",iconColor: "text-warning", label: "Fixing"        },
+  security:      { icon: ShieldAlert,bg: "bg-destructive/10", border: "border-destructive/20", iconColor: "text-destructive", label: "Security" },
+  user:          { icon: MessageSquare,bg:"bg-muted",      border: "border-border",    iconColor: "text-muted-foreground", label: "User"    },
 }
 
 function getKindCfg(kind?: string): KindConfig {
-  return KIND_CONFIG[kind ?? ""] ?? { icon: Zap, bg: "bg-zinc-50", border: "border-zinc-200", iconColor: "text-zinc-400", label: "" }
+  return KIND_CONFIG[kind ?? ""] ?? { icon: Zap, bg: "bg-muted", border: "border-border", iconColor: "text-muted-foreground", label: "" }
 }
 
 const EVENT_TITLES: Record<string, string> = {
@@ -291,6 +292,73 @@ function getRunErrorMessage(message: string) {
     : message
 }
 
+function normalizePreviewEnsureError(value: unknown) {
+  const rawMessage = value instanceof Error ? value.message : String(value || "")
+  const jsonMatch = rawMessage.match(/\{[\s\S]*\}/)
+  let nestedError = ""
+
+  if (jsonMatch) {
+    try {
+      const parsed = JSON.parse(jsonMatch[0]) as { error?: unknown }
+      nestedError = typeof parsed.error === "string" ? parsed.error : ""
+    } catch {}
+  }
+
+  const message = `${rawMessage}\n${nestedError}`.toLowerCase()
+  const messages = [
+    {
+      matches: [/missing package\.json/, /project has no files/],
+      copy: "The preview is not ready yet because the generated app is missing required project files.",
+    },
+    {
+      matches: [/missing-import/, /failed to resolve import/, /missing import/],
+      copy: "The preview could not start because the app still has an unresolved import.",
+    },
+    {
+      matches: [/dev server/, /preview did not become ready/, /sandbox/],
+      copy: "The preview runtime could not be restored right now.",
+    },
+  ]
+
+  return messages.find((item) => item.matches.some((pattern) => pattern.test(message)))?.copy
+    ?? "The preview could not be restored right now."
+}
+
+function formatClarificationAnswer(question: QuestionConfig, answer?: QuestionAnswer) {
+  if (!answer || answer.kind === "skip") return "Skipped"
+  if (answer.kind === "text") return answer.text?.trim() || "Answered"
+
+  const optionLabels = new Map((question.options ?? []).map((option) => [option.id, option.label]))
+  const selected = (answer.selectedIds ?? [])
+    .map((id) => optionLabels.get(id) ?? id)
+    .filter(Boolean)
+  const parts = [...selected]
+  if (answer.text?.trim()) parts.push(answer.text.trim())
+
+  return parts.join(", ") || "Answered"
+}
+
+function formatClarificationAnswerSet(
+  questions: QuestionConfig[],
+  answersByQuestion?: Record<number, QuestionAnswer>,
+  fallbackAnswer?: QuestionAnswer
+) {
+  if (fallbackAnswer?.kind === "skip") return "skip"
+
+  const answerEntries = questions
+    .map((question, index) => ({
+      question,
+      answer: answersByQuestion?.[index + 1] ?? (questions.length === 1 ? fallbackAnswer : undefined),
+    }))
+    .filter((entry) => entry.answer)
+
+  if (answerEntries.length === 0) return "skip"
+
+  return answerEntries
+    .map(({ question, answer }) => `Question: ${question.title}\nAnswer: ${formatClarificationAnswer(question, answer)}`)
+    .join("\n\n")
+}
+
 function getTokenLimitEvent(events: ComputerTimelineEvent[]) {
   return events.find((event) =>
     event.status === "error" &&
@@ -383,8 +451,8 @@ function StatusBadge({ status }: { status: ComputerSessionStatus }) {
   const isActive = status === "planning" || status === "running"
   return (
     <div className={cn(
-      "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1",
-      "text-[10px] font-semibold uppercase tracking-[0.14em]",
+      "inline-flex h-7 items-center gap-1.5 rounded-full border px-2",
+      "text-[10px] font-semibold tracking-[0.04em] shadow-sm sm:h-6 sm:px-2 sm:py-0 sm:uppercase sm:tracking-[0.12em] sm:shadow-none",
       STATUS_STYLES[status]
     )}>
       <PulseDot color={STATUS_DOT[status]} active={isActive} />
@@ -420,28 +488,38 @@ function DeployButton({
         type="button"
         onClick={() => onOpenChange(!open)}
         disabled={state.busy}
-        className="inline-flex h-8 items-center gap-1.5 rounded-full border border-zinc-900 bg-accent px-3 text-[11px] font-semibold text-white shadow-sm transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-70"
+        aria-label="Deploy project"
+        aria-expanded={open}
+        className={cn(
+          "group relative inline-flex h-9 items-center gap-2 overflow-hidden rounded-xl bg-accent pl-2.5 pr-2 text-[13px] font-semibold text-accent-foreground transition-all duration-200 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-70 sm:pl-3 sm:pr-2.5",
+          "shadow-[0_8px_20px_-10px_var(--accent)] hover:shadow-[0_12px_28px_-10px_var(--accent)]"
+        )}
       >
-        {state.busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Rocket className="h-3.5 w-3.5" />}
-        Deploy
+        <span className="pointer-events-none absolute inset-0 bg-primary-foreground/0 transition-colors duration-200 group-hover:bg-primary-foreground/10" />
+        <span className="relative flex h-6 w-6 items-center justify-center rounded-lg bg-primary-foreground/15">
+          {state.busy
+            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            : <Rocket className="h-3.5 w-3.5 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />}
+        </span>
+        <span className="relative hidden sm:inline">Deploy</span>
       </button>
 
       {open && (
-        <div className="absolute right-0 top-10 z-30 w-[480px] max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-card p-3 shadow-[0_18px_60px_-24px_rgba(0,0,0,0.45)]">
+        <div className="absolute right-0 top-10 z-30 hidden w-[480px] max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-card p-3 shadow-[0_18px_60px_-24px_var(--primary)] sm:block">
           <div className="px-1 pb-2">
             <p className="text-[12px] font-semibold text-foreground">Publish this project</p>
-            <p className="mt-0.5 text-[11px] leading-relaxed text-zinc-500">
+            <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
               Deploy directly from this generated project.
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {(["netlify", "vercel"] as DeployProvider[]).map((provider) => (
               <button
                 key={provider}
                 type="button"
                 onClick={() => onDeploy(provider)}
                 disabled={state.busy}
-                className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-left text-[12px] font-semibold text-zinc-800 shadow-sm transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl border border-border bg-card px-3 py-2 text-left text-[12px] font-semibold text-foreground shadow-sm transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {getDeployProviderLabel(provider)}
               </button>
@@ -458,10 +536,10 @@ function DeployButton({
                     href={link.siteUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[11px] font-semibold text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50"
+                    className="flex items-center justify-between gap-2 rounded-xl border border-border bg-card px-3 py-2 text-[11px] font-semibold text-foreground shadow-sm transition-colors hover:bg-muted"
                   >
                     <span className="truncate">{getDeployProviderLabel(provider)} live site</span>
-                    <ExternalLink className="h-3 w-3 shrink-0 text-zinc-500" />
+                    <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
                   </a>
                 )
               })}
@@ -469,16 +547,16 @@ function DeployButton({
           )}
 
           {(state.step || state.error || visibleStateSiteUrl) && (
-            <div className="mt-2 rounded-xl border border-zinc-200 bg-card p-2.5">
+            <div className="mt-2 rounded-xl border border-border bg-card p-2.5">
               <div className="flex items-center gap-1.5">
-                {state.busy && <Loader2 className="h-3 w-3 animate-spin text-zinc-500" />}
-                <p className="min-w-0 truncate text-[11px] font-medium text-zinc-600">
+                {state.busy && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                <p className="min-w-0 truncate text-[11px] font-medium text-muted-foreground">
                   {state.provider ? getDeployProviderLabel(state.provider) : "Deploy"}
                   {state.step ? ` - ${state.step}` : ""}
                 </p>
               </div>
               {state.error && (
-                <p className="mt-1.5 text-[11px] leading-relaxed text-red-600">{state.error}</p>
+                <p className="mt-1.5 text-[11px] leading-relaxed text-destructive">{state.error}</p>
               )}
                 <DeployTerminal 
                   logs={state.logs}
@@ -490,7 +568,7 @@ function DeployButton({
                   href={visibleStateSiteUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="mt-2.5 inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-500 py-2 text-[11px] font-bold text-white shadow-sm transition-all hover:bg-emerald-600 active:scale-[0.98]"
+                  className="mt-2.5 inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-success py-2 text-[11px] font-bold text-success-foreground shadow-sm transition-all hover:bg-success/90 active:scale-[0.98]"
                 >
                   <span>Open live site</span>
                   <ExternalLink className="h-3 w-3" />
@@ -545,53 +623,66 @@ function IntegrationsButton({
       <button
         type="button"
         onClick={() => onOpenChange(!open)}
-        className="inline-flex h-8 items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 text-[11px] font-semibold text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50"
+        aria-label="Project integrations"
+        aria-expanded={open}
+        className={cn(
+          "group inline-flex h-9 items-center gap-2 rounded-xl pl-2 pr-2 text-[13px] font-medium transition-all duration-200 active:scale-[0.97] sm:pr-2.5",
+          open
+            ? "bg-muted text-foreground"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+        )}
       >
-        <KeyRound className="h-3.5 w-3.5" />
-        Integrations
+        <span className={cn(
+          "flex h-6 w-6 items-center justify-center rounded-lg transition-colors duration-200",
+          open ? "bg-card text-foreground shadow-sm" : "bg-muted text-muted-foreground group-hover:bg-card group-hover:text-foreground group-hover:shadow-sm"
+        )}>
+          <KeyRound className="h-3.5 w-3.5" />
+        </span>
+        <span className="hidden sm:inline">Integrations</span>
+        <ChevronDown className={cn("hidden h-3.5 w-3.5 opacity-50 transition-transform duration-200 sm:block", open && "rotate-180")} />
       </button>
 
       {open && (
-        <div className="absolute right-0 top-10 z-30 w-[360px] rounded-2xl border border-border bg-card p-3 shadow-[0_18px_60px_-24px_rgba(0,0,0,0.45)]">
+        <div className="absolute right-0 top-10 z-30 hidden w-[360px] rounded-2xl border border-border bg-card p-3 shadow-[0_18px_60px_-24px_var(--primary)] sm:block">
           <div className="mb-3">
             <p className="text-[12px] font-semibold text-foreground">Project integrations</p>
-            <p className="mt-0.5 text-[11px] leading-relaxed text-zinc-500">
+            <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
               Connect services directly to this generated website.
             </p>
           </div>
 
           <div className="space-y-2.5">
-            <div className="rounded-xl border border-zinc-200 bg-white p-3">
+            <div className="rounded-xl border border-border bg-card p-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <Github className="h-3.5 w-3.5 text-zinc-500" />
+                    <Github className="h-3.5 w-3.5 text-muted-foreground" />
                     <p className="text-[12px] font-semibold text-foreground">GitHub</p>
                   </div>
-                  <p className="mt-1 truncate text-[11px] text-zinc-500">
+                  <p className="mt-1 truncate text-[11px] text-muted-foreground">
                     {hasGitHub ? project?.githubRepoFullName || project?.githubRepoUrl : "Create or update a repository"}
                   </p>
-                  {syncedAt ? <p className="mt-0.5 text-[10.5px] text-zinc-400">Last synced {syncedAt}</p> : null}
+                  {syncedAt ? <p className="mt-0.5 text-[10.5px] text-muted-foreground/70">Last synced {syncedAt}</p> : null}
                 </div>
                 <button
                   type="button"
                   onClick={onGithubSync}
                   disabled={busy !== null}
-                  className="rounded-lg border border-zinc-200 bg-card px-2.5 py-1 text-[11px] font-semibold text-zinc-700 disabled:opacity-60"
+                  className="rounded-lg border border-border bg-card px-2.5 py-1 text-[11px] font-semibold text-foreground disabled:opacity-60"
                 >
                   {busy === "github" ? "Syncing..." : hasGitHub ? "Sync" : "Publish"}
                 </button>
               </div>
             </div>
 
-            <div className="rounded-xl border border-zinc-200 bg-white p-3">
+            <div className="rounded-xl border border-border bg-card p-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <Database className="h-3.5 w-3.5 text-zinc-500" />
+                    <Database className="h-3.5 w-3.5 text-muted-foreground" />
                     <p className="text-[12px] font-semibold text-foreground">Supabase</p>
                   </div>
-                  <p className="mt-1 truncate text-[11px] text-zinc-500">
+                  <p className="mt-1 truncate text-[11px] text-muted-foreground">
                     {hasSupabase ? project?.supabaseProjectRef || project?.supabaseUrl : "Provision database and app credentials"}
                   </p>
                 </div>
@@ -599,42 +690,42 @@ function IntegrationsButton({
                   type="button"
                   onClick={onSupabaseSetup}
                   disabled={busy !== null}
-                  className="rounded-lg border border-zinc-200 bg-card px-2.5 py-1 text-[11px] font-semibold text-zinc-700 disabled:opacity-60"
+                  className="rounded-lg border border-border bg-card px-2.5 py-1 text-[11px] font-semibold text-foreground disabled:opacity-60"
                 >
                   {busy === "supabase" ? "Setting up..." : hasSupabase ? "Re-run" : "Set up"}
                 </button>
               </div>
             </div>
 
-            <div className="rounded-xl border border-zinc-200 bg-white p-3">
+            <div className="rounded-xl border border-border bg-card p-3">
               <div className="flex items-center gap-1.5">
-                <KeyRound className="h-3.5 w-3.5 text-zinc-500" />
+                <KeyRound className="h-3.5 w-3.5 text-muted-foreground" />
                 <p className="text-[12px] font-semibold text-foreground">Environment variables</p>
               </div>
               <div className="mt-2 space-y-2">
                 {envNames.map((name) => (
                   <label key={name} className="block">
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400">{name}</span>
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{name}</span>
                     <input
                       value={envValues[name] || ""}
                       onChange={(event) => onEnvChange(name, event.target.value)}
                       placeholder="Value"
-                      className="mt-1 h-8 w-full rounded-lg border border-zinc-200 bg-card px-2 text-[12px] outline-none focus:border-zinc-400"
+                      className="mt-1 h-8 w-full rounded-lg border border-border bg-card px-2 text-[12px] outline-none focus:border-ring"
                     />
                   </label>
                 ))}
-                <div className="grid grid-cols-[1fr_1fr_auto] gap-1.5">
+                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[1fr_1fr_auto]">
                   <input
                     value={newEnvKey}
                     onChange={(event) => setNewEnvKey(event.target.value)}
                     placeholder="KEY"
-                    className="h-8 min-w-0 rounded-lg border border-zinc-200 bg-card px-2 text-[12px] outline-none focus:border-zinc-400"
+                    className="h-8 min-w-0 rounded-lg border border-border bg-card px-2 text-[12px] outline-none focus:border-ring"
                   />
                   <input
                     value={newEnvValue}
                     onChange={(event) => setNewEnvValue(event.target.value)}
                     placeholder="Value"
-                    className="h-8 min-w-0 rounded-lg border border-zinc-200 bg-card px-2 text-[12px] outline-none focus:border-zinc-400"
+                    className="h-8 min-w-0 rounded-lg border border-border bg-card px-2 text-[12px] outline-none focus:border-ring"
                   />
                   <button
                     type="button"
@@ -646,7 +737,7 @@ function IntegrationsButton({
                       setNewEnvValue("")
                     }}
                     disabled={busy !== null || !newEnvKey.trim()}
-                    className="rounded-lg border border-zinc-200 bg-card px-2.5 text-[11px] font-semibold text-zinc-700 disabled:opacity-50"
+                    className="rounded-lg border border-border bg-card px-2.5 text-[11px] font-semibold text-foreground disabled:opacity-50"
                   >
                     Add
                   </button>
@@ -655,7 +746,7 @@ function IntegrationsButton({
                   type="button"
                   onClick={onEnvSave}
                   disabled={busy !== null}
-                  className="rounded-lg border border-zinc-200 bg-card px-2.5 py-1 text-[11px] font-semibold text-zinc-700 disabled:opacity-60"
+                  className="rounded-lg border border-border bg-card px-2.5 py-1 text-[11px] font-semibold text-foreground disabled:opacity-60"
                 >
                   {busy === "env" ? "Saving..." : "Save and update preview"}
                 </button>
@@ -664,12 +755,140 @@ function IntegrationsButton({
           </div>
 
           {message ? (
-            <p className="mt-3 rounded-xl border border-zinc-200 bg-card px-3 py-2 text-[11px] leading-relaxed text-zinc-600">
+            <p className="mt-3 rounded-xl border border-border bg-card px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
               {message}
             </p>
           ) : null}
         </div>
       )}
+    </div>
+  )
+}
+
+function MobileDeploySheet({
+  open,
+  state,
+  deploymentLinks,
+  onClose,
+  onDeploy,
+}: {
+  open: boolean
+  state: DeployState
+  deploymentLinks?: Partial<Record<DeployProvider, DeploymentLink>>
+  onClose: () => void
+  onDeploy: (provider: DeployProvider) => void
+}) {
+  if (!open) return null
+  const visibleStateSiteUrl = state.siteUrl || (state.provider ? deploymentLinks?.[state.provider]?.siteUrl ?? null : null)
+  return (
+    <div className="fixed inset-x-3 bottom-[5.6rem] z-50 max-h-[min(72dvh,32rem)] overflow-y-auto rounded-[1.45rem] border border-border bg-card p-3 shadow-[0_24px_80px_-28px_var(--primary)] [scrollbar-width:thin] sm:hidden">
+      <div className="mb-3 flex items-start justify-between gap-3 px-1">
+        <div>
+          <p className="text-[13px] font-semibold text-foreground">Deploy website</p>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">Publish this generated project.</p>
+        </div>
+        <button type="button" onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded-full border border-border text-muted-foreground">
+          <span className="text-base leading-none">×</span>
+        </button>
+      </div>
+      <div className="space-y-2">
+        {(["netlify", "vercel"] as DeployProvider[]).map((provider) => (
+          <button
+            key={provider}
+            type="button"
+            onClick={() => onDeploy(provider)}
+            disabled={state.busy}
+            className="flex w-full items-center justify-between rounded-2xl border border-border bg-card px-3.5 py-3 text-left text-[13px] font-semibold text-foreground shadow-sm disabled:opacity-60"
+          >
+            <span>{getDeployProviderLabel(provider)}</span>
+            <Rocket className="h-4 w-4 text-muted-foreground" />
+          </button>
+        ))}
+      </div>
+      {visibleStateSiteUrl && (
+        <a href={visibleStateSiteUrl} target="_blank" rel="noreferrer"
+          className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-2xl bg-success py-3 text-[12px] font-bold text-success-foreground">
+          Open live site
+          <ExternalLink className="h-3.5 w-3.5" />
+        </a>
+      )}
+      {(state.step || state.error) && (
+        <div className="mt-3 rounded-2xl border border-border bg-secondary p-3">
+          <div className="flex items-center gap-1.5">
+            {state.busy && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+            <p className="min-w-0 truncate text-[12px] font-medium text-muted-foreground">
+              {state.provider ? getDeployProviderLabel(state.provider) : "Deploy"}{state.step ? ` - ${state.step}` : ""}
+            </p>
+          </div>
+          {state.error && <p className="mt-2 text-[11px] leading-relaxed text-destructive">{state.error}</p>}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MobileIntegrationsSheet({
+  open,
+  project,
+  busy,
+  message,
+  onClose,
+  onGithubSync,
+  onSupabaseSetup,
+}: {
+  open: boolean
+  project: ComputerProjectIntegration | null
+  busy: IntegrationAction | null
+  message: string
+  onClose: () => void
+  onGithubSync: () => void
+  onSupabaseSetup: () => void
+}) {
+  if (!open) return null
+  const hasGitHub = Boolean(project?.githubRepoUrl || project?.githubRepoFullName)
+  const hasSupabase = Boolean(project?.supabaseUrl || project?.supabaseProjectRef)
+  return (
+    <div className="fixed inset-x-3 bottom-[5.6rem] z-50 max-h-[min(72dvh,32rem)] overflow-y-auto rounded-[1.45rem] border border-border bg-card p-3 shadow-[0_24px_80px_-28px_var(--primary)] [scrollbar-width:thin] sm:hidden">
+      <div className="mb-3 flex items-start justify-between gap-3 px-1">
+        <div>
+          <p className="text-[13px] font-semibold text-foreground">Integrations</p>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">Connect services to this website.</p>
+        </div>
+        <button type="button" onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded-full border border-border text-muted-foreground">
+          <span className="text-base leading-none">×</span>
+        </button>
+      </div>
+      <div className="space-y-2">
+        <button
+          type="button"
+          onClick={onGithubSync}
+          disabled={busy !== null}
+          className="flex w-full items-center justify-between rounded-2xl border border-border bg-card px-3.5 py-3 text-left shadow-sm disabled:opacity-60"
+        >
+          <span>
+            <span className="block text-[13px] font-semibold text-foreground">GitHub</span>
+            <span className="mt-0.5 block text-[11px] text-muted-foreground">{hasGitHub ? project?.githubRepoFullName || "Repository connected" : "Publish repository"}</span>
+          </span>
+          <Github className="h-4 w-4 text-muted-foreground" />
+        </button>
+        <button
+          type="button"
+          onClick={onSupabaseSetup}
+          disabled={busy !== null}
+          className="flex w-full items-center justify-between rounded-2xl border border-border bg-card px-3.5 py-3 text-left shadow-sm disabled:opacity-60"
+        >
+          <span>
+            <span className="block text-[13px] font-semibold text-foreground">Supabase</span>
+            <span className="mt-0.5 block text-[11px] text-muted-foreground">{hasSupabase ? project?.supabaseProjectRef || "Database connected" : "Provision database"}</span>
+          </span>
+          <Database className="h-4 w-4 text-muted-foreground" />
+        </button>
+      </div>
+      {message ? (
+        <p className="mt-3 rounded-2xl border border-border bg-secondary px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
+          {message}
+        </p>
+      ) : null}
     </div>
   )
 }
@@ -891,13 +1110,9 @@ function FeedItem({ event, isLatest, onSupabaseSetup, onSupabaseDecline, onClari
           nextLabel="Next"
           skipLabel="Skip"
           className="my-3"
-          onSubmitAnswer={(answer: QuestionAnswer) => {
+          onSubmitAnswer={(answer: QuestionAnswer, answersByQuestion?: Record<number, QuestionAnswer>) => {
             if (!onClarificationAnswer) return
-            if (answer.kind === "skip") { onClarificationAnswer("skip"); return }
-            const parts: string[] = []
-            if (answer.selectedIds?.length) parts.push(answer.selectedIds.join(", "))
-            if (answer.text) parts.push(answer.text)
-            onClarificationAnswer(parts.join(" — ") || "skip")
+            onClarificationAnswer(formatClarificationAnswerSet(questions, answersByQuestion, answer))
           }}
         />
       )
@@ -1046,7 +1261,7 @@ function UserMessageBubble({
     return (
       <div className="flex justify-end pb-4">
         <div className="w-full max-w-[min(84%,42rem)]">
-          <div className="overflow-hidden rounded-[14px] bg-primary shadow-[0_1px_2px_rgba(0,0,0,0.18)]">
+          <div className="overflow-hidden rounded-[14px] bg-primary shadow-[0_1px_2px_var(--primary)]">
           <textarea
             ref={ref} value={editText} onChange={(e) => onEditChange(e.target.value)}
             rows={Math.max(2, editText.split("\n").length)}
@@ -1069,7 +1284,7 @@ function UserMessageBubble({
   return (
     <div className="group flex w-full justify-end pb-4">
       <div className="flex w-fit max-w-[min(84%,42rem)] min-w-0 flex-col items-end">
-        <div className="max-w-full rounded-[14px] bg-primary px-3.5 py-2.5 text-right shadow-[0_1px_2px_rgba(0,0,0,0.18)]">
+        <div className="max-w-full rounded-[14px] bg-primary px-3.5 py-2.5 text-right shadow-[0_1px_2px_var(--primary)]">
           <p className="whitespace-pre-wrap break-words text-left text-[13px] leading-relaxed text-zinc-100 [overflow-wrap:anywhere]">{content}</p>
         </div>
         <div className="mt-1.5 flex items-center gap-1 pr-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
@@ -1323,7 +1538,7 @@ function RuntimeErrorCard({
 }) {
   const [expanded, setExpanded] = useState(false)
   return (
-    <div className="absolute bottom-4 right-4 z-20 w-[340px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-red-200 bg-card shadow-[0_12px_40px_-12px_rgba(220,38,38,0.25),0_4px_16px_-4px_rgba(0,0,0,0.12)]">
+    <div className="absolute bottom-4 right-4 z-20 w-[340px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-destructive/20 bg-card shadow-[0_12px_40px_-12px_var(--destructive),0_4px_16px_-4px_var(--primary)]">
       {/* Header */}
       <div className="flex items-center justify-between gap-2 border-b border-red-100 bg-red-50 px-3.5 py-2.5">
         <div className="flex items-center gap-2">
@@ -1402,7 +1617,7 @@ function LaptopSwitcher({ label, title, url, icon, onClick }: {
 }) {
   return (
     <button type="button" onClick={onClick}
-      className="absolute bottom-4 right-4 z-10 w-[180px] rounded-2xl border border-black/10 bg-muted p-2 text-left shadow-[0_12px_40px_-18px_rgba(0,0,0,0.55)] transition hover:-translate-y-0.5">
+      className="absolute bottom-4 right-4 z-10 w-[180px] rounded-2xl border border-border bg-muted p-2 text-left shadow-[0_12px_40px_-18px_var(--primary)] transition hover:-translate-y-0.5">
       <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-1">
         <div className="aspect-[16/10] overflow-hidden rounded-lg border border-white/10 bg-white">
           <div className="flex h-full flex-col">
@@ -1447,7 +1662,7 @@ function WorkspaceContent({
   if (activeTab === "browser" && browserInspection) {
     return (
       <motion.div key="browser" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}
-        className="flex h-full min-h-0 flex-col p-3 sm:p-4">
+        className="flex h-full min-h-0 flex-col p-3 sm:p-3 lg:p-4">
         <div className="mb-2 flex min-w-0 items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-400">
@@ -1459,7 +1674,7 @@ function WorkspaceContent({
             <WorkspaceHeaderLink href={browserInspection.url} />
           </div>
         </div>
-        <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-zinc-800 bg-[#111113] shadow-sm">
+        <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-sidebar-border bg-sidebar shadow-sm">
           {browserInspection.liveUrl && !browserInspection.isExpired ? (
             <iframe src={browserInspection.liveUrl} className="h-full w-full bg-white"
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
@@ -1487,7 +1702,7 @@ function WorkspaceContent({
   if (activeTab === "preview" && session.previewUrl) {
     return (
       <motion.div key="preview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}
-        className="flex h-full min-h-0 flex-col p-3 sm:p-4">
+        className="flex h-full min-h-0 flex-col p-3 sm:p-3 lg:p-4">
         <div className="mb-2 flex items-center justify-between gap-3">
           <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-400">Live Preview</p>
           <div className="flex items-center gap-2">
@@ -1505,17 +1720,17 @@ function WorkspaceContent({
             </div>
           )}
           {previewEnsureError && !isEnsuringPreview && (
-            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-white/85 backdrop-blur-sm">
-              <p className="max-w-[260px] text-center text-[12px] leading-relaxed text-zinc-600">
-                {previewEnsureError}
-              </p>
-              <button
-                type="button"
-                onClick={onRetryPreview}
-                className="rounded-lg border border-border bg-white px-3 py-1.5 text-[12px] font-medium text-zinc-700 shadow-sm hover:bg-zinc-50"
-              >
-                Retry
-              </button>
+            <div className="absolute inset-x-0 bottom-0 z-10 flex items-end justify-center p-4">
+              <div className="flex max-w-[360px] items-center gap-2 rounded-xl border border-border bg-card/95 px-3 py-2 text-[12px] text-muted-foreground shadow-sm backdrop-blur-sm">
+                <span className="min-w-0 flex-1">{previewEnsureError}</span>
+                <button
+                  type="button"
+                  onClick={onRetryPreview}
+                  className="shrink-0 rounded-lg border border-border bg-white px-2.5 py-1 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50"
+                >
+                  Retry
+                </button>
+              </div>
             </div>
           )}
           {browserInspection && !browserInspection.isExpired && (
@@ -1566,7 +1781,6 @@ function WorkspaceContent({
 function LoadingShell() {
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden bg-background">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,rgba(210,200,182,0.22),transparent)]" />
       <header className="relative z-10 shrink-0 px-3 pt-3 pb-2.5 sm:px-4">
         <div className="flex h-12 items-center gap-3 rounded-[1.4rem] border border-border bg-card/90 px-4 backdrop-blur-md">
           <div className="h-5 w-5 animate-pulse rounded-lg bg-zinc-200" />
@@ -1574,9 +1788,9 @@ function LoadingShell() {
           <div className="ml-auto h-6 w-24 animate-pulse rounded-full bg-zinc-200" />
         </div>
       </header>
-      <div className="flex flex-1 gap-3 overflow-hidden px-3 pb-3 sm:px-4 sm:pb-4">
-        <div className="w-[380px] shrink-0 animate-pulse rounded-[1.4rem] border border-border bg-card/95 hidden sm:block" />
-        <div className="flex-1 animate-pulse rounded-[1.4rem] border border-border bg-card/95" />
+      <div className="flex flex-1 gap-2 overflow-hidden px-2 pb-2 sm:px-2 sm:pb-2 lg:gap-3 lg:px-3 lg:pb-3">
+        <div className="hidden w-[clamp(20rem,34vw,23.75rem)] shrink-0 animate-pulse rounded-[1.25rem] border border-border bg-card/95 sm:block lg:rounded-[1.4rem] xl:w-[clamp(24rem,30vw,26.25rem)]" />
+        <div className="flex-1 animate-pulse rounded-[1.25rem] border border-border bg-card/95 lg:rounded-[1.4rem]" />
       </div>
     </div>
   )
@@ -1585,7 +1799,7 @@ function LoadingShell() {
 function ErrorState({ message }: { message: string }) {
   return (
     <div className="flex h-[100dvh] items-center justify-center bg-background px-4">
-      <div className="w-full max-w-md rounded-[1.5rem] border border-border bg-card/95 p-8 text-center shadow-[0_4px_24px_-8px_rgba(0,0,0,0.10)]">
+      <div className="w-full max-w-md rounded-[1.5rem] border border-border bg-card/95 p-8 text-center shadow-[0_4px_24px_-8px_var(--primary)]">
         <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-white text-zinc-400 shadow-sm">
           <ShieldAlert className="h-5 w-5" />
         </div>
@@ -1607,12 +1821,12 @@ function TabBtn({ active, onClick, icon, label, dot }: {
   return (
     <button type="button" onClick={onClick}
       className={cn(
-        "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-medium transition-all",
-        active ? "bg-accent text-accent-foreground shadow-sm" : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800"
+        "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-[12.5px] font-medium transition-colors",
+        active ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
       )}>
       {icon}
       {label}
-      {dot && <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-amber-400" />}
+      {dot && <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-warning" />}
     </button>
   )
 }
@@ -1653,6 +1867,7 @@ export default function ComputerPage() {
   const [runtimeError,      setRuntimeError]      = useState<{ message: string; stack: string } | null>(null)
   const [fixingError,       setFixingError]       = useState(false)
   const hasStartedRef = useRef(false)
+  const runAbortRef = useRef<AbortController | null>(null)
   const previousPreviewUrlRef = useRef<string | null | undefined>(undefined)
   const previewEnsureKeyRef = useRef<string | null>(null)
   const prevSessionStatusRef = useRef<ComputerSessionStatus | null>(null)
@@ -1768,6 +1983,8 @@ export default function ComputerPage() {
   const tokenLimitEvent    = useMemo(() => session ? getTokenLimitEvent(session.timeline) : undefined, [session])
   const visibleCount       = session?.timeline.filter((e) => e.title !== "Session created").length ?? 0
   const isBuildTokenBlocked = Boolean(userData && remainingTokens <= 0)
+  const isRunning = optimisticStart || isStartingRun ||
+    session?.status === "running" || session?.status === "planning"
 
   const showTokenLimit = useCallback(() => {
     setRunError("You have used all credits for this cycle. Upgrade your plan to continue.")
@@ -1853,7 +2070,7 @@ export default function ComputerPage() {
       } catch (err) {
         if (cancelled) return
         previewEnsureKeyRef.current = null
-        setPreviewEnsureError(err instanceof Error ? err.message : "Failed to restore preview")
+        setPreviewEnsureError(normalizePreviewEnsureError(err))
       } finally {
         if (!cancelled) setIsEnsuringPreview(false)
       }
@@ -1888,16 +2105,20 @@ export default function ComputerPage() {
     hasStartedRef.current = true
     setRunError(null); setOptimisticStart(true)
     void (async () => {
+      const controller = new AbortController()
+      runAbortRef.current = controller
       try {
         const auth = await getOptionalAuthHeader()
         const res  = await fetch("/api/computer/run", {
           method: "POST",
           headers: { "Content-Type": "application/json", ...auth },
           body: JSON.stringify({ sessionId: session.id, prompt: session.prompt }),
+          signal: controller.signal,
         })
         const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }
         if (!res.ok && res.status !== 409) throw new Error(data.error || "Could not start run")
       } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") return
         hasStartedRef.current = false; setOptimisticStart(false)
         const message = err instanceof Error ? err.message : "Could not start run"
         if (isTokenLimitError(message)) setTokenLimitModalOpen(true)
@@ -1917,22 +2138,49 @@ export default function ComputerPage() {
       return
     }
     setIsStartingRun(true); setRunError(null)
+    const controller = new AbortController()
+    runAbortRef.current = controller
     try {
       const auth = await getOptionalAuthHeader()
       const res  = await fetch("/api/computer/run", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...auth },
         body: JSON.stringify({ sessionId: session.id, prompt: t }),
+        signal: controller.signal,
       })
       const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }
       if (!res.ok || !data.ok) throw new Error(data.error || "Could not start run")
     } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return
       const message = err instanceof Error ? err.message : "Could not start run"
       if (isTokenLimitError(message)) setTokenLimitModalOpen(true)
       setRunError(getRunErrorMessage(message))
     }
     finally { setIsStartingRun(false) }
   }, [getOptionalAuthHeader, isBuildTokenBlocked, isStartingRun, session, showTokenLimit])
+
+  // ── handleStop — halts an in-flight run immediately ───────────────────────
+  const handleStop = useCallback(async () => {
+    // Abort the pending request so the client stops waiting at once.
+    runAbortRef.current?.abort()
+    runAbortRef.current = null
+    setOptimisticStart(false)
+    setIsStartingRun(false)
+    setRunError(null)
+    if (!session) return
+    try {
+      // Authoritative server-side cancel: flips currentRunId so the running
+      // job bails at its next checkpoint and the session returns to idle.
+      const auth = await getOptionalAuthHeader()
+      await fetch("/api/computer/stop", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...auth },
+        body: JSON.stringify({ sessionId: session.id }),
+      })
+    } catch {
+      // Best-effort: the abort already stopped the client; ignore network errors.
+    }
+  }, [getOptionalAuthHeader, session])
 
   const handleEditStart  = (i: number, c: string) => { setEditingMsgIndex(i); setEditText(c) }
   const handleEditCancel = () => { setEditingMsgIndex(null); setEditText("") }
@@ -1971,16 +2219,20 @@ export default function ComputerPage() {
     if (isStartingRun) return
     if (isBuildTokenBlocked) { showTokenLimit(); return }
     setIsStartingRun(true); setRunError(null)
+    const controller = new AbortController()
+    runAbortRef.current = controller
     try {
       const auth = await getOptionalAuthHeader()
       const res  = await fetch("/api/computer/run", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...auth },
         body: JSON.stringify({ sessionId: session.id, prompt: t }),
+        signal: controller.signal,
       })
       const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }
       if (!res.ok || !data.ok) throw new Error(data.error || "Could not start run")
     } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return
       const message = err instanceof Error ? err.message : "Could not start run"
       if (isTokenLimitError(message)) setTokenLimitModalOpen(true)
       setRunError(getRunErrorMessage(message))
@@ -2341,142 +2593,147 @@ export default function ComputerPage() {
   const hasResearch   = session.timeline.some((e) => (e.kind === "research" || e.kind === "browser") && e.description?.trim())
 
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,rgba(210,200,182,0.22),transparent)]" />
+    <div className="relative flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground sm:bg-primary sm:p-2.5 lg:p-3">
 
-      {/* ── Header ── */}
-      <header className="relative z-10 shrink-0 px-3 pt-3 pb-2.5 sm:px-0 sm:pt-2 sm:pb-2">
-        <div className="mx-auto max-w-none sm:px-3">
-          <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-[1.4rem] border border-border bg-card/90 px-3.5 py-2.5 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_32px_-12px_rgba(0,0,0,0.12)] backdrop-blur-md sm:rounded-[1.6rem] sm:px-5 sm:py-3">
+      {/* ── App shell ── */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-card sm:rounded-[1.4rem] sm:border sm:border-border-strong/50 sm:shadow-2xl">
+
+      {/* ── Top bar ── */}
+      <header className="relative z-30 shrink-0 border-b border-border bg-card">
+        <div className="flex h-12 w-full items-center gap-2 px-3 sm:h-14 sm:gap-3 sm:px-4 lg:px-6">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
             <Link href="/" aria-label="Back"
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-500 shadow-sm transition-colors hover:bg-zinc-50">
-              <ArrowLeft className="h-3.5 w-3.5" />
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+              <ArrowLeft className="h-4 w-4" />
             </Link>
-            <div className="min-w-0 flex-1">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="hidden sm:inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-2xl border border-zinc-200 bg-white text-zinc-700 shadow-sm">
-                  <Laptop className="h-4 w-4" />
-                  <span className="sr-only">Computer session</span>
-                </span>
-                {isEditingTitle ? (
-                  <div className="flex min-w-0 flex-1 items-center gap-2">
-                    <input
-                      value={titleDraft}
-                      onChange={(event) => setTitleDraft(event.target.value)}
-                      className="min-w-0 flex-1 max-w-[24rem] rounded-2xl border border-zinc-200 bg-white px-3 py-2 text-sm text-foreground outline-none ring-1 ring-transparent transition focus:border-zinc-400 focus:ring-zinc-200"
-                      placeholder="Enter a session title"
-                      aria-label="Edit session title"
-                    />
-                    <div className="flex shrink-0 gap-2">
-                      <Button type="button" size="sm" variant="outline" onClick={() => { setIsEditingTitle(false); setTitleError(null); setTitleDraft(firstPrompt || "") }}>
-                        Cancel
-                      </Button>
-                      <Button type="button" size="sm" disabled={titleSaving || !titleDraft.trim()} onClick={async () => {
-                        if (!session) return
-                        const trimmed = titleDraft.trim()
-                        if (!trimmed) return
-                        setTitleSaving(true)
-                        setTitleError(null)
-                        try {
-                          await updateDoc(doc(db, "computerSessions", session.id), { prompt: trimmed })
-                          setIsEditingTitle(false)
-                        } catch (err) {
-                          setTitleError("Could not save title. Please try again.")
-                        } finally {
-                          setTitleSaving(false)
-                        }
-                      }}>
-                        Save
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex min-w-0 items-center gap-2">
-                    <h1 className="truncate text-base font-semibold tracking-tight text-foreground sm:text-lg">
-                      {sessionTitle}
-                    </h1>
-                    <button
-                      type="button"
-                      onClick={() => setIsEditingTitle(true)}
-                      className="hidden sm:inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-600 transition-colors hover:text-foreground"
-                      aria-label="Edit session title"
-                      title="Edit title"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                  </div>
-                )}
-              </div>
-              {titleError && (
-                <p className="mt-1 text-xs text-red-600">{titleError}</p>
-              )}
-            </div>
-            <div className="flex shrink-0 flex-wrap items-center gap-2">
-              <StatusBadge status={session.status} />
-              <div className="hidden sm:contents">
-                <IntegrationsButton
-                  projectId={session.projectId}
-                  project={projectIntegration}
-                  open={integrationsOpen}
-                  busy={integrationBusy}
-                  message={integrationMessage}
-                  envValues={envValues}
-                  onOpenChange={setIntegrationsOpen}
-                  onGithubSync={handleGithubSync}
-                  onSupabaseSetup={handleSupabaseSetup}
-                  onEnvChange={(key, value) => setEnvValues((current) => ({ ...current, [key]: value }))}
-                  onEnvAdd={handleEnvAdd}
-                  onEnvSave={handleEnvSave}
+            <span className="hidden h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground sm:inline-flex">
+              <Laptop className="h-3.5 w-3.5" />
+              <span className="sr-only">Computer session</span>
+            </span>
+          </div>
+
+          <div className="flex min-w-0 flex-1 items-center justify-center gap-2">
+            {isEditingTitle ? (
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <input
+                  value={titleDraft}
+                  onChange={(event) => setTitleDraft(event.target.value)}
+                  className="min-w-0 flex-1 max-w-[26rem] rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
+                  placeholder="Enter a session title"
+                  aria-label="Edit session title"
+                  autoFocus
                 />
-                <DeployButton
-                  projectId={session.projectId}
-                  open={deployOpen}
-                  state={deployState}
-                  deploymentLinks={getProjectDeploymentLinks(projectIntegration)}
-                  onOpenChange={setDeployOpen}
-                  onDeploy={handleDeploy}
-                />
+                <div className="flex shrink-0 gap-1.5">
+                  <Button type="button" size="sm" variant="outline" onClick={() => { setIsEditingTitle(false); setTitleError(null); setTitleDraft(firstPrompt || "") }}>
+                    Cancel
+                  </Button>
+                  <Button type="button" size="sm" disabled={titleSaving || !titleDraft.trim()} onClick={async () => {
+                    if (!session) return
+                    const trimmed = titleDraft.trim()
+                    if (!trimmed) return
+                    setTitleSaving(true)
+                    setTitleError(null)
+                    try {
+                      await updateDoc(doc(db, "computerSessions", session.id), { prompt: trimmed })
+                      setIsEditingTitle(false)
+                    } catch (err) {
+                      setTitleError("Could not save title. Please try again.")
+                    } finally {
+                      setTitleSaving(false)
+                    }
+                  }}>
+                    Save
+                  </Button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="group flex min-w-0 items-center gap-1.5">
+                <h1 className="truncate text-sm font-semibold tracking-[-0.01em] text-foreground lg:text-[15px]">
+                  {sessionTitle}
+                </h1>
+                <button
+                  type="button"
+                  onClick={() => setIsEditingTitle(true)}
+                  className="hidden h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground sm:inline-flex sm:opacity-0 sm:group-hover:opacity-100"
+                  aria-label="Edit session title"
+                  title="Edit title"
+                >
+                  <Pencil className="h-3 w-3" />
+                </button>
+              </div>
+            )}
+            {!isEditingTitle && (
+              <div className="hidden shrink-0 sm:block">
+                <StatusBadge status={session.status} />
+              </div>
+            )}
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2">
+            <IntegrationsButton
+              projectId={session.projectId}
+              project={projectIntegration}
+              open={integrationsOpen}
+              busy={integrationBusy}
+              message={integrationMessage}
+              envValues={envValues}
+              onOpenChange={(open) => {
+                setIntegrationsOpen(open)
+                if (open) setDeployOpen(false)
+              }}
+              onGithubSync={handleGithubSync}
+              onSupabaseSetup={handleSupabaseSetup}
+              onEnvChange={(key, value) => setEnvValues((current) => ({ ...current, [key]: value }))}
+              onEnvAdd={handleEnvAdd}
+              onEnvSave={handleEnvSave}
+            />
+            <DeployButton
+              projectId={session.projectId}
+              open={deployOpen}
+              state={deployState}
+              deploymentLinks={getProjectDeploymentLinks(projectIntegration)}
+              onOpenChange={(open) => {
+                setDeployOpen(open)
+                if (open) setIntegrationsOpen(false)
+              }}
+              onDeploy={handleDeploy}
+            />
           </div>
         </div>
+
+        {/* Status progress line */}
+        {isActive && (
+          <div className="absolute inset-x-0 -bottom-px z-10 h-0.5 overflow-hidden bg-warning/15">
+            <motion.div
+              className="h-full w-1/3 rounded-full bg-warning"
+              animate={{ x: ["-120%", "420%"] }}
+              transition={{ duration: 1.3, ease: "easeInOut", repeat: Infinity }}
+            />
+          </div>
+        )}
+        {session.status === "complete" && (
+          <div className="absolute inset-x-0 -bottom-px z-10 h-0.5 bg-success" />
+        )}
+        {session.status === "error" && (
+          <div className="absolute inset-x-0 -bottom-px z-10 h-0.5 bg-destructive" />
+        )}
+
+        {titleError && (
+          <p className="px-3 pt-1.5 text-xs text-destructive sm:px-4 lg:px-6">{titleError}</p>
+        )}
       </header>
 
-      {/* ── 2-panel body ── */}
-      <div className="relative flex min-h-0 w-full flex-1 gap-3 overflow-hidden px-3 pb-20 sm:px-3 sm:pb-3">
+      {/* ── Body ── */}
+      <div className="relative flex min-h-0 w-full flex-1 overflow-hidden">
 
-        {/* ── Feed panel (left) ── */}
+        {/* ── Chat panel (left) ── */}
         <div className={cn(
-          "flex w-full shrink-0 flex-col overflow-hidden rounded-[1.4rem] border border-border bg-card/95 shadow-[0_2px_16px_-4px_rgba(0,0,0,0.08)]",
-          "sm:w-[380px] xl:w-[420px]",
+          "flex w-full shrink-0 flex-col overflow-hidden bg-card sm:border-r sm:border-border",
+          "sm:w-[20rem] md:w-[22rem] lg:w-[24rem] xl:w-[25rem] 2xl:w-[27rem]",
           mobileView !== "feed" && "hidden sm:flex"
         )}>
-          {/* Feed header */}
-          <div className="shrink-0 border-b border-border bg-card px-4 py-2">
-            <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[12.5px] font-medium leading-5 text-foreground">
-                  {firstPrompt || "Untitled request"}
-                </p>
-              </div>
-              {isActive && (
-                <div className="flex shrink-0 items-center gap-2 rounded-full border border-zinc-200 bg-white px-2.5 py-1">
-                  <PulseDot color="bg-primary" active />
-                  <TextShimmer className="bg-gradient-to-r from-zinc-500 via-zinc-950 to-zinc-500 text-[11px] font-medium">
-                    {STATUS_LABELS[session.status]}
-                  </TextShimmer>
-                </div>
-              )}
-              {!isActive && (
-                <span className="shrink-0 text-[11px] font-medium text-zinc-400">
-                  {STATUS_LABELS[session.status]}
-                </span>
-              )}
-            </div>
-          </div>
-
           {/* Feed scroll area */}
-          <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 [scrollbar-width:thin] sm:px-5">
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 [scrollbar-width:thin] lg:px-5">
             <AgentFeed
               prompt={firstPrompt} events={session.timeline}
               localMessages={localMessages} status={session.status}
@@ -2491,12 +2748,12 @@ export default function ComputerPage() {
             />
           </div>
 
-          {/* Input */}
-          <div className="shrink-0 px-3 pb-3 pt-2 sm:px-4 sm:pb-4">
+          {/* Composer */}
+          <div className="shrink-0 bg-card px-3 pt-3 pb-[5.25rem] sm:pb-3 lg:px-4">
             {isBuildTokenBlocked && (
-              <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
-                <p className="text-sm font-medium text-amber-900">You have used all credits for this cycle.</p>
-                <p className="mt-0.5 text-xs text-amber-800">
+              <div className="mb-3 rounded-xl border border-warning/25 bg-warning-soft px-3 py-2.5">
+                <p className="text-sm font-medium text-warning-soft-foreground">You have used all credits for this cycle.</p>
+                <p className="mt-0.5 text-xs text-warning-soft-foreground/85">
                   Upgrade your plan to continue running the computer agent.
                   {" "}
                   <Link href="/pricing" className="font-semibold underline underline-offset-2">
@@ -2506,23 +2763,23 @@ export default function ComputerPage() {
               </div>
             )}
             {runError && !isBuildTokenBlocked && (
-              <div className="mb-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2.5">
-                <p className="text-[11.5px] text-red-700">{getRunErrorMessage(runError)}</p>
+              <div className="mb-3 rounded-xl border border-destructive/20 bg-destructive/10 px-3 py-2.5">
+                <p className="text-[11.5px] text-destructive">{getRunErrorMessage(runError)}</p>
               </div>
             )}
-            <AnimatedAIInput mode="chat" compact isLoading={isStartingRun}
+            <AnimatedAIInput mode="chat" compact compactSize="slim" isLoading={isRunning} onStop={handleStop}
               onSubmit={handleRun} placeholder="Message the agent..." submitLabel="Run" disabled={isBuildTokenBlocked} />
           </div>
         </div>
 
         {/* ── Workspace panel (right) ── */}
         <div className={cn(
-          "flex min-w-0 flex-1 flex-col overflow-hidden rounded-[1.4rem] border border-border bg-card/95 shadow-[0_2px_16px_-4px_rgba(0,0,0,0.08)]",
+          "flex min-w-0 flex-1 flex-col overflow-hidden bg-background",
           mobileView !== "workspace" && "hidden sm:flex"
         )}>
           {/* Workspace tab bar */}
-          <div className="flex shrink-0 items-center gap-2 border-b border-zinc-100 bg-card px-3 py-2.5 sm:px-4">
-            <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none]">
+          <div className="hidden shrink-0 items-center justify-between gap-2 border-b border-border bg-card px-3 py-2 sm:flex lg:px-4">
+            <div className="flex min-w-0 items-center gap-0.5 overflow-x-auto rounded-lg bg-muted p-0.5 [scrollbar-width:none]">
               <TabBtn active={activeTab === "preview"} onClick={() => setActiveTab("preview")}
                 icon={<Monitor className="h-3.5 w-3.5" />} label="Preview"
                 dot={hasPreview && isActive} />
@@ -2535,7 +2792,7 @@ export default function ComputerPage() {
             </div>
             {/* Completion badge */}
             {session.status === "complete" && (
-              <span className="flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-[10px] font-semibold text-green-700">
+              <span className="flex items-center gap-1 rounded-full bg-success-soft px-2.5 py-1 text-[10px] font-semibold text-success-soft-foreground">
                 <Check className="h-2.5 w-2.5 stroke-[3]" />Done
               </span>
             )}
@@ -2575,65 +2832,89 @@ export default function ComputerPage() {
           </div>
         </div>
       </div>
+      </div>
 
-      {/* ── Mobile bottom nav — 4 actions ── */}
-      <nav className="absolute inset-x-0 bottom-0 z-10 shrink-0 border-t border-border bg-card/95 px-3 pb-4 pt-2 backdrop-blur-xl sm:hidden" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
-        <div className="mx-auto grid max-w-sm grid-cols-4 gap-1.5 rounded-[1rem] border border-border bg-muted p-1">
+      {/* ── Mobile view switcher ── */}
+      <nav
+        className="absolute inset-x-3 z-20 mx-auto max-w-md rounded-[1.7rem] border border-border/65 bg-card/80 px-1.5 py-1.5 shadow-[0_22px_70px_-28px_var(--primary),0_1px_0_var(--primary-foreground)_inset,0_0_0_1px_var(--primary-foreground)_inset] backdrop-blur-2xl sm:hidden"
+        style={{ bottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+      >
+        <div className="grid grid-cols-4 gap-1">
           <button
             type="button"
             onClick={() => setMobileView("feed")}
             className={cn(
-              "flex h-11 items-center justify-center gap-1.5 rounded-[0.75rem] text-[12px] font-medium transition-all",
+              "relative flex h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-[1.15rem] text-[10.5px] font-semibold transition-all duration-200",
               mobileView === "feed"
-                ? "bg-white text-foreground shadow-[0_1px_4px_rgba(0,0,0,0.10)]"
-                : "text-zinc-500"
+                ? "bg-primary text-primary-foreground shadow-[0_12px_26px_-15px_var(--primary),0_1px_0_var(--primary-foreground)_inset]"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
             )}
           >
-            <MessageSquare className="h-4 w-4" />
+            <MessageSquare className={cn("h-4 w-4 transition-transform duration-200", mobileView === "feed" && "-translate-y-0.5")} />
             Chat
+            {mobileView === "feed" && <span className="absolute bottom-1 h-0.5 w-4 rounded-full bg-primary-foreground/70" />}
           </button>
           <button
             type="button"
-            onClick={() => setMobileView("workspace")}
+            onClick={() => { setMobileView("workspace"); setActiveTab("preview") }}
             className={cn(
-              "relative flex h-11 items-center justify-center gap-1.5 rounded-[0.75rem] text-[12px] font-medium transition-all",
-              mobileView === "workspace"
-                ? "bg-white text-foreground shadow-[0_1px_4px_rgba(0,0,0,0.10)]"
+              "relative flex h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-[1.15rem] text-[10.5px] font-semibold transition-all duration-200",
+              mobileView === "workspace" && activeTab === "preview"
+                ? "bg-primary text-primary-foreground shadow-[0_12px_26px_-15px_var(--primary),0_1px_0_var(--primary-foreground)_inset]"
                 : hasPreview
-                  ? "bg-accent text-accent-foreground shadow-[0_1px_4px_rgba(0,0,0,0.18)]"
-                  : "text-zinc-500"
+                  ? "text-foreground hover:bg-muted"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
             )}
           >
-            <Monitor className="h-4 w-4" />
+            <Monitor className={cn("h-4 w-4 transition-transform duration-200", mobileView === "workspace" && activeTab === "preview" && "-translate-y-0.5")} />
             Preview
+            {mobileView === "workspace" && activeTab === "preview" && <span className="absolute bottom-1 h-0.5 w-4 rounded-full bg-primary-foreground/70" />}
             {isActive && (
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400" />
+              <span className="absolute right-3 top-2 flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-warning opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-warning" />
               </span>
             )}
             {!isActive && hasPreview && mobileView !== "workspace" && (
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+              <span className="absolute right-3 top-2 flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
               </span>
             )}
           </button>
           <button
             type="button"
-            onClick={() => setIntegrationsOpen(true)}
-            className="flex h-11 items-center justify-center gap-1.5 rounded-[0.75rem] text-[12px] font-medium text-zinc-500 transition-all"
+            onClick={() => { setMobileView("workspace"); setActiveTab("browser") }}
+            className={cn(
+              "relative flex h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-[1.15rem] text-[10.5px] font-semibold transition-all duration-200",
+              mobileView === "workspace" && activeTab === "browser"
+                ? "bg-primary text-primary-foreground shadow-[0_12px_26px_-15px_var(--primary),0_1px_0_var(--primary-foreground)_inset]"
+                : hasBrowser
+                  ? "text-foreground hover:bg-muted"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            )}
           >
-            <Zap className="h-4 w-4" />
-            Connect
+            <Globe2 className={cn("h-4 w-4 transition-transform duration-200", mobileView === "workspace" && activeTab === "browser" && "-translate-y-0.5")} />
+            Browser
+            {mobileView === "workspace" && activeTab === "browser" && <span className="absolute bottom-1 h-0.5 w-4 rounded-full bg-primary-foreground/70" />}
+            {hasBrowser && !(mobileView === "workspace" && activeTab === "browser") && <span className="absolute right-3 top-2 h-1.5 w-1.5 rounded-full bg-info" />}
           </button>
           <button
             type="button"
-            onClick={() => setDeployOpen(true)}
-            className="flex h-11 items-center justify-center gap-1.5 rounded-[0.75rem] text-[12px] font-medium text-zinc-500 transition-all"
+            onClick={() => { setMobileView("workspace"); setActiveTab("research") }}
+            className={cn(
+              "relative flex h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-[1.15rem] text-[10.5px] font-semibold transition-all duration-200",
+              mobileView === "workspace" && activeTab === "research"
+                ? "bg-primary text-primary-foreground shadow-[0_12px_26px_-15px_var(--primary),0_1px_0_var(--primary-foreground)_inset]"
+                : hasResearch
+                  ? "text-foreground hover:bg-muted"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            )}
           >
-            <Rocket className="h-4 w-4" />
-            Deploy
+            <BookOpen className={cn("h-4 w-4 transition-transform duration-200", mobileView === "workspace" && activeTab === "research" && "-translate-y-0.5")} />
+            Research
+            {mobileView === "workspace" && activeTab === "research" && <span className="absolute bottom-1 h-0.5 w-4 rounded-full bg-primary-foreground/70" />}
+            {hasResearch && !(mobileView === "workspace" && activeTab === "research") && <span className="absolute right-3 top-2 h-1.5 w-1.5 rounded-full bg-warning" />}
           </button>
         </div>
       </nav>
@@ -2642,6 +2923,22 @@ export default function ComputerPage() {
         open={tokenLimitModalOpen}
         onOpenChange={setTokenLimitModalOpen}
         description="This workspace has no credits left in the current cycle. Upgrade to continue running the computer agent."
+      />
+      <MobileIntegrationsSheet
+        open={integrationsOpen}
+        project={projectIntegration}
+        busy={integrationBusy}
+        message={integrationMessage}
+        onClose={() => setIntegrationsOpen(false)}
+        onGithubSync={handleGithubSync}
+        onSupabaseSetup={handleSupabaseSetup}
+      />
+      <MobileDeploySheet
+        open={deployOpen}
+        state={deployState}
+        deploymentLinks={getProjectDeploymentLinks(projectIntegration)}
+        onClose={() => setDeployOpen(false)}
+        onDeploy={handleDeploy}
       />
     </div>
   )

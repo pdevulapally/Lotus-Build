@@ -36,6 +36,15 @@ export default function PricingPage() {
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null)
   const [selectedTierByPlanId, setSelectedTierByPlanId] = useState<Record<string, number>>({})
 
+  // Persist referral attribution so it survives the login/signup round-trip and
+  // is recorded on the new account when it's created.
+  useEffect(() => {
+    try {
+      const ref = new URLSearchParams(window.location.search).get("ref")?.trim()
+      if (ref) window.localStorage.setItem("lotus_ref", ref)
+    } catch {}
+  }, [])
+
   useEffect(() => {
     fetch("/api/stripe/plans")
       .then((r) => r.json())

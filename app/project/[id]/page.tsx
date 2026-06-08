@@ -2420,6 +2420,11 @@ function ProjectContent() {
           followUpContent += followUpDecoder.decode(value)
         }
 
+        const followUpErrorMatch = followUpContent.match(/===GENERATION_ERROR:\s*(.*?)===/)
+        if (followUpErrorMatch) {
+          throw new Error(followUpErrorMatch[1]?.trim() || "Generation failed")
+        }
+
         const { contentWithoutAgent } = extractAgentMessage(followUpContent)
         const followUpBlocks = parseStreamingFiles(contentWithoutAgent)
         if (followUpBlocks.length === 0) return baseFiles
@@ -2541,6 +2546,12 @@ function ProjectContent() {
           hasAutoSelectedFile = true
           setSelectedFile(allFiles[0])
         }
+      }
+
+      // Detect stream-level error emitted by generate route
+      const genErrorMatch = fullContent.match(/===GENERATION_ERROR:\s*(.*?)===/)
+      if (genErrorMatch) {
+        throw new Error(genErrorMatch[1]?.trim() || "Generation failed")
       }
 
       // Final parse (use content without agent block)
@@ -3764,13 +3775,13 @@ function ProjectContent() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_82%_54%_at_50%_-10%,rgba(214,203,186,0.3),transparent)]" />
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_82%_54%_at_50%_-10%,color-mix(in_oklch,var(--brand-glow)_20%,transparent),transparent)]" />
       <div className="mx-auto flex min-h-screen max-w-[1880px] flex-col px-3 py-3 sm:px-5 sm:py-4 lg:h-screen lg:px-6">
         <header className="mb-3 sm:mb-4">
-          <div className="rounded-[1.75rem] border border-border bg-card/90 px-4 py-3 shadow-[0_24px_70px_-54px_rgba(24,24,27,0.35)] backdrop-blur-sm sm:px-5 sm:py-4">
+          <div className="rounded-[1.75rem] border border-border bg-card/90 px-4 py-3 shadow-[0_24px_70px_-54px_var(--primary)] backdrop-blur-sm sm:px-5 sm:py-4">
             <div className="flex items-start justify-between gap-3 sm:items-center">
             <div className="flex min-w-0 items-center gap-4">
-              <Link href="/projects" className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500 transition-colors hover:text-zinc-800">
+              <Link href="/projects" className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:text-foreground">
                 Studio
               </Link>
               <div className="flex min-w-0 items-center gap-2">
@@ -3779,7 +3790,7 @@ function ProjectContent() {
                   <button
                     type="button"
                     onClick={() => setWebsiteSettingsOpen(true)}
-                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-foreground"
+                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     aria-label="Open website settings"
                     title="Website Settings"
                   >
@@ -3789,7 +3800,7 @@ function ProjectContent() {
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-            <Button type="button" size="sm" variant="outline" className="hidden h-9 rounded-lg border-zinc-300 bg-white px-3 text-zinc-700 hover:bg-zinc-100 lg:inline-flex" onClick={() => setWebsiteSettingsOpen(true)}>
+            <Button type="button" size="sm" variant="outline" className="hidden h-9 rounded-lg border-border bg-card px-3 text-foreground hover:bg-muted lg:inline-flex" onClick={() => setWebsiteSettingsOpen(true)}>
               Website Settings
             </Button>
             <Button type="button" size="sm" className="h-9 rounded-lg bg-accent px-3 text-accent-foreground hover:bg-accent/90" onClick={() => setDeployOpen(true)}>
@@ -3801,13 +3812,13 @@ function ProjectContent() {
         </header>
 
         <div className="mb-3 lg:hidden">
-          <div className="inline-flex w-full rounded-2xl border border-zinc-200 bg-white p-1">
+          <div className="inline-flex w-full rounded-2xl border border-border bg-card p-1">
             <button
               type="button"
               onClick={() => setMobileTab("chat")}
               className={cn(
                 "flex-1 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
-                mobileTab === "chat" ? "bg-accent text-accent-foreground" : "text-zinc-600 hover:bg-zinc-100"
+                mobileTab === "chat" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
               )}
             >
               Talk to Builder
@@ -3820,7 +3831,7 @@ function ProjectContent() {
               }}
               className={cn(
                 "flex-1 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
-                mobileTab === "preview" ? "bg-accent text-accent-foreground" : "text-zinc-600 hover:bg-zinc-100"
+                mobileTab === "preview" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
               )}
             >
               Website Preview
@@ -3833,15 +3844,15 @@ function ProjectContent() {
           visualEditActive ? "lg:grid-cols-12" : "lg:grid-cols-10"
         )}>
           <section className={cn(
-            "flex min-h-[52vh] flex-col overflow-hidden rounded-[1.9rem] border border-zinc-200 bg-white lg:min-h-0",
+            "flex min-h-[52vh] flex-col overflow-hidden rounded-[1.9rem] border border-border bg-card lg:min-h-0",
             visualEditActive ? "lg:col-span-4" : "lg:col-span-3",
             mobileTab !== "chat" && "hidden lg:flex"
           )}>
             {visualEditActive ? (
-              <div className="border-b border-zinc-100 px-4 py-3 sm:px-5 sm:py-4">
+              <div className="border-b border-border px-4 py-3 sm:px-5 sm:py-4">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold tracking-wide text-zinc-800">AI Creative Assistant</p>
-                  <p className="mt-1 text-xs text-zinc-500">
+                  <p className="text-sm font-semibold tracking-wide text-foreground">AI Creative Assistant</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
                     {editingContextLabel || "Select a section in the canvas to refine it with AI."}
                   </p>
                 </div>
@@ -3851,20 +3862,20 @@ function ProjectContent() {
             {visualEditActive ? (
               <>
                 <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5">
-                  <div className="rounded-2xl border border-zinc-200 bg-muted px-4 py-3">
-                    <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Current focus</p>
+                  <div className="rounded-2xl border border-border bg-muted px-4 py-3">
+                    <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Current focus</p>
                     <p className="mt-2 text-sm text-foreground">
                       {selectedElementDescription ? getSelectionBadgeDisplay(selectedElementDescription, selectedElementCount) : "Entire page"}
                     </p>
                   </div>
 
-                  <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-3">
+                  <div className="rounded-2xl border border-border bg-card px-4 py-3">
                     <div className="flex items-center justify-between">
-                      <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Page structure</p>
+                      <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Page structure</p>
                       <button
                         type="button"
                         onClick={() => handleVisualSectionInsert(null, "blank")}
-                        className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[11px] text-zinc-700 transition-colors hover:bg-zinc-100"
+                        className="rounded-full border border-border bg-muted px-2.5 py-1 text-[11px] text-foreground transition-colors hover:bg-surface-inset"
                       >
                         Add section
                       </button>
@@ -3876,8 +3887,8 @@ function ProjectContent() {
                           className={cn(
                             "rounded-xl border px-3 py-2 transition-colors",
                             selectedVisualSectionId === section.id
-                              ? "border-zinc-900 bg-accent text-accent-foreground"
-                              : "border-zinc-200 bg-muted text-zinc-800"
+                              ? "border-accent bg-accent text-accent-foreground"
+                              : "border-border bg-muted text-foreground"
                           )}
                         >
                           <button
@@ -3889,7 +3900,7 @@ function ProjectContent() {
                             className="w-full text-left"
                           >
                             <p className="text-xs font-medium">{section.label}</p>
-                            <p className={cn("mt-0.5 text-[11px]", selectedVisualSectionId === section.id ? "text-zinc-200" : "text-zinc-500")}>
+                            <p className={cn("mt-0.5 text-[11px]", selectedVisualSectionId === section.id ? "text-accent-foreground/75" : "text-muted-foreground")}>
                               {section.kind}
                             </p>
                           </button>
@@ -4018,7 +4029,7 @@ function ProjectContent() {
                   )}
                 </div>
                 {canEdit ? (
-                  <div className="border-t border-zinc-100 p-2.5 sm:p-3">
+                  <div className="border-t border-border p-2.5 sm:p-3">
                     <div className="mb-2 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                       {contextualChips.map((chip) => (
                         <button
@@ -4118,9 +4129,9 @@ function ProjectContent() {
             {canEdit ? (
               <div className="border-t border-zinc-100 p-2.5 sm:p-3">
                 {isBuildTokenBlocked && (
-                  <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
-                    <p className="text-sm font-medium text-amber-900">Youâ€™ve used all credits for this cycle.</p>
-                      <p className="mt-0.5 text-xs text-amber-800">
+                  <div className="mb-3 rounded-xl border border-warning/25 bg-warning-soft px-3 py-2.5">
+                    <p className="text-sm font-medium text-warning-soft-foreground">Youâ€™ve used all credits for this cycle.</p>
+                      <p className="mt-0.5 text-xs text-warning-soft-foreground/85">
                         Upgrade your plan to continue generating website updates.
                         {" "}
                         <Link href="/pricing" className="font-semibold underline underline-offset-2">
@@ -4339,12 +4350,12 @@ function ProjectContent() {
               })}
                 {renderSupabaseChatPrompt()}
                 {isGenerating && (
-                  <div className="overflow-hidden rounded-[1.5rem] border border-zinc-200 bg-white shadow-[0_20px_70px_-36px_rgba(24,24,27,0.42)]">
-                    <div className="border-b border-zinc-100 bg-[radial-gradient(circle_at_top_left,_rgba(244,244,245,0.95),_rgba(255,255,255,0.98)_58%)] px-4 py-4">
+                  <div className="overflow-hidden rounded-[1.5rem] border border-border bg-card shadow-[0_20px_70px_-36px_var(--primary)]">
+                    <div className="border-b border-border bg-[radial-gradient(circle_at_top_left,color-mix(in_oklch,var(--surface-raised)_95%,transparent),color-mix(in_oklch,var(--card)_98%,transparent)_58%)] px-4 py-4">
                       <div className="flex flex-col gap-3">
                         <div className="flex items-center gap-2">
-                          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-border bg-muted px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-600">
-                            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-border bg-muted px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                            <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
                             Builder Run Live
                           </div>
                         </div>
@@ -4353,7 +4364,7 @@ function ProjectContent() {
                             <p className="text-sm font-semibold text-foreground">
                               The agent is shaping, implementing, and validating this update
                             </p>
-                            <TextShimmer className="text-sm text-zinc-600">
+                            <TextShimmer className="text-sm text-muted-foreground">
                               {displayedStatus || "Preparing the next implementation step"}
                             </TextShimmer>
                           </div>
@@ -4374,36 +4385,36 @@ function ProjectContent() {
                   </div>
                 )}
                 {(isSandboxLoading || (buildSteps.some(s => s.status !== "idle") && !allBuildSuccess) || buildError) && (
-                  <div className="mr-auto w-full max-w-[92%] rounded-2xl border border-zinc-200 bg-white px-4 py-3 space-y-2">
-                    <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Building preview</p>
+                  <div className="mr-auto w-full max-w-[92%] rounded-2xl border border-border bg-card px-4 py-3 space-y-2">
+                    <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Building preview</p>
                     <div className="space-y-2">
                       {buildSteps.map((step) => (
                         <div key={step.key} className="flex items-center gap-2 text-sm">
                           {step.status === "running" && (
-                            <span className="h-1.5 w-1.5 rounded-full bg-zinc-700 animate-pulse shrink-0" />
+                            <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse shrink-0" />
                           )}
                           {step.status === "success" && (
-                            <Check className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                            <Check className="h-3.5 w-3.5 text-success shrink-0" />
                           )}
                           {step.status === "failed" && (
-                            <X className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                            <X className="h-3.5 w-3.5 text-destructive shrink-0" />
                           )}
                           {step.status === "idle" && (
-                            <span className="h-1.5 w-1.5 rounded-full border border-zinc-300 shrink-0" />
+                            <span className="h-1.5 w-1.5 rounded-full border border-border-strong shrink-0" />
                           )}
                           <span className={cn(
                             "text-xs",
                             step.status === "running" && "text-foreground font-medium",
-                            step.status === "success" && "text-zinc-400",
-                            step.status === "failed" && "text-red-600",
-                            step.status === "idle" && "text-zinc-300"
+                            step.status === "success" && "text-muted-foreground",
+                            step.status === "failed" && "text-destructive",
+                            step.status === "idle" && "text-muted-foreground/55"
                           )}>{step.label}</span>
                         </div>
                       ))}
                     </div>
                     {buildError && (
-                      <div className="pt-2 border-t border-zinc-100 space-y-2">
-                        <p className="text-xs text-red-600 font-mono">{buildError}</p>
+                      <div className="pt-2 border-t border-border space-y-2">
+                        <p className="text-xs text-destructive font-mono">{buildError}</p>
                         {onFixWithAI && (
                           <button onClick={handleFixWithAI} disabled={isFixing}
                           className="text-xs bg-accent text-accent-foreground px-3 py-1.5 rounded-lg flex items-center gap-1.5 disabled:opacity-50">
@@ -4416,29 +4427,29 @@ function ProjectContent() {
                   </div>
                 )}
                 {supabaseSteps.length > 0 && (
-                  <div className="mr-auto w-full max-w-[92%] rounded-2xl border border-zinc-200 bg-white px-4 py-3 space-y-2">
-                    <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400">Setting up database</p>
+                  <div className="mr-auto w-full max-w-[92%] rounded-2xl border border-border bg-card px-4 py-3 space-y-2">
+                    <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Setting up database</p>
                     <div className="space-y-2">
                       {supabaseSteps.map((step, i) => (
                         <div key={i} className="flex items-center gap-2 text-sm">
                           {step.status === "running" && (
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                            <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse shrink-0" />
                           )}
                           {step.status === "success" && (
-                            <Check className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                            <Check className="h-3.5 w-3.5 text-success shrink-0" />
                           )}
                           {step.status === "failed" && (
-                            <X className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                            <X className="h-3.5 w-3.5 text-destructive shrink-0" />
                           )}
                           {step.status === "idle" && (
-                            <span className="h-1.5 w-1.5 rounded-full border border-zinc-300 shrink-0" />
+                            <span className="h-1.5 w-1.5 rounded-full border border-border-strong shrink-0" />
                           )}
                           <span className={cn(
                             "text-xs",
                             step.status === "running" && "text-foreground font-medium",
-                            step.status === "success" && "text-zinc-400",
-                            step.status === "failed" && "text-red-600",
-                            step.status === "idle" && "text-zinc-300"
+                            step.status === "success" && "text-muted-foreground",
+                            step.status === "failed" && "text-destructive",
+                            step.status === "idle" && "text-muted-foreground/55"
                           )}>{step.label}</span>
                         </div>
                       ))}
@@ -4449,11 +4460,11 @@ function ProjectContent() {
             </div>
 
             {canEdit ? (
-              <div className="border-t border-zinc-100 p-2.5 sm:p-3">
+              <div className="border-t border-border p-2.5 sm:p-3">
                 {isBuildTokenBlocked && (
-                  <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
-                    <p className="text-sm font-medium text-amber-900">You’ve used all credits for this cycle.</p>
-                    <p className="mt-0.5 text-xs text-amber-800">
+                  <div className="mb-3 rounded-xl border border-warning/25 bg-warning-soft px-3 py-2.5">
+                    <p className="text-sm font-medium text-warning-soft-foreground">You’ve used all credits for this cycle.</p>
+                    <p className="mt-0.5 text-xs text-warning-soft-foreground/85">
                       Upgrade your plan to continue generating website updates.
                       {" "}
                       <Link href="/pricing" className="font-semibold underline underline-offset-2">
@@ -4469,7 +4480,7 @@ function ProjectContent() {
                       type="button"
                       onClick={() => handleSendMessage(chip)}
                       disabled={!canEdit || isGenerating || isBuildTokenBlocked}
-                      className="whitespace-nowrap rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-600 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="whitespace-nowrap rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {chip}
                     </button>
@@ -4670,28 +4681,28 @@ function ProjectContent() {
       </AlertDialog>
 
       <Dialog open={deployOpen} onOpenChange={setDeployOpen}>
-        <DialogContent className="grid-rows-[auto,minmax(0,1fr)] max-h-[calc(100dvh-1.5rem)] w-[calc(100vw-1rem)] max-w-[72rem] overflow-hidden border-zinc-200 bg-card p-0 sm:max-h-[calc(100dvh-3rem)] sm:w-[min(92vw,72rem)]">
+        <DialogContent className="grid-rows-[auto,minmax(0,1fr)] max-h-[calc(100dvh-1.5rem)] w-[calc(100vw-1rem)] max-w-[72rem] overflow-hidden border-border bg-card p-0 sm:max-h-[calc(100dvh-3rem)] sm:w-[min(92vw,72rem)]">
           <DialogHeader>
-            <div className="border-b border-zinc-200 bg-[radial-gradient(circle_at_top_left,_rgba(244,244,245,0.95),_rgba(255,255,255,0.98)_58%)] px-5 py-5 sm:px-7 sm:py-6">
-              <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-500">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            <div className="border-b border-border bg-[radial-gradient(circle_at_top_left,color-mix(in_oklch,var(--surface-raised)_95%,transparent),color-mix(in_oklch,var(--card)_98%,transparent)_58%)] px-5 py-5 sm:px-7 sm:py-6">
+              <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                <span className="h-2 w-2 rounded-full bg-success" />
                 Publish
               </div>
               <DialogTitle className="mt-4 text-xl text-foreground sm:text-2xl">Go Live</DialogTitle>
-              <DialogDescription className="mt-2 max-w-2xl text-sm text-zinc-600 sm:text-base">
+              <DialogDescription className="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">
                 Publish your website with a cleaner deployment flow, compare providers, and share your live URL once it is ready.
               </DialogDescription>
             </div>
           </DialogHeader>
           <div className="min-h-0 space-y-4 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6">
             <div className="flex justify-center sm:justify-start">
-              <div className="grid w-full max-w-md grid-cols-2 rounded-xl border border-zinc-200 bg-white p-1 sm:inline-flex sm:w-auto">
+              <div className="grid w-full max-w-md grid-cols-2 rounded-xl border border-border bg-card p-1 sm:inline-flex sm:w-auto">
                 <button
                   type="button"
                   onClick={() => setDeployTab("netlify")}
                   className={cn(
                     "rounded-lg px-4 py-2 text-sm font-medium transition-colors",
-                    deployTab === "netlify" ? "bg-accent text-accent-foreground" : "text-zinc-600 hover:bg-zinc-100"
+                    deployTab === "netlify" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
                   )}
                 >
                   Netlify
@@ -4701,7 +4712,7 @@ function ProjectContent() {
                   onClick={() => setDeployTab("vercel")}
                   className={cn(
                     "rounded-lg px-4 py-2 text-sm font-medium transition-colors",
-                    deployTab === "vercel" ? "bg-accent text-accent-foreground" : "text-zinc-600 hover:bg-zinc-100"
+                    deployTab === "vercel" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted"
                   )}
                 >
                   Vercel
@@ -4710,39 +4721,39 @@ function ProjectContent() {
             </div>
 
             {deployTab === "netlify" ? (
-              <div className="overflow-hidden rounded-[1.5rem] border border-zinc-200 bg-white shadow-sm">
-                <div className="border-b border-zinc-100 bg-zinc-50/80 px-4 py-4">
+              <div className="overflow-hidden rounded-[1.5rem] border border-border bg-card shadow-sm">
+                <div className="border-b border-border bg-muted/80 px-4 py-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">Netlify</p>
-                      <p className="mt-1 text-sm text-zinc-600">Fast publishing with a simple live URL and redeploy flow.</p>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Netlify</p>
+                      <p className="mt-1 text-sm text-muted-foreground">Fast publishing with a simple live URL and redeploy flow.</p>
                     </div>
-                    <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-500">
+                    <span className="rounded-full bg-muted px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                       Recommended
                     </span>
                   </div>
                 </div>
                 <div className="space-y-4 px-4 py-4">
                   {netlifyDeployment.siteUrl ? (
-                    <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">Live URL</p>
+                    <div className="rounded-2xl border border-border bg-muted p-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Live URL</p>
                       <a
                         href={netlifyDeployment.siteUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-3 py-3 text-left shadow-sm transition-colors hover:border-zinc-300 hover:bg-zinc-50"
+                        className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-3 py-3 text-left shadow-sm transition-colors hover:border-border-strong hover:bg-muted"
                       >
                         <div className="min-w-0">
-                          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">Open live site</p>
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Open live site</p>
                           <p className="mt-1 break-all text-sm font-semibold text-foreground">{netlifyDeployment.siteUrl}</p>
                         </div>
-                        <ExternalLink className="h-4 w-4 shrink-0 text-zinc-500" />
+                        <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground" />
                       </a>
                       <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                         <Button
                           type="button"
                           variant="outline"
-                          className="min-h-[40px] flex-1 rounded-xl border-zinc-300 text-zinc-700"
+                          className="min-h-[40px] flex-1 rounded-xl border-border text-foreground"
                           onClick={async () => {
                             try {
                               await navigator.clipboard.writeText(netlifyDeployment.siteUrl || "")
@@ -4775,7 +4786,7 @@ function ProjectContent() {
                       </div>
                     </div>
                   ) : (
-                    <p className="text-sm text-zinc-500">Not published yet.</p>
+                    <p className="text-sm text-muted-foreground">Not published yet.</p>
                   )}
                   <Button
                     type="button"
@@ -4801,39 +4812,39 @@ function ProjectContent() {
                 </div>
               </div>
             ) : (
-              <div className="overflow-hidden rounded-[1.5rem] border border-zinc-200 bg-white shadow-sm">
-                <div className="border-b border-zinc-100 bg-zinc-50/80 px-4 py-4">
+              <div className="overflow-hidden rounded-[1.5rem] border border-border bg-card shadow-sm">
+                <div className="border-b border-border bg-muted/80 px-4 py-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">Vercel</p>
-                      <p className="mt-1 text-sm text-zinc-600">Great for fast frontend hosting with an equally clean publish path.</p>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Vercel</p>
+                      <p className="mt-1 text-sm text-muted-foreground">Great for fast frontend hosting with an equally clean publish path.</p>
                     </div>
-                    <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-500">
+                    <span className="rounded-full bg-muted px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                       Alternative
                     </span>
                   </div>
                 </div>
                 <div className="space-y-4 px-4 py-4">
                   {vercelDeployment.siteUrl ? (
-                    <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">Live URL</p>
+                    <div className="rounded-2xl border border-border bg-muted p-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Live URL</p>
                       <a
                         href={vercelDeployment.siteUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-3 py-3 text-left shadow-sm transition-colors hover:border-zinc-300 hover:bg-zinc-50"
+                        className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-3 py-3 text-left shadow-sm transition-colors hover:border-border-strong hover:bg-muted"
                       >
                         <div className="min-w-0">
-                          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">Open live site</p>
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Open live site</p>
                           <p className="mt-1 break-all text-sm font-semibold text-foreground">{vercelDeployment.siteUrl}</p>
                         </div>
-                        <ExternalLink className="h-4 w-4 shrink-0 text-zinc-500" />
+                        <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground" />
                       </a>
                       <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                         <Button
                           type="button"
                           variant="outline"
-                          className="min-h-[40px] flex-1 rounded-xl border-zinc-300 text-zinc-700"
+                          className="min-h-[40px] flex-1 rounded-xl border-border text-foreground"
                           onClick={async () => {
                             try {
                               await navigator.clipboard.writeText(vercelDeployment.siteUrl || "")
@@ -4866,10 +4877,10 @@ function ProjectContent() {
                       </div>
                     </div>
                   ) : (
-                    <p className="text-sm text-zinc-500">Not published yet.</p>
+                    <p className="text-sm text-muted-foreground">Not published yet.</p>
                   )}
                   {!vercelConnected && (
-                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                    <div className="rounded-2xl border border-warning/25 bg-warning-soft p-4 text-sm text-warning-soft-foreground">
                       <p className="font-semibold">Vercel access token needed</p>
                       <p className="mt-1">To deploy with Vercel, add a token below.</p>
                       <a
@@ -4900,7 +4911,7 @@ function ProjectContent() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="min-h-[44px] w-full rounded-xl border-zinc-300 text-zinc-700"
+                    className="min-h-[44px] w-full rounded-xl border-border text-foreground"
                     onClick={handleDeployToVercel}
                     disabled={isVercelDeploying || !vercelConnected}
                   >
@@ -4911,30 +4922,30 @@ function ProjectContent() {
                       : "Publish with Vercel"}
                   </Button>
                   {(isVercelDeploying || vercelDeployLogs.length > 0 || vercelDeployStep) && (
-                    <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-[#111111] shadow-inner">
-                      <div className="flex items-center justify-between gap-3 border-b border-zinc-800 bg-[#171717] px-3 py-2">
+                    <div className="overflow-hidden rounded-2xl border border-sidebar-border bg-sidebar shadow-inner">
+                      <div className="flex items-center justify-between gap-3 border-b border-sidebar-border bg-sidebar-accent px-3 py-2">
                         <div className="flex items-center gap-2">
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-400">Build Log</p>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-sidebar-foreground/70">Build Log</p>
                         </div>
-                        {vercelDeployStep ? <p className="text-[11px] font-mono text-zinc-500">[{vercelDeployStep}]</p> : null}
+                        {vercelDeployStep ? <p className="text-[11px] font-mono text-sidebar-foreground/60">[{vercelDeployStep}]</p> : null}
                       </div>
-                      <div className="max-h-48 overflow-auto bg-[#111111] p-3 font-mono text-[11px] leading-6 text-zinc-300">
+                      <div className="max-h-48 overflow-auto bg-sidebar p-3 font-mono text-[11px] leading-6 text-sidebar-foreground/75">
                         {vercelDeployLogs.length === 0 ? (
-                          <p className="text-zinc-500">$ Starting publish...</p>
+                          <p className="text-sidebar-foreground/55">$ Starting publish...</p>
                         ) : (
                           vercelDeployLogs.slice(-120).map((line, i) => (
                             <p
                               key={`vercel-log-${i}`}
                               className={cn(
                                 "whitespace-pre-wrap break-words",
-                                /\berror\b|failed|ERR!/i.test(line) && "text-red-300",
-                                /\bwarn\b|warning|EBADENGINE/i.test(line) && "text-amber-300",
-                                /added \d+ packages|success|complete|published|ready/i.test(line) && "text-emerald-300",
-                                /^\s*>/.test(line) && "text-sky-300",
-                                !/\berror\b|failed|ERR!|warn|warning|EBADENGINE|added \d+ packages|success|complete|published|ready|^\s*>/i.test(line) && "text-zinc-300"
+                                /\berror\b|failed|ERR!/i.test(line) && "text-destructive",
+                                /\bwarn\b|warning|EBADENGINE/i.test(line) && "text-warning",
+                                /added \d+ packages|success|complete|published|ready/i.test(line) && "text-success",
+                                /^\s*>/.test(line) && "text-info",
+                                !/\berror\b|failed|ERR!|warn|warning|EBADENGINE|added \d+ packages|success|complete|published|ready|^\s*>/i.test(line) && "text-sidebar-foreground/75"
                               )}
                             >
-                              <span className="mr-2 text-zinc-600">$</span>
+                              <span className="mr-2 text-sidebar-foreground/45">$</span>
                               {line}
                             </p>
                           ))

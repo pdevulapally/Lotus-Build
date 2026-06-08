@@ -34,7 +34,10 @@
       "Bash(xargs sed -i 's/import { Sparkles } from \"lucide-react\"/import { Leaf } from \"lucide-react\"/g')",
       "Bash(xargs sed -i 's/, Sparkles,/, Leaf,/g; s/, Sparkles }/, Leaf }/g; s/{ Sparkles,/{ Leaf,/g; s/{ Sparkles }/{ Leaf }/g')",
       "Bash(xargs sed -i 's/<Sparkles /<Leaf /g; s/Sparkles,$/Leaf,/g')",
-      "Bash(powershell *)"
+      "Bash(powershell *)",
+      "mcp__ide__getDiagnostics",
+      "Bash(npx next *)",
+      "Bash(node -e \"require\\('./node_modules/next/dist/bin/next'\\)\" build)"
     ]
   }
 }

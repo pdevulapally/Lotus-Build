@@ -157,16 +157,16 @@ function QuestionPrompt({
 
   if (!activeQuestion) return null
 
-  const optionRowBase = "w-full text-left rounded-md px-2 py-1.5 flex items-center gap-2 -mx-2 hover:bg-zinc-50 transition-colors"
+  const optionRowBase = "w-full text-left rounded-md px-2 py-1.5 flex items-center gap-2 -mx-2 hover:bg-muted transition-colors"
   const badgeBase = "h-5 min-w-5 px-1 rounded-[4px] inline-flex items-center justify-center text-xs font-semibold border shrink-0"
-  const badgeOff = "bg-transparent text-zinc-500 border-zinc-200"
-  const badgeOn = "bg-accent text-accent-foreground border-zinc-900"
+  const badgeOff = "bg-transparent text-muted-foreground border-border"
+  const badgeOn = "bg-accent text-accent-foreground border-accent"
 
   return (
-    <div className={cn("px-3 py-2.5 space-y-2 bg-white", className)}>
+    <div className={cn("px-3 py-2.5 space-y-2 bg-card", className)}>
       <p className="text-sm font-medium text-foreground leading-snug">{activeQuestion.title}</p>
       {activeQuestion.description && (
-        <p className="text-xs text-zinc-500">{activeQuestion.description}</p>
+        <p className="text-xs text-muted-foreground">{activeQuestion.description}</p>
       )}
 
       {activeQuestion.kind !== "text" && (activeQuestion.options?.length ?? 0) > 0 && (
@@ -188,10 +188,10 @@ function QuestionPrompt({
                 className={optionRowBase}
               >
                 <span className={cn(badgeBase, checked ? badgeOn : badgeOff)}>{optionBadge(idx)}</span>
-                <span className="text-sm text-zinc-800">
+                <span className="text-sm text-foreground">
                   {option.label}
                   {option.description && (
-                    <span className="text-zinc-400"> {option.description}</span>
+                    <span className="text-muted-foreground"> {option.description}</span>
                   )}
                 </span>
               </button>
@@ -207,7 +207,7 @@ function QuestionPrompt({
                 value={customText}
                 onChange={(e) => handleCustomTextChange(e.target.value)}
                 placeholder={activeQuestion.customPlaceholder ?? "Type your answer"}
-                className="w-full h-7 rounded-md border border-zinc-200 bg-white px-2 text-sm text-foreground outline-none focus:border-zinc-400"
+                className="w-full h-7 rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none focus:border-ring"
               />
             </div>
           )}
@@ -220,7 +220,7 @@ function QuestionPrompt({
           onChange={(e) => setTextValue(e.target.value)}
           placeholder={activeQuestion.placeholder ?? "Type your answer"}
           rows={3}
-          className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-sm text-foreground resize-none outline-none focus:border-zinc-400"
+          className="w-full rounded-md border border-border bg-card px-2 py-1.5 text-sm text-foreground resize-none outline-none focus:border-ring"
         />
       )}
 
@@ -229,7 +229,7 @@ function QuestionPrompt({
           <button
             type="button"
             onClick={handleSkip}
-            className="h-6 px-2 rounded-[4px] text-xs text-zinc-500 hover:text-foreground hover:bg-zinc-50 transition-colors"
+            className="h-6 px-2 rounded-[4px] text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
             {skipLabel}
           </button>
@@ -238,7 +238,7 @@ function QuestionPrompt({
           type="button"
           onClick={handleSubmit}
           disabled={!canSubmit}
-          className="h-6 px-2.5 rounded-[4px] text-xs font-semibold bg-accent text-accent-foreground hover:bg-accent/90 active:scale-[0.98] transition-all disabled:opacity-40 disabled:hover:bg-zinc-900 disabled:active:scale-100"
+          className="h-6 px-2.5 rounded-[4px] text-xs font-semibold bg-accent text-accent-foreground hover:bg-accent/90 active:scale-[0.98] transition-all disabled:opacity-40 disabled:hover:bg-accent disabled:active:scale-100"
         >
           {primaryLabel}
         </button>
@@ -265,7 +265,7 @@ export type QuestionToolProps = {
   nextLabel?: string
   skipLabel?: string
   allowSkip?: boolean
-  onSubmitAnswer?: (answer: QuestionAnswer) => void
+  onSubmitAnswer?: (answer: QuestionAnswer, answersByQuestion?: Record<number, QuestionAnswer>) => void
   output?: { answer?: QuestionAnswer }
   toolCallId?: string
   className?: string
@@ -312,7 +312,7 @@ export function QuestionTool({
 
   const showNavigation = totalQuestions > 1 && !isComplete
   const canGoPrev = clampedIndex > 1
-  const canGoNext = clampedIndex < totalQuestions
+  const canGoNext = clampedIndex < totalQuestions && Boolean(localAnswers[clampedIndex])
 
   const summaryAnswers = useMemo(() => {
     if (!isComplete || totalQuestions <= 1) return []
@@ -350,7 +350,7 @@ export function QuestionTool({
 
   return (
     <div className={cn("rounded-[10px] border border-border bg-muted overflow-hidden", className)}>
-      <div className="h-7 border-b border-border px-3 flex items-center justify-between text-xs text-zinc-500">
+      <div className="h-7 border-b border-border px-3 flex items-center justify-between text-xs text-muted-foreground">
         <div className="inline-flex items-center gap-1.5">
           <MessageCircle className="w-3.5 h-3.5" />
           <span>Question{totalQuestions > 1 ? `s (${clampedIndex}/${totalQuestions})` : ""}</span>
@@ -361,7 +361,7 @@ export function QuestionTool({
               type="button"
               onClick={goPrev}
               disabled={!canGoPrev}
-              className="size-5 inline-flex items-center justify-center rounded-[4px] hover:bg-zinc-100 disabled:opacity-40"
+              className="size-5 inline-flex items-center justify-center rounded-[4px] hover:bg-muted disabled:opacity-40"
               aria-label="Previous question"
             >
               <ChevronUp className="w-3.5 h-3.5" />
@@ -371,7 +371,7 @@ export function QuestionTool({
               type="button"
               onClick={goNext}
               disabled={!canGoNext}
-              className="size-5 inline-flex items-center justify-center rounded-[4px] hover:bg-zinc-100 disabled:opacity-40"
+              className="size-5 inline-flex items-center justify-center rounded-[4px] hover:bg-muted disabled:opacity-40"
               aria-label="Next question"
             >
               <ChevronDown className="w-3.5 h-3.5" />
@@ -381,7 +381,7 @@ export function QuestionTool({
       </div>
 
       {isComplete ? (
-        <div className="px-3 py-2 text-xs text-zinc-500 bg-white">{summaryText}</div>
+        <div className="px-3 py-2 text-xs text-muted-foreground bg-card">{summaryText}</div>
       ) : (
         <QuestionPrompt
           key={`${clampedIndex}-${question.title}`}
@@ -394,9 +394,26 @@ export function QuestionTool({
           skipLabel={skipLabel}
           allowSkip={allowSkip}
           onSubmit={(nextAnswer) => {
-            setLocalAnswers((prev) => ({ ...prev, [clampedIndex]: nextAnswer }))
-            onSubmitAnswer?.(nextAnswer)
+            if (nextAnswer.kind === "skip") {
+              const skippedAnswers = Object.fromEntries(
+                Array.from({ length: totalQuestions }, (_, idx) => [idx + 1, nextAnswer])
+              ) as Record<number, QuestionAnswer>
+              setLocalAnswers(skippedAnswers)
+              onSubmitAnswer?.(nextAnswer, skippedAnswers)
+              return
+            }
+
+            const nextAnswers = { ...localAnswers, [clampedIndex]: nextAnswer }
+            setLocalAnswers(nextAnswers)
             if (clampedIndex < totalQuestions) goNext()
+            else if (Object.keys(nextAnswers).length >= totalQuestions) onSubmitAnswer?.(nextAnswer, nextAnswers)
+            else if (!isControlled) {
+              const firstUnanswered = Array.from(
+                { length: totalQuestions },
+                (_, idx) => idx + 1
+              ).find((idx) => !nextAnswers[idx])
+              if (firstUnanswered) setLocalIndex(firstUnanswered)
+            }
           }}
         />
       )}

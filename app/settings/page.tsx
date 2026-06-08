@@ -600,13 +600,13 @@ function SettingsContent() {
             <>
               <SettingsSection id="profile" title="Profile">
                 <div className="py-5">
-                  <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white">
-                    <div className="h-20 bg-[linear-gradient(135deg,#f0efe9_0%,#e8e6de_100%)]" />
+                  <div className="overflow-hidden rounded-2xl border border-border bg-card">
+                    <div className="h-20 bg-[linear-gradient(135deg,var(--muted)_0%,var(--surface-inset)_100%)]" />
                     <div className="px-5 pb-5 sm:px-6">
                       <div className="flex items-end gap-4">
-                        <Avatar className="-mt-10 h-16 w-16 rounded-2xl border-2 border-white shadow-md sm:h-20 sm:w-20">
+                        <Avatar className="-mt-10 h-16 w-16 rounded-2xl border-2 border-card shadow-md sm:h-20 sm:w-20">
                           <AvatarImage src={userData.photoURL || undefined} alt={userData.displayName || "User"} />
-                          <AvatarFallback className="rounded-2xl bg-zinc-100 text-lg font-semibold text-zinc-700">
+                          <AvatarFallback className="rounded-2xl bg-muted text-lg font-semibold text-foreground">
                             {getInitials(userData.displayName, userData.email)}
                           </AvatarFallback>
                         </Avatar>

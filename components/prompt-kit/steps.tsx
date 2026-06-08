@@ -30,7 +30,7 @@ export function Steps({
 
   return (
     <StepsContext.Provider value={{ open, setOpen }}>
-      <div className={cn("rounded-xl border border-zinc-200 bg-white/80", className)}>{children}</div>
+      <div className={cn("rounded-xl border border-border bg-card/80", className)}>{children}</div>
     </StepsContext.Provider>
   )
 }
@@ -49,12 +49,12 @@ export function StepsTrigger({
       type="button"
       onClick={() => setOpen(!open)}
       className={cn(
-        "flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left text-sm font-medium text-zinc-800 transition-colors hover:bg-zinc-50",
+        "flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted",
         className
       )}
     >
       <span>{children}</span>
-      <ChevronDown className={cn("h-4 w-4 text-zinc-500 transition-transform", open && "rotate-180")} />
+      <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", open && "rotate-180")} />
     </button>
   )
 }
@@ -69,7 +69,7 @@ export function StepsContent({
   const { open } = useStepsContext()
   if (!open) return null
 
-  return <div className={cn("border-t border-zinc-100 px-3 py-2.5", className)}>{children}</div>
+  return <div className={cn("border-t border-border px-3 py-2.5", className)}>{children}</div>
 }
 
 export function StepsItem({
@@ -80,8 +80,8 @@ export function StepsItem({
   className?: string
 }) {
   return (
-    <div className={cn("flex items-start gap-2 text-xs text-zinc-600 sm:text-sm", className)}>
-      <span className="mt-[7px] inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-400" />
+    <div className={cn("flex items-start gap-2 text-xs text-muted-foreground sm:text-sm", className)}>
+      <span className="mt-[7px] inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground" />
       <span>{children}</span>
     </div>
   )

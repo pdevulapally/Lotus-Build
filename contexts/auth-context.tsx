@@ -41,6 +41,8 @@ interface UserData {
   agentRunLimit: number
   createdAt: Date
   currentWorkspaceId?: string
+  referralCount: number
+  referralCreditsEarned: number
 }
 
 interface Workspace {
@@ -130,6 +132,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (e) {
         console.error('Failed to auto-create personal workspace', e)
       }
+
+      // Record referral attribution (if the user arrived via a referral link).
+      // The 500-credit reward is granted by the Stripe webhook once this user
+      // subscribes to a paid plan. Server validates & is idempotent. Non-blocking.
+      try {
+        const referrerUid = typeof window !== "undefined"
+          ? window.localStorage.getItem("lotus_ref")?.trim()
+          : null
+        if (referrerUid && referrerUid !== firebaseUser.uid) {
+          const idToken = await firebaseUser.getIdToken()
+          await fetch("/api/referral/attribute", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+            body: JSON.stringify({ referrerUid }),
+          })
+        }
+      } catch (e) {
+        console.error("Failed to attribute referral", e)
+      } finally {
+        if (typeof window !== "undefined") window.localStorage.removeItem("lotus_ref")
+      }
     }
   }
 
@@ -215,6 +238,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               agentRunLimit,
               createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
               currentWorkspaceId: data.currentWorkspaceId || null,
+              referralCount: Math.max(0, Number(data.referralCount ?? 0)),
+              referralCreditsEarned: Math.max(0, Number(data.referralCreditsEarned ?? 0)),
             })
 
             // Fetch workspaces list

@@ -3,6 +3,13 @@ import { adminAuth, adminDb } from "@/lib/firebase-admin"
 import { Timestamp } from "firebase-admin/firestore"
 import { DEFAULT_PLANS } from "@/lib/firebase"
 import { normalizeGeneratedCodeFiles } from "@/lib/generated-code-normalization"
+import {
+  ensureGeneratedProjectScaffold,
+  injectMissingComponentStubs,
+  validateGeneratedProjectFiles,
+  GENERATED_APP_DEPENDENCY_VERSIONS,
+  type GeneratedProjectFile,
+} from "@/lib/generated-project-validation"
 import { chargeTokensForGeneration } from "@/lib/charge-tokens"
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
@@ -109,7 +116,7 @@ function dedupeFilesByPath(files: ProjectFileInput[]) {
   const seen = new Set<string>()
   return files.filter((file) => {
     const path = typeof file.path === "string" ? file.path : ""
-    if (!path || seen.has(path)) return false
+    if (!path || seen.has(path) || typeof file.content !== "string") return false
     seen.add(path)
     return true
   })
@@ -118,8 +125,16 @@ function dedupeFilesByPath(files: ProjectFileInput[]) {
 function isCoreContextFile(path: string) {
   const normalizedPath = path.replace(/\\/g, "/").toLowerCase()
   return (
+    normalizedPath === "package.json" ||
+    normalizedPath === "vite.config.ts" ||
+    normalizedPath === "index.html" ||
+    normalizedPath === "src/index.css" ||
+    normalizedPath === "tailwind.config.ts" ||
+    normalizedPath === "postcss.config.js" ||
     normalizedPath === "app.tsx" ||
     normalizedPath === "main.tsx" ||
+    normalizedPath === "src/app.tsx" ||
+    normalizedPath === "src/main.tsx" ||
     normalizedPath.endsWith("/app.tsx") ||
     normalizedPath.endsWith("/main.tsx")
   )
@@ -392,6 +407,35 @@ function serializeFileBlocks(files: ParsedFileBlock[]) {
   return files.map((file) => `===FILE: ${file.path}===\n${file.content}\n===END_FILE===`).join("\n")
 }
 
+function getAgentMessageBlock(content: string) {
+  return content.match(/===AGENT_MESSAGE===[\s\S]*?===END_AGENT_MESSAGE===\s*/)?.[0] ?? ""
+}
+
+function serializeGeneratorOutput(agentMessage: string, files: ParsedFileBlock[]) {
+  const fileBlocks = serializeFileBlocks(files)
+  if (!agentMessage) return fileBlocks
+  return `${agentMessage.trimEnd()}\n${fileBlocks}`
+}
+
+function mergeFilesByPath(baseFiles: GeneratedProjectFile[], updateFiles: GeneratedProjectFile[]) {
+  const byPath = new Map<string, GeneratedProjectFile>()
+  for (const file of baseFiles) {
+    if (typeof file?.path === "string" && typeof file.content === "string") {
+      byPath.set(file.path, file)
+    }
+  }
+  for (const file of updateFiles) {
+    if (typeof file?.path === "string" && typeof file.content === "string") {
+      byPath.set(file.path, file)
+    }
+  }
+  return Array.from(byPath.values())
+}
+
+function getChangedFiles(beforeFiles: GeneratedProjectFile[], afterFiles: GeneratedProjectFile[]) {
+  const beforeByPath = new Map(beforeFiles.map((file) => [file.path, file.content]))
+  return afterFiles.filter((file) => beforeByPath.get(file.path) !== file.content)
+}
 
 function assertValidFileBlockOutput(content: string) {
   if (!content.includes("===FILE:")) {
@@ -406,162 +450,37 @@ function assertValidFileBlockOutput(content: string) {
   return fileBlocks
 }
 
+function buildGenerationRepairPrompt(issues: string[], brokenContent?: string) {
+  return `Repair the project output and return a fully corrected response in the exact required file streaming format.
+
+Detected issues:
+${issues.map((issue) => `- ${issue}`).join("\n")}
+${brokenContent ? `\nBroken output:\n${brokenContent}\n` : ""}
+Rules:
+- Keep the same product request, app intent, and design direction.
+- Ensure package.json, vite.config.ts, index.html, src/main.tsx, src/App.tsx, src/index.css, tailwind.config.ts, and postcss.config.js are present for new apps.
+- Ensure src/main.tsx imports './index.css'.
+- Fix all missing imports, missing components, missing assets, and missing package dependencies.
+- Do not explain the fixes.
+- Return exactly one AGENT_MESSAGE and corrected file blocks only.
+- Do not wrap files in JSON or markdown.`
+}
+
 function validateGeneratedFiles(generatedContent: string, existingFiles?: { path: string; content: string }[]) {
   const fileBlocks = parseFileBlocks(generatedContent)
-  const availablePaths = new Set([
-    ...fileBlocks.map((file) => file.path),
-    ...(existingFiles || []).map((file) => file.path),
-    "src/main.tsx",
-    "src/index.css",
-    "src/App.tsx",
-    "vite.config.ts",
-    "package.json",
-    "index.html",
-  ])
-  const issues = new Set<string>()
-
-  // Check for mandatory CSS files
-  const hasIndexCss = fileBlocks.some(f => f.path === "src/index.css")
-  const hasTailwindConfig = fileBlocks.some(f => f.path === "tailwind.config.ts")
-  const hasPostcssConfig = fileBlocks.some(f => f.path === "postcss.config.js")
-  
-  if (!hasIndexCss) {
-    issues.add("Missing mandatory file: src/index.css (required for CSS styling)")
-  }
-  if (!hasTailwindConfig) {
-    issues.add("Missing mandatory file: tailwind.config.ts (required for Tailwind compilation)")
-  }
-  if (!hasPostcssConfig) {
-    issues.add("Missing mandatory file: postcss.config.js (required for PostCSS processing)")
-  }
-
-  for (const file of fileBlocks) {
-    const isCodeFile = /\.(tsx|ts|jsx|js)$/.test(file.path)
-    if (!isCodeFile) continue
-
-    const importRegex = /from\s+["'](\.[^"']+)["']|import\s+["'](\.[^"']+)["']/g
-    let match: RegExpExecArray | null
-    while ((match = importRegex.exec(file.content)) !== null) {
-      const rawImport = match[1] || match[2]
-      if (!rawImport) continue
-
-      const importerDir = file.path.includes("/") ? file.path.slice(0, file.path.lastIndexOf("/")) : ""
-      const normalizedBase = rawImport
-        .replace(/^\.\//, importerDir ? `${importerDir}/` : "")
-        .replace(/\.\.\//g, "")
-      const candidatePaths = [
-        normalizedBase,
-        `${normalizedBase}.ts`,
-        `${normalizedBase}.tsx`,
-        `${normalizedBase}.js`,
-        `${normalizedBase}.jsx`,
-        `${normalizedBase}.css`,
-        `${normalizedBase}/index.ts`,
-        `${normalizedBase}/index.tsx`,
-      ]
-
-      const hasMatch = candidatePaths.some((candidate) => availablePaths.has(candidate))
-      if (!hasMatch) {
-        issues.add(`Missing import target "${rawImport}" referenced from ${file.path}`)
-      }
-    }
-
-    const missingAssetMatches = file.content.match(/["'](?:\/|\.\/)[^"']+\.(svg|png|jpg|jpeg|webp|gif|ico)["']/g) || []
-    for (const asset of missingAssetMatches) {
-      const assetPath = asset.slice(1, -1)
-      const normalizedAssetPath = assetPath.startsWith("/")
-        ? `public${assetPath}`
-        : `${file.path.slice(0, Math.max(file.path.lastIndexOf("/"), 0))}/${assetPath.replace(/^\.\//, "")}`
-      if (!availablePaths.has(normalizedAssetPath) && !availablePaths.has(assetPath)) {
-        issues.add(`Missing asset "${assetPath}" referenced from ${file.path}`)
-      }
-    }
-  }
+  const validation = validateGeneratedProjectFiles(fileBlocks, {
+    existingFiles,
+    requireNewAppScaffold: !existingFiles?.length,
+  })
 
   return {
     fileBlocks,
-    issues: Array.from(issues),
+    issues: validation.issueMessages,
   }
 }
 
 function injectMissingCssFiles(fileBlocks: ParsedFileBlock[]): ParsedFileBlock[] {
-  const paths = new Set(fileBlocks.map(f => f.path))
-  const injected = [...fileBlocks]
-
-  // Inject missing tailwind.config.ts
-  if (!paths.has("tailwind.config.ts")) {
-    injected.push({
-      path: "tailwind.config.ts",
-      content: `import type { Config } from 'tailwindcss'
-
-export default {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
-  theme: {
-    extend: {
-      borderRadius: {
-        xl: "var(--radius)",
-        lg: "calc(var(--radius) - 2px)",
-        md: "calc(var(--radius) - 4px)",
-      },
-    },
-  },
-  plugins: [],
-} satisfies Config`
-    })
-  }
-
-  // Inject missing postcss.config.js
-  if (!paths.has("postcss.config.js")) {
-    injected.push({
-      path: "postcss.config.js",
-      content: `export default {
-  plugins: {
-    tailwindcss: {},
-    autoprefixer: {},
-  },
-}`
-    })
-  }
-
-  const TAILWIND_DIRECTIVES = `@tailwind base;\n@tailwind components;\n@tailwind utilities;\n`
-  const DEFAULT_INDEX_CSS = `${TAILWIND_DIRECTIVES}
-:root {
-  --radius: 12px;
-  --radius-lg: 16px;
-  --container: 72rem;
-}
-
-body {
-  font-family: system-ui, -apple-system, sans-serif;
-}`
-
-  // Inject missing src/index.css, or prepend @tailwind directives if they're absent
-  const indexCssIdx = injected.findIndex(f => f.path === "src/index.css")
-  if (indexCssIdx === -1) {
-    injected.push({ path: "src/index.css", content: DEFAULT_INDEX_CSS })
-  } else if (!injected[indexCssIdx].content.includes("@tailwind")) {
-    injected[indexCssIdx] = {
-      ...injected[indexCssIdx],
-      content: `${TAILWIND_DIRECTIVES}\n${injected[indexCssIdx].content}`,
-    }
-  }
-
-  // Ensure src/main.tsx imports index.css
-  const mainTsxIndex = injected.findIndex(f => f.path === "src/main.tsx")
-  if (mainTsxIndex !== -1 && !injected[mainTsxIndex].content.includes("index.css")) {
-    const lines = injected[mainTsxIndex].content.split('\n')
-    let insertIdx = 0
-    for (let i = 0; i < lines.length; i++) {
-      if (/import\s+.*react/i.test(lines[i])) insertIdx = i + 1
-    }
-    lines.splice(insertIdx, 0, "import './index.css'")
-    injected[mainTsxIndex] = { ...injected[mainTsxIndex], content: lines.join('\n') }
-  }
-
-  return injected
+  return ensureGeneratedProjectScaffold(fileBlocks)
 }
 
 async function generateWithNvidiaValidation(params: {
@@ -604,19 +523,7 @@ async function generateWithNvidiaValidation(params: {
   let validation = validateGeneratedFiles(finalContent, params.existingFiles)
 
   if (validation.issues.length > 0) {
-    const repairPrompt = `Your previous output had build-breaking issues. Repair the project and return the complete corrected response in the exact same streaming file format.
-
-Detected issues:
-${validation.issues.map((issue) => `- ${issue}`).join("\n")}
-
-Rules:
-- Keep the same app intent and design direction.
-- CRITICAL: Ensure src/index.css, tailwind.config.ts, and postcss.config.js are included and properly configured.
-- Ensure src/main.tsx imports './index.css' at the top.
-- Fix all missing imports, missing components, and missing assets.
-- Do not explain the fixes.
-- Return exactly one AGENT_MESSAGE and the corrected file blocks only.
-- Do not wrap files in JSON or markdown.`
+    const repairPrompt = buildGenerationRepairPrompt(validation.issues)
 
     const repaired = await params.client.chat.completions.create({
       model: params.selectedModel,
@@ -634,18 +541,23 @@ Rules:
     validation = validateGeneratedFiles(finalContent, params.existingFiles)
   }
 
-  // Inject missing CSS files as fallback
   let finalFileBlocks = validation.fileBlocks
-  if (!finalFileBlocks.some(f => f.path === "tailwind.config.ts") ||
-      !finalFileBlocks.some(f => f.path === "postcss.config.js") ||
-      !finalFileBlocks.some(f => f.path === "src/index.css")) {
-    finalFileBlocks = injectMissingCssFiles(finalFileBlocks)
-    // Reconstruct content from injected blocks
-    finalContent = serializeFileBlocks(finalFileBlocks)
-  }
+  const agentMessage = getAgentMessageBlock(finalContent)
+  const beforeScaffold = mergeFilesByPath(params.existingFiles ?? [], finalFileBlocks)
+  const afterScaffold = injectMissingCssFiles(beforeScaffold)
+  const scaffoldChanges = getChangedFiles(beforeScaffold, afterScaffold)
+  finalFileBlocks = mergeFilesByPath(finalFileBlocks, scaffoldChanges)
+
+  // Deterministic safety net for any local component imports the model left
+  // unresolved, so the preview always builds.
+  const beforeStub = mergeFilesByPath(params.existingFiles ?? [], finalFileBlocks)
+  const afterStub = injectMissingComponentStubs(beforeStub)
+  const stubChanges = getChangedFiles(beforeStub, afterStub)
+  finalFileBlocks = mergeFilesByPath(finalFileBlocks, stubChanges)
 
   finalFileBlocks = normalizeGeneratedCodeFiles(finalFileBlocks)
-  finalContent = serializeFileBlocks(finalFileBlocks)
+  finalContent = serializeGeneratorOutput(agentMessage, finalFileBlocks)
+  validation = validateGeneratedFiles(finalContent, params.existingFiles)
 
   return {
     finalContent,
@@ -701,7 +613,7 @@ ANTI_PATTERN: [describe the generic AI version of this exact site — the one we
           content: prompt.slice(0, 2000),
         },
       ],
-      max_tokens: 700,
+      max_completion_tokens: 700,
       temperature: 0.25,
     })
     return res.choices[0]?.message?.content?.trim() || ""
@@ -716,21 +628,7 @@ async function salvageWithOpenAI(params: {
   brokenContent: string
   issues: string[]
 }) {
-  const salvagePrompt = `Repair the broken project output below and return a fully corrected response in the exact required file streaming format.
-
-Detected issues:
-${params.issues.map((issue) => `- ${issue}`).join("\n")}
-
-Broken output:
-${params.brokenContent}
-
-Rules:
-- Keep the same product request and overall intent.
-- CRITICAL: Ensure src/index.css, tailwind.config.ts, and postcss.config.js are included and properly configured.
-- Ensure src/main.tsx imports './index.css' at the top.
-- Return exactly one AGENT_MESSAGE and then only ===FILE=== blocks.
-- Ensure every import resolves and every referenced component exists.
-- Do not leave placeholders or missing files.`
+  const salvagePrompt = buildGenerationRepairPrompt(params.issues, params.brokenContent)
 
   const repaired = await openai.chat.completions.create({
     model: OPENAI_MODEL_MAP[DEFAULT_MODEL],
@@ -739,19 +637,14 @@ Rules:
       { role: "user", content: params.userMessageContent },
       { role: "user", content: salvagePrompt },
     ],
-    max_tokens: 8000,
+    max_completion_tokens: 8000,
   })
 
   let content = repaired.choices[0]?.message?.content || params.brokenContent
   
-  // Inject missing CSS files if needed
-  const fileBlocks = parseFileBlocks(content)
-  if (!fileBlocks.some(f => f.path === "tailwind.config.ts") ||
-      !fileBlocks.some(f => f.path === "postcss.config.js") ||
-      !fileBlocks.some(f => f.path === "src/index.css")) {
-    const injectedBlocks = injectMissingCssFiles(fileBlocks)
-    content = injectedBlocks.map(f => `===FILE: ${f.path}===\n${f.content}\n===END_FILE===`).join('\n')
-  }
+  const agentMessage = getAgentMessageBlock(content)
+  const fileBlocks = normalizeGeneratedCodeFiles(injectMissingCssFiles(parseFileBlocks(content)))
+  content = serializeGeneratorOutput(agentMessage, fileBlocks)
 
   return {
     content,
@@ -772,7 +665,7 @@ async function repairInvalidFileFormatWithOpenAI(params: {
       { role: "assistant", content: params.brokenContent },
       { role: "user", content: STRICT_FILE_FORMAT_RETRY_PROMPT },
     ],
-    max_tokens: 8000,
+    max_completion_tokens: 8000,
   })
 
   const content = repaired.choices[0]?.message?.content || ""
@@ -851,7 +744,7 @@ async function streamWithResolvedProvider(params: {
           { role: "system", content: params.systemPrompt },
           { role: "user", content: userMessage },
         ],
-        max_tokens: 8000,
+        max_completion_tokens: 8000,
         stream_options: { include_usage: true } as any,
       }, { signal: controllerAbort.signal })
       clearTimeout(timeoutId)
@@ -907,26 +800,71 @@ async function streamWithResolvedProvider(params: {
   const output = await streamTokens(completion)
   params.state.streamedLength += output.length
 
-  // Append any missing CSS infrastructure as extra file blocks at the end of the stream.
-  // parseGenerateResponse in the computer agent buffers the full stream, so these are included.
   const parsedBlocks = parseFileBlocks(output)
-  const allKnownPaths = new Set([
-    ...parsedBlocks.map(f => f.path),
-    ...(params.existingFiles?.map(f => f.path) || [])
-  ])
-  const needsCssFix =
-    !allKnownPaths.has("tailwind.config.ts") ||
-    !allKnownPaths.has("postcss.config.js") ||
-    !allKnownPaths.has("src/index.css") ||
-    (parsedBlocks.some(f => f.path === "src/index.css") && !parsedBlocks.find(f => f.path === "src/index.css")?.content.includes("@tailwind")) ||
-    (parsedBlocks.some(f => f.path === "src/main.tsx") && !parsedBlocks.find(f => f.path === "src/main.tsx")?.content.includes("index.css"))
+  const beforeScaffold = mergeFilesByPath(params.existingFiles ?? [], parsedBlocks)
+  const afterScaffold = injectMissingCssFiles(beforeScaffold)
+  const scaffoldChanges = normalizeGeneratedCodeFiles(getChangedFiles(beforeScaffold, afterScaffold))
+  let finalBlocks = mergeFilesByPath(parsedBlocks, scaffoldChanges)
 
-  if (needsCssFix) {
-    const fixedBlocks = injectMissingCssFiles(parsedBlocks)
-    const newFiles = fixedBlocks.filter(b => !parsedBlocks.find(p => p.path === b.path))
-    if (newFiles.length && !params.state.closed) {
-      try { params.controller.enqueue(params.encoder.encode(serializeFileBlocks(normalizeGeneratedCodeFiles(newFiles)))) }
+  if (scaffoldChanges.length && !params.state.closed) {
+    const scaffoldPayload = serializeFileBlocks(scaffoldChanges)
+    try {
+      params.controller.enqueue(params.encoder.encode(scaffoldPayload))
+      params.state.streamedLength += scaffoldPayload.length
+    } catch {
+      params.state.closed = true
+    }
+  }
+
+  let validation = validateGeneratedFiles(serializeFileBlocks(finalBlocks), params.existingFiles)
+  if (validation.issues.length > 0 && !params.state.closed) {
+    console.warn("OpenAI generation has validation issues, attempting salvage:", validation.issues)
+    const salvaged = await salvageWithOpenAI({
+      systemPrompt: params.systemPrompt,
+      userMessageContent: params.userMessageContent,
+      brokenContent: serializeFileBlocks(finalBlocks),
+      issues: validation.issues,
+    })
+    const salvagedBlocks = normalizeGeneratedCodeFiles(parseFileBlocks(salvaged.content))
+    if (salvagedBlocks.length) {
+      const beforeSalvage = mergeFilesByPath(params.existingFiles ?? [], finalBlocks)
+      const afterSalvage = mergeFilesByPath(beforeSalvage, salvagedBlocks)
+      const salvageChanges = getChangedFiles(beforeSalvage, afterSalvage)
+      const salvagePayload = serializeFileBlocks(salvageChanges.length ? salvageChanges : salvagedBlocks)
+      try {
+        params.controller.enqueue(params.encoder.encode(salvagePayload))
+        params.state.usageInfo = salvaged.usage || params.state.usageInfo
+        params.state.streamedLength += salvagePayload.length
+      }
       catch { params.state.closed = true }
+      finalBlocks = mergeFilesByPath(finalBlocks, salvagedBlocks)
+      validation = validateGeneratedFiles(serializeFileBlocks(finalBlocks), params.existingFiles)
+      if (validation.issues.length > 0) {
+        console.warn("OpenAI salvage left unresolved validation issues:", validation.issues)
+      }
+    }
+  }
+
+  // Deterministic safety net: if a generated module still imports local
+  // components that were never emitted, create minimal stub modules so the
+  // preview always builds instead of failing on unresolved imports.
+  if (!params.state.closed && validation.issues.some((issue) => issue.includes("Missing import target"))) {
+    const beforeStub = mergeFilesByPath(params.existingFiles ?? [], finalBlocks)
+    const afterStub = injectMissingComponentStubs(beforeStub)
+    const stubChanges = normalizeGeneratedCodeFiles(getChangedFiles(beforeStub, afterStub))
+    if (stubChanges.length) {
+      const stubPayload = serializeFileBlocks(stubChanges)
+      try {
+        params.controller.enqueue(params.encoder.encode(stubPayload))
+        params.state.streamedLength += stubPayload.length
+      } catch {
+        params.state.closed = true
+      }
+      finalBlocks = mergeFilesByPath(finalBlocks, stubChanges)
+      validation = validateGeneratedFiles(serializeFileBlocks(finalBlocks), params.existingFiles)
+      console.log(
+        `Stub injection created ${stubChanges.length} placeholder module(s); remaining issues: ${validation.issues.length}`
+      )
     }
   }
 }
@@ -966,12 +904,21 @@ export async function POST(req: Request) {
     return Response.json({ error: "Invalid JSON body" }, { status: 400 })
   }
   const {
-    prompt,
+    prompt: rawPrompt,
     model = DEFAULT_MODEL,
     idToken,
     existingFiles,
     intent,
   } = body
+  const prompt = typeof rawPrompt === "string" ? rawPrompt.trim() : ""
+  if (!prompt) {
+    return Response.json({ error: "Prompt is required" }, { status: 400 })
+  }
+  const safeExistingFiles = Array.isArray(existingFiles)
+    ? dedupeFilesByPath(existingFiles.filter((file): file is ProjectFileInput =>
+        Boolean(file && typeof file.path === "string" && typeof file.content === "string")
+      ))
+    : undefined
 
   // authenticate user via Firebase ID token (body) or Authorization Bearer token (header)
   const authHeader = req.headers.get("authorization") || req.headers.get("Authorization")
@@ -1038,9 +985,10 @@ export async function POST(req: Request) {
     return new Response(JSON.stringify({ error: 'Server error' }), { status: 500 })
   }
 
-  const { client, selectedModel, provider } = await resolveModel(model)
-  const isFollowUp = Array.isArray(existingFiles) && existingFiles.length > 0
-  let promptFiles = isFollowUp ? selectRelevantFiles(existingFiles || [], prompt) : []
+  const requestedModel = typeof model === "string" && model.trim() ? model : DEFAULT_MODEL
+  const { client, selectedModel, provider } = await resolveModel(requestedModel)
+  const isFollowUp = Array.isArray(safeExistingFiles) && safeExistingFiles.length > 0
+  let promptFiles = isFollowUp ? selectRelevantFiles(safeExistingFiles || [], prompt) : []
 
   if (isFollowUp) {
     promptFiles = trimPromptFilesToBudget(prompt, promptFiles)
@@ -1060,13 +1008,13 @@ Classify the user request into one of:
 SCOPE RULES based on classification:
 - STYLE/CONTENT: return ONLY the single file containing that element. Never touch package.json, vite.config.ts, or unrelated components.
 - COMPONENT: return only the component file + its direct parent if wiring is needed.
-- FEATURE: return only files that need new imports, state, or logic. Do not rewrite files that only need 1-2 line changes — use diffs instead.
+- FEATURE: return only files that need new imports, state, or logic. Do not rewrite unrelated files.
 - PAGE/REFACTOR: still do not rewrite unchanged files.
 
 HARD RULES:
 - Never rewrite a file just to "clean it up"
 - Never return package.json unless a new dependency is genuinely needed
-- If a file needs fewer than 5 line changes, use unified diff format not full file
+- For every changed file, return the complete updated file content inside its file block.
 - If you are about to return more than 4 files for a STYLE or CONTENT request, stop and reconsider
 
 PRODUCTION STANDARD (FOLLOW-UP):
@@ -1096,30 +1044,23 @@ DEPENDENCIES (CRITICAL):
 - NEVER import from react-icons subpackages like react-icons/hi2, react-icons/hi, react-icons/md etc unless "react-icons" is already in package.json.
 - If you use react-icons, add "react-icons": "^5.0.0" to package.json dependencies AND import only from react-icons/fa or react-icons/fa6 — these are the most stable subpackages.
 - NEVER use HiOutlineMenu, HiOutlineBars3 or any Hi* icon — they are unreliable across versions.
-- PREFER lucide-react for ALL icons. It is always available and has zero subpackage issues. Only use react-icons when lucide-react does not have what you need.
+- PREFER lucide-react for ALL icons when it is listed in package.json. Only use react-icons when lucide-react does not have what you need and react-icons is listed in package.json.
 - NEVER hallucinate lucide-react icon names. 'RocketLaunch' does not exist, use 'Rocket'. Use exact lucide casing: 'Github' not 'GitHub', 'Linkedin' not 'LinkedIn', 'Youtube' not 'YouTube'.
-- If you import lucide-react, add "lucide-react": "^0.400.0" to dependencies if not already present.
-- If you use framer-motion, add "framer-motion": "^11.0.0" to dependencies.
+- If you import lucide-react, add "lucide-react": "${GENERATED_APP_DEPENDENCY_VERSIONS["lucide-react"]}" to dependencies if not already present.
+- If you use framer-motion, add "framer-motion": "${GENERATED_APP_DEPENDENCY_VERSIONS["framer-motion"]}" to dependencies.
 - Check the existing package.json first. Only add packages that are truly needed and don't already exist.
 - NEVER use packages that don't exist on npm (e.g., @shadcn/ui).
 - For the favicon in index.html, ALWAYS use an inline SVG: <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>"> to prevent 404 errors.
 
 CRITICAL: Do NOT regenerate the entire project. Output ONLY:
 1. One AGENT_MESSAGE (see below).
-2. For each file that you MODIFY: output that file in ===FILE: path=== ... ===END_FILE===. Inside the block you may use EITHER:
-   - Unified diff format (so only the change is applied). You MUST include the --- and +++ file header lines first; never output only @@ hunk lines:
-     --- a/path/to/file.tsx
-     +++ b/path/to/file.tsx
-     @@ -start,count +start,count @@
-     -old line
-     +new line
-   - OR the COMPLETE new file content (full replacement).
+2. For each file that you MODIFY: output that file in ===FILE: path=== ... ===END_FILE=== with the COMPLETE updated file content.
 3. For each NEW file (file that does not exist yet): output ===FILE: path=== complete file content ===END_FILE===.
 Do NOT output any file that is unchanged. Do NOT output the full project; only changed or new files.
 
 Use this exact streaming format for every file you output:
 ===FILE: path/to/file.tsx===
-[unified diff OR full file content]
+[complete updated file content]
 ===END_FILE===
 
 AGENT MESSAGE (required): First, output exactly one conversational reply in this format on a single line (no newlines inside):
@@ -1197,14 +1138,14 @@ MODERN PATTERNS — implement at least 4 of these:
 
 MOTION (INTENTIONAL ONLY):
 - One well-orchestrated page load: staggered entrance for headline words/chars using Framer Motion with animation-delay.
-- Scroll-triggered reveals: use whileInView prop on motion.div. Pattern: <motion.div whileInView={{ opacity: 1, y: 0 }} initial={{ opacity: 0, y: 20 }} transition={{ duration: 0.6 }}> — NO useInView hook.
+- Scroll-triggered reveals: prefer whileInView prop on motion.div. Pattern: <motion.div whileInView={{ opacity: 1, y: 0 }} initial={{ opacity: 0, y: 20 }} transition={{ duration: 0.6 }}>.
 - Hover states that surprise: magnetic buttons, underline draws, image scale with overflow:hidden clip.
 - Do NOT add fade-in animation to every element — this is scatter-shot motion. Reserve it for 3-5 key moments.
 - FRAMER MOTION RULES (CRITICAL):
-  * NEVER import useInView — it doesn't exist in v10+. Use whileInView prop on motion elements instead.
-  * NEVER import useAnimation with useInView together for scroll reveals. Use motion + whileInView prop.
+  * Prefer whileInView prop on motion elements for scroll reveals.
+  * Do not combine useAnimation with viewport hooks for simple scroll reveals. Use motion + whileInView prop.
   * For imperative animation control, use useAnimation ONLY if you need to manually trigger animations (e.g. on button click).
-  * Correct patterns: motion.div with whileInView + initial + animate + transition props. NOT useInView hooks.
+  * Correct patterns: motion.div with whileInView + initial + animate + transition props.
 
 ARCHITECTURE (NON-NEGOTIABLE):
 - Build within the Lotus generated-app architecture: Vite + React + TypeScript.
@@ -1243,7 +1184,7 @@ Generate files in this order (ALL MANDATORY):
 Use these technologies:
 - TypeScript
 - Vite + React
-- Tailwind CSS (only if requested or if it clearly improves the UI)
+- Tailwind CSS (required for Lotus generated Vite apps)
 - Framer Motion for animations when appropriate
 
 Dependencies requirements (MUST follow):
@@ -1260,16 +1201,16 @@ Dependencies requirements (MUST follow):
 - NEVER import from react-icons subpackages like react-icons/hi2, react-icons/hi, react-icons/md etc unless "react-icons" is already in package.json.
 - If you use react-icons, add "react-icons": "^5.0.0" to package.json dependencies AND import only from react-icons/fa or react-icons/fa6 — these are the most stable subpackages.
 - NEVER use HiOutlineMenu, HiOutlineBars3 or any Hi* icon — they are unreliable across versions.
-- PREFER lucide-react for ALL icons. It is always available and has zero subpackage issues. Only use react-icons when lucide-react does not have what you need.
+- PREFER lucide-react for ALL icons when it is listed in package.json. Only use react-icons when lucide-react does not have what you need and react-icons is listed in package.json.
 - NEVER hallucinate lucide-react icon names. 'RocketLaunch' does not exist, use 'Rocket'. Use exact lucide casing: 'Github' not 'GitHub', 'Linkedin' not 'LinkedIn', 'Youtube' not 'YouTube'.
-- If you import lucide-react, add "lucide-react": "^0.400.0" to dependencies if not already present.
+- If you import lucide-react, add "lucide-react": "${GENERATED_APP_DEPENDENCY_VERSIONS["lucide-react"]}" to dependencies if not already present.
 - If you use Tailwind CSS, include tailwindcss, postcss, and autoprefixer in devDependencies.
 - FRAMER MOTION API RULES (CRITICAL):
-  * The ONLY safe framer-motion imports are: motion, AnimatePresence, and useAnimation. All other imports must NOT be used.
-  * NEVER import useInView, useViewportScroll, useScroll, useMotionValueEvent, or any other hooks from framer-motion. These are internal/deprecated.
-  * NEVER try to use framer-motion hooks for scroll detection. ONLY use the whileInView prop on motion components.
+  * The preferred framer-motion imports are: motion, AnimatePresence, and useAnimation.
+  * For scroll reveals, use the whileInView prop on motion components instead of viewport hooks.
+  * Do not add framer-motion hooks unless the component genuinely needs imperative animation state.
   * CORRECT PATTERN for scroll reveals: <motion.div whileInView={{ opacity: 1 }} initial={{ opacity: 0 }} /> — the whileInView prop is a config object, not a hook.
-  * NEVER combine useAnimation + useInView or try to manually track viewport with framer-motion hooks.
+  * Do not combine useAnimation with viewport hooks for simple reveal animations.
   * If you need scroll detection that isn't available via whileInView, use react-intersection-observer package instead (add to dependencies first).
 - Do not reference any package in code unless it exists in package.json.
 - NEVER use packages that don't exist on npm (e.g., @shadcn/ui is not a real package).
@@ -1281,7 +1222,7 @@ Make the code production-ready with proper error handling, accessibility, and re
 Create organized folder structures with components in /src/components, utilities in /src/lib, etc.
 
 AGENT MESSAGE (required): First, output exactly one conversational reply in this format on a single line (no newlines inside):
-===AGENT_MESSAGE=== Your brief friendly reply to the user, e.g. "I'll help you build Cookie Clicker - a mobile app where the user can press on a cookie and a score will increment. When incremented, the new score should be displayed for users on any device. I'll add animations when the cookie is pressed." Keep it to 1-3 sentences. ===END_AGENT_MESSAGE===
+===AGENT_MESSAGE=== Your brief friendly reply to the user, e.g. "I'll build a polished React/Vite page with responsive components, production-ready styling, and the interactions needed for the experience." Keep it to 1-3 sentences. ===END_AGENT_MESSAGE===
 The AGENT_MESSAGE must accurately describe a Vite + React implementation. Never say you will create a standalone HTML/CSS/JS file.
 Then immediately output the file blocks. Do not include any other text between ===END_AGENT_MESSAGE=== and the first ===FILE===.
 
@@ -1326,13 +1267,14 @@ OPEN-SOURCE MODEL RELIABILITY RULES (MANDATORY):
   const isInspiration = intent === "inspiration"
   const designBrief = isFollowUp ? "" : await deriveDesignBrief(prompt)
   const systemPrompt = isFollowUp ? systemPromptFollowUp : systemPromptNew(designBrief)
-  const finalSystemPrompt = provider === "nvidia"
-    ? `${systemPrompt}\n\n${nvidiaReliabilityPrompt}`
-    : systemPrompt
+  const finalSystemPrompt = `${systemPrompt}\n\n${nvidiaReliabilityPrompt}`
 
   // Build user message — inspiration mode prepends the reference site context
+  const inspirationMarkdown = typeof body.inspirationContext?.markdown === "string"
+    ? body.inspirationContext.markdown.slice(0, 8000)
+    : ""
   const inspirationPrefix = body.inspirationContext
-    ? `REFERENCE SITE FOR INSPIRATION:\nURL: ${body.inspirationContext.sourceUrl}\nTitle: ${body.inspirationContext.title}\nDescription: ${body.inspirationContext.description}\n\nSite content:\n${body.inspirationContext.markdown}\n\n${isInspiration ? "Use the above as the content and layout inspiration. Recreate the same sections, copy, and visual hierarchy as a modern React app with Tailwind. Match the design intent closely without copying styles verbatim." : "Use the above only as reference context. Build a fresh, inspired design."}\n\n`
+    ? `REFERENCE SITE FOR INSPIRATION:\nURL: ${body.inspirationContext.sourceUrl}\nTitle: ${body.inspirationContext.title}\nDescription: ${body.inspirationContext.description}\n\nSite content:\n${inspirationMarkdown}\n\n${isInspiration ? "Use the above as the content and layout inspiration. Recreate the same sections, copy, and visual hierarchy as a modern React app with Tailwind. Match the design intent closely without copying styles verbatim." : "Use the above only as reference context. Build a fresh, inspired design."}\n\n`
     : ""
 
   const userMessageContent = isFollowUp
@@ -1355,7 +1297,7 @@ OPEN-SOURCE MODEL RELIABILITY RULES (MANDATORY):
           selectedModel,
           systemPrompt: finalSystemPrompt,
           userMessageContent,
-          existingFiles,
+          existingFiles: safeExistingFiles,
           controller,
           encoder,
           state: streamState,
@@ -1371,14 +1313,15 @@ OPEN-SOURCE MODEL RELIABILITY RULES (MANDATORY):
           completionChars: streamState.streamedLength,
         })
       } catch (err: any) {
+        const message = err instanceof Error ? err.message : "Generation failed"
         console.error('Stream error', err)
-
-        if (err?.message === "MODEL_TIMEOUT") {
-          controller.error(err)
-          return
+        if (!streamState.closed) {
+          try {
+            controller.enqueue(encoder.encode(`\n===GENERATION_ERROR: ${message}===`))
+          } catch {}
+          streamState.closed = true
+          try { controller.close() } catch {}
         }
-
-        controller.error(err)
       }
     },
   })

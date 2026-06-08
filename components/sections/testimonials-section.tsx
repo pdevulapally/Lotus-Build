@@ -60,7 +60,7 @@ const logos = ["Y Combinator", "Indie Hackers", "Product Hunt", "TechCrunch", "H
 export function TestimonialsSection() {
   return (
     <section id="testimonials" className="px-4 py-20 sm:px-6 sm:py-24">
-      <div className="mx-auto max-w-6xl rounded-[2rem] border border-zinc-200 bg-white px-5 py-10 sm:px-8 sm:py-12 lg:px-12">
+      <div className="mx-auto max-w-6xl rounded-[2rem] border border-border bg-card px-5 py-10 sm:px-8 sm:py-12 lg:px-12">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -68,12 +68,12 @@ export function TestimonialsSection() {
           viewport={{ once: true }}
           className="flex flex-col items-center justify-center max-w-xl mx-auto mb-12"
         >
-          <div className="border border-zinc-200 py-1.5 px-4 rounded-full text-sm text-zinc-600">Testimonials</div>
+          <div className="border border-border bg-muted py-1.5 px-4 rounded-full text-sm text-muted-foreground">Testimonials</div>
 
           <h2 className="font-display text-4xl md:text-5xl font-bold text-foreground mt-6 text-center tracking-tight">
             Loved by builders
           </h2>
-          <p className="text-center mt-4 text-zinc-500 text-lg text-balance">
+          <p className="text-center mt-4 text-muted-foreground text-lg text-balance">
             Join thousands of developers and creators building with AI.
           </p>
         </motion.div>
@@ -84,8 +84,8 @@ export function TestimonialsSection() {
           <TestimonialsColumn testimonials={thirdColumn} className="hidden lg:block" duration={17} />
         </div>
 
-        <div className="mt-14 border-t border-zinc-200 pt-12 sm:mt-16 sm:pt-16">
-          <p className="text-center text-sm text-zinc-500 mb-8">Trusted by industry leaders</p>
+        <div className="mt-14 border-t border-border pt-12 sm:mt-16 sm:pt-16">
+          <p className="text-center text-sm text-muted-foreground mb-8">Trusted by industry leaders</p>
           <div className="relative overflow-hidden ">
             <motion.div
               className="flex gap-12 md:gap-16"
@@ -104,7 +104,7 @@ export function TestimonialsSection() {
               {[...logos, ...logos].map((logo, index) => (
                 <span
                   key={`${logo}-${index}`}
-                  className="text-xl font-semibold text-zinc-700 whitespace-nowrap flex-shrink-0"
+                  className="text-xl font-semibold text-foreground/80 whitespace-nowrap flex-shrink-0"
                 >
                   {logo}
                 </span>

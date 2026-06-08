@@ -17,7 +17,7 @@ export function PlanCard({ className }: { className?: string }) {
   return (
     <div 
       className={cn(
-        "relative overflow-hidden rounded-2xl border border-zinc-200 bg-card",
+        "relative overflow-hidden rounded-2xl border border-border bg-card",
         className
       )}
     >
@@ -28,10 +28,10 @@ export function PlanCard({ className }: { className?: string }) {
             <div className={cn(
               "relative flex items-center justify-center w-8 h-8 rounded-lg border",
               isCritical 
-                ? "bg-red-50 border-red-200 text-red-500"
+                ? "bg-destructive/10 border-destructive/20 text-destructive"
                 : isLow
-                  ? "bg-amber-50 border-amber-200 text-amber-600"
-                  : "bg-zinc-100 border-zinc-200 text-zinc-700"
+                  ? "bg-warning-soft border-warning/25 text-warning-soft-foreground"
+                  : "bg-muted border-border text-foreground"
             )}>
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -44,7 +44,7 @@ export function PlanCard({ className }: { className?: string }) {
               )}
             </div>
             <div>
-              <div className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
+              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Current Plan
               </div>
               <div className="text-sm font-semibold text-foreground">
@@ -54,12 +54,12 @@ export function PlanCard({ className }: { className?: string }) {
           </div>
           
           <div className="text-right">
-            <div className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Available
             </div>
             <div className={cn(
               "text-lg font-bold tabular-nums leading-none mt-0.5",
-              isCritical ? "text-red-500" : isLow ? "text-amber-600" : "text-foreground"
+              isCritical ? "text-destructive" : isLow ? "text-warning-soft-foreground" : "text-foreground"
             )}>
               {Math.max(0, remainingTokens).toLocaleString()}
             </div>
@@ -80,9 +80,9 @@ export function PlanCard({ className }: { className?: string }) {
                   key={i}
                   initial={false}
                   animate={{
-                    backgroundColor: isActive 
-                      ? isCritical ? "#ef4444" : isLow ? "#f59e0b" : "#27272a"
-                      : "#e4e4e7",
+                    backgroundColor: isActive
+                      ? isCritical ? "var(--destructive)" : isLow ? "var(--warning)" : "var(--primary)"
+                      : "var(--border)",
                     scaleY: isCurrent ? 1.2 : 1,
                   }}
                   transition={{ duration: 0.3, delay: i * 0.02 }}
@@ -94,15 +94,15 @@ export function PlanCard({ className }: { className?: string }) {
 
           {/* Usage stats */}
           <div className="flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2 text-zinc-500">
+            <div className="flex items-center gap-2 text-muted-foreground">
               <span className="tabular-nums">{used.toLocaleString()}</span>
-              <span className="text-zinc-400">/</span>
+              <span className="text-muted-foreground/70">/</span>
               <span className="tabular-nums">{limit.toLocaleString()}</span>
-              <span className="text-zinc-500">tokens</span>
+              <span className="text-muted-foreground">tokens</span>
             </div>
             <div className={cn(
               "font-semibold tabular-nums",
-              isCritical ? "text-red-500" : isLow ? "text-amber-600" : "text-zinc-700"
+              isCritical ? "text-destructive" : isLow ? "text-warning-soft-foreground" : "text-foreground"
             )}>
               {percent}% used
             </div>
@@ -112,7 +112,7 @@ export function PlanCard({ className }: { className?: string }) {
         {/* Upgrade Button */}
         <Link 
           href="/pricing"
-          className="group inline-flex h-11 w-full items-center justify-center rounded-xl border border-zinc-300 bg-white text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-foreground"
+          className="group inline-flex h-11 w-full items-center justify-center rounded-xl border border-border bg-card text-sm font-medium text-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <span className="flex items-center gap-2">
             Upgrade Plan

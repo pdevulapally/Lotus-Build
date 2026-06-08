@@ -33,8 +33,8 @@ export const TestimonialsColumn = (props: {
           ...new Array(2).fill(0).map((_, index) => (
             <React.Fragment key={index}>
               {props.testimonials.map(({ text, image, name, role }) => (
-                <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8" key={name}>
-                  <p className="leading-relaxed text-zinc-700">{text}</p>
+                <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8" key={name}>
+                  <p className="leading-relaxed text-foreground/80">{text}</p>
                   <div className="flex items-center gap-3 mt-6">
                     {image ? (
                       <img
@@ -42,11 +42,11 @@ export const TestimonialsColumn = (props: {
                         height={40}
                         src={image}
                         alt={name}
-                        className="h-10 w-10 rounded-full object-cover ring-2 ring-zinc-200"
+                        className="h-10 w-10 rounded-full object-cover ring-2 ring-border"
                       />
                     ) : (
                       <div
-                        className="h-10 w-10 rounded-full ring-2 ring-zinc-200 flex items-center justify-center bg-zinc-100 text-zinc-700 text-sm font-medium shrink-0"
+                        className="h-10 w-10 rounded-full ring-2 ring-border flex items-center justify-center bg-muted text-foreground text-sm font-medium shrink-0"
                         aria-hidden
                       >
                         {name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
@@ -54,7 +54,7 @@ export const TestimonialsColumn = (props: {
                     )}
                     <div className="flex flex-col">
                       <span className="font-medium text-foreground tracking-tight leading-5">{name}</span>
-                      <span className="text-sm text-zinc-500 leading-5">{role}</span>
+                      <span className="text-sm text-muted-foreground leading-5">{role}</span>
                     </div>
                   </div>
                 </div>
