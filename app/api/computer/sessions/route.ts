@@ -4,6 +4,7 @@ import { adminDb } from "@/lib/firebase-admin"
 import { requireUserUid } from "@/lib/server-auth"
 import { assertProjectCanEdit } from "@/lib/project-access"
 import type { ComputerTimelineEvent } from "@/lib/computer-agent/types"
+import { sanitizeConversationTurns } from "@/lib/computer-agent/conversation"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -32,6 +33,7 @@ function serializeSession(id: string, data: Record<string, unknown>) {
       ? (data.status as ComputerSessionStatus)
       : "idle",
     timeline: Array.isArray(data.timeline) ? (data.timeline as ComputerTimelineEvent[]) : [],
+    conversationTurns: sanitizeConversationTurns(data.conversationTurns),
     previewUrl: typeof data.previewUrl === "string" ? data.previewUrl : null,
     projectId: typeof data.projectId === "string" ? data.projectId : undefined,
   }

@@ -39,6 +39,14 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { AnimatedAIInput } from "@/components/ui/animated-ai-input"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { TokenLimitDialog } from "@/components/project/token-limit-dialog"
 import { BashTool } from "@/components/project/bash-tool"
 import { EditTool } from "@/components/project/edit-tool"
@@ -131,28 +139,12 @@ type LocalMessage = {
 
 // ─── Constants (unchanged) ────────────────────────────────────────────────────
 
-const STATUS_STYLES: Record<ComputerSessionStatus, string> = {
-  idle:     "border-border bg-muted text-muted-foreground",
-  planning: "border-info/20 bg-info-soft text-info-soft-foreground",
-  running:  "border-warning/25 bg-warning-soft text-warning-soft-foreground",
-  error:    "border-destructive/20 bg-destructive/10 text-destructive",
-  complete: "border-success/25 bg-success-soft text-success-soft-foreground",
-}
-
 const STATUS_LABELS: Record<ComputerSessionStatus, string> = {
   idle:     "Ready",
   planning: "Thinking",
   running:  "Thinking",
   error:    "Error",
   complete: "Done",
-}
-
-const STATUS_DOT: Record<ComputerSessionStatus, string> = {
-  idle:     "bg-border-strong",
-  planning: "bg-info",
-  running:  "bg-warning",
-  error:    "bg-destructive",
-  complete: "bg-success",
 }
 
 type KindConfig = {
@@ -455,29 +447,6 @@ function getRunIdGroups(events: ComputerTimelineEvent[]): { firstRunId: string |
 
 // ─── Atoms ────────────────────────────────────────────────────────────────────
 
-function PulseDot({ color, active }: { color: string; active?: boolean }) {
-  return (
-    <span className="relative flex h-1.5 w-1.5 shrink-0">
-      {active && <span className={cn("absolute inline-flex h-full w-full animate-ping rounded-full opacity-60", color)} />}
-      <span className={cn("relative inline-flex h-1.5 w-1.5 rounded-full", color)} />
-    </span>
-  )
-}
-
-function StatusBadge({ status }: { status: ComputerSessionStatus }) {
-  const isActive = status === "planning" || status === "running"
-  return (
-    <div className={cn(
-      "inline-flex h-7 items-center gap-1.5 rounded-full border px-2",
-      "text-[10px] font-semibold tracking-[0.04em] shadow-sm sm:h-6 sm:px-2 sm:py-0 sm:uppercase sm:tracking-[0.12em] sm:shadow-none",
-      STATUS_STYLES[status]
-    )}>
-      <PulseDot color={STATUS_DOT[status]} active={isActive} />
-      {STATUS_LABELS[status]}
-    </div>
-  )
-}
-
 // ─── Step strip ───────────────────────────────────────────────────────────────
 
 function DeployButton({
@@ -508,21 +477,20 @@ function DeployButton({
         aria-label="Deploy project"
         aria-expanded={open}
         className={cn(
-          "group relative inline-flex h-9 items-center gap-2 overflow-hidden rounded-xl bg-accent pl-2.5 pr-2 text-[13px] font-semibold text-accent-foreground transition-all duration-200 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-70 sm:pl-3 sm:pr-2.5",
-          "shadow-[0_8px_20px_-10px_var(--accent)] hover:shadow-[0_12px_28px_-10px_var(--accent)]"
+          "group inline-flex h-8 items-center justify-center gap-1.5 rounded-full px-3 text-[12px] font-semibold transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:h-9 sm:px-3 sm:text-[13px]",
+          open
+            ? "bg-primary text-primary-foreground shadow-sm"
+            : "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 sm:hover:shadow-md"
         )}
       >
-        <span className="pointer-events-none absolute inset-0 bg-primary-foreground/0 transition-colors duration-200 group-hover:bg-primary-foreground/10" />
-        <span className="relative flex h-6 w-6 items-center justify-center rounded-lg bg-primary-foreground/15">
-          {state.busy
-            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            : <Rocket className="h-3.5 w-3.5 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />}
-        </span>
-        <span className="relative hidden sm:inline">Deploy</span>
+        {state.busy
+          ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          : <Rocket className="h-3.5 w-3.5" />}
+        <span>Deploy</span>
       </button>
 
       {open && (
-        <div className="absolute right-0 top-10 z-30 hidden w-[480px] max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-card p-3 shadow-[0_18px_60px_-24px_var(--primary)] sm:block">
+        <div className="absolute right-0 top-11 z-30 hidden w-[480px] max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-card p-3 shadow-[0_24px_70px_-32px_var(--primary)] sm:block">
           <div className="px-1 pb-2">
             <p className="text-[12px] font-semibold text-foreground">Publish this project</p>
             <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
@@ -536,7 +504,7 @@ function DeployButton({
                 type="button"
                 onClick={() => onDeploy(provider)}
                 disabled={state.busy}
-                className="rounded-xl border border-border bg-card px-3 py-2 text-left text-[12px] font-semibold text-foreground shadow-sm transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl border border-border bg-background px-3 py-2.5 text-left text-[12px] font-semibold text-foreground transition-colors hover:border-border-strong hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {getDeployProviderLabel(provider)}
               </button>
@@ -553,7 +521,7 @@ function DeployButton({
                     href={link.siteUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-center justify-between gap-2 rounded-xl border border-border bg-card px-3 py-2 text-[11px] font-semibold text-foreground shadow-sm transition-colors hover:bg-muted"
+                    className="flex items-center justify-between gap-2 rounded-xl border border-border bg-background px-3 py-2 text-[11px] font-semibold text-foreground transition-colors hover:border-border-strong hover:bg-muted"
                   >
                     <span className="truncate">{getDeployProviderLabel(provider)} live site</span>
                     <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
@@ -564,7 +532,7 @@ function DeployButton({
           )}
 
           {(state.step || state.error || visibleStateSiteUrl) && (
-            <div className="mt-2 rounded-xl border border-border bg-card p-2.5">
+            <div className="mt-2 rounded-xl border border-border bg-secondary p-2.5">
               <div className="flex items-center gap-1.5">
                 {state.busy && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
                 <p className="min-w-0 truncate text-[11px] font-medium text-muted-foreground">
@@ -585,7 +553,7 @@ function DeployButton({
                   href={visibleStateSiteUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="mt-2.5 inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-success py-2 text-[11px] font-bold text-success-foreground shadow-sm transition-all hover:bg-success/90 active:scale-[0.98]"
+                  className="mt-2.5 inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-success py-2 text-[11px] font-bold text-success-foreground transition-all hover:bg-success/90 active:scale-[0.98]"
                 >
                   <span>Open live site</span>
                   <ExternalLink className="h-3 w-3" />
@@ -643,24 +611,19 @@ function IntegrationsButton({
         aria-label="Project integrations"
         aria-expanded={open}
         className={cn(
-          "group inline-flex h-9 items-center gap-2 rounded-xl pl-2 pr-2 text-[13px] font-medium transition-all duration-200 active:scale-[0.97] sm:pr-2.5",
+          "group hidden h-9 items-center justify-center gap-1.5 rounded-full border text-[13px] font-medium transition-all duration-200 active:scale-[0.98] sm:inline-flex sm:w-auto sm:px-3",
           open
-            ? "bg-muted text-foreground"
-            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            ? "bg-card text-foreground shadow-sm sm:border-border-strong sm:bg-muted"
+            : "text-muted-foreground hover:bg-card hover:text-foreground sm:border-border sm:bg-card sm:hover:border-border-strong sm:hover:bg-muted"
         )}
       >
-        <span className={cn(
-          "flex h-6 w-6 items-center justify-center rounded-lg transition-colors duration-200",
-          open ? "bg-card text-foreground shadow-sm" : "bg-muted text-muted-foreground group-hover:bg-card group-hover:text-foreground group-hover:shadow-sm"
-        )}>
-          <KeyRound className="h-3.5 w-3.5" />
-        </span>
+        <KeyRound className="h-3.5 w-3.5" />
         <span className="hidden sm:inline">Integrations</span>
         <ChevronDown className={cn("hidden h-3.5 w-3.5 opacity-50 transition-transform duration-200 sm:block", open && "rotate-180")} />
       </button>
 
       {open && (
-        <div className="absolute right-0 top-10 z-30 hidden w-[360px] rounded-2xl border border-border bg-card p-3 shadow-[0_18px_60px_-24px_var(--primary)] sm:block">
+        <div className="absolute right-0 top-11 z-30 hidden w-[360px] rounded-2xl border border-border bg-card p-3 shadow-[0_24px_70px_-32px_var(--primary)] sm:block">
           <div className="mb-3">
             <p className="text-[12px] font-semibold text-foreground">Project integrations</p>
             <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
@@ -669,7 +632,7 @@ function IntegrationsButton({
           </div>
 
           <div className="space-y-2.5">
-            <div className="rounded-xl border border-border bg-card p-3">
+            <div className="rounded-xl border border-border bg-background p-3 transition-colors hover:border-border-strong">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
@@ -685,14 +648,14 @@ function IntegrationsButton({
                   type="button"
                   onClick={onGithubSync}
                   disabled={busy !== null}
-                  className="rounded-lg border border-border bg-card px-2.5 py-1 text-[11px] font-semibold text-foreground disabled:opacity-60"
+                  className="rounded-lg border border-border bg-card px-2.5 py-1 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-60"
                 >
                   {busy === "github" ? "Syncing..." : hasGitHub ? "Sync" : "Publish"}
                 </button>
               </div>
             </div>
 
-            <div className="rounded-xl border border-border bg-card p-3">
+            <div className="rounded-xl border border-border bg-background p-3 transition-colors hover:border-border-strong">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
@@ -707,14 +670,14 @@ function IntegrationsButton({
                   type="button"
                   onClick={onSupabaseSetup}
                   disabled={busy !== null}
-                  className="rounded-lg border border-border bg-card px-2.5 py-1 text-[11px] font-semibold text-foreground disabled:opacity-60"
+                  className="rounded-lg bg-primary px-2.5 py-1 text-[11px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
                 >
                   {busy === "supabase" ? "Setting up..." : hasSupabase ? "Re-run" : "Set up"}
                 </button>
               </div>
             </div>
 
-            <div className="rounded-xl border border-border bg-card p-3">
+            <div className="rounded-xl border border-border bg-background p-3">
               <div className="flex items-center gap-1.5">
                 <KeyRound className="h-3.5 w-3.5 text-muted-foreground" />
                 <p className="text-[12px] font-semibold text-foreground">Environment variables</p>
@@ -754,7 +717,7 @@ function IntegrationsButton({
                       setNewEnvValue("")
                     }}
                     disabled={busy !== null || !newEnvKey.trim()}
-                    className="rounded-lg border border-border bg-card px-2.5 text-[11px] font-semibold text-foreground disabled:opacity-50"
+                    className="rounded-lg border border-border bg-card px-2.5 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-50"
                   >
                     Add
                   </button>
@@ -763,7 +726,7 @@ function IntegrationsButton({
                   type="button"
                   onClick={onEnvSave}
                   disabled={busy !== null}
-                  className="rounded-lg border border-border bg-card px-2.5 py-1 text-[11px] font-semibold text-foreground disabled:opacity-60"
+                  className="rounded-lg border border-border bg-card px-2.5 py-1 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-60"
                 >
                   {busy === "env" ? "Saving..." : "Save and update preview"}
                 </button>
@@ -772,7 +735,7 @@ function IntegrationsButton({
           </div>
 
           {message ? (
-            <p className="mt-3 rounded-xl border border-border bg-card px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
+            <p className="mt-3 rounded-xl border border-border bg-secondary px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
               {message}
             </p>
           ) : null}
@@ -798,13 +761,13 @@ function MobileDeploySheet({
   if (!open) return null
   const visibleStateSiteUrl = state.siteUrl || (state.provider ? deploymentLinks?.[state.provider]?.siteUrl ?? null : null)
   return (
-    <div className="fixed inset-x-3 bottom-[5.6rem] z-50 max-h-[min(72dvh,32rem)] overflow-y-auto rounded-[1.45rem] border border-border bg-card p-3 shadow-[0_24px_80px_-28px_var(--primary)] [scrollbar-width:thin] sm:hidden">
+    <div className="fixed inset-x-3 bottom-[5.6rem] z-50 max-h-[min(72dvh,32rem)] overflow-y-auto rounded-[1.45rem] border border-border bg-card p-3 shadow-[0_24px_80px_-32px_var(--primary)] [scrollbar-width:thin] sm:hidden">
       <div className="mb-3 flex items-start justify-between gap-3 px-1">
         <div>
           <p className="text-[13px] font-semibold text-foreground">Deploy website</p>
           <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">Publish this generated project.</p>
         </div>
-        <button type="button" onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded-full border border-border text-muted-foreground">
+        <button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
           <span className="text-base leading-none">×</span>
         </button>
       </div>
@@ -815,7 +778,7 @@ function MobileDeploySheet({
             type="button"
             onClick={() => onDeploy(provider)}
             disabled={state.busy}
-            className="flex w-full items-center justify-between rounded-2xl border border-border bg-card px-3.5 py-3 text-left text-[13px] font-semibold text-foreground shadow-sm disabled:opacity-60"
+            className="flex w-full items-center justify-between rounded-2xl border border-border bg-background px-3.5 py-3 text-left text-[13px] font-semibold text-foreground transition-colors hover:border-border-strong hover:bg-muted disabled:opacity-60"
           >
             <span>{getDeployProviderLabel(provider)}</span>
             <Rocket className="h-4 w-4 text-muted-foreground" />
@@ -824,7 +787,7 @@ function MobileDeploySheet({
       </div>
       {visibleStateSiteUrl && (
         <a href={visibleStateSiteUrl} target="_blank" rel="noreferrer"
-          className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-2xl bg-success py-3 text-[12px] font-bold text-success-foreground">
+          className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-2xl bg-success py-3 text-[12px] font-bold text-success-foreground transition-colors hover:bg-success/90">
           Open live site
           <ExternalLink className="h-3.5 w-3.5" />
         </a>
@@ -865,13 +828,13 @@ function MobileIntegrationsSheet({
   const hasGitHub = Boolean(project?.githubRepoUrl || project?.githubRepoFullName)
   const hasSupabase = Boolean(project?.supabaseUrl || project?.supabaseProjectRef)
   return (
-    <div className="fixed inset-x-3 bottom-[5.6rem] z-50 max-h-[min(72dvh,32rem)] overflow-y-auto rounded-[1.45rem] border border-border bg-card p-3 shadow-[0_24px_80px_-28px_var(--primary)] [scrollbar-width:thin] sm:hidden">
+    <div className="fixed inset-x-3 bottom-[5.6rem] z-50 max-h-[min(72dvh,32rem)] overflow-y-auto rounded-[1.45rem] border border-border bg-card p-3 shadow-[0_24px_80px_-32px_var(--primary)] [scrollbar-width:thin] sm:hidden">
       <div className="mb-3 flex items-start justify-between gap-3 px-1">
         <div>
           <p className="text-[13px] font-semibold text-foreground">Integrations</p>
           <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">Connect services to this website.</p>
         </div>
-        <button type="button" onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded-full border border-border text-muted-foreground">
+        <button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
           <span className="text-base leading-none">×</span>
         </button>
       </div>
@@ -880,7 +843,7 @@ function MobileIntegrationsSheet({
           type="button"
           onClick={onGithubSync}
           disabled={busy !== null}
-          className="flex w-full items-center justify-between rounded-2xl border border-border bg-card px-3.5 py-3 text-left shadow-sm disabled:opacity-60"
+          className="flex w-full items-center justify-between rounded-2xl border border-border bg-background px-3.5 py-3 text-left transition-colors hover:border-border-strong hover:bg-muted disabled:opacity-60"
         >
           <span>
             <span className="block text-[13px] font-semibold text-foreground">GitHub</span>
@@ -892,7 +855,7 @@ function MobileIntegrationsSheet({
           type="button"
           onClick={onSupabaseSetup}
           disabled={busy !== null}
-          className="flex w-full items-center justify-between rounded-2xl border border-border bg-card px-3.5 py-3 text-left shadow-sm disabled:opacity-60"
+          className="flex w-full items-center justify-between rounded-2xl border border-border bg-background px-3.5 py-3 text-left transition-colors hover:border-border-strong hover:bg-muted disabled:opacity-60"
         >
           <span>
             <span className="block text-[13px] font-semibold text-foreground">Supabase</span>
@@ -1687,7 +1650,7 @@ function WorkspaceContent({
             </p>
             <p className="mt-0.5 truncate text-[12px] font-medium text-zinc-800">{browserInspection.title}</p>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             <WorkspaceHeaderLink href={browserInspection.url} />
           </div>
         </div>
@@ -2639,10 +2602,14 @@ export default function ComputerPage() {
   if (loading) return <LoadingShell />
   if (error || !session) return <ErrorState message={error ?? "Session not found or access denied."} />
 
-  const isActive     = effectiveStatus === "running" || effectiveStatus === "planning"
   const hasPreview    = Boolean(session.previewUrl)
   const hasBrowser    = Boolean(browserInspection)
   const hasResearch   = session.timeline.some((e) => (e.kind === "research" || e.kind === "browser") && e.description?.trim())
+  const projectFileCount = projectIntegration?.files?.length ?? 0
+  const deploymentLinks = getProjectDeploymentLinks(projectIntegration)
+  const liveSiteUrl = deploymentLinks.netlify?.siteUrl || deploymentLinks.vercel?.siteUrl
+  const planLabel = userData?.planId && userData.planId !== "free" ? userData.planId : "Free"
+  const titleMenuItemClass = "h-9 rounded-xl px-2.5 text-sm focus:bg-secondary/80 focus:text-foreground"
 
   return (
     <div className="relative flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground sm:p-2.5 lg:p-3">
@@ -2651,11 +2618,11 @@ export default function ComputerPage() {
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-card sm:rounded-[1.4rem] sm:border sm:border-border-strong/50 sm:shadow-2xl">
 
       {/* ── Top bar ── */}
-      <header className="relative z-30 shrink-0 border-b border-border bg-card">
-        <div className="flex h-12 w-full items-center gap-2 px-3 sm:h-14 sm:gap-3 sm:px-4 lg:px-6">
+      <header className="relative z-30 shrink-0 bg-transparent sm:border-b sm:border-border sm:bg-card/95">
+        <div className="grid h-14 w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 sm:gap-3 sm:px-4 lg:px-6">
           <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
             <Link href="/" aria-label="Back"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground">
               <ArrowLeft className="h-4 w-4" />
             </Link>
             <span className="hidden h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground sm:inline-flex">
@@ -2664,13 +2631,13 @@ export default function ComputerPage() {
             </span>
           </div>
 
-          <div className="flex min-w-0 flex-1 items-center justify-center gap-2">
+          <div className="flex min-w-0 items-center justify-center px-1">
             {isEditingTitle ? (
-              <div className="flex min-w-0 flex-1 items-center gap-2">
+              <div className="flex min-w-0 flex-1 items-center justify-center gap-2">
                 <input
                   value={titleDraft}
                   onChange={(event) => setTitleDraft(event.target.value)}
-                  className="min-w-0 flex-1 max-w-[26rem] rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
+                  className="min-w-0 max-w-[min(58vw,26rem)] flex-1 rounded-full border border-border bg-card px-3 py-1.5 text-center text-sm text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
                   placeholder="Enter a session title"
                   aria-label="Edit session title"
                   autoFocus
@@ -2699,29 +2666,165 @@ export default function ComputerPage() {
                 </div>
               </div>
             ) : (
-              <div className="group flex min-w-0 items-center gap-1.5">
-                <h1 className="truncate text-sm font-semibold tracking-[-0.01em] text-foreground lg:text-[15px]">
-                  {sessionTitle}
-                </h1>
-                <button
-                  type="button"
-                  onClick={() => setIsEditingTitle(true)}
-                  className="hidden h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground sm:inline-flex sm:opacity-0 sm:group-hover:opacity-100"
-                  aria-label="Edit session title"
-                  title="Edit title"
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="group flex min-w-0 max-w-[min(58vw,26rem)] items-center gap-1.5 rounded-2xl px-3 py-1.5 text-center transition hover:bg-secondary/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20"
+                    aria-label="Open session menu"
+                  >
+                    <span className="truncate text-sm font-semibold tracking-[-0.01em] text-foreground lg:text-[15px]">
+                      {sessionTitle}
+                    </span>
+                    <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition group-data-[state=open]:rotate-180" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="center"
+                  sideOffset={10}
+                  className="w-[calc(100vw-1.5rem)] max-w-[21rem] rounded-2xl border-border bg-card p-2 shadow-2xl"
                 >
-                  <Pencil className="h-3 w-3" />
-                </button>
-              </div>
-            )}
-            {!isEditingTitle && (
-              <div className="hidden shrink-0 sm:block">
-                <StatusBadge status={effectiveStatus} />
-              </div>
+                  <DropdownMenuItem asChild className={titleMenuItemClass}>
+                    <Link href="/projects">
+                      <ArrowLeft className="h-4 w-4" />
+                      Go to projects
+                    </Link>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator className="my-2" />
+
+                  <DropdownMenuLabel className="px-2 py-1">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-xs font-semibold text-accent-soft-foreground">
+                        {(projectIntegration?.name || sessionTitle).trim().charAt(0).toUpperCase()}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-foreground">
+                          {projectIntegration?.name || sessionTitle}
+                        </p>
+                        <p className="truncate text-[11px] font-normal text-muted-foreground">
+                          {session.projectId ? `Project ${session.projectId.slice(0, 8)}` : "Computer session"}
+                        </p>
+                      </div>
+                      <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                        {planLabel}
+                      </span>
+                    </div>
+                  </DropdownMenuLabel>
+
+                  <div className="my-2 rounded-xl bg-secondary px-3 py-2.5">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-semibold text-foreground">Credits</p>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">Available for computer runs</p>
+                      </div>
+                      <span className="shrink-0 text-sm font-medium text-foreground">{remainingTokens} left</span>
+                    </div>
+                  </div>
+
+                  <DropdownMenuItem
+                    className={titleMenuItemClass}
+                    onSelect={() => {
+                      setTitleDraft(firstPrompt || "")
+                      setTitleError(null)
+                      setIsEditingTitle(true)
+                    }}
+                  >
+                    <Pencil className="h-4 w-4" />
+                    Rename session
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className={titleMenuItemClass}
+                    onSelect={() => {
+                      setIntegrationsOpen(true)
+                      setDeployOpen(false)
+                    }}
+                    disabled={!session.projectId}
+                  >
+                    <KeyRound className="h-4 w-4" />
+                    Connectors
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className={titleMenuItemClass}
+                    onSelect={() => {
+                      setDeployOpen(true)
+                      setIntegrationsOpen(false)
+                    }}
+                    disabled={!session.projectId}
+                  >
+                    <Rocket className="h-4 w-4" />
+                    Deploy
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator className="my-2" />
+
+                  <DropdownMenuItem asChild disabled={!session.previewUrl} className={titleMenuItemClass}>
+                    <a href={session.previewUrl || "#"} target="_blank" rel="noreferrer">
+                      <Monitor className="h-4 w-4" />
+                      Open preview
+                      <ExternalLink className="ml-auto h-3.5 w-3.5" />
+                    </a>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild disabled={!liveSiteUrl} className={titleMenuItemClass}>
+                    <a href={liveSiteUrl || "#"} target="_blank" rel="noreferrer">
+                      <Globe2 className="h-4 w-4" />
+                      Open live site
+                      <ExternalLink className="ml-auto h-3.5 w-3.5" />
+                    </a>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild disabled={!projectIntegration?.githubRepoUrl} className={titleMenuItemClass}>
+                    <a href={projectIntegration?.githubRepoUrl || "#"} target="_blank" rel="noreferrer">
+                      <Github className="h-4 w-4" />
+                      {projectIntegration?.githubRepoFullName || "GitHub repository"}
+                      <ExternalLink className="ml-auto h-3.5 w-3.5" />
+                    </a>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator className="my-2" />
+
+                  <div className="grid grid-cols-2 gap-1.5 px-1 py-1">
+                    <div className="rounded-xl border border-border bg-background px-2.5 py-2">
+                      <p className="text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">Files</p>
+                      <p className="mt-1 text-sm font-semibold text-foreground">{projectFileCount}</p>
+                    </div>
+                    <div className="rounded-xl border border-border bg-background px-2.5 py-2">
+                      <p className="text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">Supabase</p>
+                      <p className="mt-1 truncate text-sm font-semibold text-foreground">
+                        {projectIntegration?.supabaseProjectRef ? "Connected" : "Not connected"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <DropdownMenuSeparator className="my-2" />
+
+                  <DropdownMenuItem
+                    className={titleMenuItemClass}
+                    onSelect={() => {
+                      void navigator.clipboard?.writeText(session.id)
+                    }}
+                  >
+                    <Copy className="h-4 w-4" />
+                    Copy session ID
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className={titleMenuItemClass}>
+                    <Link href="/settings">
+                      <LayoutPanelLeft className="h-4 w-4" />
+                      Settings
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className={titleMenuItemClass}>
+                    <Link href="/help">
+                      <BookOpen className="h-4 w-4" />
+                      Help
+                      <ExternalLink className="ml-auto h-3.5 w-3.5" />
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
 
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             <IntegrationsButton
               projectId={session.projectId}
               project={projectIntegration}
@@ -2752,23 +2855,6 @@ export default function ComputerPage() {
             />
           </div>
         </div>
-
-        {/* Status progress line */}
-        {isActive && (
-          <div className="absolute inset-x-0 -bottom-px z-10 h-0.5 overflow-hidden bg-warning/15">
-            <motion.div
-              className="h-full w-1/3 rounded-full bg-warning"
-              animate={{ x: ["-120%", "420%"] }}
-              transition={{ duration: 1.3, ease: "easeInOut", repeat: Infinity }}
-            />
-          </div>
-        )}
-        {effectiveStatus === "complete" && (
-          <div className="absolute inset-x-0 -bottom-px z-10 h-0.5 bg-success" />
-        )}
-        {effectiveStatus === "error" && (
-          <div className="absolute inset-x-0 -bottom-px z-10 h-0.5 bg-destructive" />
-        )}
 
         {titleError && (
           <p className="px-3 pt-1.5 text-xs text-destructive sm:px-4 lg:px-6">{titleError}</p>
@@ -2842,10 +2928,10 @@ export default function ComputerPage() {
             <div className="flex min-w-0 items-center gap-0.5 overflow-x-auto rounded-lg bg-muted p-0.5 [scrollbar-width:none]">
               <TabBtn active={activeTab === "preview"} onClick={() => setActiveTab("preview")}
                 icon={<Monitor className="h-3.5 w-3.5" />} label="Preview"
-                dot={hasPreview && isActive} />
+                dot={hasPreview && activeTab !== "preview"} />
               <TabBtn active={activeTab === "browser"} onClick={() => setActiveTab("browser")}
                 icon={<Globe2 className="h-3.5 w-3.5" />} label="Browser"
-                dot={hasBrowser && isActive} />
+                dot={hasBrowser && activeTab !== "browser"} />
               <TabBtn active={activeTab === "research"} onClick={() => setActiveTab("research")}
                 icon={<BookOpen className="h-3.5 w-3.5" />} label="Research"
                 dot={hasResearch && activeTab !== "research"} />
@@ -2929,18 +3015,6 @@ export default function ComputerPage() {
             <Monitor className={cn("h-4 w-4 transition-transform duration-200", mobileView === "workspace" && activeTab === "preview" && "-translate-y-0.5")} />
             Preview
             {mobileView === "workspace" && activeTab === "preview" && <span className="absolute bottom-1 h-0.5 w-4 rounded-full bg-primary-foreground/70" />}
-            {isActive && (
-              <span className="absolute right-3 top-2 flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-warning opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-warning" />
-              </span>
-            )}
-            {!isActive && hasPreview && mobileView !== "workspace" && (
-              <span className="absolute right-3 top-2 flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-60" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
-              </span>
-            )}
           </button>
           <button
             type="button"

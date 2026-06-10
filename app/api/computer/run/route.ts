@@ -9,6 +9,21 @@ import type { ComputerTimelineEvent } from "@/lib/computer-agent/types"
 import { createComputerAgentMessage } from "@/lib/computer-agent/agent-config"
 import type { MemoryContext } from "@/lib/computer-agent/agent-config"
 import {
+  appendConversationTurn,
+  createConversationTurn,
+  formatConversationForOrchestrator,
+  persistConversationTurns,
+  sanitizeConversationTurns,
+  seedConversationFromPrompt,
+} from "@/lib/computer-agent/conversation"
+import {
+  buildOrchestratorUserMessage,
+  ORCHESTRATOR_SYSTEM_PROMPT,
+  parseOrchestratorDecision,
+  shouldExitOrchestratorLoop,
+  type OrchestratorPhaseState,
+} from "@/lib/computer-agent/orchestrator"
+import {
   ensureGeneratedProjectScaffold,
   injectMissingComponentStubs,
   validateGeneratedProjectFiles,
@@ -31,6 +46,7 @@ const MAX_TIMELINE_FILE_CONTENT_CHARS = 40000
 const MAX_TIMELINE_DIFF_CONTENT_CHARS = 120000
 const FIRECRAWL_BROWSER_TTL_SECONDS = 60 * 60
 const FIRECRAWL_BROWSER_ACTIVITY_TTL_SECONDS = 30 * 60
+const MAX_ORCHESTRATOR_ITERATIONS = 6
 
 type FirecrawlSearchResult = {
   title?: unknown
@@ -396,32 +412,6 @@ async function parseGenerateResponse(
   }
 
   return { files, suggestsBackend }
-}
-
-type ClarificationQuestionOption = { id: string; label: string; description?: string }
-type ClarificationQuestion = {
-  kind: "single" | "multi" | "text"
-  title: string
-  description?: string
-  options?: ClarificationQuestionOption[]
-  allowCustom?: boolean
-  customPlaceholder?: string
-  placeholder?: string
-}
-type ClarificationDecision = {
-  needsClarification: boolean
-  questions: ClarificationQuestion[] | null
-}
-
-function parseClarificationDecision(text: string): ClarificationDecision {
-  const parsed = extractJson(text) as Partial<ClarificationDecision> | null
-  if (parsed && typeof parsed.needsClarification === "boolean") {
-    return {
-      needsClarification: parsed.needsClarification,
-      questions: Array.isArray(parsed.questions) ? parsed.questions.slice(0, 3) : null,
-    }
-  }
-  return { needsClarification: false, questions: null }
 }
 
 async function waitForClarification(
@@ -1486,8 +1476,12 @@ export async function POST(req: Request) {
       createComputerAgentMessage(anthropic, params, { ...options, memory: sessionMemory })
 
     const storedPrompt = typeof data.prompt === "string" ? data.prompt.trim() : ""
-    let prompt = parsed.data.prompt?.trim() || storedPrompt || "No prompt provided"
-    const runProfile = getComputerRunProfile(prompt, projectFiles.length > 0)
+    const incomingPrompt = parsed.data.prompt?.trim() || ""
+    let prompt = incomingPrompt || storedPrompt || "No prompt provided"
+    let conversationTurns = seedConversationFromPrompt(
+      sanitizeConversationTurns((data as { conversationTurns?: unknown }).conversationTurns),
+      storedPrompt
+    )
     const builderModel = typeof data.model === "string" && data.model.trim()
       ? data.model.trim()
       : "GPT-5.5"
@@ -1529,11 +1523,43 @@ export async function POST(req: Request) {
         ? (transactionData?.timeline as ComputerTimelineEvent[])
         : []
 
+      conversationTurns = seedConversationFromPrompt(
+        sanitizeConversationTurns(transactionData?.conversationTurns),
+        storedPrompt
+      )
+
+      if (incomingPrompt) {
+        const lastTurn = conversationTurns[conversationTurns.length - 1]
+        const hasMatchingUserTurn = conversationTurns.some(
+          (turn) => turn.role === "user" && turn.content === incomingPrompt
+        )
+        const isDuplicateTurn =
+          lastTurn?.role === "user" &&
+          lastTurn.content === incomingPrompt &&
+          lastTurn.runId === runId
+
+        if (!isDuplicateTurn && !(incomingPrompt === storedPrompt && hasMatchingUserTurn)) {
+          conversationTurns = appendConversationTurn(
+            conversationTurns,
+            createConversationTurn({
+              role: "user",
+              content: incomingPrompt,
+              source:
+                !storedPrompt || incomingPrompt === storedPrompt
+                  ? "initial_prompt"
+                  : "composer",
+              runId,
+            })
+          )
+        }
+      }
+
       transaction.update(docRef, {
         currentRunId: runId,
         status: "running",
         previewUrl: null,
         timeline: [...timeline, { ...runStartedEvent, runId, index: timeline.length }],
+        conversationTurns,
         updatedAt: now,
       })
     })
@@ -1545,41 +1571,75 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, message: "Run already superseded" })
     }
 
-    // — Intent classification: read what the user actually wants before doing anything —
-    // Determines whether to build, have a conversation, or give advice.
-    // No keywords, no if/else — the model reads the message and decides.
-    {
-      const intentRes = await callAgent({
-        max_tokens: 300,
+    const sessionTimeline = Array.isArray(data.timeline)
+      ? (data.timeline as ComputerTimelineEvent[])
+      : []
+
+    let orchestratorPhase: OrchestratorPhaseState = {
+      effectiveRequest: prompt,
+      researchCompleted: false,
+      planCompleted: false,
+      planText: "",
+      hasExistingProject: projectFiles.length > 0,
+      previewAvailable: Boolean((data as { previewUrl?: unknown }).previewUrl),
+      fileCount: projectFiles.length,
+    }
+
+    let runProfile = getComputerRunProfile(orchestratorPhase.effectiveRequest, orchestratorPhase.hasExistingProject)
+    let orchestratorReadyForBuild = false
+
+    for (let orchestratorIteration = 0; orchestratorIteration < MAX_ORCHESTRATOR_ITERATIONS; orchestratorIteration++) {
+      if (!(await isActiveRun(docRef, runId))) {
+        return NextResponse.json({ ok: false, message: "Run no longer active" })
+      }
+
+      const latestSnap = await docRef.get()
+      const latestData = latestSnap.data() as { timeline?: unknown; conversationTurns?: unknown } | undefined
+      if (Array.isArray(latestData?.conversationTurns)) {
+        conversationTurns = sanitizeConversationTurns(latestData.conversationTurns)
+      }
+      const latestTimeline = Array.isArray(latestData?.timeline)
+        ? (latestData.timeline as ComputerTimelineEvent[])
+        : sessionTimeline
+
+      const orchestratorRes = await callAgent({
+        max_tokens: 900,
         temperature: 0,
-        system: `You are the first reasoning step of an AI website builder agent. Read the user's message and decide what kind of response is appropriate.
-
-Return ONLY valid JSON — no markdown, no extra text:
-{
-  "type": "build" | "respond",
-  "reply": string | null
-}
-
-"build" — the user is asking you to create, build, generate, update, or modify a website or web application. Set reply to null.
-
-"respond" — everything else: greetings, questions, advice requests, name suggestions, general conversation, expressing uncertainty about what they want. Write a natural, genuinely helpful reply in "reply" (1–4 sentences). If they ask for name ideas, give real names. If they ask for advice, give real advice. If they are not sure what they want, ask one focused question.
-
-The user may also be on an existing project — in that case, requests like "explain this code", "what does this do", or "can you help me think through the design" are "respond" not "build".`,
-        messages: [{ role: "user", content: prompt.slice(0, 600) }],
+        system: ORCHESTRATOR_SYSTEM_PROMPT,
+        messages: [{
+          role: "user",
+          content: buildOrchestratorUserMessage({
+            storedPrompt,
+            currentMessage: incomingPrompt || prompt,
+            conversationTurns,
+            timeline: latestTimeline,
+            phase: orchestratorPhase,
+          }),
+        }],
       }, { enableMcp: false }).catch(() => null)
 
-      const intentRaw = intentRes
-        ? extractTextFromAnthropicContent(intentRes.content)
-        : null
-      const intentParsed = intentRaw ? (extractJson(intentRaw) as { type?: string; reply?: string } | null) : null
-      const intentType = intentParsed?.type === "build" || intentParsed?.type === "respond"
-        ? intentParsed.type
-        : "build" // default to build if classification fails — better to attempt than do nothing
+      const decision = parseOrchestratorDecision(
+        orchestratorRes ? extractTextFromAnthropicContent(orchestratorRes.content) || "" : "",
+        orchestratorPhase.effectiveRequest,
+        orchestratorPhase
+      )
 
-      if (intentType === "respond") {
-        const reply = typeof intentParsed?.reply === "string" && intentParsed.reply.trim()
-          ? intentParsed.reply.trim()
-          : "I'm here to help — what would you like to build?"
+      orchestratorPhase.effectiveRequest = decision.effectiveRequest
+      conversationTurns = appendConversationTurn(
+        conversationTurns,
+        createConversationTurn({
+          role: "assistant",
+          content: `${decision.action}: ${decision.reason}`,
+          source: "agent_decision",
+          runId,
+        })
+      )
+      await persistConversationTurns(docRef, conversationTurns)
+
+      if (decision.action === "respond") {
+        const reply =
+          decision.assistantMessage?.trim() ||
+          "I'm here to help — what would you like to build next?"
 
         await appendRunEvent({
           id: crypto.randomUUID(),
@@ -1590,9 +1650,123 @@ The user may also be on an existing project — in that case, requests like "exp
           createdAt: new Date().toISOString(),
         })
 
+        conversationTurns = appendConversationTurn(
+          conversationTurns,
+          createConversationTurn({
+            role: "assistant",
+            content: reply,
+            source: "response",
+            runId,
+          })
+        )
+        await persistConversationTurns(docRef, conversationTurns)
         await docRef.update({ status: "complete", currentRunId: null, updatedAt: new Date() })
         return NextResponse.json({ ok: true })
       }
+
+      if (decision.action === "stop") {
+        await docRef.update({ status: "complete", currentRunId: null, updatedAt: new Date() })
+        return NextResponse.json({ ok: true })
+      }
+
+      if (decision.action === "ask_clarification" && decision.questions?.length) {
+        if (decision.assistantMessage?.trim()) {
+          await appendRunEvent({
+            id: crypto.randomUUID(),
+            title: "Response",
+            description: decision.assistantMessage.trim(),
+            status: "complete",
+            kind: "understanding",
+            createdAt: new Date().toISOString(),
+          })
+          conversationTurns = appendConversationTurn(
+            conversationTurns,
+            createConversationTurn({
+              role: "assistant",
+              content: decision.assistantMessage.trim(),
+              source: "response",
+              runId,
+            })
+          )
+        }
+
+        await appendRunEvent({
+          id: crypto.randomUUID(),
+          title: "Clarification needed",
+          description: "A few quick questions before I start building.",
+          status: "complete",
+          kind: "question",
+          createdAt: new Date().toISOString(),
+          metadata: {
+            questionType: "clarification",
+            questions: JSON.stringify(decision.questions),
+          },
+        })
+
+        await docRef.update({ clarificationAnswer: null })
+        const clarificationResult = await waitForClarification(docRef, runId)
+
+        if (clarificationResult === "inactive") {
+          return NextResponse.json({ ok: false, message: "Run superseded during clarification" })
+        }
+
+        if (clarificationResult !== "skipped") {
+          conversationTurns = appendConversationTurn(
+            conversationTurns,
+            createConversationTurn({
+              role: "user",
+              content: clarificationResult.answer,
+              source: "clarification",
+              runId,
+            })
+          )
+          orchestratorPhase.effectiveRequest = `${decision.effectiveRequest}\n\nUser clarification: ${clarificationResult.answer}`
+          await persistConversationTurns(docRef, conversationTurns)
+        }
+
+        await docRef.update({ clarificationAnswer: null })
+        continue
+      }
+
+      if (decision.action === "research") {
+        runProfile = {
+          ...runProfile,
+          shouldUseWebTools: true,
+          shouldShowDetailedNarration: true,
+        }
+        break
+      }
+
+      if (decision.action === "draft_plan") {
+        runProfile = {
+          ...runProfile,
+          shouldDraftPlan: true,
+          shouldShowDetailedNarration: true,
+        }
+        break
+      }
+
+      if (shouldExitOrchestratorLoop(decision)) {
+        prompt = decision.effectiveRequest
+        orchestratorPhase.effectiveRequest = decision.effectiveRequest
+        runProfile = getComputerRunProfile(prompt, orchestratorPhase.hasExistingProject)
+        if (typeof decision.needsResearch === "boolean") {
+          runProfile = {
+            ...runProfile,
+            shouldUseWebTools: decision.needsResearch || runProfile.shouldUseWebTools,
+          }
+        }
+        if (typeof decision.shouldDraftPlan === "boolean") {
+          runProfile = { ...runProfile, shouldDraftPlan: decision.shouldDraftPlan }
+        }
+        orchestratorReadyForBuild = true
+        break
+      }
+    }
+
+    if (!orchestratorReadyForBuild) {
+      prompt = orchestratorPhase.effectiveRequest
+      runProfile = getComputerRunProfile(prompt, orchestratorPhase.hasExistingProject)
     }
 
     await appendRunEvent({
@@ -1611,7 +1785,7 @@ The user may also be on an existing project — in that case, requests like "exp
         system: "You are an autonomous website builder agent. Write 2-3 sentences in first person, plain text, no markdown. State: (1) what you understand the user wants built and the specific domain or business type, (2) your immediate instinct for the visual direction or key design challenge this presents, (3) one specific thing you will do to make this feel authentic to the domain rather than generic.",
         messages: [{
           role: "user",
-          content: `User request: ${prompt}`
+          content: `User request: ${prompt}\n\nConversation:\n${formatConversationForOrchestrator(conversationTurns)}`
         }]
       }).catch(() => null)
 
@@ -1631,92 +1805,7 @@ The user may also be on an existing project — in that case, requests like "exp
       }
     }
 
-    // — Clarification check: ask if prompt is too vague (skip for edits) —
-    if (!runProfile.hasExistingProject) {
-      try {
-        const clarificationRes = await callAgent({
-          max_tokens: 500,
-          temperature: 0,
-          system: `You are a design consultant for an AI website builder. Your job is to decide whether the user's request has enough detail to produce a great, domain-specific website — and if not, ask the one or two questions that would make the biggest difference to design quality.
-
-Ask for clarification ONLY when the request is genuinely too vague to make good design decisions. Trigger conditions:
-- Bare domain with no context: "a bakery", "a gym", "a portfolio" — need to know what makes it distinctive
-- No indication of tone, audience, or business personality
-- Missing critical content: a restaurant with no name, a portfolio with no profession
-
-Do NOT ask when:
-- The request names a specific business, product, or person
-- The request mentions style, colors, or references ("like Apple's site", "dark and minimal")
-- A URL is provided
-- The request is specific enough: "a landing page for a London sushi restaurant" is fine
-
-When asking, ask the questions that MOST affect visual design quality:
-- Business name / tagline (for copy and identity)
-- Visual style preference (bold/editorial vs minimal/clean vs warm/artisanal vs bold/dark)
-- Target audience or key differentiator (one sentence)
-- Specific color or feel preferences
-
-Generate 1–3 QuestionConfig objects max. Options must be concrete and visually distinct (not "modern" and "classic" — those are meaningless). At least one question must have kind "single" or "multi" with options.
-
-Return ONLY valid JSON, no markdown:
-{
-  "needsClarification": boolean,
-  "questions": [
-    {
-      "kind": "single" | "multi" | "text",
-      "title": string,
-      "description"?: string,
-      "options"?: [{ "id": string, "label": string, "description"?: string }],
-      "allowCustom"?: boolean,
-      "customPlaceholder"?: string
-    }
-  ] | null
-}`,
-          messages: [{
-            role: "user",
-            content: `User request: "${prompt.slice(0, 400)}"`,
-          }],
-        }, { enableMcp: false })
-
-        const clarificationDecision = parseClarificationDecision(
-          extractTextFromAnthropicContent(clarificationRes.content)
-        )
-
-        if (clarificationDecision.needsClarification && clarificationDecision.questions?.length) {
-          const questionEventId = crypto.randomUUID()
-          await appendRunEvent({
-            id: questionEventId,
-            title: "Clarification needed",
-            description: "A few quick questions before I start building.",
-            status: "complete",
-            kind: "question",
-            createdAt: new Date().toISOString(),
-            metadata: {
-              questionType: "clarification",
-              questions: JSON.stringify(clarificationDecision.questions),
-            },
-          })
-
-          await docRef.update({ clarificationAnswer: null })
-
-          const clarificationResult = await waitForClarification(docRef, runId)
-
-          if (clarificationResult === "inactive") {
-            return NextResponse.json({ ok: false, message: "Run superseded during clarification" })
-          }
-
-          if (clarificationResult !== "skipped") {
-            prompt = `${prompt}\n\nUser clarification: ${clarificationResult.answer}`
-          }
-
-          await docRef.update({ clarificationAnswer: null })
-        }
-      } catch (err) {
-        console.error("Clarification check failed:", err)
-      }
-    }
-
-    let planText = ""
+    let planText = orchestratorPhase.planText
 
     if (!(await isActiveRun(docRef, runId))) {
       return NextResponse.json({ ok: false, message: "Run no longer active" })
@@ -2000,6 +2089,9 @@ Return ONLY valid JSON, no markdown:
     }
 
     const usableWebEvidence = webEvidence.filter(hasUsableEvidence)
+    if (usableWebEvidence.length > 0) {
+      orchestratorPhase.researchCompleted = true
+    }
 
     if (!(await isActiveRun(docRef, runId))) {
       return NextResponse.json({ ok: false, message: "Run no longer active" })
@@ -2078,6 +2170,18 @@ Rules:
           })
         } else {
           planText = rawPlan
+          orchestratorPhase.planText = planText
+          orchestratorPhase.planCompleted = true
+          conversationTurns = appendConversationTurn(
+            conversationTurns,
+            createConversationTurn({
+              role: "assistant",
+              content: `Build plan prepared: ${planText.slice(0, 500)}`,
+              source: "agent_decision",
+              runId,
+            })
+          )
+          await persistConversationTurns(docRef, conversationTurns)
           await appendRunEvent({
             id: crypto.randomUUID(),
             title: "Planning execution",

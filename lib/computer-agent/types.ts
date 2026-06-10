@@ -49,6 +49,21 @@ export interface ComputerTimelineEvent {
   metadata?: Record<string, string | number | boolean | null>
 }
 
+export type ComputerConversationTurnSource =
+  | "initial_prompt"
+  | "composer"
+  | "clarification"
+  | "agent_decision"
+  | "response"
+
+export interface ComputerConversationTurn {
+  role: "user" | "assistant"
+  content: string
+  source: ComputerConversationTurnSource
+  createdAt: string
+  runId?: string
+}
+
 export interface ComputerArtifact {
   id: string
   type: ComputerArtifactType
