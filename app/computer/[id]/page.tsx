@@ -2819,8 +2819,16 @@ export default function ComputerPage() {
                 <p className="text-[11.5px] text-destructive">{getRunErrorMessage(runError)}</p>
               </div>
             )}
-            <AnimatedAIInput mode="chat" compact compactSize="slim" isLoading={isRunning} onStop={handleStop}
-              onSubmit={handleRun} placeholder="Message the agent..." submitLabel="Run" disabled={isBuildTokenBlocked} />
+            <AnimatedAIInput
+              mode="chat"
+              compact
+              compactSize="slim"
+              isLoading={isRunning}
+              onStop={handleStop}
+              onSubmit={handleRun}
+              placeholder="Message the agent..."
+              disabled={isBuildTokenBlocked}
+            />
           </div>
         </div>
 

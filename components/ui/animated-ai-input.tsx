@@ -1,16 +1,15 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import { ArrowUp, Check, Loader2, Mic, Square, Leaf, X } from "lucide-react";
+import { ArrowUp, Check, Loader2, Mic, Square, Leaf, X, ChevronUp } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/auth-context";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +19,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { promptSuggestsSupabaseBackend } from "@/lib/project-blueprint";
+
+/* ─── textarea auto-resize ─────────────────────────────────────────────────── */
 
 interface UseAutoResizeTextareaProps {
   minHeight: number;
@@ -33,12 +34,10 @@ function useAutoResizeTextarea({ minHeight, maxHeight }: UseAutoResizeTextareaPr
     (reset?: boolean) => {
       const textarea = textareaRef.current;
       if (!textarea) return;
-
       if (reset) {
         textarea.style.height = `${minHeight}px`;
         return;
       }
-
       textarea.style.height = `${minHeight}px`;
       const newHeight = Math.max(
         minHeight,
@@ -62,6 +61,8 @@ function useAutoResizeTextarea({ minHeight, maxHeight }: UseAutoResizeTextareaPr
 
   return { textareaRef, adjustHeight };
 }
+
+/* ─── types ─────────────────────────────────────────────────────────────────── */
 
 interface AnimatedAIInputProps {
   mode?: "create" | "chat";
@@ -101,6 +102,8 @@ type SpeechRecognitionLike = EventTarget & {
 };
 
 type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
+
+/* ─── model metadata ─────────────────────────────────────────────────────────── */
 
 const MODEL_META: Record<string, { label: string; description: string; badges: string[] }> = {
   "o3-mini": {
@@ -172,14 +175,54 @@ const MODEL_META: Record<string, { label: string; description: string; badges: s
 
 function getModelMeta(model: string) {
   if (MODEL_META[model]) return MODEL_META[model];
-
   const shortName = model.split("/").pop()?.replace(/-/g, " ") || model;
   return {
-    label: shortName.replace(/\b\w/g, (char) => char.toUpperCase()),
+    label: shortName.replace(/\b\w/g, (c) => c.toUpperCase()),
     description: "Provider model available for generation and iterative product building.",
     badges: model.includes("/") ? ["Open Model"] : ["Model"],
   };
 }
+
+/* ─── badge component ─────────────────────────────────────────────────────── */
+
+function Badge({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center rounded-md border border-border/60 bg-muted/50 px-1.5 py-px text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70">
+      {children}
+    </span>
+  );
+}
+
+/* ─── icon button ─────────────────────────────────────────────────────────── */
+
+interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  active?: boolean;
+  label: string;
+}
+
+function IconButton({ children, active, label, className, ...props }: IconButtonProps) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      className={cn(
+        "relative flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground",
+        "transition-all duration-150",
+        "hover:bg-muted hover:text-foreground",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
+        "disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground",
+        active && "bg-muted text-foreground",
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+
+/* ─── main component ──────────────────────────────────────────────────────── */
 
 export function AnimatedAIInput({
   mode = "create",
@@ -197,6 +240,7 @@ export function AnimatedAIInput({
 }: AnimatedAIInputProps) {
   const router = useRouter();
   const { user, userData } = useAuth();
+
   const [value, setValue] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -207,9 +251,7 @@ export function AnimatedAIInput({
   const [isListening, setIsListening] = useState(false);
   const [speechSupported, setSpeechSupported] = useState(false);
   const [availableModels, setAvailableModels] = useState([
-    "o3-mini",
-    "GPT-5.5",
-    "GPT-4-1",
+    "o3-mini", "GPT-5.5", "GPT-4-1",
     "Claude Sonnet 4.6",
     "minimaxai/minimax-m2.1",
     "meta/llama-3.3-70b-instruct",
@@ -218,17 +260,19 @@ export function AnimatedAIInput({
   ]);
 
   const isSlimCompact = compact && compactSize === "slim";
-  const compactMinHeight = isSlimCompact ? 68 : 88;
+  const minH = compact ? (isSlimCompact ? 60 : 76) : 96;
+
   const { textareaRef, adjustHeight } = useAutoResizeTextarea({
-    minHeight: compact ? compactMinHeight : 132,
-    maxHeight: compact ? (isSlimCompact ? 180 : 220) : 360,
+    minHeight: minH,
+    maxHeight: compact ? (isSlimCompact ? 160 : 200) : 320,
   });
 
   const isPaidUser = userData?.planId && userData.planId !== "free";
-  const buildUsed = Math.max(0, Number(userData?.tokenUsage?.used ?? 0));
   const buildRemaining = Math.max(0, Number(userData?.tokenUsage?.remaining ?? 0));
+  const buildUsed = Math.max(0, Number(userData?.tokenUsage?.used ?? 0));
   const buildTokenLimit = Math.max(0, Number(userData?.tokensLimit ?? 0), buildUsed + buildRemaining);
   const effectiveModel = autoMode ? "GPT-5.5" : selectedModel;
+  const displayModelLabel = autoMode ? "Auto" : getModelMeta(selectedModel).label;
 
   const PENDING_CREATE_KEY = "lotus-build_pending_create";
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
@@ -238,77 +282,55 @@ export function AnimatedAIInput({
     requestAnimationFrame(() => adjustHeight());
   }, [adjustHeight]);
 
-  useEffect(() => {
-    if (!isPaidUser) setAutoMode(true);
-  }, [isPaidUser]);
+  /* effects ─── */
+
+  useEffect(() => { if (!isPaidUser) setAutoMode(true); }, [isPaidUser]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     setSpeechSupported(Boolean(
-      (window as Window & { SpeechRecognition?: SpeechRecognitionConstructor; webkitSpeechRecognition?: SpeechRecognitionConstructor }).SpeechRecognition ||
-      (window as Window & { SpeechRecognition?: SpeechRecognitionConstructor; webkitSpeechRecognition?: SpeechRecognitionConstructor }).webkitSpeechRecognition
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     ));
-    return () => {
-      recognitionRef.current?.abort();
-      recognitionRef.current = null;
-    };
+    return () => { recognitionRef.current?.abort(); recognitionRef.current = null; };
   }, []);
 
-  useEffect(() => {
-    if (mode !== "create") setCreationMode("build");
-  }, [mode]);
+  useEffect(() => { if (mode !== "create") setCreationMode("build"); }, [mode]);
 
   useEffect(() => {
-    if (wasLoading && !isLoading) {
-      if (mode === "chat") {
-        setValue("");
-        adjustHeight(true);
-      }
+    if (wasLoading && !isLoading && mode === "chat") {
+      setValue("");
+      adjustHeight(true);
     }
     setWasLoading(isLoading || false);
   }, [isLoading, wasLoading, mode, adjustHeight]);
 
   useEffect(() => {
     if (!initialModel) return;
-
-    if (initialModel === "GPT-5.5") {
-      setAutoMode(true);
-      setSelectedModel("GPT-5.5");
-      return;
-    }
-
+    if (initialModel === "GPT-5.5") { setAutoMode(true); setSelectedModel("GPT-5.5"); return; }
     setAutoMode(false);
     setSelectedModel(initialModel);
-    setAvailableModels((current) => (current.includes(initialModel) ? current : [...current, initialModel]));
+    setAvailableModels((cur) => cur.includes(initialModel) ? cur : [...cur, initialModel]);
   }, [initialModel]);
 
   useEffect(() => {
-    let isMounted = true;
-
-    const loadModels = async () => {
+    let mounted = true;
+    const load = async () => {
       try {
-        const response = await fetch("/api/generate", { cache: "no-store" });
-        if (!response.ok) return;
-
-        const data = (await response.json()) as { models?: string[]; defaultModel?: string };
-        if (!isMounted || !Array.isArray(data.models) || data.models.length === 0) return;
-        const models = data.models;
-
-        setAvailableModels(models);
+        const res = await fetch("/api/generate", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json() as { models?: string[]; defaultModel?: string };
+        if (!mounted || !Array.isArray(data.models) || data.models.length === 0) return;
+        setAvailableModels(data.models);
         if (data.defaultModel && !autoMode) {
-          setSelectedModel((current) => (models.includes(current) ? current : data.defaultModel!));
+          setSelectedModel((cur) => data.models!.includes(cur) ? cur : data.defaultModel!);
         }
-      } catch (error) {
-        console.error("Failed to load model list:", error);
-      }
+      } catch {}
     };
-
-    loadModels();
-
-    return () => {
-      isMounted = false;
-    };
+    load();
+    return () => { mounted = false; };
   }, [autoMode]);
+
+  /* handlers ─── */
 
   const handleSubmit = async () => {
     if (!value.trim() || isCreating || isLoading || disabled) return;
@@ -316,22 +338,15 @@ export function AnimatedAIInput({
     setIsListening(false);
 
     if (mode === "chat" && onSubmit) {
-      const submittedValue = value.trim();
+      const v = value.trim();
       setValue("");
       adjustHeight(true);
-      await onSubmit(submittedValue, effectiveModel);
+      await onSubmit(v, effectiveModel);
       return;
     }
 
     if (mode === "create" && !user) {
-      sessionStorage.setItem(
-        PENDING_CREATE_KEY,
-        JSON.stringify({
-          prompt: value.trim(),
-          model: effectiveModel,
-          creationMode,
-        })
-      );
+      sessionStorage.setItem(PENDING_CREATE_KEY, JSON.stringify({ prompt: value.trim(), model: effectiveModel, creationMode }));
       router.push("/login?redirect=" + encodeURIComponent("/"));
       return;
     }
@@ -340,30 +355,19 @@ export function AnimatedAIInput({
     try {
       if (creationMode === "agent") {
         const idToken = await user?.getIdToken();
-        if (!idToken) {
-          throw new Error("Not authenticated - please sign in");
-        }
-
-        const response = await fetch("/api/computer/sessions", {
+        if (!idToken) throw new Error("Not authenticated");
+        const res = await fetch("/api/computer/sessions", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${idToken}`,
-          },
-          body: JSON.stringify({
-            prompt: value.trim(),
-            model: effectiveModel,
-          }),
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+          body: JSON.stringify({ prompt: value.trim(), model: effectiveModel }),
         });
-        const data = (await response.json().catch(() => ({}))) as { id?: string; error?: string };
-        if (!response.ok || !data.id) {
-          throw new Error(data.error || "Could not create computer session");
-        }
+        const data = await res.json().catch(() => ({})) as { id?: string; error?: string };
+        if (!res.ok || !data.id) throw new Error(data.error || "Could not create session");
         router.push(`/computer/${data.id}`);
         return;
       }
 
-      const projectData: Record<string, unknown> = {
+      const docRef = await addDoc(collection(db, "projects"), {
         prompt: value.trim(),
         model: effectiveModel,
         status: "pending",
@@ -373,73 +377,44 @@ export function AnimatedAIInput({
         messages: [],
         ownerId: user!.uid,
         visibility: "private",
-      };
-
-      const docRef = await addDoc(collection(db, "projects"), projectData);
+      });
       router.push(`/project/${docRef.id}`);
-    } catch (error) {
-      console.error("Error creating project:", error);
+    } catch (err) {
+      console.error(err);
       setIsCreating(false);
     }
   };
 
   const handleToggleSpeech = () => {
     if (disabled || isCreating || isLoading || !speechSupported) return;
+    if (isListening) { recognitionRef.current?.stop(); setIsListening(false); return; }
 
-    if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
-      return;
-    }
+    const Ctor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!Ctor) { setSpeechSupported(false); return; }
 
-    const SpeechRecognitionCtor =
-      (window as Window & { SpeechRecognition?: SpeechRecognitionConstructor; webkitSpeechRecognition?: SpeechRecognitionConstructor }).SpeechRecognition ||
-      (window as Window & { SpeechRecognition?: SpeechRecognitionConstructor; webkitSpeechRecognition?: SpeechRecognitionConstructor }).webkitSpeechRecognition;
-
-    if (!SpeechRecognitionCtor) {
-      setSpeechSupported(false);
-      return;
-    }
-
-    const recognition = new SpeechRecognitionCtor();
-    recognitionRef.current = recognition;
+    const rec = new Ctor() as SpeechRecognitionLike;
+    recognitionRef.current = rec;
     speechBaseValueRef.current = value.trimEnd();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = typeof navigator !== "undefined" ? navigator.language || "en-US" : "en-US";
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = navigator.language || "en-US";
 
-    recognition.onresult = (event) => {
-      let transcript = "";
-      for (let index = event.resultIndex; index < event.results.length; index += 1) {
-        transcript += event.results[index]?.[0]?.transcript ?? "";
-      }
-      const nextTranscript = transcript.trim();
-      if (!nextTranscript) return;
-      const prefix = speechBaseValueRef.current;
-      setValue(prefix ? `${prefix} ${nextTranscript}` : nextTranscript);
+    rec.onresult = (e) => {
+      let t = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) t += e.results[i]?.[0]?.transcript ?? "";
+      if (!t.trim()) return;
+      const p = speechBaseValueRef.current;
+      setValue(p ? `${p} ${t.trim()}` : t.trim());
       syncTextareaHeight();
     };
-
-    recognition.onerror = () => {
-      setIsListening(false);
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    try {
-      recognition.start();
-      setIsListening(true);
-    } catch {
-      setIsListening(false);
-    }
+    rec.onerror = () => setIsListening(false);
+    rec.onend = () => setIsListening(false);
+    try { rec.start(); setIsListening(true); } catch { setIsListening(false); }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    const isSubmitKey = (e.key === "Enter" && !e.shiftKey) || ((e.ctrlKey || e.metaKey) && e.key === "Enter");
-    if (isSubmitKey && value.trim() && !isCreating && !isLoading) {
-      if (disabled) return;
+    const isSubmit = (e.key === "Enter" && !e.shiftKey) || ((e.ctrlKey || e.metaKey) && e.key === "Enter");
+    if (isSubmit && value.trim() && !isCreating && !isLoading && !disabled) {
       e.preventDefault();
       handleSubmit();
     }
@@ -447,214 +422,224 @@ export function AnimatedAIInput({
 
   const canSubmit = value.trim().length > 0 && !isCreating && !isLoading && !disabled;
   const canStop = mode === "chat" && isLoading && !disabled && typeof onStop === "function";
-  const resolvedPlaceholder = placeholder;
   const hasSubmitLabel = Boolean(submitLabel?.trim());
-  const submitAriaLabel = hasSubmitLabel
-    ? submitLabel!.trim()
-    : creationMode === "agent"
-      ? "Start agent session"
-      : "Start build";
+
+  /* ─── render ─────────────────────────────────────────────────────────────── */
 
   return (
-    <div className="group w-full max-w-2xl">
+    <div className={cn("w-full", mode === "create" ? "mx-auto max-w-2xl" : "max-w-none")}>
+      {/* outer shell */}
       <div
         className={cn(
-          "relative rounded-2xl border transition-all duration-300",
-          "bg-card/85 backdrop-blur-2xl",
-          "shadow-[0_8px_32px_-8px_var(--primary),0_0_0_1px_var(--primary-foreground)_inset]",
-          disabled
-            ? "border-border/50 opacity-60"
-            : isFocused
-              ? "border-ring/50 shadow-[0_16px_48px_-12px_var(--primary),0_0_0_1px_var(--primary-foreground)_inset]"
-              : "border-border hover:border-border-strong hover:shadow-[0_12px_40px_-10px_var(--primary),0_0_0_1px_var(--primary-foreground)_inset]"
+          "relative rounded-2xl border bg-card transition-all duration-200",
+          "shadow-[0_2px_12px_rgba(0,0,0,0.06)]",
+          disabled && "opacity-55 pointer-events-none",
+          isFocused
+            ? "border-border shadow-[0_2px_20px_rgba(0,0,0,0.09)]"
+            : "border-border/70 hover:border-border"
         )}
       >
-        <div className={cn(
-          "relative px-4 pb-4 pt-4 sm:px-5 sm:pb-5 sm:pt-5",
-          isSlimCompact && "px-3 pb-3 pt-3 sm:px-3.5 sm:pb-3.5 sm:pt-3.5"
-        )}>
-          {contextBadge ? (
-            <div className="mb-3 flex max-w-[calc(100%-4rem)] items-center">
-              <div className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-muted px-3 py-2 text-xs text-foreground">
-                <span className="font-medium text-muted-foreground">{contextBadge.label}</span>
-                <span className="rounded-full bg-surface-inset px-2 py-0.5 font-medium text-foreground">
-                  {contextBadge.value}
-                </span>
-                {contextBadge.onClear ? (
+        {/* context badge row */}
+        <AnimatePresence>
+          {contextBadge && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="overflow-hidden px-4 pt-3"
+            >
+              <div className="flex items-center gap-1.5 rounded-lg border border-border/50 bg-muted/60 px-2.5 py-1.5 text-xs w-fit">
+                <span className="text-muted-foreground">{contextBadge.label}</span>
+                <span className="font-medium text-foreground">{contextBadge.value}</span>
+                {contextBadge.onClear && (
                   <button
                     type="button"
                     onClick={contextBadge.onClear}
-                    className="inline-flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-surface-inset hover:text-foreground"
-                    aria-label="Clear selected context"
+                    aria-label="Clear context"
+                    className="ml-0.5 rounded p-px text-muted-foreground/60 transition-colors hover:text-foreground"
                   >
                     <X className="h-3 w-3" />
                   </button>
-                ) : null}
+                )}
               </div>
-            </div>
-          ) : null}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-          <Textarea
-            id="ai-input-hero"
-            value={value}
-            placeholder={resolvedPlaceholder}
-            className={cn(
-              "w-full resize-none border-none bg-transparent px-0 pt-0 text-[15px] text-foreground sm:text-base",
-              "placeholder:text-muted-foreground",
-              "focus-visible:ring-0 focus-visible:ring-offset-0",
-              "scrollbar-thin scrollbar-track-transparent scrollbar-thumb-border",
-              compact ? (isSlimCompact ? "min-h-[68px] pb-12" : "min-h-[88px] pb-16") : "min-h-[132px] pb-16",
-            )}
+        {/* textarea */}
+        <div className={cn("px-4 pt-3.5", contextBadge ? "pt-2.5" : "")}>
+          <textarea
             ref={textareaRef}
+            value={value}
+            placeholder={placeholder}
+            disabled={disabled}
             onKeyDown={handleKeyDown}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            disabled={disabled}
-            onChange={(e) => {
-              setValue(e.target.value);
-              adjustHeight();
-            }}
-          />
-
-          <div
+            onChange={(e) => { setValue(e.target.value); adjustHeight(); }}
             className={cn(
-              "absolute bottom-3 left-3 flex items-center gap-1.5 sm:bottom-4 sm:left-4",
-              isSlimCompact && "bottom-2.5 left-2.5 sm:bottom-3 sm:left-3",
-              hasSubmitLabel ? "max-w-[calc(100%-8.75rem)]" : "max-w-[calc(100%-6.5rem)]"
+              "w-full resize-none appearance-none border-0 bg-transparent p-0",
+              "text-[15px] leading-relaxed text-foreground",
+              "placeholder:text-muted-foreground/50",
+              "outline-none focus:outline-none focus:ring-0",
+              "scrollbar-thin scrollbar-track-transparent scrollbar-thumb-border/50",
+              compact
+                ? isSlimCompact ? "min-h-[60px]" : "min-h-[76px]"
+                : "min-h-[96px]"
             )}
-          >
-            {mode === "create" && !compact ? (
-              <div className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-border bg-muted p-1 backdrop-blur-sm">
+          />
+        </div>
+
+        {/* toolbar */}
+        <div className={cn(
+          "flex items-center justify-between gap-2 px-3 pb-3",
+          isSlimCompact ? "pb-2.5" : ""
+        )}>
+          {/* left side */}
+          <div className="flex items-center gap-1">
+            {/* build / agent toggle (create mode, non-compact only) */}
+            {mode === "create" && !compact && (
+              <div className="flex items-center rounded-lg border border-border/60 bg-muted/40 p-0.5 text-xs font-medium">
                 <div className="group/build relative">
                   <button
                     type="button"
                     onClick={() => setCreationMode("build")}
                     className={cn(
-                      "rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-150",
+                      "rounded-md px-2.5 py-1 transition-all duration-150",
                       creationMode === "build"
-                        ? "bg-accent text-accent-foreground shadow-sm"
+                        ? "bg-background text-foreground shadow-sm"
                         : "text-muted-foreground hover:text-foreground"
                     )}
                   >
                     Build
                   </button>
-                  {userData ? (
-                    <div className="pointer-events-none absolute bottom-[calc(100%+10px)] left-1/2 z-20 hidden max-w-[80vw] -translate-x-1/2 whitespace-normal rounded-xl bg-primary px-3 py-2 text-center text-[11px] font-medium text-primary-foreground shadow-lg group-hover/build:md:block">
-                      Build tokens left: {buildRemaining}/{buildTokenLimit}
-                      <span className="absolute left-1/2 top-full -translate-x-1/2 border-x-[6px] border-t-[6px] border-x-transparent border-t-primary" />
+                  {userData && (
+                    <div className="pointer-events-none absolute bottom-[calc(100%+8px)] left-1/2 z-20 hidden -translate-x-1/2 whitespace-nowrap rounded-lg bg-foreground px-2.5 py-1.5 text-[11px] font-medium text-background shadow-lg group-hover/build:md:block">
+                      {buildRemaining}/{buildTokenLimit} tokens left
+                      <span className="absolute left-1/2 top-full -translate-x-1/2 border-x-[5px] border-t-[5px] border-x-transparent border-t-foreground" />
                     </div>
-                  ) : null}
+                  )}
                 </div>
                 <button
                   type="button"
                   onClick={() => setCreationMode("agent")}
                   className={cn(
-                    "rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-150",
+                    "rounded-md px-2.5 py-1 transition-all duration-150",
                     creationMode === "agent"
-                      ? "bg-accent text-accent-foreground shadow-sm"
+                      ? "bg-background text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
                   Agent
                 </button>
               </div>
-            ) : null}
+            )}
 
+            {/* visual edit toggle (chat mode) */}
             {mode === "chat" && visualEditToggle && (
               <button
                 type="button"
                 onClick={visualEditToggle.onToggle}
                 className={cn(
-                  "h-8 rounded-full border px-3 text-xs font-medium transition-all duration-150",
+                  "h-7 rounded-lg border px-2.5 text-xs font-medium transition-all duration-150",
                   visualEditToggle.active
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-muted text-muted-foreground hover:text-foreground"
+                    ? "border-foreground/20 bg-foreground text-background"
+                    : "border-border/60 bg-muted/40 text-muted-foreground hover:text-foreground"
                 )}
               >
-                {visualEditToggle.active ? "Visual Edit On" : "Visual Edit"}
+                {visualEditToggle.active ? "Visual edit on" : "Visual edit"}
               </button>
             )}
 
+            {/* model picker */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
                   className={cn(
-                    "h-8 rounded-full border border-border bg-muted px-3 text-xs font-medium text-muted-foreground transition-all duration-150 hover:text-foreground",
-                    "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/40"
+                    "flex h-7 items-center gap-1 rounded-lg border border-border/60 bg-muted/40",
+                    "px-2.5 text-xs font-medium text-muted-foreground",
+                    "transition-all duration-150 hover:bg-muted hover:text-foreground",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
+                    "max-w-[140px] truncate"
                   )}
                 >
-                  {autoMode ? "Auto" : getModelMeta(selectedModel).label}
+                  <span className="truncate">{displayModelLabel}</span>
+                  <ChevronUp className="h-3 w-3 shrink-0 opacity-50" />
                 </button>
               </DropdownMenuTrigger>
+
               <DropdownMenuContent
                 align="start"
                 side="top"
-                sideOffset={10}
+                sideOffset={8}
                 avoidCollisions={false}
-                className="max-h-[24rem] w-[23rem] overflow-y-auto overscroll-contain border-border bg-popover/95 p-2 shadow-xl backdrop-blur-xl"
+                className={cn(
+                  "w-[22rem] max-h-[26rem] overflow-y-auto overscroll-contain",
+                  "rounded-xl border border-border/70 bg-popover p-1.5 shadow-xl",
+                  "backdrop-blur-sm"
+                )}
               >
-                <DropdownMenuLabel className="px-2 pb-1 text-xs font-medium text-muted-foreground">Response model</DropdownMenuLabel>
+                <DropdownMenuLabel className="px-2 pb-1.5 pt-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">
+                  Model
+                </DropdownMenuLabel>
+
+                {/* Auto option */}
                 <DropdownMenuItem
                   onSelect={() => setAutoMode(true)}
-                  className="rounded-xl border border-border px-3 py-3 text-foreground focus:bg-muted"
+                  className="rounded-lg px-3 py-2.5 focus:bg-muted"
                 >
-                  <div className="flex w-full items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <Leaf className="h-4 w-4 text-accent" />
-                        <span className="text-sm font-medium text-foreground">Automatic</span>
+                  <div className="flex w-full items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted">
+                        <Leaf className="h-3.5 w-3.5 text-foreground/60" />
                       </div>
-                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                        Uses the default balanced model for the smoothest generation flow.
-                      </p>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Automatic</p>
+                        <p className="text-xs text-muted-foreground">Best model for the task</p>
+                      </div>
                     </div>
-                    {autoMode ? <Check className="mt-0.5 h-4 w-4 text-foreground" /> : null}
+                    {autoMode && <Check className="h-3.5 w-3.5 text-foreground" />}
                   </div>
                 </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-border" />
+
+                <DropdownMenuSeparator className="my-1" />
+
                 {isPaidUser ? (
                   availableModels.map((model) => {
                     const meta = getModelMeta(model);
                     const isSelected = !autoMode && selectedModel === model;
-
                     return (
                       <DropdownMenuItem
                         key={model}
-                        onSelect={() => {
-                          setAutoMode(false);
-                          setSelectedModel(model);
-                        }}
-                        className="rounded-xl border border-transparent px-3 py-3 text-foreground focus:border-border focus:bg-muted"
+                        onSelect={() => { setAutoMode(false); setSelectedModel(model); }}
+                        className="rounded-lg px-3 py-2.5 focus:bg-muted"
                       >
-                        <div className="flex w-full items-start justify-between gap-3">
+                        <div className="flex w-full items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-1.5">
                               <span className="text-sm font-medium text-foreground">{meta.label}</span>
-                              {meta.badges.slice(0, 2).map((badge) => (
-                                <span
-                                  key={`${model}-${badge}`}
-                                  className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground"
-                                >
-                                  {badge}
-                                </span>
+                              {meta.badges.slice(0, 2).map((b) => (
+                                <Badge key={b}>{b}</Badge>
                               ))}
                             </div>
-                            <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+                            <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
                               {meta.description}
                             </p>
-                            <p className="mt-2 truncate text-[11px] text-muted-foreground/70">{model}</p>
                           </div>
-                          {isSelected ? <Check className="mt-0.5 h-4 w-4 shrink-0 text-foreground" /> : null}
+                          {isSelected && <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-foreground" />}
                         </div>
                       </DropdownMenuItem>
                     );
                   })
                 ) : (
-                  <div className="px-2 py-2">
-                    <p className="text-xs text-muted-foreground">Custom model choice is available on paid plans.</p>
-                    <Link href="/pricing" className="mt-2 inline-flex text-xs font-medium text-accent hover:underline">
-                      Upgrade
+                  <div className="px-3 py-2">
+                    <p className="text-xs text-muted-foreground">
+                      Custom models are available on paid plans.
+                    </p>
+                    <Link href="/pricing" className="mt-1.5 inline-flex text-xs font-medium text-foreground underline underline-offset-2">
+                      Upgrade →
                     </Link>
                   </div>
                 )}
@@ -662,63 +647,56 @@ export function AnimatedAIInput({
             </DropdownMenu>
           </div>
 
-          <div
-            className={cn(
-              "absolute bottom-3 right-3 flex items-center gap-1.5 sm:bottom-4 sm:right-4",
-              isSlimCompact && "bottom-2.5 right-2.5 sm:bottom-3 sm:right-3"
-            )}
-          >
+          {/* right side — mic + submit */}
+          <div className="flex items-center gap-1">
+            {/* mic button (hidden when stopping) */}
             {!canStop && (
-              <button
-                type="button"
+              <IconButton
+                label={isListening ? "Stop voice input" : "Start voice input"}
                 onClick={handleToggleSpeech}
                 disabled={disabled || isCreating || isLoading || !speechSupported}
-                aria-label={isListening ? "Stop voice input" : "Start voice input"}
-                title={speechSupported ? (isListening ? "Stop voice input" : "Speak your prompt") : "Speech input is not supported in this browser"}
-                className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-full border text-muted-foreground transition-all duration-200",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20",
-                  isListening
-                    ? "border-accent bg-accent-soft text-accent-soft-foreground shadow-[0_6px_18px_-12px_var(--primary)]"
-                    : "border-border bg-card hover:bg-muted hover:text-foreground",
-                  (disabled || isCreating || isLoading || !speechSupported) && "cursor-not-allowed opacity-45 hover:bg-card hover:text-muted-foreground"
-                )}
+                active={isListening}
               >
-                {isListening ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mic className="h-3.5 w-3.5" />}
-              </button>
+                {isListening
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : <Mic className="h-4 w-4" />
+                }
+              </IconButton>
             )}
+
+            {/* submit / stop button */}
             <motion.button
               type="button"
-              className={cn(
-                "flex h-8 items-center justify-center gap-1 rounded-full font-medium transition-all duration-200",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:ring-offset-0",
-                canStop
-                  ? "bg-primary px-3 text-primary-foreground hover:bg-primary/90 active:scale-95"
-                  : hasSubmitLabel && canSubmit
-                  ? "min-w-[3.8rem] px-2.5 bg-primary text-primary-foreground shadow-[0_8px_18px_-12px_var(--primary)] hover:bg-primary/90 active:scale-95"
-                  : hasSubmitLabel
-                  ? "min-w-[3.8rem] px-2.5 border border-border bg-muted text-muted-foreground cursor-not-allowed"
-                  : canSubmit
-                  ? "w-9 bg-primary text-primary-foreground shadow-[0_4px_12px_-2px_var(--primary)] hover:bg-primary/90 active:scale-95"
-                  : "w-9 bg-muted text-muted-foreground cursor-not-allowed"
-              )}
-              aria-label={canStop ? "Stop generating" : submitAriaLabel}
-              title={canStop ? "Stop generating" : submitAriaLabel}
+              aria-label={canStop ? "Stop generating" : (submitLabel?.trim() || (creationMode === "agent" ? "Start agent session" : "Start build"))}
               disabled={!canSubmit && !canStop}
               onClick={canStop ? onStop : handleSubmit}
-              whileTap={canSubmit || canStop ? { scale: 0.93 } : {}}
+              whileTap={canSubmit || canStop ? { scale: 0.92 } : {}}
+              className={cn(
+                "flex items-center justify-center rounded-lg font-medium transition-all duration-150",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
+                // sizing
+                hasSubmitLabel && (canSubmit || canStop)
+                  ? "h-8 gap-1.5 px-3 text-xs"
+                  : "h-8 w-8",
+                // colour states
+                canStop
+                  ? "bg-foreground text-background hover:bg-foreground/90"
+                  : canSubmit
+                  ? "bg-foreground text-background hover:bg-foreground/90"
+                  : "bg-muted text-muted-foreground cursor-not-allowed"
+              )}
             >
               {canStop ? (
                 <>
-                  <Square className="h-3.5 w-3.5" />
-                  <span className="text-xs font-medium">Stop</span>
+                  <Square className="h-3.5 w-3.5 fill-current" />
+                  {hasSubmitLabel && <span>Stop</span>}
                 </>
               ) : isCreating || isLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
-              ) : submitLabel ? (
+              ) : hasSubmitLabel ? (
                 <>
                   <ArrowUp className="h-3.5 w-3.5" />
-                  <span className="text-[11px] font-semibold">{submitLabel}</span>
+                  <span>{submitLabel}</span>
                 </>
               ) : (
                 <ArrowUp className="h-4 w-4" />
@@ -727,6 +705,14 @@ export function AnimatedAIInput({
           </div>
         </div>
       </div>
+
+      {/* hint text below the box */}
+      {!compact && mode === "create" && (
+        <p className="mt-2 text-center text-[11px] text-muted-foreground/40">
+          Press <kbd className="rounded border border-border/50 bg-muted/50 px-1 py-px font-mono text-[10px]">Enter</kbd> to send,{" "}
+          <kbd className="rounded border border-border/50 bg-muted/50 px-1 py-px font-mono text-[10px]">Shift+Enter</kbd> for new line
+        </p>
+      )}
     </div>
   );
 }

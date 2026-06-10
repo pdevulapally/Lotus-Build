@@ -4,7 +4,7 @@ import { LenisProvider } from "@/components/providers/lenis-provider"
 import { CreateAfterLogin } from "@/components/create-after-login"
 import { FooterSection } from "@/components/sections/footer-section"
 import { AnimatedAIInput } from "@/components/ui/animated-ai-input"
-import { Blocks, ShieldCheck, Star, Gauge } from "lucide-react"
+import { Blocks, ShieldCheck, Star, Gauge, ArrowRight, Quote } from "lucide-react"
 import {
   lotusBuildFeatureItems,
   lotusBuildMetrics,
@@ -14,6 +14,35 @@ import {
 
 const featureIcons = [Star, Blocks, Gauge, ShieldCheck]
 
+/* ─── Section wrapper ────────────────────────────────────────────────────── */
+function Section({
+  children,
+  className = "",
+  id,
+}: {
+  children: React.ReactNode
+  className?: string
+  id?: string
+}) {
+  return (
+    <section
+      id={id}
+      className={`relative px-4 sm:px-6 lg:px-8 ${className}`}
+    >
+      {children}
+    </section>
+  )
+}
+
+/* ─── Section heading ────────────────────────────────────────────────────── */
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground/60">
+      {children}
+    </p>
+  )
+}
+
 export default function Home() {
   return (
     <LenisProvider>
@@ -22,6 +51,7 @@ export default function Home() {
       <main className="relative min-h-screen overflow-x-clip bg-background text-foreground">
         <Navbar />
 
+        {/* ── HERO — untouched ─────────────────────────────────────────────── */}
         <section className="relative isolate min-h-screen overflow-hidden px-4 pt-28 pb-16 sm:px-6 sm:pt-32 lg:px-8">
           <div
             className="absolute inset-0 -z-30 scale-105"
@@ -32,7 +62,6 @@ export default function Home() {
               backgroundRepeat: "no-repeat",
             }}
           />
-
           <div className="absolute inset-0 -z-20 bg-[linear-gradient(to_bottom,color-mix(in_oklch,var(--primary)_72%,transparent),color-mix(in_oklch,var(--primary)_38%,transparent),color-mix(in_oklch,var(--primary)_84%,transparent))]" />
           <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_50%_20%,color-mix(in_oklch,var(--primary-foreground)_26%,transparent),transparent_60%)]" />
 
@@ -55,84 +84,189 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="relative px-4 py-8 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-5xl text-center">
-            <p className="text-lg font-medium tracking-tight text-foreground/80 sm:text-xl">
-              The fastest way for founders to turn intent into a live website.
+        {/* ── TAGLINE ──────────────────────────────────────────────────────── */}
+        <Section className="py-16 sm:py-20">
+          <div className="mx-auto max-w-3xl text-center">
+            <p className="text-xl font-medium leading-snug tracking-tight text-foreground/70 sm:text-2xl md:text-3xl">
+              The fastest way for founders to turn{" "}
+              <span className="text-foreground">intent into a live website.</span>
             </p>
           </div>
-        </section>
+        </Section>
 
-        <section id="features" className="relative px-4 py-10 sm:px-6 sm:py-12 lg:px-8">
-          <div className="mx-auto grid max-w-6xl grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {lotusBuildFeatureItems.map((item, idx) => {
-              const Icon = featureIcons[idx] ?? Star
-
-              return (
-                <article
-                  key={item.title}
-                  className={`rounded-3xl px-5 py-6 ${
-                    idx % 2 === 0 ? "bg-muted" : "bg-muted"
-                  }`}
-                >
-                  <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-card/80 text-accent">
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <h3 className="mt-4 text-lg font-semibold text-foreground">{item.title}</h3>
-                  <p className="mt-2 text-sm text-muted-foreground">{item.description}</p>
-                </article>
-              )
-            })}
-          </div>
-        </section>
-
-        <section className="relative mt-6 bg-muted px-4 py-12 sm:px-6 lg:px-8">
-          <div className="mx-auto grid max-w-6xl grid-cols-2 gap-6 text-center md:grid-cols-4">
-            {lotusBuildMetrics.map((metric) => (
-              <div key={metric.label}>
-                <p className="font-display text-4xl font-bold text-foreground sm:text-5xl">{metric.value}</p>
-                <p className="mt-2 text-xs uppercase tracking-[0.14em] text-muted-foreground">{metric.label}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="bg-muted px-4 py-12 sm:px-6 lg:px-8">
-          <div className="mx-auto grid max-w-6xl gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {lotusBuildUseCases.map((useCase) => (
-              <article key={useCase.title} className="rounded-2xl bg-card/80 p-6">
-                <h3 className="text-lg font-semibold text-foreground">{useCase.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{useCase.description}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section id="testimonials" className="bg-muted px-4 pb-16 pt-6 sm:px-6 lg:px-8">
+        {/* ── FEATURES ─────────────────────────────────────────────────────── */}
+        <Section id="features" className="pb-20 sm:pb-24">
           <div className="mx-auto max-w-6xl">
-            <div className="mb-6">
-              <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Testimonials</p>
-              <h2 className="mt-1 text-2xl font-semibold text-foreground sm:text-3xl">Loved by builders</h2>
+            <div className="mb-10 text-center sm:mb-12">
+              <SectionLabel>Features</SectionLabel>
+              <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                Everything you need to ship
+              </h2>
             </div>
 
-            <div className="flex gap-4 overflow-x-auto pb-2 [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border/80 hover:[&::-webkit-scrollbar-thumb]:bg-border-strong/80">
+            <div className="grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-border/60 bg-border/30 sm:grid-cols-2 lg:grid-cols-4">
+              {lotusBuildFeatureItems.map((item, idx) => {
+                const Icon = featureIcons[idx] ?? Star
+                return (
+                  <article
+                    key={item.title}
+                    className="group relative flex flex-col bg-card p-6 transition-colors duration-200 hover:bg-muted/60 sm:p-7"
+                  >
+                    {/* number */}
+                    <span className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border/50 bg-muted text-foreground/30 transition-colors group-hover:border-border group-hover:text-foreground/60">
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <h3 className="text-[15px] font-semibold leading-snug text-foreground">
+                      {item.title}
+                    </h3>
+                    <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
+                      {item.description}
+                    </p>
+                  </article>
+                )
+              })}
+            </div>
+          </div>
+        </Section>
+
+        {/* ── METRICS ──────────────────────────────────────────────────────── */}
+        <Section className="border-y border-border/50 bg-muted/40 py-16 sm:py-20">
+          <div className="mx-auto max-w-5xl">
+            <div className="grid grid-cols-2 gap-8 text-center md:grid-cols-4">
+              {lotusBuildMetrics.map((metric, i) => (
+                <div key={metric.label} className="flex flex-col items-center gap-1">
+                  <p className="font-display text-4xl font-bold tabular-nums tracking-tight text-foreground sm:text-5xl">
+                    {metric.value}
+                  </p>
+                  <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground/60">
+                    {metric.label}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Section>
+
+        {/* ── USE CASES ────────────────────────────────────────────────────── */}
+        <Section className="py-20 sm:py-24">
+          <div className="mx-auto max-w-6xl">
+            <div className="mb-10 sm:mb-12">
+              <SectionLabel>Use cases</SectionLabel>
+              <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                Built for every type of builder
+              </h2>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {lotusBuildUseCases.map((useCase, idx) => (
+                <article
+                  key={useCase.title}
+                  className="group relative rounded-2xl border border-border/60 bg-card p-6 transition-all duration-200 hover:border-border hover:shadow-sm"
+                >
+                  {/* index mark */}
+                  <span className="absolute right-5 top-5 text-[11px] font-medium tabular-nums text-muted-foreground/30">
+                    {String(idx + 1).padStart(2, "0")}
+                  </span>
+                  <h3 className="pr-8 text-[15px] font-semibold leading-snug text-foreground">
+                    {useCase.title}
+                  </h3>
+                  <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
+                    {useCase.description}
+                  </p>
+                  {/* hover arrow */}
+                  <div className="mt-4 flex items-center gap-1 text-[12px] font-medium text-muted-foreground/40 transition-all group-hover:text-foreground/60">
+                    Learn more
+                    <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </Section>
+
+        {/* ── TESTIMONIALS ─────────────────────────────────────────────────── */}
+        <Section
+          id="testimonials"
+          className="border-t border-border/50 bg-muted/30 py-20 sm:py-24"
+        >
+          <div className="mx-auto max-w-6xl">
+            {/* header */}
+            <div className="mb-10 flex flex-col gap-1 sm:mb-12 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <SectionLabel>Testimonials</SectionLabel>
+                <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                  Loved by builders
+                </h2>
+              </div>
+            </div>
+
+            {/* scrollable row */}
+            <div
+              className={`
+                -mx-4 flex gap-3 overflow-x-auto px-4
+                pb-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8
+                [scrollbar-width:thin]
+                [scrollbar-color:var(--border)_transparent]
+                [&::-webkit-scrollbar]:h-[3px]
+                [&::-webkit-scrollbar-track]:bg-transparent
+                [&::-webkit-scrollbar-thumb]:rounded-full
+                [&::-webkit-scrollbar-thumb]:bg-border/60
+              `}
+            >
               {lotusBuildTestimonials.map((testimonial) => (
                 <blockquote
                   key={testimonial.name}
-                  className="w-[300px] shrink-0 rounded-2xl border border-border bg-card p-5"
+                  className="flex w-[290px] shrink-0 flex-col justify-between rounded-2xl border border-border/60 bg-card p-5 transition-all duration-200 hover:border-border hover:shadow-sm sm:w-[320px]"
                 >
-                  <p className="text-sm text-foreground/80">"{testimonial.text}"</p>
-                  <footer className="mt-4">
-                    <p className="text-sm font-medium text-foreground">{testimonial.name}</p>
-                    <p className="text-xs text-muted-foreground">{testimonial.role}</p>
+                  <div>
+                    <Quote className="mb-3 h-4 w-4 text-muted-foreground/30" />
+                    <p className="text-[13.5px] leading-relaxed text-foreground/75">
+                      {testimonial.text}
+                    </p>
+                  </div>
+                  <footer className="mt-5 flex items-center gap-2.5 border-t border-border/40 pt-4">
+                    {/* avatar initials */}
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-[11px] font-semibold text-muted-foreground">
+                      {testimonial.name
+                        .split(" ")
+                        .map((n: string) => n[0])
+                        .join("")
+                        .toUpperCase()
+                        .slice(0, 2)}
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-medium leading-tight text-foreground">
+                        {testimonial.name}
+                      </p>
+                      <p className="text-[11.5px] leading-tight text-muted-foreground">
+                        {testimonial.role}
+                      </p>
+                    </div>
                   </footer>
                 </blockquote>
               ))}
             </div>
           </div>
-        </section>
+        </Section>
+
+        {/* ── CTA ──────────────────────────────────────────────────────────── */}
+        <Section className="py-24 sm:py-32">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+              Ready to build something?
+            </h2>
+            <p className="mx-auto mt-4 max-w-lg text-[15px] leading-relaxed text-muted-foreground">
+              Describe your idea below and we'll have a working prototype ready in minutes.
+            </p>
+            <div className="mx-auto mt-8 max-w-xl">
+              <AnimatedAIInput />
+            </div>
+          </div>
+        </Section>
+
         <FooterSection />
       </main>
+
       <CookieBanner />
     </LenisProvider>
   )
