@@ -77,6 +77,11 @@ const FILE_SELECTION_LIMIT = 8
 const FILE_CONTENT_SCAN_LIMIT = 1500
 const PROMPT_KEYWORD_LIMIT = 12
 const OPENAI_TIMEOUT_MS = 90000
+const GENERATION_MAX_OUTPUT_TOKENS = (() => {
+  const parsed = Number(process.env.GENERATION_MAX_OUTPUT_TOKENS)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 16000
+})()
+const MAX_CONTINUATION_ROUNDS = 2
 const MAX_PROMPT_CHARS = 12000
 const STRICT_FILE_FORMAT_RETRY_PROMPT = `Your previous response did not follow the required file format.
 
@@ -385,7 +390,9 @@ function getPeriodEndDate(raw: unknown): Date | null {
 
 function parseFileBlocks(content: string): ParsedFileBlock[] {
   const files: ParsedFileBlock[] = []
-  const fileRegex = /===FILE:\s*(.*?)===([\s\S]*?)===END_FILE===/g
+  // Tempered pattern: a block's content can never contain another ===FILE: marker,
+  // so an unterminated truncated block cannot match or swallow a re-emitted complete copy.
+  const fileRegex = /===FILE:\s*(.*?)===((?:(?!===FILE:)[\s\S])*?)===END_FILE===/g
   let match: RegExpExecArray | null
 
   while ((match = fileRegex.exec(content)) !== null) {
@@ -401,6 +408,30 @@ function parseFileBlocks(content: string): ParsedFileBlock[] {
   }
 
   return files
+}
+
+// When a generation hits the output token cap mid-file, strip the unterminated
+// trailing ===FILE: block so the continuation request can re-emit it completely.
+function splitTruncatedFileTail(content: string): { content: string; cutOffPath: string } {
+  const lastFileIdx = content.lastIndexOf("===FILE:")
+  const lastEndIdx = content.lastIndexOf("===END_FILE===")
+  if (lastFileIdx === -1 || lastFileIdx <= lastEndIdx) {
+    return { content, cutOffPath: "" }
+  }
+  const cutOffPath = content.slice(lastFileIdx).match(/^===FILE:\s*(.*?)===/)?.[1]?.trim() || ""
+  return { content: content.slice(0, lastFileIdx), cutOffPath }
+}
+
+function buildContinuationInstruction(cutOffPath: string) {
+  return [
+    "Your previous response was cut off because it hit the output length limit. Continue the same response.",
+    "- Do NOT repeat any file that already ended with ===END_FILE===.",
+    cutOffPath
+      ? `- The file "${cutOffPath}" was cut off mid-output. Re-emit it COMPLETELY, starting again from its ===FILE: ${cutOffPath}=== line through its ===END_FILE===.`
+      : "",
+    "- Then emit any files you had not started yet.",
+    "- Output ONLY file blocks in the ===FILE: path=== ... ===END_FILE=== format. No other text.",
+  ].filter(Boolean).join("\n")
 }
 
 function serializeFileBlocks(files: ParsedFileBlock[]) {
@@ -496,11 +527,39 @@ async function generateWithNvidiaValidation(params: {
       { role: "system", content: params.systemPrompt },
       { role: "user", content: params.userMessageContent },
     ],
-    max_tokens: 8000,
+    max_tokens: GENERATION_MAX_OUTPUT_TOKENS,
   })
 
   let finalContent = initial.choices[0]?.message?.content || ""
   let usageInfo: any = initial.usage || null
+
+  // One continuation round if the model hit the output token cap mid-response:
+  // strip the unterminated trailing file block and ask it to resume, re-emitting
+  // the cut-off file completely. On failure, fall through — downstream
+  // validation/repair handles whatever we have.
+  if (initial.choices[0]?.finish_reason === "length") {
+    try {
+      const { content: cleanContent, cutOffPath } = splitTruncatedFileTail(finalContent)
+      finalContent = cleanContent
+
+      const continued = await params.client.chat.completions.create({
+        model: params.selectedModel,
+        messages: [
+          { role: "system", content: params.systemPrompt },
+          { role: "user", content: params.userMessageContent },
+          { role: "assistant", content: finalContent },
+          { role: "user", content: buildContinuationInstruction(cutOffPath) },
+        ],
+        max_tokens: GENERATION_MAX_OUTPUT_TOKENS,
+      })
+
+      finalContent += continued.choices[0]?.message?.content || ""
+      usageInfo = continued.usage || usageInfo
+    } catch (err) {
+      console.error("NVIDIA generation continuation failed:", err)
+    }
+  }
+
   try {
     assertValidFileBlockOutput(finalContent)
   } catch {
@@ -512,7 +571,7 @@ async function generateWithNvidiaValidation(params: {
         { role: "assistant", content: finalContent },
         { role: "user", content: STRICT_FILE_FORMAT_RETRY_PROMPT },
       ],
-      max_tokens: 8000,
+      max_tokens: GENERATION_MAX_OUTPUT_TOKENS,
     })
 
     finalContent = retried.choices[0]?.message?.content || ""
@@ -533,7 +592,7 @@ async function generateWithNvidiaValidation(params: {
         { role: "assistant", content: finalContent },
         { role: "user", content: repairPrompt },
       ],
-      max_tokens: 8000,
+      max_tokens: GENERATION_MAX_OUTPUT_TOKENS,
     })
 
     finalContent = repaired.choices[0]?.message?.content || finalContent
@@ -637,7 +696,7 @@ async function salvageWithOpenAI(params: {
       { role: "user", content: params.userMessageContent },
       { role: "user", content: salvagePrompt },
     ],
-    max_completion_tokens: 8000,
+    max_completion_tokens: GENERATION_MAX_OUTPUT_TOKENS,
   })
 
   let content = repaired.choices[0]?.message?.content || params.brokenContent
@@ -665,7 +724,7 @@ async function repairInvalidFileFormatWithOpenAI(params: {
       { role: "assistant", content: params.brokenContent },
       { role: "user", content: STRICT_FILE_FORMAT_RETRY_PROMPT },
     ],
-    max_completion_tokens: 8000,
+    max_completion_tokens: GENERATION_MAX_OUTPUT_TOKENS,
   })
 
   const content = repaired.choices[0]?.message?.content || ""
@@ -730,7 +789,7 @@ async function streamWithResolvedProvider(params: {
     return
   }
 
-  const createOpenAICompletion = async (userMessage: string) => {
+  const createOpenAICompletion = async (messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[]) => {
     const controllerAbort = new AbortController()
     const timeoutId = setTimeout(() => {
       controllerAbort.abort()
@@ -740,11 +799,8 @@ async function streamWithResolvedProvider(params: {
       const completion = await params.client.chat.completions.create({
         model: params.selectedModel,
         stream: true,
-        messages: [
-          { role: "system", content: params.systemPrompt },
-          { role: "user", content: userMessage },
-        ],
-        max_completion_tokens: 8000,
+        messages,
+        max_completion_tokens: GENERATION_MAX_OUTPUT_TOKENS,
         stream_options: { include_usage: true } as any,
       }, { signal: controllerAbort.signal })
       clearTimeout(timeoutId)
@@ -763,8 +819,11 @@ async function streamWithResolvedProvider(params: {
 
   const streamTokens = async (completion: Awaited<ReturnType<typeof createOpenAICompletion>>) => {
     let buffered = ""
+    let finishReason: string | null = null
     for await (const chunk of completion) {
       if ((chunk as any).usage) params.state.usageInfo = (chunk as any).usage
+      const chunkFinishReason = chunk.choices?.[0]?.finish_reason
+      if (chunkFinishReason) finishReason = chunkFinishReason
       const content = chunk.choices?.[0]?.delta?.content
       if (!content) continue
       buffered += content
@@ -773,7 +832,7 @@ async function streamWithResolvedProvider(params: {
         catch { params.state.closed = true }
       }
     }
-    return buffered
+    return { buffered, finishReason }
   }
 
   let basePrompt = params.userMessageContent
@@ -783,7 +842,10 @@ async function streamWithResolvedProvider(params: {
 
   let completion
   try {
-    completion = await createOpenAICompletion(params.userMessageContent)
+    completion = await createOpenAICompletion([
+      { role: "system", content: params.systemPrompt },
+      { role: "user", content: params.userMessageContent },
+    ])
   } catch (err: any) {
     if (err?.message === "MODEL_TIMEOUT" && params.existingFiles?.length) {
       const retrySeedFiles = selectRelevantFiles(params.existingFiles, params.userMessageContent)
@@ -791,13 +853,45 @@ async function streamWithResolvedProvider(params: {
         params.userMessageContent,
         retrySeedFiles.slice(0, Math.max(2, Math.ceil(retrySeedFiles.length / 2)))
       )
-      completion = await createOpenAICompletion(buildFollowUpUserMessage(basePrompt, reducedFiles))
+      completion = await createOpenAICompletion([
+        { role: "system", content: params.systemPrompt },
+        { role: "user", content: buildFollowUpUserMessage(basePrompt, reducedFiles) },
+      ])
     } else {
       throw err
     }
   }
 
-  const output = await streamTokens(completion)
+  const firstPass = await streamTokens(completion)
+  let output = firstPass.buffered
+  let finishReason = firstPass.finishReason
+
+  // Continuation: the model hit the output token cap mid-response. Strip the
+  // unterminated trailing file block and ask it to resume, re-emitting the
+  // cut-off file completely. The tempered parse regex guarantees the dead
+  // truncated tail already streamed to the client can never match.
+  let continuationRounds = 0
+  while (finishReason === "length" && continuationRounds < MAX_CONTINUATION_ROUNDS) {
+    continuationRounds++
+    try {
+      const { content: cleanOutput, cutOffPath } = splitTruncatedFileTail(output)
+      output = cleanOutput
+
+      const continuation = await createOpenAICompletion([
+        { role: "system", content: params.systemPrompt },
+        { role: "user", content: params.userMessageContent },
+        { role: "assistant", content: output },
+        { role: "user", content: buildContinuationInstruction(cutOffPath) },
+      ])
+      const continued = await streamTokens(continuation)
+      output += continued.buffered
+      finishReason = continued.finishReason
+    } catch (err) {
+      console.error("Generation continuation failed:", err)
+      break
+    }
+  }
+
   params.state.streamedLength += output.length
 
   const parsedBlocks = parseFileBlocks(output)
@@ -898,6 +992,7 @@ export async function POST(req: Request) {
     idToken?: string
     existingFiles?: { path: string; content: string }[]
     intent?: string
+    skipDesignBrief?: boolean
     inspirationContext?: { title: string; description: string; markdown: string; sourceUrl: string }
   } | null
   if (!body || typeof body !== "object") {
@@ -1265,7 +1360,7 @@ OPEN-SOURCE MODEL RELIABILITY RULES (MANDATORY):
   5. No file is omitted if another file depends on it.`
 
   const isInspiration = intent === "inspiration"
-  const designBrief = isFollowUp ? "" : await deriveDesignBrief(prompt)
+  const designBrief = isFollowUp || body.skipDesignBrief === true ? "" : await deriveDesignBrief(prompt)
   const systemPrompt = isFollowUp ? systemPromptFollowUp : systemPromptNew(designBrief)
   const finalSystemPrompt = `${systemPrompt}\n\n${nvidiaReliabilityPrompt}`
 

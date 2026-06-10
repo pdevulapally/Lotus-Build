@@ -230,6 +230,23 @@ function normalizeStatus(status: unknown): ComputerSessionStatus {
     status === "error" || status === "complete" ? status : "idle"
 }
 
+const STOPPED_COMPUTER_SESSIONS_KEY = "lotus.stoppedComputerSessions"
+
+function readStoppedComputerSessions(): string[] {
+  if (typeof window === "undefined") return []
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(STOPPED_COMPUTER_SESSIONS_KEY) || "[]")
+    return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === "string") : []
+  } catch {
+    return []
+  }
+}
+
+function writeStoppedComputerSessions(sessionIds: Set<string>) {
+  if (typeof window === "undefined") return
+  window.localStorage.setItem(STOPPED_COMPUTER_SESSIONS_KEY, JSON.stringify([...sessionIds]))
+}
+
 function normalizeTimeline(timeline: unknown): ComputerTimelineEvent[] {
   if (!Array.isArray(timeline)) return []
   return timeline
@@ -967,7 +984,7 @@ function SupabaseQuestionCard({ onSetup, onDecline }: { onSetup: () => void; onD
             type="button"
             onClick={handleSetup}
             disabled={setting}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-accent/90 disabled:opacity-60"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-accent-foreground transition-colors hover:bg-accent/90 disabled:opacity-60"
           >
             {setting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Database className="h-3 w-3" />}
             {setting ? "Setting up..." : "Set up Supabase"}
@@ -1082,10 +1099,10 @@ function getCommandMetadata(event: ComputerTimelineEvent) {
   return { command, output }
 }
 
-function FeedItem({ event, isLatest, onSupabaseSetup, onSupabaseDecline, onClarificationAnswer }: { event: ComputerTimelineEvent; isLatest: boolean; onSupabaseSetup?: () => void; onSupabaseDecline?: () => void; onClarificationAnswer?: (answer: string) => void }) {
+function FeedItem({ event, isLatest, isSessionRunning, onSupabaseSetup, onSupabaseDecline, onClarificationAnswer }: { event: ComputerTimelineEvent; isLatest: boolean; isSessionRunning: boolean; onSupabaseSetup?: () => void; onSupabaseDecline?: () => void; onClarificationAnswer?: (answer: string) => void }) {
   const isComplete = event.status === "complete"
   const isError    = event.status === "error"
-  const isRunning  = event.status === "running"
+  const isRunning  = isSessionRunning && event.status === "running"
   const isSkipped  = event.status === "skipped"
   const title      = getEventTitle(event)
   const description = isTokenLimitError(event.description)
@@ -1274,7 +1291,7 @@ function UserMessageBubble({
           </div>
           <div className="mt-1.5 flex items-center justify-end gap-2">
             <button type="button" onClick={onEditCancel} className="rounded-md px-2 py-1 text-[11px] text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800">Cancel</button>
-            <button type="button" onClick={() => onEditSubmit(index)} className="rounded-md bg-accent px-2.5 py-1 text-[11px] font-medium text-white transition-colors hover:bg-accent/90">Submit</button>
+            <button type="button" onClick={() => onEditSubmit(index)} className="rounded-md bg-accent px-2.5 py-1 text-[11px] font-medium text-accent-foreground transition-colors hover:bg-accent/90">Submit</button>
           </div>
         </div>
       </div>
@@ -1395,7 +1412,7 @@ function AgentFeed({
           const isLatest = i === initialEvents.length - 1 && isRunning
           return (
             <motion.div key={event.id ?? `${event.title}-${i}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.14 }}>
-              <FeedItem event={event} isLatest={isLatest} onSupabaseSetup={onSupabaseSetup} onSupabaseDecline={onSupabaseDecline} onClarificationAnswer={onClarificationAnswer} />
+              <FeedItem event={event} isLatest={isLatest} isSessionRunning={isRunning} onSupabaseSetup={onSupabaseSetup} onSupabaseDecline={onSupabaseDecline} onClarificationAnswer={onClarificationAnswer} />
             </motion.div>
           )
         })}
@@ -1418,7 +1435,7 @@ function AgentFeed({
               const isLatest = eventIndex === runEvents.length - 1 && isRunning
               return (
                 <motion.div key={event.id ?? `${msg.runId}-${event.title}-${eventIndex}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.14 }}>
-                  <FeedItem event={event} isLatest={isLatest} onSupabaseSetup={onSupabaseSetup} onSupabaseDecline={onSupabaseDecline} onClarificationAnswer={onClarificationAnswer} />
+                  <FeedItem event={event} isLatest={isLatest} isSessionRunning={isRunning} onSupabaseSetup={onSupabaseSetup} onSupabaseDecline={onSupabaseDecline} onClarificationAnswer={onClarificationAnswer} />
                 </motion.div>
               )
             })}
@@ -1436,7 +1453,7 @@ function AgentFeed({
           const isLatest = eventIndex === runEvents.length - 1 && isRunning
           return (
             <motion.div key={event.id ?? `${runId}-${event.title}-${eventIndex}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.14 }}>
-              <FeedItem event={event} isLatest={isLatest} onSupabaseSetup={onSupabaseSetup} onSupabaseDecline={onSupabaseDecline} onClarificationAnswer={onClarificationAnswer} />
+              <FeedItem event={event} isLatest={isLatest} isSessionRunning={isRunning} onSupabaseSetup={onSupabaseSetup} onSupabaseDecline={onSupabaseDecline} onClarificationAnswer={onClarificationAnswer} />
             </motion.div>
           )
         })
@@ -1463,7 +1480,7 @@ function AgentFeed({
                 <button
                   type="button"
                   onClick={onSwitchToPreview}
-                  className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-emerald-700 sm:hidden"
+                  className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-success px-3 py-1.5 text-[12px] font-semibold text-success-foreground transition-colors hover:bg-success/90 sm:hidden"
                 >
                   <Monitor className="h-3.5 w-3.5" />
                   Open Preview
@@ -1582,7 +1599,7 @@ function RuntimeErrorCard({
           type="button"
           onClick={onFix}
           disabled={fixing}
-          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-[12px] font-semibold text-accent-foreground transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {fixing
             ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Fixing...</>
@@ -1641,10 +1658,10 @@ function LaptopSwitcher({ label, title, url, icon, onClick }: {
 }
 
 function WorkspaceContent({
-  session, activeTab, browserInspection, isEnsuringPreview, previewEnsureError, onSwitchView,
+  session, status, activeTab, browserInspection, isEnsuringPreview, previewEnsureError, onSwitchView,
   runtimeError, fixingError, onFixError, onDismissError, onRetryPreview,
 }: {
-  session: ComputerSessionResponse; activeTab: WorkspaceTab
+  session: ComputerSessionResponse; status: ComputerSessionStatus; activeTab: WorkspaceTab
   browserInspection: BrowserInspection | null
   isEnsuringPreview: boolean
   previewEnsureError: string | null
@@ -1764,10 +1781,10 @@ function WorkspaceContent({
           </p>
         )}
         <p className="text-[13px] font-semibold text-zinc-700">
-          {session.status === "running" ? "Preparing workspace…" : "Workspace will appear here."}
+          {status === "running" ? "Preparing workspace…" : "Workspace will appear here."}
         </p>
         <p className="mt-1.5 text-[12px] leading-relaxed text-zinc-400">
-          {session.status === "running"
+          {status === "running"
             ? "The preview will appear once the sandbox reports a ready URL."
             : "Preview, browser, and research appear here once the agent runtime is connected."}
         </p>
@@ -1805,7 +1822,7 @@ function ErrorState({ message }: { message: string }) {
         </div>
         <h1 className="text-[15px] font-semibold text-foreground">Session not found</h1>
         <p className="mt-2 text-[13px] leading-relaxed text-zinc-500">{message}</p>
-        <Button asChild className="mt-6 inline-flex h-9 items-center gap-1.5 rounded-xl bg-accent px-4 text-[12px] font-semibold text-white hover:bg-accent/90">
+        <Button asChild className="mt-6 inline-flex h-9 items-center gap-1.5 rounded-xl bg-accent px-4 text-[12px] font-semibold text-accent-foreground hover:bg-accent/90">
           <Link href="/"><ArrowLeft className="h-3.5 w-3.5" />Back home</Link>
         </Button>
       </div>
@@ -1866,6 +1883,7 @@ export default function ComputerPage() {
   const [previewRetryNonce, setPreviewRetryNonce] = useState(0)
   const [runtimeError,      setRuntimeError]      = useState<{ message: string; stack: string } | null>(null)
   const [fixingError,       setFixingError]       = useState(false)
+  const [stoppedSessionIds, setStoppedSessionIds] = useState<Set<string>>(() => new Set(readStoppedComputerSessions()))
   const hasStartedRef = useRef(false)
   const runAbortRef = useRef<AbortController | null>(null)
   const previousPreviewUrlRef = useRef<string | null | undefined>(undefined)
@@ -1983,13 +2001,41 @@ export default function ComputerPage() {
   const tokenLimitEvent    = useMemo(() => session ? getTokenLimitEvent(session.timeline) : undefined, [session])
   const visibleCount       = session?.timeline.filter((e) => e.title !== "Session created").length ?? 0
   const isBuildTokenBlocked = Boolean(userData && remainingTokens <= 0)
-  const isRunning = optimisticStart || isStartingRun ||
+  const isSessionStopped = Boolean(session?.id && stoppedSessionIds.has(session.id))
+  const effectiveStatus: ComputerSessionStatus = isSessionStopped ? "idle" : (session?.status ?? "idle")
+  const isRunning = !isSessionStopped && (optimisticStart || isStartingRun ||
     session?.status === "running" || session?.status === "planning"
+  )
 
   const showTokenLimit = useCallback(() => {
     setRunError("You have used all credits for this cycle. Upgrade your plan to continue.")
     setTokenLimitModalOpen(true)
   }, [])
+
+  const rememberStoppedSession = useCallback((sessionId: string) => {
+    setStoppedSessionIds((current) => {
+      const next = new Set(current)
+      next.add(sessionId)
+      writeStoppedComputerSessions(next)
+      return next
+    })
+  }, [])
+
+  const clearStoppedSession = useCallback((sessionId: string) => {
+    setStoppedSessionIds((current) => {
+      if (!current.has(sessionId)) return current
+      const next = new Set(current)
+      next.delete(sessionId)
+      writeStoppedComputerSessions(next)
+      return next
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!session?.id) return
+    if (session.status !== "complete" && session.status !== "error") return
+    clearStoppedSession(session.id)
+  }, [clearStoppedSession, session?.id, session?.status])
 
   useEffect(() => {
     if (!isEditingTitle && session?.prompt) {
@@ -2097,6 +2143,7 @@ export default function ComputerPage() {
   // ── Auto-run (unchanged) ──────────────────────────────────────────────────
   useEffect(() => {
     if (!session || session.status !== "idle" || hasStartedRef.current) return
+    if (stoppedSessionIds.has(session.id)) return
     if (!userData) return
     if (isBuildTokenBlocked) {
       showTokenLimit()
@@ -2125,7 +2172,7 @@ export default function ComputerPage() {
         setRunError(getRunErrorMessage(message))
       }
     })()
-  }, [getOptionalAuthHeader, isBuildTokenBlocked, session, showTokenLimit, userData, setRunError, setOptimisticStart])
+  }, [getOptionalAuthHeader, isBuildTokenBlocked, session, showTokenLimit, stoppedSessionIds, userData, setRunError, setOptimisticStart])
 
   // ── handleRun (unchanged) ─────────────────────────────────────────────────
   const handleRun = useCallback(async (value: string) => {
@@ -2133,6 +2180,7 @@ export default function ComputerPage() {
     setLocalMessages((c) => [...c, { role: "user", content: t }])
     setRuntimeError(null)
     if (!session || isStartingRun) return
+    clearStoppedSession(session.id)
     if (isBuildTokenBlocked) {
       showTokenLimit()
       return
@@ -2157,7 +2205,7 @@ export default function ComputerPage() {
       setRunError(getRunErrorMessage(message))
     }
     finally { setIsStartingRun(false) }
-  }, [getOptionalAuthHeader, isBuildTokenBlocked, isStartingRun, session, showTokenLimit])
+  }, [clearStoppedSession, getOptionalAuthHeader, isBuildTokenBlocked, isStartingRun, session, showTokenLimit])
 
   // ── handleStop — halts an in-flight run immediately ───────────────────────
   const handleStop = useCallback(async () => {
@@ -2168,6 +2216,9 @@ export default function ComputerPage() {
     setIsStartingRun(false)
     setRunError(null)
     if (!session) return
+    const stoppedSessionId = session.id
+    rememberStoppedSession(stoppedSessionId)
+    setSession((current) => current?.id === stoppedSessionId ? { ...current, status: "idle" } : current)
     try {
       // Authoritative server-side cancel: flips currentRunId so the running
       // job bails at its next checkpoint and the session returns to idle.
@@ -2180,7 +2231,7 @@ export default function ComputerPage() {
     } catch {
       // Best-effort: the abort already stopped the client; ignore network errors.
     }
-  }, [getOptionalAuthHeader, session])
+  }, [getOptionalAuthHeader, rememberStoppedSession, session, setSession])
 
   const handleEditStart  = (i: number, c: string) => { setEditingMsgIndex(i); setEditText(c) }
   const handleEditCancel = () => { setEditingMsgIndex(null); setEditText("") }
@@ -2188,6 +2239,7 @@ export default function ComputerPage() {
     const t = editText.trim(); if (!t || !session) return
     setEditingMsgIndex(null); setEditText("")
     setRuntimeError(null)
+    clearStoppedSession(session.id)
 
     // Determine which runs are being discarded (everything at or after the edit point).
     const { firstRunId, followUpRunIds } = getRunIdGroups(session.timeline)
@@ -2239,7 +2291,7 @@ export default function ComputerPage() {
     } finally {
       setIsStartingRun(false)
     }
-  }, [editText, getOptionalAuthHeader, isBuildTokenBlocked, isStartingRun, localMessages, session, showTokenLimit])
+  }, [clearStoppedSession, editText, getOptionalAuthHeader, isBuildTokenBlocked, isStartingRun, localMessages, session, showTokenLimit])
 
   const startNetlifyConnection = useCallback(async () => {
     if (!session?.projectId) return
@@ -2587,13 +2639,13 @@ export default function ComputerPage() {
   if (loading) return <LoadingShell />
   if (error || !session) return <ErrorState message={error ?? "Session not found or access denied."} />
 
-  const isActive     = session.status === "running" || session.status === "planning"
+  const isActive     = effectiveStatus === "running" || effectiveStatus === "planning"
   const hasPreview    = Boolean(session.previewUrl)
   const hasBrowser    = Boolean(browserInspection)
   const hasResearch   = session.timeline.some((e) => (e.kind === "research" || e.kind === "browser") && e.description?.trim())
 
   return (
-    <div className="relative flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground sm:bg-primary sm:p-2.5 lg:p-3">
+    <div className="relative flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground sm:p-2.5 lg:p-3">
 
       {/* ── App shell ── */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-card sm:rounded-[1.4rem] sm:border sm:border-border-strong/50 sm:shadow-2xl">
@@ -2664,7 +2716,7 @@ export default function ComputerPage() {
             )}
             {!isEditingTitle && (
               <div className="hidden shrink-0 sm:block">
-                <StatusBadge status={session.status} />
+                <StatusBadge status={effectiveStatus} />
               </div>
             )}
           </div>
@@ -2711,10 +2763,10 @@ export default function ComputerPage() {
             />
           </div>
         )}
-        {session.status === "complete" && (
+        {effectiveStatus === "complete" && (
           <div className="absolute inset-x-0 -bottom-px z-10 h-0.5 bg-success" />
         )}
-        {session.status === "error" && (
+        {effectiveStatus === "error" && (
           <div className="absolute inset-x-0 -bottom-px z-10 h-0.5 bg-destructive" />
         )}
 
@@ -2736,7 +2788,7 @@ export default function ComputerPage() {
           <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 [scrollbar-width:thin] lg:px-5">
             <AgentFeed
               prompt={firstPrompt} events={session.timeline}
-              localMessages={localMessages} status={session.status}
+              localMessages={localMessages} status={effectiveStatus}
               optimisticStart={optimisticStart}
               editingIndex={editingMsgIndex} editText={editText}
               onEditStart={handleEditStart} onEditChange={setEditText}
@@ -2791,7 +2843,7 @@ export default function ComputerPage() {
                 dot={hasResearch && activeTab !== "research"} />
             </div>
             {/* Completion badge */}
-            {session.status === "complete" && (
+            {effectiveStatus === "complete" && (
               <span className="flex items-center gap-1 rounded-full bg-success-soft px-2.5 py-1 text-[10px] font-semibold text-success-soft-foreground">
                 <Check className="h-2.5 w-2.5 stroke-[3]" />Done
               </span>
@@ -2804,7 +2856,7 @@ export default function ComputerPage() {
               <motion.div key={activeTab} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 transition={{ duration: 0.16 }} className="h-full min-h-0">
                 <WorkspaceContent
-                  session={session} activeTab={activeTab}
+                  session={session} status={effectiveStatus} activeTab={activeTab}
                   browserInspection={browserInspection}
                   isEnsuringPreview={isEnsuringPreview}
                   previewEnsureError={previewEnsureError}

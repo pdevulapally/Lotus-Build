@@ -83,7 +83,7 @@ function toDate(value: any): Date | null {
 
 function statusDot(status: ProjectStatus) {
   if (status === "complete") return <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
-  if (status === "generating") return <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse shrink-0" />
+  if (status === "generating") return <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse shrink-0" />
   if (status === "error") return <span className="h-1.5 w-1.5 rounded-full bg-red-500 shrink-0" />
   return <span className="h-1.5 w-1.5 rounded-full bg-zinc-300 shrink-0" />
 }
@@ -810,7 +810,7 @@ function SettingsContent() {
                       type="button"
                       onClick={handleManageBilling}
                       disabled={portalLoading}
-                      className="inline-flex h-9 items-center justify-center rounded-lg bg-red-600 px-3 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+                      className="inline-flex h-9 items-center justify-center rounded-lg bg-destructive px-3 text-sm font-medium text-destructive-foreground transition-colors hover:bg-destructive/90 disabled:opacity-50"
                     >
                       {portalLoading ? "Loading..." : "Cancel"}
                     </button>
@@ -938,7 +938,7 @@ function SettingsContent() {
                         type="button"
                         onClick={handleSaveGlobalMemory}
                         disabled={globalMemorySaving}
-                        className="inline-flex h-9 items-center gap-2 rounded-lg bg-accent px-4 text-sm font-medium text-white transition-colors hover:bg-accent/90 disabled:opacity-50"
+                        className="inline-flex h-9 items-center gap-2 rounded-lg bg-accent px-4 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent/90 disabled:opacity-50"
                       >
                         {globalMemorySaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                         {globalMemorySaving ? "Saving…" : "Save"}
@@ -1086,7 +1086,7 @@ function SettingsContent() {
                 type="button"
                 onClick={handleDeleteAccount}
                 disabled={deleteConfirmText !== userData.email || deleteLoading}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-destructive py-2.5 text-sm font-medium text-destructive-foreground transition-colors hover:bg-destructive/90 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {deleteLoading ? (
                   <><Loader2 className="h-3.5 w-3.5 animate-spin" />Deleting…</>

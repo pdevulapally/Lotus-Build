@@ -345,8 +345,8 @@ export function BuildTimeline({
           <div className="px-4 pb-2">
             <div className="flex flex-wrap gap-2">
               {fileList.map((f, i) => (
-                <div key={i} className="inline-flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-700 shadow-sm">
-                  <svg className="h-4 w-4 text-blue-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                <div key={i} className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-2 py-1 text-xs text-foreground shadow-sm">
+                  <svg className="h-4 w-4 text-accent" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
                     <g stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" fill="none">
                       <ellipse cx="12" cy="12" rx="4.5" ry="8" transform="rotate(0 12 12)" />
                       <ellipse cx="12" cy="12" rx="4.5" ry="8" transform="rotate(60 12 12)" />
@@ -474,7 +474,7 @@ export function BuildTimeline({
                 <button
                   onClick={onFixWithAI}
                   disabled={isFixing}
-                  className="flex w-full items-center justify-center gap-2 rounded-md border border-zinc-900 bg-accent px-3 py-2 text-xs font-medium text-white shadow-sm transition-all hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex w-full items-center justify-center gap-2 rounded-md border border-primary bg-accent px-3 py-2 text-xs font-medium text-accent-foreground shadow-sm transition-all hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isFixing ? (
                     <>

@@ -86,11 +86,11 @@ export function SupabaseAutoSetupFlow({ open, projectId, onClose, onSetupComplet
   if (phase === "oauth") {
     return (
       <Dialog open={open} onOpenChange={(next) => (!next ? onClose() : null)}>
-        <DialogContent className="border-zinc-200 bg-white text-foreground sm:max-w-md">
+        <DialogContent className="border-border bg-card text-foreground sm:max-w-md">
           <DialogHeader>
             <div className="flex items-center justify-center">
-              <div className="rounded-full bg-blue-50 p-3">
-                <Database className="h-6 w-6 text-blue-600" />
+              <div className="rounded-full bg-accent-soft p-3">
+                <Database className="h-6 w-6 text-accent-soft-foreground" />
               </div>
             </div>
             <DialogTitle className="text-center text-xl">Connect Supabase Account</DialogTitle>
@@ -100,20 +100,20 @@ export function SupabaseAutoSetupFlow({ open, projectId, onClose, onSetupComplet
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
-              <p className="text-sm text-blue-900">
+            <div className="rounded-lg border border-border bg-muted px-4 py-3">
+              <p className="text-sm text-foreground">
                 You'll be redirected to Supabase to authorize access. After approval, you'll return here to continue.
               </p>
             </div>
 
             <Button
               onClick={handleOAuthCallback}
-              className="w-full bg-blue-600 text-white hover:bg-blue-700"
+              className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
             >
               Authorize with Supabase
             </Button>
 
-            <Button type="button" variant="outline" onClick={onClose} className="w-full border-zinc-300">
+            <Button type="button" variant="outline" onClick={onClose} className="w-full border-border-strong">
               Skip
             </Button>
           </div>
@@ -128,11 +128,11 @@ export function SupabaseAutoSetupFlow({ open, projectId, onClose, onSetupComplet
 
     return (
       <Dialog open={open} onOpenChange={(next) => (!next ? onClose() : null)}>
-        <DialogContent className="border-zinc-200 bg-white text-foreground sm:max-w-md">
+        <DialogContent className="border-border bg-card text-foreground sm:max-w-md">
           <DialogHeader>
             <div className="flex items-center justify-center">
-              <div className="rounded-full bg-blue-50 p-3">
-                <Database className="h-6 w-6 text-blue-600" />
+              <div className="rounded-full bg-accent-soft p-3">
+                <Database className="h-6 w-6 text-accent-soft-foreground" />
               </div>
             </div>
             <DialogTitle className="text-center text-xl">
@@ -149,19 +149,19 @@ export function SupabaseAutoSetupFlow({ open, projectId, onClose, onSetupComplet
             {hasProjects && (
               <>
                 <div className="space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Available Projects</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Available Projects</p>
                   {setup.selectedProjects.map((project) => (
                     <button
                       key={project.ref}
                       onClick={() => handleProjectSelected(project)}
-                      className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-3 text-left transition hover:border-blue-400 hover:bg-blue-50"
+                      className="w-full rounded-lg border border-border bg-card px-4 py-3 text-left transition hover:border-border-strong hover:bg-muted"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <p className="font-medium text-foreground">{project.name}</p>
-                          <p className="text-xs text-zinc-500">{project.ref}</p>
+                          <p className="text-xs text-muted-foreground">{project.ref}</p>
                         </div>
-                        <ChevronRight className="h-4 w-4 text-zinc-400" />
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       </div>
                     </button>
                   ))}
@@ -169,20 +169,20 @@ export function SupabaseAutoSetupFlow({ open, projectId, onClose, onSetupComplet
 
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-zinc-200" />
+                    <div className="w-full border-t border-border" />
                   </div>
                   <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-white px-2 text-zinc-500">Or</span>
+                    <span className="bg-card px-2 text-muted-foreground">Or</span>
                   </div>
                 </div>
               </>
             )}
 
-            <Button variant="outline" className="w-full border-zinc-300">
+            <Button variant="outline" className="w-full border-border-strong">
               Create New Project
             </Button>
 
-            <Button type="button" variant="ghost" onClick={onClose} className="w-full text-zinc-600">
+            <Button type="button" variant="ghost" onClick={onClose} className="w-full text-muted-foreground">
               Skip
             </Button>
           </div>
@@ -195,11 +195,11 @@ export function SupabaseAutoSetupFlow({ open, projectId, onClose, onSetupComplet
   if (phase === "provisioning" || phase === "selecting") {
     return (
       <Dialog open={open} onOpenChange={() => {}}>
-        <DialogContent className="border-zinc-200 bg-white text-foreground sm:max-w-md" hideClose>
+        <DialogContent className="border-border bg-card text-foreground sm:max-w-md" hideClose>
           <DialogHeader>
             <div className="flex items-center justify-center">
-              <div className="rounded-full bg-blue-50 p-3">
-                <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+              <div className="rounded-full bg-accent-soft p-3">
+                <Loader2 className="h-6 w-6 animate-spin text-accent-soft-foreground" />
               </div>
             </div>
             <DialogTitle className="text-center text-xl">Setting Up Your Backend</DialogTitle>
@@ -213,8 +213,8 @@ export function SupabaseAutoSetupFlow({ open, projectId, onClose, onSetupComplet
           <div className="space-y-4">
             <ProvisioningSteps />
 
-            <div className="rounded-lg bg-zinc-50 px-4 py-3">
-              <p className="text-xs text-zinc-600">This may take a minute. Don't close this window.</p>
+            <div className="rounded-lg bg-muted px-4 py-3">
+              <p className="text-xs text-muted-foreground">This may take a minute. Don't close this window.</p>
             </div>
           </div>
         </DialogContent>
@@ -226,11 +226,11 @@ export function SupabaseAutoSetupFlow({ open, projectId, onClose, onSetupComplet
   if (phase === "success") {
     return (
       <Dialog open={open} onOpenChange={() => {}}>
-        <DialogContent className="border-zinc-200 bg-white text-foreground sm:max-w-md" hideClose>
+        <DialogContent className="border-border bg-card text-foreground sm:max-w-md" hideClose>
           <DialogHeader>
             <div className="flex items-center justify-center">
-              <div className="rounded-full bg-green-50 p-3">
-                <CheckCircle2 className="h-6 w-6 text-green-600" />
+              <div className="rounded-full bg-success-soft p-3">
+                <CheckCircle2 className="h-6 w-6 text-success-soft-foreground" />
               </div>
             </div>
             <DialogTitle className="text-center text-xl">Backend Connected!</DialogTitle>
@@ -240,8 +240,8 @@ export function SupabaseAutoSetupFlow({ open, projectId, onClose, onSetupComplet
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="rounded-lg bg-green-50 px-4 py-3">
-              <ul className="space-y-2 text-sm text-green-900">
+            <div className="rounded-lg bg-success-soft px-4 py-3">
+              <ul className="space-y-2 text-sm text-success-soft-foreground">
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0" />
                   <span>Database schema generated and applied</span>
@@ -257,7 +257,7 @@ export function SupabaseAutoSetupFlow({ open, projectId, onClose, onSetupComplet
               </ul>
             </div>
 
-            <Button onClick={onClose} className="w-full bg-green-600 text-white hover:bg-green-700">
+            <Button onClick={onClose} className="w-full bg-success text-success-foreground hover:bg-success/90">
               Continue
             </Button>
           </div>
@@ -270,11 +270,11 @@ export function SupabaseAutoSetupFlow({ open, projectId, onClose, onSetupComplet
   if (phase === "error") {
     return (
       <Dialog open={open} onOpenChange={(next) => (!next ? onClose() : null)}>
-        <DialogContent className="border-zinc-200 bg-white text-foreground sm:max-w-md">
+        <DialogContent className="border-border bg-card text-foreground sm:max-w-md">
           <DialogHeader>
             <div className="flex items-center justify-center">
-              <div className="rounded-full bg-red-50 p-3">
-                <AlertCircle className="h-6 w-6 text-red-600" />
+              <div className="rounded-full bg-destructive/10 p-3">
+                <AlertCircle className="h-6 w-6 text-destructive" />
               </div>
             </div>
             <DialogTitle className="text-center text-xl">Setup Failed</DialogTitle>
@@ -285,16 +285,16 @@ export function SupabaseAutoSetupFlow({ open, projectId, onClose, onSetupComplet
 
           <div className="space-y-4">
             {manualError && (
-              <div className="rounded-lg bg-red-50 px-4 py-3">
-                <p className="text-sm text-red-900">{manualError}</p>
+              <div className="rounded-lg bg-destructive/10 px-4 py-3">
+                <p className="text-sm text-destructive">{manualError}</p>
               </div>
             )}
 
             <div className="space-y-2">
-              <Button onClick={handleRetry} className="w-full bg-blue-600 text-white hover:bg-blue-700">
+              <Button onClick={handleRetry} className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
                 Try Again
               </Button>
-              <Button type="button" variant="outline" onClick={onClose} className="w-full border-zinc-300">
+              <Button type="button" variant="outline" onClick={onClose} className="w-full border-border-strong">
                 Cancel
               </Button>
             </div>
@@ -307,11 +307,11 @@ export function SupabaseAutoSetupFlow({ open, projectId, onClose, onSetupComplet
   // Checking Phase (default)
   return (
     <Dialog open={open} onOpenChange={() => {}}>
-      <DialogContent className="border-zinc-200 bg-white text-foreground sm:max-w-md" hideClose>
+      <DialogContent className="border-border bg-card text-foreground sm:max-w-md" hideClose>
         <DialogHeader>
           <div className="flex items-center justify-center">
-            <div className="rounded-full bg-blue-50 p-3">
-              <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+            <div className="rounded-full bg-accent-soft p-3">
+              <Loader2 className="h-6 w-6 animate-spin text-accent-soft-foreground" />
             </div>
           </div>
           <DialogTitle className="text-center text-xl">Checking Setup Requirements</DialogTitle>
@@ -352,26 +352,26 @@ function ProvisioningSteps() {
           key={idx}
           className={`flex items-center gap-3 rounded-lg px-3 py-2 transition ${
             idx === currentStep
-              ? "bg-blue-50"
+              ? "bg-accent-soft"
               : idx < currentStep
-                ? "bg-green-50"
-                : "bg-zinc-50"
+                ? "bg-success-soft"
+                : "bg-muted"
           }`}
         >
           <span className="text-lg">{step.icon}</span>
           <span
             className={`text-sm font-medium ${
               idx === currentStep
-                ? "text-blue-900"
+                ? "text-accent-soft-foreground"
                 : idx < currentStep
-                  ? "text-green-900"
-                  : "text-zinc-500"
+                  ? "text-success-soft-foreground"
+                  : "text-muted-foreground"
             }`}
           >
             {step.name}
           </span>
-          {idx < currentStep && <CheckCircle2 className="ml-auto h-4 w-4 text-green-600" />}
-          {idx === currentStep && <Loader2 className="ml-auto h-4 w-4 animate-spin text-blue-600" />}
+          {idx < currentStep && <CheckCircle2 className="ml-auto h-4 w-4 text-success" />}
+          {idx === currentStep && <Loader2 className="ml-auto h-4 w-4 animate-spin text-accent" />}
         </div>
       ))}
     </div>

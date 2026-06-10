@@ -326,13 +326,13 @@ export default function PricingPage() {
                         Recommended
                       </div>
                     )}
-                    <div className={cn("mb-4", recommended ? "text-white" : "text-foreground")}>
+                    <div className={cn("mb-4", recommended ? "text-accent-foreground" : "text-foreground")}>
                       {planKey === "free" ? <img src="/Images/leaf-svgrepo-com.svg" className="h-8 w-8" alt="Starter" /> : planKey === "pro" ? <img src="/Images/lotus-flower-svgrepo-com.svg" className="h-8 w-8" alt="Pro" /> : <img src="/Images/enterprise-svgrepo-com.svg" className="h-8 w-8" alt="Enterprise" />}
                     </div>
                     <h2
                       className={cn(
                         "text-[18px] font-bold tracking-tight",
-                        recommended ? "text-white" : "text-foreground"
+                        recommended ? "text-accent-foreground" : "text-foreground"
                       )}
                     >
                       {plan.name}
@@ -340,7 +340,7 @@ export default function PricingPage() {
                     <p
                       className={cn(
                         "mt-1 text-[12px] leading-relaxed",
-                        recommended ? "text-white/50" : "text-zinc-400"
+                        recommended ? "text-accent-foreground/50" : "text-zinc-400"
                       )}
                     >
                       {display.description}
@@ -357,7 +357,7 @@ export default function PricingPage() {
                     <span
                       className={cn(
                         "text-[32px] font-bold leading-none tracking-[-0.03em]",
-                        recommended ? "text-white" : "text-foreground"
+                        recommended ? "text-accent-foreground" : "text-foreground"
                       )}
                     >
                       {priceStr}
@@ -365,7 +365,7 @@ export default function PricingPage() {
                     <span
                       className={cn(
                         "text-[12px]",
-                        recommended ? "text-white/40" : "text-zinc-400"
+                        recommended ? "text-accent-foreground/40" : "text-zinc-400"
                       )}
                     >
                       {period}
@@ -382,8 +382,8 @@ export default function PricingPage() {
                     )}
                   >
                     {isFree ? (
-                      <p className={cn("text-[12px]", recommended ? "text-white/50" : "text-zinc-500")}>
-                        <span className={cn("font-semibold", recommended ? "text-white" : "text-zinc-800")}>
+                      <p className={cn("text-[12px]", recommended ? "text-accent-foreground/50" : "text-zinc-500")}>
+                        <span className={cn("font-semibold", recommended ? "text-accent-foreground" : "text-zinc-800")}>
                           {plan.tokensPerMonth.toLocaleString()}
                         </span>{" "}
                         credits / month
@@ -393,7 +393,7 @@ export default function PricingPage() {
                         <p
                           className={cn(
                             "mb-2 text-[10px] font-bold uppercase tracking-[0.1em]",
-                            recommended ? "text-white/40" : "text-zinc-400"
+                            recommended ? "text-accent-foreground/40" : "text-zinc-400"
                           )}
                         >
                           Monthly credits
@@ -408,7 +408,7 @@ export default function PricingPage() {
                             className={cn(
                               "h-9 w-full rounded-lg border text-[12px] font-semibold",
                               recommended
-                                ? "border-white/20 bg-white/10 text-white focus:ring-white/20"
+                                ? "border-accent-foreground/20 bg-accent-foreground/10 text-accent-foreground focus:ring-accent-foreground/20"
                                 : "border-zinc-200 bg-white text-zinc-800 focus:ring-zinc-200"
                             )}
                           >
@@ -419,7 +419,7 @@ export default function PricingPage() {
                                   : effectiveTokens.toLocaleString()}{" "}
                                 credits /mo
                               </span>
-                              <span className={cn("ml-1.5 font-normal", recommended ? "text-white/40" : "text-zinc-400")}>
+                              <span className={cn("ml-1.5 font-normal", recommended ? "text-accent-foreground/40" : "text-zinc-400")}>
                                 · {priceStr}{period}
                               </span>
                             </SelectValue>
@@ -449,8 +449,8 @@ export default function PricingPage() {
                         </Select>
                       </div>
                     ) : (
-                      <p className={cn("text-[12px]", recommended ? "text-white/50" : "text-zinc-500")}>
-                        <span className={cn("font-semibold", recommended ? "text-white" : "text-zinc-800")}>
+                      <p className={cn("text-[12px]", recommended ? "text-accent-foreground/50" : "text-zinc-500")}>
+                        <span className={cn("font-semibold", recommended ? "text-accent-foreground" : "text-zinc-800")}>
                           {plan.tokensPerMonth.toLocaleString()}
                         </span>{" "}
                         credits / month
@@ -471,7 +471,7 @@ export default function PricingPage() {
                           <Check
                             className={cn(
                               "h-[7px] w-[7px]",
-                              recommended ? "text-white/80" : "text-zinc-600"
+                              recommended ? "text-accent-foreground/80" : "text-zinc-600"
                             )}
                             strokeWidth={3}
                           />
@@ -479,7 +479,7 @@ export default function PricingPage() {
                         <span
                           className={cn(
                             "text-[12px] leading-snug",
-                            recommended ? "text-white/60" : "text-zinc-500"
+                            recommended ? "text-accent-foreground/60" : "text-zinc-500"
                           )}
                         >
                           {normalizeFeatureCopy(feature)}

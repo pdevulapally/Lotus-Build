@@ -64,7 +64,7 @@ function pickContextFiles(files: ProjectFile[], errorText: string, expanded: boo
 
 function parseStreamingFiles(content: string): ProjectFile[] {
   const files: ProjectFile[] = []
-  const fileRegex = /===FILE:\s*(.+?)===\n([\s\S]*?)===END_FILE===/g
+  const fileRegex = /===FILE:\s*(.+?)===\n((?:(?!===FILE:)[\s\S])*?)===END_FILE===/g
   let match: RegExpExecArray | null
 
   while ((match = fileRegex.exec(content)) !== null) {
@@ -204,7 +204,6 @@ async function runFixAttempt(params: {
 
   const completion = await openai.chat.completions.create({
     model: "gpt-5.5",
-    temperature: 0.1,
     messages: [
       {
         role: "system",
@@ -213,7 +212,7 @@ async function runFixAttempt(params: {
       },
       { role: "user", content: prompt },
     ],
-    max_tokens: 9000,
+    max_completion_tokens: 9000,
   })
 
   const raw = completion.choices[0]?.message?.content || ""

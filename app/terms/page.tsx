@@ -94,8 +94,8 @@ function Callout({
       className={cn(
         "my-6 flex gap-3 rounded-xl border p-4 text-sm leading-relaxed",
         variant === "warn"
-          ? "border-amber-200 bg-amber-50 text-amber-900"
-          : "border-blue-200 bg-blue-50 text-blue-900"
+          ? "border-border bg-warning-soft text-warning-soft-foreground"
+          : "border-border bg-info-soft text-info-soft-foreground"
       )}
     >
       <Icon className="mt-0.5 h-4 w-4 shrink-0" />

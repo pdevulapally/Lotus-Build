@@ -331,9 +331,9 @@ function parseStreamingFiles(content: string): GeneratedFile[] {
     }
   }
 
-  parseWithRegex(/===FILE:\s*(.*?)===([\s\S]*?)===END_FILE===/g)
+  parseWithRegex(/===FILE:\s*(.*?)===((?:(?!===FILE:)[\s\S])*?)===END_FILE===/g)
   if (!files.length) {
-    parseWithRegex(/===FILE:(.*?)===([\s\S]*?)===END_FILE===/g)
+    parseWithRegex(/===FILE:(.*?)===((?:(?!===FILE:)[\s\S])*?)===END_FILE===/g)
   }
 
   return files
@@ -2032,7 +2032,7 @@ For simple edits (text change, color tweak, single component fix, minor layout a
 
 For all other requests, produce a BUILD BRIEF grounded entirely in the research evidence below. If evidence is present, extract real signals from it — actual colors observed, real typography patterns, layout approaches that appeared across multiple sources. If no evidence was gathered, reason from deep knowledge of what top design agencies actually produce for this exact type of client — not from generic category defaults.
 
-Every decision must be specific and committed. "Warm tones" is not a decision. "#f5ede0 cream background with #1a1a1a charcoal text and #c4783c terracotta accent" is a decision.
+Every decision must be specific and committed. "Warm tones" is not a decision. "warm ivory background with charcoal slate text and a muted oxblood accent" is a decision.
 
 BUILD BRIEF structure:
 
@@ -2255,6 +2255,7 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
               model: builderModel,
               existingFiles: projectFiles,
               intent: webPlan.intent,
+              skipDesignBrief: Boolean(planText.trim()),
             }),
             signal: controller.signal,
           })
@@ -2290,6 +2291,11 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
           generatedFiles.forEach(f => fileMap.set(f.path, f.content))
           generatedFiles = Array.from(fileMap.entries()).map(([path, content]) => ({ path, content }))
         }
+
+        // Scaffold + stub before the first persist so no Firestore write ever stores a
+        // project missing package.json/scaffold if the run is killed before the later
+        // preflight repair. repairGeneratedFilesForPreview is idempotent.
+        generatedFiles = repairGeneratedFilesForPreview(generatedFiles)
 
         if (data.projectId && generatedFiles.length > 0) {
           await adminDb.collection("projects").doc(data.projectId).update({
@@ -2596,60 +2602,28 @@ Generation result: ${JSON.stringify(genData)}`,
 
         // — Single fix attempt (never for invalid_request) —
         if (classification.category !== "invalid_request" && generatedFiles.length > 0) {
-          const fixPrompt = `You are fixing an existing codebase.
-
-Original user request:
-${prompt}
-
-Failure:
-${classification.category} - ${classification.reason}
-
-Instructions:
-- Modify ONLY the necessary parts of the code
-- Do NOT rewrite the entire project
-- Keep existing structure intact
-- Fix only the root cause`
-
           try {
-            const controller = new AbortController()
-            const timeout = setTimeout(() => controller.abort(), 90000)
-            let fixRes: Response
+            const fixResult = await callErrorFixRoute({
+              baseUrl,
+              authHeader,
+              files: generatedFiles,
+              error: `${classification.category} - ${classification.reason}`,
+              failureCategory: classification.category,
+              failureReason: classification.reason,
+            })
 
-            try {
-              fixRes = await fetch(`${baseUrl}/api/generate`, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: authHeader,
-                },
-              body: JSON.stringify({
-                prompt: fixPrompt,
-                  model: builderModel,
-                  existingFiles: generatedFiles,
-                  creationMode: "build",
-                }),
-                signal: controller.signal,
-              })
-            } finally {
-              clearTimeout(timeout)
-            }
-
-            const { files: fixedFiles } = await parseGenerateResponse(fixRes)
-
-            if (fixedFiles.length > 0) {
-              generatedFiles = mergeGeneratedFiles(generatedFiles, fixedFiles)
+            if (fixResult.success && fixResult.files.length > 0) {
+              generatedFiles = fixResult.files
               await persistGeneratedFilesForSession(docRef, generatedFiles)
             }
 
             await appendRunEvent({
               id: crypto.randomUUID(),
-              title: fixRes.ok ? "Fix applied" : "Fix failed",
-              description: fixRes.ok
-                ? fixedFiles.length
-                  ? `${fixedFiles.length} files updated`
-                  : "Fix applied with no file changes"
-                : "Fix attempt did not succeed.",
-              status: fixRes.ok ? "complete" : "error",
+              title: fixResult.success ? "Fix applied" : "Fix failed",
+              description: fixResult.success
+                ? fixResult.explanation || `${fixResult.files.length} files updated`
+                : fixResult.error || "Fix attempt did not succeed.",
+              status: fixResult.success ? "complete" : "error",
               kind: "code",
               createdAt: new Date().toISOString(),
             })
@@ -2689,46 +2663,16 @@ Instructions:
           createdAt: new Date().toISOString(),
         })
 
-        const previewFixPrompt = `Fix the generated application so it can start in the preview sandbox.
-
-Detected issues:
-${previewIssues.map((issue) => `- ${issue}`).join("\n")}
-
-Rules:
-- Keep the same app intent and design direction
-- Add or repair only the files needed for a valid Vite React app
-- Resolve missing relative imports by creating the referenced files or correcting the import paths
-- Do not rewrite the whole project
-- Return the complete corrected project`
-
         try {
-          const controller = new AbortController()
-          const timeout = setTimeout(() => controller.abort(), 90000)
-          let previewFixRes: Response
+          const fixResult = await callErrorFixRoute({
+            baseUrl,
+            authHeader,
+            files: generatedFiles,
+            error: `The generated application cannot start in the preview sandbox.\n\nDetected issues:\n${previewIssues.map((issue) => `- ${issue}`).join("\n")}`,
+          })
 
-          try {
-            previewFixRes = await fetch(`${baseUrl}/api/generate`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: authHeader,
-              },
-              body: JSON.stringify({
-                prompt: previewFixPrompt,
-                model: builderModel,
-                existingFiles: generatedFiles,
-                creationMode: "build",
-              }),
-              signal: controller.signal,
-            })
-          } finally {
-            clearTimeout(timeout)
-          }
-
-          const { files: previewFixedFiles } = await parseGenerateResponse(previewFixRes)
-
-          if (previewFixedFiles.length > 0) {
-            generatedFiles = mergeGeneratedFiles(generatedFiles, previewFixedFiles)
+          if (fixResult.success && fixResult.files.length > 0) {
+            generatedFiles = fixResult.files
             await persistGeneratedFilesForSession(docRef, generatedFiles)
           }
 
@@ -2737,11 +2681,11 @@ Rules:
           previewIssues = getGeneratedPreviewIssues(generatedFiles)
 
           await updateTimelineEvent(docRef, runId, preflightEventId, {
-            title: previewFixRes.ok && previewIssues.length === 0 ? "Fix applied" : "Fix failed",
-            description: previewFixRes.ok && previewIssues.length === 0
-              ? "Preview files are ready."
-              : "The app still needs repair before a preview can start.",
-            status: previewFixRes.ok && previewIssues.length === 0 ? "complete" : "error",
+            title: fixResult.success && previewIssues.length === 0 ? "Fix applied" : "Fix failed",
+            description: fixResult.success && previewIssues.length === 0
+              ? fixResult.explanation || "Preview files are ready."
+              : fixResult.error || "The app still needs repair before a preview can start.",
+            status: fixResult.success && previewIssues.length === 0 ? "complete" : "error",
           })
         } catch (err) {
           console.error("Computer preview preflight fix failed:", err)
@@ -2989,57 +2933,27 @@ Format:
         }
 
         if (shouldFix && generatedFiles.length > 0) {
-          const runtimeFixPrompt = `Fix the generated application in this codebase.
-
-Error:
-${postPreviewCheckOutput || sandboxErrors || sandboxLogs}
-
-Rules:
-- Fix only the root issue
-- Resolve the failing runtime, lint, type, or build check
-- Do NOT rewrite entire project
-- Keep changes minimal`
-
           try {
-            const controller = new AbortController()
-            const timeout = setTimeout(() => controller.abort(), 90000)
-            let runtimeFixRes: Response
+            const fixResult = await callErrorFixRoute({
+              baseUrl,
+              authHeader,
+              files: generatedFiles,
+              error: postPreviewCheckOutput || sandboxErrors || sandboxLogs,
+              logsTail: sandboxLogs,
+            })
 
-            try {
-              runtimeFixRes = await fetch(`${baseUrl}/api/generate`, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: authHeader,
-                },
-                body: JSON.stringify({
-                  prompt: runtimeFixPrompt,
-                  model: builderModel,
-                  existingFiles: generatedFiles,
-                  creationMode: "build",
-                }),
-                signal: controller.signal,
-              })
-            } finally {
-              clearTimeout(timeout)
-            }
-
-            const { files: runtimeFixedFiles } = await parseGenerateResponse(runtimeFixRes)
-
-            if (runtimeFixedFiles.length > 0) {
-              generatedFiles = mergeGeneratedFiles(generatedFiles, runtimeFixedFiles)
+            if (fixResult.success && fixResult.files.length > 0) {
+              generatedFiles = fixResult.files
               await persistGeneratedFilesForSession(docRef, generatedFiles)
             }
 
             await appendRunEvent({
               id: crypto.randomUUID(),
-              title: runtimeFixRes.ok ? "Runtime fix applied" : "Runtime fix failed",
-              description: runtimeFixRes.ok
-                ? runtimeFixedFiles.length
-                  ? `${runtimeFixedFiles.length} files updated`
-                  : "Fix applied with no file changes"
-                : "Runtime fix attempt did not succeed.",
-              status: runtimeFixRes.ok ? "complete" : "error",
+              title: fixResult.success ? "Runtime fix applied" : "Runtime fix failed",
+              description: fixResult.success
+                ? fixResult.explanation || `${fixResult.files.length} files updated`
+                : fixResult.error || "Runtime fix attempt did not succeed.",
+              status: fixResult.success ? "complete" : "error",
               kind: "sandbox",
               createdAt: new Date().toISOString(),
             })

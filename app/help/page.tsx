@@ -280,7 +280,7 @@ export default function HelpPage() {
             </div>
             <Link
               href="mailto:support@lotus-build.app"
-              className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent/90"
+              className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent/90"
             >
               <Mail className="h-4 w-4" />
               Contact support

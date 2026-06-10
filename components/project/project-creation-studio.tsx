@@ -29,7 +29,7 @@ function PlanningHeader(props: {
   const { projectLabel, onBack } = props
 
   return (
-    <header className="sticky top-0 z-20 border-b border-zinc-200 bg-background/80 backdrop-blur-md">
+    <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur-md">
       <div className="mx-auto max-w-4xl px-4 py-3 sm:px-6 sm:py-4">
         <div className="flex items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
@@ -37,7 +37,7 @@ function PlanningHeader(props: {
               <button
                 type="button"
                 onClick={onBack}
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center text-zinc-400 transition-colors hover:text-foreground"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
                 aria-label="Back"
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -48,12 +48,12 @@ function PlanningHeader(props: {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1.5">
+          <div className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5">
             <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
             </span>
-            <span className="text-[11px] font-medium text-zinc-600">Agent Planning</span>
+            <span className="text-[11px] font-medium text-muted-foreground">Agent Planning</span>
           </div>
         </div>
       </div>
@@ -66,10 +66,10 @@ function IntroMessage(props: { description: string; prompt: string }) {
 
   return (
     <article className="mx-auto w-full max-w-3xl px-4 sm:px-6">
-      <div className="mb-2 text-[11px] font-medium uppercase tracking-widest text-zinc-400">Lotus.build</div>
+      <div className="mb-2 text-[11px] font-medium uppercase tracking-widest text-muted-foreground">Lotus.build</div>
       <div className="space-y-3">
-        <p className="text-base leading-7 text-zinc-800">{description}</p>
-        <p className="text-sm leading-6 text-zinc-500">{prompt}</p>
+        <p className="text-base leading-7 text-foreground">{description}</p>
+        <p className="text-sm leading-6 text-muted-foreground">{prompt}</p>
       </div>
     </article>
   )
@@ -86,8 +86,8 @@ function ChatMessage({ message }: { message: Message }) {
         </div>
       ) : (
         <div>
-          <div className="mb-2 text-[11px] font-medium uppercase tracking-widest text-zinc-400">Lotus.build</div>
-          <p className="whitespace-pre-wrap text-sm leading-6 text-zinc-800">{message.content}</p>
+          <div className="mb-2 text-[11px] font-medium uppercase tracking-widest text-muted-foreground">Lotus.build</div>
+          <p className="whitespace-pre-wrap text-sm leading-6 text-foreground">{message.content}</p>
         </div>
       )}
     </article>
@@ -113,10 +113,10 @@ function SuggestedReplies(props: {
     <div className="mx-auto w-full max-w-3xl space-y-4 px-4 sm:px-6">
       <div className="space-y-1">
         <p className="text-sm font-medium text-foreground">{question || guidedAnswerSet.question}</p>
-        {helper ? <p className="text-xs text-zinc-500">{helper}</p> : null}
+        {helper ? <p className="text-xs text-muted-foreground">{helper}</p> : null}
       </div>
       {isLoadingOptions ? (
-        <div className="py-3 text-sm text-zinc-500">
+        <div className="py-3 text-sm text-muted-foreground">
           <TextShimmer>Thinking through some useful choices...</TextShimmer>
         </div>
       ) : (
@@ -133,7 +133,7 @@ function SuggestedReplies(props: {
                     "rounded-full border px-4 py-2 text-sm transition-all",
                     selected
                       ? "border-primary bg-primary text-primary-foreground"
-                      : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:text-foreground"
+                      : "border-border bg-card text-foreground hover:border-border-strong hover:text-foreground"
                   )}
                 >
                   {option.label}
@@ -146,7 +146,7 @@ function SuggestedReplies(props: {
             <button
               type="button"
               onClick={onEnableCustomAnswer}
-              className="text-xs text-zinc-400 underline underline-offset-4 hover:text-zinc-700"
+              className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
             >
               Answer differently
             </button>
@@ -193,23 +193,23 @@ function ChatComposer(props: {
   }
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-background/95 backdrop-blur">
+    <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95 backdrop-blur">
       <div className="mx-auto max-w-4xl px-4 py-3 sm:px-6 sm:py-4">
-        <div className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+        <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
           <Textarea
             ref={textareaRef}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
-            className="min-h-[52px] max-h-[120px] resize-none border-0 bg-transparent px-4 py-3.5 pr-20 text-sm leading-6 text-foreground placeholder:text-zinc-400 shadow-none focus-visible:ring-0"
+            className="min-h-[52px] max-h-[120px] resize-none border-0 bg-transparent px-4 py-3.5 pr-20 text-sm leading-6 text-foreground placeholder:text-muted-foreground shadow-none focus-visible:ring-0"
             disabled={!canEdit || isSubmitting}
           />
           <Button
             type="button"
             onClick={onSubmit}
             disabled={!canSubmit || !canEdit || isSubmitting}
-            className="absolute bottom-3 right-3 h-8 rounded-lg bg-accent px-3 text-xs font-medium text-white disabled:opacity-40"
+            className="absolute bottom-3 right-3 h-8 rounded-lg bg-accent px-3 text-xs font-medium text-accent-foreground disabled:opacity-40"
           >
             {isSubmitting ? "..." : submitLabel}
           </Button>
@@ -220,7 +220,7 @@ function ChatComposer(props: {
               type="button"
               onClick={() => void onSkip?.()}
               disabled={isDisabled}
-              className="text-xs text-zinc-400 underline underline-offset-4 hover:text-zinc-700 disabled:opacity-50"
+              className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground disabled:opacity-50"
             >
               Skip plan and build now
             </button>
@@ -288,7 +288,7 @@ function ConversationThread(props: {
         <IntroMessage description={introDescription} prompt={prompt} />
 
         {messages.length > 0 ? (
-          <div className="border-t border-zinc-200" />
+          <div className="border-t border-border" />
         ) : null}
 
         {messages.map((message, index) => (
@@ -313,8 +313,8 @@ function ConversationThread(props: {
           <div className="mx-auto w-full max-w-3xl px-4 sm:px-6">
             {isDraftingPlan ? (
               <div className="space-y-1">
-                <TextShimmer className="text-sm font-medium text-zinc-800">Drafting your plan in chat</TextShimmer>
-                <p className="text-xs text-zinc-500">Converting your confirmed answers into a version-one implementation plan.</p>
+                <TextShimmer className="text-sm font-medium text-foreground">Drafting your plan in chat</TextShimmer>
+                <p className="text-xs text-muted-foreground">Converting your confirmed answers into a version-one implementation plan.</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -324,7 +324,7 @@ function ConversationThread(props: {
                     type="button"
                     onClick={() => void onBuildFromPlan()}
                     disabled={!canEdit || isDisabled}
-                    className="h-10 rounded-lg bg-accent px-4 text-sm font-medium text-white hover:bg-accent/90 disabled:opacity-50"
+                    className="h-10 rounded-lg bg-accent px-4 text-sm font-medium text-accent-foreground hover:bg-accent/90 disabled:opacity-50"
                   >
                     Build from plan
                   </Button>
@@ -333,7 +333,7 @@ function ConversationThread(props: {
                     variant="outline"
                     onClick={onRefine}
                     disabled={!canEdit || isDisabled}
-                    className="h-10 rounded-lg border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
+                    className="h-10 rounded-lg border-border-strong bg-card px-4 text-sm font-medium text-foreground hover:bg-muted"
                   >
                     Refine in chat
                   </Button>

@@ -17,8 +17,8 @@ const WARMUP_PACKAGE_JSON = JSON.stringify(
     dependencies: {
       react: "^18.3.1",
       "react-dom": "^18.3.1",
-      "lucide-react": "^0.577.0",
-      "framer-motion": "^11.0.0",
+      "lucide-react": "1.16.0",
+      "framer-motion": "12.39.0",
       "react-icons": "^5.0.0",
       "react-router-dom": "^6.26.2",
       clsx: "^2.1.1",

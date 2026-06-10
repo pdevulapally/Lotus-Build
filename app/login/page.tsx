@@ -127,7 +127,7 @@ export default function LoginPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
       </div>
     )
   }
@@ -222,11 +222,11 @@ export default function LoginPage() {
         >
           <div className="mb-7">
             <h2 className="text-2xl font-bold tracking-tight text-foreground">Sign in</h2>
-            <p className="mt-1.5 text-[13.5px] text-zinc-500">
+            <p className="mt-1.5 text-[13.5px] text-muted-foreground">
               Don&apos;t have an account?{" "}
               <Link
                 href={`/signup?redirect=${encodeURIComponent(redirect)}`}
-                className="font-semibold text-zinc-800 hover:text-foreground underline underline-offset-2 decoration-zinc-300"
+                className="font-semibold text-foreground hover:text-foreground underline underline-offset-2 decoration-border-strong"
               >
                 Sign up free
               </Link>
@@ -249,7 +249,7 @@ export default function LoginPage() {
               <button
                 onClick={handleGoogleSignIn}
                 disabled={isLoading}
-                className="flex h-11 items-center justify-center gap-2.5 rounded-xl border border-zinc-200 bg-white text-[13px] font-medium text-zinc-700 transition-all hover:bg-zinc-50 hover:border-zinc-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex h-11 items-center justify-center gap-2.5 rounded-xl border border-border bg-card text-[13px] font-medium text-foreground transition-all hover:bg-muted hover:border-border-strong disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -263,7 +263,7 @@ export default function LoginPage() {
               <button
                 onClick={handleGithubSignIn}
                 disabled={isLoading}
-                className="flex h-11 items-center justify-center gap-2.5 rounded-xl border border-zinc-200 bg-white text-[13px] font-medium text-zinc-700 transition-all hover:bg-zinc-50 hover:border-zinc-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex h-11 items-center justify-center gap-2.5 rounded-xl border border-border bg-card text-[13px] font-medium text-foreground transition-all hover:bg-muted hover:border-border-strong disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg className="h-4 w-4 shrink-0" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
@@ -274,10 +274,10 @@ export default function LoginPage() {
 
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-zinc-100" />
+                <div className="w-full border-t border-border" />
               </div>
               <div className="relative flex justify-center">
-                <span className="bg-white px-3 text-[11.5px] font-medium uppercase tracking-[0.16em] text-zinc-400">
+                <span className="bg-card px-3 text-[11.5px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
                   or with email
                 </span>
               </div>
@@ -285,7 +285,7 @@ export default function LoginPage() {
 
             <form onSubmit={handleEmailSignIn} className="space-y-4">
               <div className="space-y-1.5">
-                <Label htmlFor="email" className="text-[12.5px] font-medium text-zinc-600">
+                <Label htmlFor="email" className="text-[12.5px] font-medium text-muted-foreground">
                   Email address
                 </Label>
                 <Input
@@ -294,20 +294,20 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="h-11 rounded-xl border-zinc-200 bg-zinc-50 text-[13.5px] text-foreground placeholder:text-zinc-400 focus:bg-white focus:border-zinc-300"
+                  className="h-11 rounded-xl border-border bg-muted text-[13.5px] text-foreground placeholder:text-muted-foreground focus:bg-card focus:border-border-strong"
                   required
                 />
               </div>
 
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="text-[12.5px] font-medium text-zinc-600">
+                  <Label htmlFor="password" className="text-[12.5px] font-medium text-muted-foreground">
                     Password
                   </Label>
                   <button
                     type="button"
                     onClick={handleForgotOpen}
-                    className="text-[12px] text-zinc-400 hover:text-zinc-700 transition-colors"
+                    className="text-[12px] text-muted-foreground hover:text-foreground transition-colors"
                   >
                     Forgot password?
                   </button>
@@ -318,7 +318,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Your password"
-                  className="h-11 rounded-xl border-zinc-200 bg-zinc-50 text-[13.5px] text-foreground placeholder:text-zinc-400 focus:bg-white focus:border-zinc-300"
+                  className="h-11 rounded-xl border-border bg-muted text-[13.5px] text-foreground placeholder:text-muted-foreground focus:bg-card focus:border-border-strong"
                   required
                 />
               </div>
@@ -326,7 +326,7 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="h-11 w-full rounded-xl bg-accent text-[13.5px] font-semibold text-white hover:bg-accent/90 active:scale-[0.99] transition-all"
+                className="h-11 w-full rounded-xl bg-accent text-[13.5px] font-semibold text-accent-foreground hover:bg-accent/90 active:scale-[0.99] transition-all"
               >
                 {isLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -339,13 +339,13 @@ export default function LoginPage() {
             </form>
 
             {/* Terms */}
-            <p className="mt-5 text-center text-[11.5px] leading-relaxed text-zinc-400">
+            <p className="mt-5 text-center text-[11.5px] leading-relaxed text-muted-foreground">
               By signing in, you agree to our{" "}
-              <Link href="/terms" className="underline underline-offset-2 hover:text-zinc-600 transition-colors">
+              <Link href="/terms" className="underline underline-offset-2 hover:text-muted-foreground transition-colors">
                 Terms of Service
               </Link>{" "}
               and{" "}
-              <Link href="/privacy" className="underline underline-offset-2 hover:text-zinc-600 transition-colors">
+              <Link href="/privacy" className="underline underline-offset-2 hover:text-muted-foreground transition-colors">
                 Privacy Policy
               </Link>
               .
@@ -356,13 +356,13 @@ export default function LoginPage() {
 
       {/* Forgot password dialog */}
       <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
-        <DialogContent className="bg-white border-zinc-200 text-foreground sm:max-w-md rounded-2xl">
+        <DialogContent className="bg-card border-border text-foreground sm:max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-foreground">
-              <Mail className="h-4 w-4 text-zinc-500" />
+              <Mail className="h-4 w-4 text-muted-foreground" />
               Reset your password
             </DialogTitle>
-            <DialogDescription className="text-zinc-500 text-[13px]">
+            <DialogDescription className="text-muted-foreground text-[13px]">
               Enter your email and we&apos;ll send you a reset link.
             </DialogDescription>
           </DialogHeader>
@@ -379,7 +379,7 @@ export default function LoginPage() {
                 </div>
               )}
               <div className="space-y-1.5">
-                <Label htmlFor="reset-email" className="text-[12.5px] font-medium text-zinc-600">
+                <Label htmlFor="reset-email" className="text-[12.5px] font-medium text-muted-foreground">
                   Email address
                 </Label>
                 <Input
@@ -388,14 +388,14 @@ export default function LoginPage() {
                   value={resetEmail}
                   onChange={(e) => setResetEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="h-11 rounded-xl border-zinc-200 bg-zinc-50 text-[13.5px] placeholder:text-zinc-400"
+                  className="h-11 rounded-xl border-border bg-muted text-[13.5px] placeholder:text-muted-foreground"
                   required
                 />
               </div>
               <Button
                 type="submit"
                 disabled={resetLoading}
-                className="h-11 w-full rounded-xl bg-accent text-[13.5px] font-semibold text-white hover:bg-accent/90"
+                className="h-11 w-full rounded-xl bg-accent text-[13.5px] font-semibold text-accent-foreground hover:bg-accent/90"
               >
                 {resetLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

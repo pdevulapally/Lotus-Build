@@ -82,7 +82,7 @@ function ApprovalFooter({ isRunning, approval }: { isRunning: boolean; approval:
             approval.onRun?.()
           }}
           disabled={Boolean(decision)}
-          className="inline-flex h-6 items-center gap-1 rounded-[4px] bg-zinc-950 px-1.5 text-xs font-medium text-white transition-colors hover:bg-accent/90 disabled:opacity-60"
+          className="inline-flex h-6 items-center gap-1 rounded-[4px] bg-primary px-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-60"
         >
           <Check className="h-3 w-3" />
           {decision === "approved" ? "Approved" : approval.runLabel ?? "Run"}

@@ -312,7 +312,7 @@ export default function SignupPage() {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="h-11 w-full rounded-xl bg-accent text-[13.5px] font-semibold text-white hover:bg-accent/90 active:scale-[0.99] transition-all"
+                className="h-11 w-full rounded-xl bg-accent text-[13.5px] font-semibold text-accent-foreground hover:bg-accent/90 active:scale-[0.99] transition-all"
               >
                 {isLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

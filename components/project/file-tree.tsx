@@ -107,7 +107,7 @@ function FileTreeItem({
       {node.isGenerating ? (
         <Loader2 className="h-4 w-4 shrink-0 animate-spin text-zinc-500" />
       ) : (
-        <FileCode className={cn("h-4 w-4", getFileIcon(node.name), isSelected && "text-white")} />
+        <FileCode className={cn("h-4 w-4", getFileIcon(node.name), isSelected && "text-accent-foreground")} />
       )}
       <span className="truncate">{node.name}</span>
       {node.isGenerating && (

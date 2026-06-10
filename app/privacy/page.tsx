@@ -96,8 +96,8 @@ function Callout({
       className={cn(
         "my-6 flex gap-3 rounded-xl border p-4 text-sm leading-relaxed",
         variant === "info"
-          ? "border-blue-200 bg-blue-50 text-blue-900"
-          : "border-amber-200 bg-amber-50 text-amber-900"
+          ? "border-border bg-info-soft text-info-soft-foreground"
+          : "border-border bg-warning-soft text-warning-soft-foreground"
       )}
     >
       <Icon className="mt-0.5 h-4 w-4 shrink-0" />
@@ -184,7 +184,7 @@ export default function PrivacyPage() {
               Terms of Service <ExternalLink className="h-3 w-3" />
             </Link>
           </div>
-          <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-xs text-blue-800">
+          <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-border bg-info-soft px-4 py-2 text-xs text-info-soft-foreground">
             <Shield className="h-3.5 w-3.5 shrink-0" />
             This policy covers GDPR (EU &amp; UK), CCPA (California), and global privacy requirements.
           </div>

@@ -145,7 +145,7 @@ export function SupabaseCreateProjectModal({ open, loading, error, regions = [],
             <Button
               type="button"
               onClick={handleCreate}
-              className="flex-1 bg-green-600 text-white hover:bg-green-700"
+              className="flex-1 bg-success text-success-foreground hover:bg-success/90"
               disabled={isCreating || !projectName.trim() || !dbPassword.trim()}
             >
               {isCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}

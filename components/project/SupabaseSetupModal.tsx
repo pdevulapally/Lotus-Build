@@ -17,11 +17,11 @@ type Props = {
 export function SupabaseSetupModal({ open, loading, hasOAuthConnection, error, onClose, onConnect, onProjectsReady }: Props) {
   return (
     <Dialog open={open} onOpenChange={(next) => (!next ? onClose() : null)}>
-      <DialogContent className="border-zinc-200 bg-white text-foreground sm:max-w-md">
+      <DialogContent className="border-border bg-card text-foreground sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center justify-center">
-            <div className="rounded-full bg-blue-50 p-3">
-              <Database className="h-6 w-6 text-blue-600" />
+            <div className="rounded-full bg-accent-soft p-3">
+              <Database className="h-6 w-6 text-accent-soft-foreground" />
             </div>
           </div>
           <DialogTitle className="text-center text-xl">Connect Your Database</DialogTitle>
@@ -31,11 +31,11 @@ export function SupabaseSetupModal({ open, loading, hasOAuthConnection, error, o
               : "Your website needs a Supabase backend. Connect Supabase first, then we will help you choose or create the project."}
           </DialogDescription>
         </DialogHeader>
-        {error ? <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p> : null}
+        {error ? <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</p> : null}
         <div className="space-y-4">
           <div className="rounded-2xl border border-border bg-card px-4 py-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">Simple flow</p>
-            <ol className="mt-3 space-y-2 text-sm leading-6 text-zinc-700">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Simple flow</p>
+            <ol className="mt-3 space-y-2 text-sm leading-6 text-foreground">
               <li>1. Connect your Supabase account.</li>
               <li>2. Pick an existing project or create a new one.</li>
               <li>3. We continue the backend setup for this website.</li>
@@ -45,13 +45,13 @@ export function SupabaseSetupModal({ open, loading, hasOAuthConnection, error, o
           <Button
             type="button"
             onClick={onConnect}
-            className="w-full bg-blue-600 text-white hover:bg-blue-700"
+            className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
             disabled={loading}
           >
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             {hasOAuthConnection ? "Select Project" : "Connect Supabase"}
           </Button>
-          <Button type="button" variant="outline" onClick={onClose} className="w-full border-zinc-300">
+          <Button type="button" variant="outline" onClick={onClose} className="w-full border-border-strong">
             Skip for Now
           </Button>
         </div>

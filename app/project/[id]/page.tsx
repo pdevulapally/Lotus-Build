@@ -1338,7 +1338,7 @@ function ProjectContent() {
               <Button
                 type="button"
                 size="sm"
-                className="h-9 rounded-lg bg-accent px-4 text-sm text-white hover:bg-accent/90"
+                className="h-9 rounded-lg bg-accent px-4 text-sm text-accent-foreground hover:bg-accent/90"
                 onClick={async () => {
                   try {
                     const idToken = await user?.getIdToken()
@@ -3689,8 +3689,8 @@ function ProjectContent() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 rounded-full border border-zinc-200 bg-white flex items-center justify-center">
-            <Loader2 className="w-5 h-5 text-zinc-600 animate-spin" />
+          <div className="w-10 h-10 rounded-full border border-border bg-card flex items-center justify-center">
+            <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" />
           </div>
           <TextShimmer className="text-sm">{authLoading ? "Loading…" : "Loading project..."}</TextShimmer>
         </div>
@@ -3701,12 +3701,12 @@ function ProjectContent() {
   if (accessError === "private") {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="text-center max-w-md rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
-          <div className="w-12 h-12 rounded-full border border-zinc-200 bg-zinc-100 flex items-center justify-center mx-auto mb-4">
-            <Share className="w-6 h-6 text-zinc-600" />
+        <div className="text-center max-w-md rounded-2xl border border-border bg-card p-8 shadow-sm">
+          <div className="w-12 h-12 rounded-full border border-border bg-muted flex items-center justify-center mx-auto mb-4">
+            <Share className="w-6 h-6 text-muted-foreground" />
           </div>
           <h1 className="text-xl font-semibold text-foreground mb-2">This project is private</h1>
-          <p className="text-zinc-500 text-sm mb-6">Sign in to request access or open your own project.</p>
+          <p className="text-muted-foreground text-sm mb-6">Sign in to request access or open your own project.</p>
           <Link href={`/login?redirect=${encodeURIComponent(`/project/${projectId}`)}`}>
             <Button className="bg-accent text-accent-foreground hover:bg-accent/90 border-0">Sign in</Button>
           </Link>
@@ -3718,11 +3718,11 @@ function ProjectContent() {
   if (accessError === "forbidden") {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="text-center max-w-md rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
+        <div className="text-center max-w-md rounded-2xl border border-border bg-card p-8 shadow-sm">
           <h1 className="text-xl font-semibold text-foreground mb-2">You don&apos;t have access</h1>
-          <p className="text-zinc-500 text-sm mb-6">This project is private and you aren&apos;t an owner or editor.</p>
+          <p className="text-muted-foreground text-sm mb-6">This project is private and you aren&apos;t an owner or editor.</p>
           <Link href="/">
-            <Button variant="outline" className="border-zinc-300 text-zinc-700 hover:bg-zinc-100">Back home</Button>
+            <Button variant="outline" className="border-border-strong text-foreground hover:bg-muted">Back home</Button>
           </Link>
         </div>
       </div>
@@ -3734,9 +3734,9 @@ function ProjectContent() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-foreground mb-2">Project not found</h1>
-          <p className="text-zinc-500 mb-6">This project doesn&apos;t exist or has been deleted.</p>
+          <p className="text-muted-foreground mb-6">This project doesn&apos;t exist or has been deleted.</p>
           <Link href="/">
-            <Button variant="outline" className="border-zinc-300 text-zinc-700 hover:bg-zinc-100 bg-transparent">
+            <Button variant="outline" className="border-border-strong text-foreground hover:bg-muted bg-transparent">
               Back to Home
             </Button>
           </Link>
@@ -3911,7 +3911,7 @@ function ProjectContent() {
                               className={cn(
                                 "rounded-full border px-2 py-0.5 text-[10px]",
                                 selectedVisualSectionId === section.id
-                                  ? "border-white/30 bg-white/10 text-white"
+                                  ? "border-accent-foreground/30 bg-accent-foreground/10 text-accent-foreground"
                                   : "border-zinc-200 bg-white text-zinc-700"
                               )}
                             >
@@ -3923,7 +3923,7 @@ function ProjectContent() {
                               className={cn(
                                 "rounded-full border px-2 py-0.5 text-[10px]",
                                 selectedVisualSectionId === section.id
-                                  ? "border-white/30 bg-white/10 text-white"
+                                  ? "border-accent-foreground/30 bg-accent-foreground/10 text-accent-foreground"
                                   : "border-zinc-200 bg-white text-zinc-700"
                               )}
                             >
@@ -3935,7 +3935,7 @@ function ProjectContent() {
                               className={cn(
                                 "rounded-full border px-2 py-0.5 text-[10px]",
                                 selectedVisualSectionId === section.id
-                                  ? "border-white/30 bg-white/10 text-white"
+                                  ? "border-accent-foreground/30 bg-accent-foreground/10 text-accent-foreground"
                                   : "border-zinc-200 bg-white text-zinc-700"
                               )}
                             >
@@ -3947,7 +3947,7 @@ function ProjectContent() {
                               className={cn(
                                 "rounded-full border px-2 py-0.5 text-[10px]",
                                 selectedVisualSectionId === section.id
-                                  ? "border-white/30 bg-white/10 text-white"
+                                  ? "border-accent-foreground/30 bg-accent-foreground/10 text-accent-foreground"
                                   : "border-zinc-200 bg-white text-zinc-700"
                               )}
                             >
@@ -3959,7 +3959,7 @@ function ProjectContent() {
                               className={cn(
                                 "rounded-full border px-2 py-0.5 text-[10px]",
                                 selectedVisualSectionId === section.id
-                                  ? "border-white/30 bg-white/10 text-white"
+                                  ? "border-accent-foreground/30 bg-accent-foreground/10 text-accent-foreground"
                                   : "border-zinc-200 bg-white text-zinc-700"
                               )}
                             >

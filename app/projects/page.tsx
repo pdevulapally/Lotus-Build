@@ -514,7 +514,7 @@ function ReferralDialog({
                 "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl px-3.5 text-[12.5px] font-semibold transition-all active:scale-[0.97] disabled:opacity-50",
                 copied
                   ? "bg-success-soft text-success-soft-foreground"
-                  : "bg-accent text-white hover:bg-accent/90"
+                  : "bg-accent text-accent-foreground hover:bg-accent/90"
               )}
             >
               {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
