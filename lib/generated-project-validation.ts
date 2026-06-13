@@ -1,3 +1,6 @@
+import { MOBILE_EXPO_DEPENDENCIES } from "@/lib/generation/prompts/mobile"
+import type { ProjectPlatform } from "@/lib/projects/platform"
+
 export type GeneratedProjectFile = {
   path: string
   content: string
@@ -11,6 +14,8 @@ export type GeneratedProjectIssue = {
     | "missing-asset"
     | "invalid-package-json"
     | "missing-package-dependency"
+    | "forbidden-mobile-web-file"
+    | "forbidden-mobile-web-dependency"
   message: string
   filePath?: string
   importPath?: string
@@ -38,6 +43,34 @@ const REQUIRED_NEW_APP_FILES = [
   "src/App.tsx",
   "src/index.css",
 ]
+
+const REQUIRED_MOBILE_APP_FILES = [
+  "package.json",
+  "app.json",
+  "App.tsx",
+]
+
+const MOBILE_FORBIDDEN_FILE_PATHS = new Set([
+  "vite.config.ts",
+  "vite.config.js",
+  "index.html",
+  "src/main.tsx",
+  "src/main.jsx",
+  "src/index.css",
+  "postcss.config.js",
+  "postcss.config.cjs",
+])
+
+const MOBILE_FORBIDDEN_DEPENDENCIES = new Set([
+  "react-dom",
+  "vite",
+  "@vitejs/plugin-react",
+  "next",
+])
+
+export function isForbiddenMobileWebFilePath(path: string) {
+  return MOBILE_FORBIDDEN_FILE_PATHS.has(normalizePath(path))
+}
 
 const CODE_FILE_RE = /\.(tsx?|jsx?)$/i
 const ASSET_REFERENCE_RE = /["'](?:\/|\.\/|\.\.\/)[^"']+\.(svg|png|jpg|jpeg|webp|gif|ico)["']/gi
@@ -165,6 +198,28 @@ function createPackageJson() {
   }
 }
 
+function createMobilePackageJson() {
+  return {
+    main: "expo/AppEntry",
+    scripts: {
+      start: "expo start",
+      android: "expo start --android",
+      ios: "expo start --ios",
+      web: "expo start --web",
+    },
+    dependencies: {
+      expo: MOBILE_EXPO_DEPENDENCIES.expo,
+      react: MOBILE_EXPO_DEPENDENCIES.react,
+      "react-native": MOBILE_EXPO_DEPENDENCIES["react-native"],
+      nativewind: "latest",
+    },
+    devDependencies: {
+      tailwindcss: GENERATED_APP_DEPENDENCY_VERSIONS.tailwindcss,
+      typescript: "^5.6.3",
+    },
+  }
+}
+
 function ensurePackageJson(files: GeneratedProjectFile[]) {
   const nextFiles = [...files]
   const importedPackages = extractNpmPackages(nextFiles)
@@ -233,7 +288,94 @@ function ensurePackageJson(files: GeneratedProjectFile[]) {
   return nextFiles
 }
 
-export function ensureGeneratedProjectScaffold(files: GeneratedProjectFile[]) {
+function ensureMobilePackageJson(files: GeneratedProjectFile[]) {
+  const nextFiles = [...files]
+  const importedPackages = extractNpmPackages(nextFiles)
+  const parsed = parsePackageJson(nextFiles)
+  const packageJson = parsed.packageJson ?? createMobilePackageJson()
+  let changed = !parsed.packageFile || parsed.parseError
+
+  const dependencies = packageJson.dependencies && typeof packageJson.dependencies === "object"
+    ? packageJson.dependencies
+    : {}
+  const devDependencies = packageJson.devDependencies && typeof packageJson.devDependencies === "object"
+    ? packageJson.devDependencies
+    : {}
+
+  packageJson.dependencies = dependencies
+  packageJson.devDependencies = devDependencies
+  packageJson.main = typeof packageJson.main === "string" && packageJson.main.trim()
+    ? packageJson.main
+    : "expo/AppEntry"
+
+  for (const packageName of MOBILE_FORBIDDEN_DEPENDENCIES) {
+    if (dependencies[packageName]) {
+      delete dependencies[packageName]
+      changed = true
+    }
+    if (devDependencies[packageName]) {
+      delete devDependencies[packageName]
+      changed = true
+    }
+  }
+
+  for (const [packageName, version] of Object.entries({
+    expo: MOBILE_EXPO_DEPENDENCIES.expo,
+    react: MOBILE_EXPO_DEPENDENCIES.react,
+    "react-native": MOBILE_EXPO_DEPENDENCIES["react-native"],
+    nativewind: dependencies.nativewind || "latest",
+  })) {
+    if (dependencies[packageName] !== version) {
+      dependencies[packageName] = version
+      changed = true
+    }
+  }
+
+  for (const [packageName, version] of Object.entries({
+    tailwindcss: devDependencies.tailwindcss || GENERATED_APP_DEPENDENCY_VERSIONS.tailwindcss,
+    typescript: devDependencies.typescript || "^5.6.3",
+  })) {
+    if (!devDependencies[packageName]) {
+      devDependencies[packageName] = version
+      changed = true
+    }
+  }
+
+  for (const packageName of importedPackages) {
+    if (MOBILE_FORBIDDEN_DEPENDENCIES.has(packageName)) continue
+    if (packageName === "react" || packageName === "react-native" || packageName === "expo") continue
+    if (dependencies[packageName] || devDependencies[packageName]) continue
+    dependencies[packageName] = GENERATED_APP_DEPENDENCY_VERSIONS[packageName] ?? "latest"
+    changed = true
+  }
+
+  const scripts = packageJson.scripts && typeof packageJson.scripts === "object" ? packageJson.scripts : {}
+  for (const [name, command] of Object.entries({
+    start: "expo start",
+    android: "expo start --android",
+    ios: "expo start --ios",
+    web: "expo start --web",
+  })) {
+    if (typeof scripts[name] !== "string" || !scripts[name].trim()) {
+      scripts[name] = command
+      changed = true
+    }
+  }
+  packageJson.scripts = scripts
+
+  const packageFile = { path: "package.json", content: stringifyPackageJson(packageJson) }
+  const index = nextFiles.findIndex((file) => file.path === "package.json")
+  if (index === -1) nextFiles.unshift(packageFile)
+  else if (changed) nextFiles[index] = packageFile
+
+  return nextFiles
+}
+
+export function ensureGeneratedProjectScaffold(files: GeneratedProjectFile[], platform: ProjectPlatform = "web") {
+  if (platform === "mobile") {
+    return ensureMobileProjectScaffold(files)
+  }
+
   const nextFiles = ensurePackageJson(dedupeFiles(files))
   const byPath = new Map(nextFiles.map((file) => [file.path, file]))
 
@@ -261,7 +403,7 @@ export function ensureGeneratedProjectScaffold(files: GeneratedProjectFile[]) {
   if (!byPath.has("index.html")) {
     byPath.set("index.html", {
       path: "index.html",
-      content: `<html lang="en">\n  <head>\n    <meta charset="UTF-8" />\n    <meta name="viewport" content="width=device-width, initial-scale=1" />\n    <title>Lotus Build App</title>\n  </head>\n  <body>\n    <div id="root"></div>\n    <script type="module" src="/src/main.tsx"></script>\n  </body>\n</html>\n`,
+      content: `<html lang="en">\n  <head>\n    <meta charset="UTF-8" />\n    <meta name="viewport" content="width=device-width, initial-scale=1" />\n  </head>\n  <body>\n    <div id="root"></div>\n    <script type="module" src="/src/main.tsx"></script>\n  </body>\n</html>\n`,
     })
   }
 
@@ -295,113 +437,23 @@ export function ensureGeneratedProjectScaffold(files: GeneratedProjectFile[]) {
   return Array.from(byPath.values())
 }
 
-const NON_CODE_IMPORT_RE = /\.(css|scss|sass|less|json|svg|png|jpe?g|webp|gif|ico|avif|mp4|webm|woff2?|ttf)$/i
-const IMPORT_CLAUSE_RE =
-  /import\s+(?:type\s+)?(?:([A-Za-z0-9_$]+)\s*,?\s*)?(?:\{([^}]*)\})?\s*from\s*["'](\.[^"']+)["']/g
+export function ensureMobileProjectScaffold(files: GeneratedProjectFile[]) {
+  const mobileFiles = dedupeFiles(files).filter((file) => !isForbiddenMobileWebFilePath(file.path))
+  const nextFiles = ensureMobilePackageJson(mobileFiles)
+  const byPath = new Map(nextFiles.map((file) => [file.path, file]))
 
-function toComponentName(path: string): string {
-  const base = path.split("/").pop()?.replace(/\.(tsx?|jsx?)$/i, "") ?? "Component"
-  const cleaned = base.replace(/[^A-Za-z0-9]/g, " ").trim()
-  const pascal = cleaned
-    .split(/\s+/)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join("")
-  return /^[A-Za-z_$]/.test(pascal) ? pascal : `Component${pascal}`
-}
-
-function buildComponentStub(path: string, info: { hasDefault: boolean; named: Set<string> }): string {
-  const name = toComponentName(path)
-  const lines = [
-    "// Auto-generated placeholder. The original component was referenced but never generated;",
-    "// this stub keeps the build working. Replace it with the real implementation.",
-    `import { createElement } from "react"`,
-    "",
-    `function ${name}(_props: Record<string, unknown>) {`,
-    "  return createElement(",
-    '    "div",',
-    "    {",
-    "      style: {",
-    '        padding: "20px 24px",',
-    '        margin: "16px",',
-    '        border: "1.5px dashed #c4783c",',
-    '        borderRadius: "10px",',
-    '        background: "#fdf6ee",',
-    '        color: "#7a4a1f",',
-    '        fontFamily: "system-ui, sans-serif",',
-    '        fontSize: "14px",',
-    "      },",
-    "    },",
-    `    createElement("strong", null, "${name} could not be generated. "),`,
-    `    createElement("span", null, 'Ask the AI to "fix the missing ${name} component" to complete this section.')`,
-    "  )",
-    "}",
-    "",
-  ]
-  if (info.hasDefault || info.named.size === 0) {
-    lines.push(`export default ${name}`)
-  }
-  for (const named of info.named) {
-    if (named === "default") continue
-    lines.push(`export const ${named} = ${name}`)
-  }
-  return `${lines.join("\n")}\n`
-}
-
-/**
- * Deterministic safety net for missing local module imports. When generated code
- * imports a relative component/module that was never emitted, this creates a
- * minimal stub module (default + any named exports actually imported) so the
- * preview always builds instead of crashing on an unresolved import. Existing
- * files are never overwritten, and non-code references (css/json/assets) are
- * left alone for the asset/scaffold validators to handle.
- */
-export function injectMissingComponentStubs(files: GeneratedProjectFile[]): GeneratedProjectFile[] {
-  const deduped = dedupeFiles(files)
-  const byPath = new Map(deduped.map((file) => [file.path, file]))
-  const availablePaths = new Set(byPath.keys())
-
-  const isResolvable = (importerPath: string, rawImport: string) =>
-    getRelativeImportCandidates(importerPath, rawImport).some((candidate) => availablePaths.has(candidate))
-
-  const stubs = new Map<string, { hasDefault: boolean; named: Set<string> }>()
-
-  const registerStub = (importerPath: string, rawImport: string, defaultName?: string, namedRaw?: string) => {
-    if (NON_CODE_IMPORT_RE.test(rawImport)) return
-    if (isResolvable(importerPath, rawImport)) return
-    const target = `${resolveRelativeImport(importerPath, rawImport)}.tsx`
-    if (availablePaths.has(target)) return
-    const entry = stubs.get(target) ?? { hasDefault: false, named: new Set<string>() }
-    if (defaultName) entry.hasDefault = true
-    if (namedRaw) {
-      for (const part of namedRaw.split(",")) {
-        const exportName = part.trim().split(/\s+as\s+/)[0].trim()
-        if (/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(exportName)) entry.named.add(exportName)
-      }
-    }
-    stubs.set(target, entry)
+  if (!byPath.has("babel.config.js")) {
+    byPath.set("babel.config.js", {
+      path: "babel.config.js",
+      content: `module.exports = function(api) {\n  api.cache(true)\n  return {\n    presets: ['babel-preset-expo'],\n    plugins: ['nativewind/babel'],\n  }\n}\n`,
+    })
   }
 
-  for (const file of deduped) {
-    if (!CODE_FILE_RE.test(file.path)) continue
-
-    let match: RegExpExecArray | null
-    IMPORT_CLAUSE_RE.lastIndex = 0
-    while ((match = IMPORT_CLAUSE_RE.exec(file.content)) !== null) {
-      registerStub(file.path, match[3], match[1], match[2])
-    }
-
-    // Side-effect imports (e.g. `import './x'`) that the clause regex skips.
-    for (const rawImport of extractRelativeImports(file.content)) {
-      registerStub(file.path, rawImport)
-    }
-  }
-
-  if (stubs.size === 0) return deduped
-
-  for (const [path, info] of stubs) {
-    if (availablePaths.has(path)) continue
-    byPath.set(path, { path, content: buildComponentStub(path, info) })
-    availablePaths.add(path)
+  if (!byPath.has("tailwind.config.js")) {
+    byPath.set("tailwind.config.js", {
+      path: "tailwind.config.js",
+      content: `/** @type {import('tailwindcss').Config} */\nmodule.exports = {\n  content: ['./App.{js,jsx,ts,tsx}', './src/**/*.{js,jsx,ts,tsx}'],\n  presets: [require('nativewind/preset')],\n  theme: { extend: {} },\n  plugins: [],\n}\n`,
+    })
   }
 
   return Array.from(byPath.values())
@@ -409,8 +461,9 @@ export function injectMissingComponentStubs(files: GeneratedProjectFile[]): Gene
 
 export function validateGeneratedProjectFiles(
   files: GeneratedProjectFile[],
-  options: { existingFiles?: GeneratedProjectFile[]; requireNewAppScaffold?: boolean } = {}
+  options: { existingFiles?: GeneratedProjectFile[]; requireNewAppScaffold?: boolean; platform?: ProjectPlatform } = {}
 ) {
+  const platform = options.platform ?? "web"
   const generatedFiles = dedupeFiles(files)
   const existingFiles = dedupeFiles(options.existingFiles ?? [])
   const knownFiles = dedupeFiles([...existingFiles, ...generatedFiles])
@@ -418,12 +471,25 @@ export function validateGeneratedProjectFiles(
   const issues: GeneratedProjectIssue[] = []
 
   if (options.requireNewAppScaffold) {
-    for (const path of REQUIRED_NEW_APP_FILES) {
+    const requiredFiles = platform === "mobile" ? REQUIRED_MOBILE_APP_FILES : REQUIRED_NEW_APP_FILES
+    for (const path of requiredFiles) {
       if (!availablePaths.has(path)) {
         issues.push({
           code: path === "package.json" ? "missing-package-json" : "missing-required-file",
           message: `Missing required generated app file: ${path}`,
           filePath: path,
+        })
+      }
+    }
+  }
+
+  if (platform === "mobile") {
+    for (const file of knownFiles) {
+      if (isForbiddenMobileWebFilePath(file.path)) {
+        issues.push({
+          code: "forbidden-mobile-web-file",
+          message: `Mobile projects must not include web-only file: ${file.path}`,
+          filePath: file.path,
         })
       }
     }
@@ -482,6 +548,18 @@ export function validateGeneratedProjectFiles(
       filePath: "package.json",
     })
   } else if (packageJson) {
+    if (platform === "mobile") {
+      for (const packageName of MOBILE_FORBIDDEN_DEPENDENCIES) {
+        if (allDeps[packageName]) {
+          issues.push({
+            code: "forbidden-mobile-web-dependency",
+            message: `Mobile projects must not include web-only dependency: ${packageName}.`,
+            packageName,
+          })
+        }
+      }
+    }
+
     for (const packageName of extractNpmPackages(generatedFiles)) {
       if (!allDeps[packageName]) {
         issues.push({

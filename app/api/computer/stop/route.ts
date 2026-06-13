@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { z } from "zod"
 import { adminDb } from "@/lib/firebase-admin"
 import { requireUserUid } from "@/lib/server-auth"
+import { createRuntimeCheckpoint, normalizeComputerAgentRuntime } from "@/lib/computer-agent/runtime"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -26,7 +27,12 @@ export async function POST(req: Request) {
       const snap = await tx.get(docRef)
       if (!snap.exists) return { status: 403 as const, error: "Access denied" }
 
-      const data = snap.data() as { ownerId?: string; status?: string; timeline?: unknown }
+      const data = snap.data() as {
+        ownerId?: string
+        status?: string
+        timeline?: unknown
+        agentRuntime?: unknown
+      }
       if (data.ownerId !== uid) return { status: 403 as const, error: "Access denied" }
 
       // Only an in-progress run can be stopped — otherwise this is a no-op.
@@ -35,13 +41,15 @@ export async function POST(req: Request) {
       }
 
       const timeline = Array.isArray(data.timeline) ? data.timeline : []
+      const runtime = normalizeComputerAgentRuntime(data.agentRuntime)
+      const now = new Date()
       const stopEvent = {
         id: crypto.randomUUID(),
         title: "Run stopped",
         description: "Stopped by the user.",
         status: "complete",
         kind: "user",
-        createdAt: new Date().toISOString(),
+        createdAt: now.toISOString(),
         index: timeline.length,
       }
 
@@ -51,7 +59,14 @@ export async function POST(req: Request) {
         currentRunId: null,
         status: "idle",
         timeline: [...timeline, stopEvent],
-        updatedAt: new Date(),
+        agentRuntime: createRuntimeCheckpoint({
+          ...runtime,
+          phase: "paused",
+          paused: true,
+          stoppedAt: now.toISOString(),
+          nextAction: runtime.nextAction || "Continue from the paused run.",
+        }),
+        updatedAt: now,
       })
 
       return { status: 200 as const, stopped: true }

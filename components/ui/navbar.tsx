@@ -30,6 +30,9 @@ const navLinks = [
   { href: "/pricing", label: "Pricing" },
 ]
 
+const accountMenuItemClass =
+  "h-10 cursor-pointer rounded-xl px-3 text-[13px] text-foreground focus:bg-muted focus:text-foreground"
+
 export function Navbar() {
   const router = useRouter()
   const { user, userData, loading, signOut } = useAuth()
@@ -66,7 +69,7 @@ export function Navbar() {
     : 0
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-40 p-4">
+    <header className="fixed left-0 right-0 top-6 z-40 px-4 sm:top-7">
       <nav className="relative max-w-5xl w-full mx-auto flex h-12 items-center justify-between px-4 sm:px-6 rounded-full bg-card/90 border border-border shadow-[0_18px_60px_-42px_var(--primary)] backdrop-blur-xl md:grid md:grid-cols-[1fr_auto_1fr]">
         {/* Left: Logo */}
         <Link href="/" className="flex items-center gap-2 shrink-0 md:justify-self-start">
@@ -110,99 +113,108 @@ export function Navbar() {
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
-                className="w-72 bg-popover border-border text-popover-foreground"
-                sideOffset={8}
+                className="w-[calc(100vw-2rem)] max-w-[22rem] overflow-hidden rounded-2xl border-border bg-card p-0 text-popover-foreground shadow-[0_24px_80px_-44px_var(--primary)]"
+                sideOffset={10}
               >
                 {/* User Info */}
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex items-center gap-3 py-1">
-                    <Avatar className="h-10 w-10 border border-border">
+                <DropdownMenuLabel className="px-4 py-4 font-normal">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <Avatar className="h-11 w-11 shrink-0 border border-border">
                       <AvatarImage src={userData.photoURL || undefined} />
-                      <AvatarFallback className="bg-muted text-foreground">
+                      <AvatarFallback className="bg-muted text-sm text-foreground">
                         {getInitials(userData.displayName, userData.email)}
                       </AvatarFallback>
                     </Avatar>
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-sm font-medium text-foreground truncate">
+                    <div className="min-w-0 flex-1">
+                      <span className="block truncate text-[14px] font-medium leading-5 text-foreground">
                         {userData.displayName || "User"}
                       </span>
-                      <span className="text-xs text-muted-foreground truncate">{userData.email}</span>
+                      <span className="block truncate text-[12.5px] leading-5 text-muted-foreground">{userData.email}</span>
                     </div>
                   </div>
                 </DropdownMenuLabel>
 
-                <DropdownMenuSeparator className="bg-border" />
+                <DropdownMenuSeparator className="m-0 bg-border" />
 
                 {/* Plan & Tokens */}
-                <div className="px-2 py-3">
-                  <div className="rounded-2xl border border-border bg-surface-raised p-3 shadow-[0_8px_24px_-20px_var(--primary)]">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <Leaf className="w-4 h-4 text-accent" />
-                      <span className="text-sm font-medium text-foreground capitalize">{userData.planName} Plan</span>
+                <div className="px-3 py-3">
+                  <div className="rounded-2xl bg-muted/50 px-3 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-soft text-accent-soft-foreground">
+                            <Leaf className="h-3.5 w-3.5" />
+                          </span>
+                          <span className="truncate text-[13px] font-medium text-foreground capitalize">{userData.planName} Plan</span>
+                        </div>
+                        <p className="mt-1.5 text-[11.5px] text-muted-foreground">
+                          {Math.max(0, remainingClamped).toLocaleString()} tokens available
+                        </p>
+                      </div>
+                      <Link
+                        href="/pricing"
+                        className="shrink-0 rounded-full px-2.5 py-1 text-[12px] font-medium text-accent transition-colors hover:bg-accent-soft hover:text-accent-soft-foreground"
+                        onClick={() => setIsOpen(false)}
+                      >
+                        Upgrade
+                      </Link>
                     </div>
-                    <Link
-                      href="/pricing"
-                      className="text-xs font-medium text-accent hover:text-accent-soft-foreground transition-colors"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      Upgrade
-                    </Link>
-                  </div>
 
-                  {/* Token Usage Bar */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground flex items-center gap-1">
-                        <Coins className="w-3 h-3" />
-                        Tokens used
-                      </span>
-                      <span className="text-foreground font-medium">
-                        {userData.tokenUsage.used.toLocaleString()} / {tokensLimit.toLocaleString()}
-                      </span>
+                    <div className="mt-3 space-y-2">
+                      <div className="flex items-center justify-between gap-3 text-[11.5px]">
+                        <span className="flex items-center gap-1.5 text-muted-foreground">
+                          <Coins className="h-3.5 w-3.5" />
+                          Tokens used
+                        </span>
+                        <span className="shrink-0 font-medium text-foreground">
+                          {userData.tokenUsage.used.toLocaleString()} / {tokensLimit.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-border">
+                        <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${Math.min(tokenPercentage, 100)}%` }} />
+                      </div>
                     </div>
-                    <div className="h-1.5 bg-surface-inset rounded-full overflow-hidden">
-                      <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${Math.min(tokenPercentage, 100)}%` }} />
-                    </div>
-                    <p className="pt-0.5 text-[11px] text-muted-foreground">{Math.max(0, remainingClamped).toLocaleString()} tokens available</p>
-                  </div>
                   </div>
                 </div>
 
-                <DropdownMenuSeparator className="bg-border" />
+                <DropdownMenuSeparator className="m-0 bg-border" />
 
                 {/* Menu Items */}
-                <DropdownMenuItem
-                  className="text-foreground focus:bg-muted focus:text-foreground cursor-pointer"
-                  onClick={() => {
-                    setIsOpen(false)
-                    router.push("/projects")
-                  }}
-                >
-                  <LayoutDashboard className="w-4 h-4 mr-2" />
-                  Your Projects
-                </DropdownMenuItem>
+                <div className="p-2">
+                  <DropdownMenuItem
+                    className={accountMenuItemClass}
+                    onClick={() => {
+                      setIsOpen(false)
+                      router.push("/projects")
+                    }}
+                  >
+                    <LayoutDashboard className="mr-2 h-4 w-4" />
+                    Your Projects
+                  </DropdownMenuItem>
 
-                <DropdownMenuItem
-                  className="text-foreground focus:bg-muted focus:text-foreground cursor-pointer"
-                  onClick={() => {
-                    setIsOpen(false)
-                    router.push("/settings")
-                  }}
-                >
-                  <Settings className="w-4 h-4 mr-2" />
-                  Account Settings
-                </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className={accountMenuItemClass}
+                    onClick={() => {
+                      setIsOpen(false)
+                      router.push("/settings")
+                    }}
+                  >
+                    <Settings className="mr-2 h-4 w-4" />
+                    Account Settings
+                  </DropdownMenuItem>
+                </div>
 
-                <DropdownMenuSeparator className="bg-border" />
+                <DropdownMenuSeparator className="m-0 bg-border" />
 
-                <DropdownMenuItem
-                  className="text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer"
-                  onClick={handleSignOut}
-                >
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Sign out
-                </DropdownMenuItem>
+                <div className="p-2">
+                  <DropdownMenuItem
+                    className="h-10 cursor-pointer rounded-xl px-3 text-[13px] text-destructive focus:bg-destructive/10 focus:text-destructive"
+                    onClick={handleSignOut}
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sign out
+                  </DropdownMenuItem>
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (

@@ -5,6 +5,9 @@ import { requireUserUid } from "@/lib/server-auth"
 import { assertProjectCanEdit } from "@/lib/project-access"
 import type { ComputerTimelineEvent } from "@/lib/computer-agent/types"
 import { sanitizeConversationTurns } from "@/lib/computer-agent/conversation"
+import { isProjectPlatform, normalizePlatform } from "@/lib/projects/platform"
+import { normalizeComputerSessionMode } from "@/lib/computer-agent/session-modes"
+import { createRuntimeCheckpoint, normalizeComputerAgentRuntime } from "@/lib/computer-agent/runtime"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -13,6 +16,8 @@ const createSessionSchema = z.object({
   projectId: z.string().trim().min(1).optional(),
   prompt: z.string().trim().min(1).max(12000),
   model: z.string().trim().max(120).optional(),
+  platform: z.enum(["web", "mobile"]).optional(),
+  sessionMode: z.string().trim().optional(),
 })
 
 type ComputerSessionStatus = "idle" | "planning" | "running" | "error" | "complete"
@@ -36,6 +41,9 @@ function serializeSession(id: string, data: Record<string, unknown>) {
     conversationTurns: sanitizeConversationTurns(data.conversationTurns),
     previewUrl: typeof data.previewUrl === "string" ? data.previewUrl : null,
     projectId: typeof data.projectId === "string" ? data.projectId : undefined,
+    platform: isProjectPlatform(data.platform) ? data.platform : "web",
+    sessionMode: normalizeComputerSessionMode(data.sessionMode),
+    agentRuntime: normalizeComputerAgentRuntime(data.agentRuntime),
   }
 }
 
@@ -79,7 +87,28 @@ export async function POST(req: Request) {
       await assertProjectCanEdit(parsed.data.projectId, uid)
     }
 
+    const platform = normalizePlatform(parsed.data.platform)
+    const sessionMode = normalizeComputerSessionMode(parsed.data.sessionMode)
     const now = new Date()
+    let linkedProjectId = parsed.data.projectId
+
+    if (!linkedProjectId && platform === "mobile") {
+      const projectRef = adminDb.collection("projects").doc()
+      await projectRef.set({
+        prompt: parsed.data.prompt,
+        ...(parsed.data.model ? { model: parsed.data.model } : {}),
+        status: "pending",
+        creationMode: "build",
+        platform: "mobile",
+        createdAt: now,
+        updatedAt: now,
+        ownerId: uid,
+        visibility: "private",
+        messages: [],
+      })
+      linkedProjectId = projectRef.id
+    }
+
     const sessionRef = adminDb.collection("computerSessions").doc()
     const createdEvent: ComputerTimelineEvent = {
       id: `user-${sessionRef.id}`,
@@ -94,17 +123,24 @@ export async function POST(req: Request) {
 
     const payload = {
       ownerId: uid,
-      ...(parsed.data.projectId ? { projectId: parsed.data.projectId } : {}),
+      ...(linkedProjectId ? { projectId: linkedProjectId } : {}),
       prompt: parsed.data.prompt,
       ...(parsed.data.model ? { model: parsed.data.model } : {}),
+      platform,
+      sessionMode,
       status: "idle",
+      agentRuntime: createRuntimeCheckpoint({
+        phase: "idle",
+        effectiveRequest: parsed.data.prompt,
+        nextAction: "Wait for the first run.",
+      }),
       timeline: [createdEvent],
       createdAt: now,
       updatedAt: now,
     }
 
     await sessionRef.set(payload)
-    return NextResponse.json({ id: sessionRef.id }, { status: 201 })
+    return NextResponse.json({ id: sessionRef.id, platform, sessionMode }, { status: 201 })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Request failed"
     const status = message.includes("Authorization") ? 401 : message.includes("Forbidden") ? 403 : 500

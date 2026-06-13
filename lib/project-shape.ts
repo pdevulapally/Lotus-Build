@@ -1,4 +1,5 @@
-import type { GeneratedFile, Message, Project, ProjectVisibility } from "@/app/project/[id]/types"
+import type { GeneratedFile, Message, Project, ProjectVisibility } from "@/lib/projects/types"
+import { normalizePlatform } from "@/lib/projects/platform"
 
 type TimestampLike = { toDate: () => Date }
 
@@ -108,6 +109,7 @@ export function normalizeProject(
     blueprint: isRecord(record.blueprint) ? (record.blueprint as Project["blueprint"]) : undefined,
     planningStatus: record.planningStatus as Project["planningStatus"],
     creationMode: record.creationMode as Project["creationMode"],
+    platform: normalizePlatform(record.platform),
   }
 }
 

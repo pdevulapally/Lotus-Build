@@ -4,15 +4,22 @@ import { LenisProvider } from "@/components/providers/lenis-provider"
 import { CreateAfterLogin } from "@/components/create-after-login"
 import { FooterSection } from "@/components/sections/footer-section"
 import { AnimatedAIInput } from "@/components/ui/animated-ai-input"
-import { Blocks, ShieldCheck, Star, Gauge, ArrowRight, Quote } from "lucide-react"
+import { ColorfulBentoGrid } from "@/components/ui/colorful-bento-grid"
 import {
-  lotusBuildFeatureItems,
+  ArrowRight,
+  Quote,
+} from "lucide-react"
+import {
   lotusBuildMetrics,
   lotusBuildTestimonials,
   lotusBuildUseCases,
 } from "@/lib/lotus-build-site-content"
 
-const featureIcons = [Star, Blocks, Gauge, ShieldCheck]
+const HERO_VIDEO_URL =
+  "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260424_064411_9e9d7f84-9277-41f4-ab10-59172d89e6be.mp4"
+
+const HERO_VIDEO_POSTER =
+  "https://images.unsplash.com/photo-1557683316-973673baf926?w=1600&q=60"
 
 /* ─── Section wrapper ────────────────────────────────────────────────────── */
 function Section({
@@ -51,94 +58,95 @@ export default function Home() {
       <main className="relative min-h-screen overflow-x-clip bg-background text-foreground">
         <Navbar />
 
-        {/* ── HERO — untouched ─────────────────────────────────────────────── */}
-        <section className="relative isolate min-h-screen overflow-hidden px-4 pt-28 pb-16 sm:px-6 sm:pt-32 lg:px-8">
-          <div
-            className="absolute inset-0 -z-30 scale-105"
-            style={{
-              backgroundImage: "url('/Images/487c1040-cc7a-4bee-867e-84462280fe6e.png')",
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              backgroundRepeat: "no-repeat",
-            }}
-          />
-          <div className="absolute inset-0 -z-20 bg-[linear-gradient(to_bottom,color-mix(in_oklch,var(--primary)_72%,transparent),color-mix(in_oklch,var(--primary)_38%,transparent),color-mix(in_oklch,var(--primary)_84%,transparent))]" />
-          <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_50%_20%,color-mix(in_oklch,var(--primary-foreground)_26%,transparent),transparent_60%)]" />
+        {/* ── HERO ──────────────────────────────────────────────────────────── */}
+        <section className="min-h-screen w-full bg-background p-3 font-sans sm:p-4">
+          <div className="relative h-[calc(100vh-24px)] w-full overflow-hidden rounded-2xl bg-secondary sm:h-[calc(100vh-32px)] sm:rounded-3xl">
+            <video
+              className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[center_45%]"
+              src={HERO_VIDEO_URL}
+              poster={HERO_VIDEO_POSTER}
+              autoPlay
+              loop
+              muted
+              playsInline
+              preload="auto"
+              disableRemotePlayback
+              webkit-playsinline="true"
+              x5-playsinline="true"
+            />
 
-          <div className="relative z-10 mx-auto flex min-h-[calc(100vh-7rem)] max-w-5xl items-center justify-center pb-20 text-center sm:pb-24">
-            <div className="w-full">
-              <h1 className="font-display text-5xl font-bold leading-[0.92] tracking-tight text-primary-foreground sm:text-6xl md:text-7xl lg:text-[5.5rem]">
-                Describe your idea.
-                <span className="mt-2 block text-primary-foreground/90">We build it.</span>
-              </h1>
+            <div className="relative z-10">
+              <div className="flex flex-col items-center px-4 pb-8 pt-36 text-center sm:pb-12 sm:pt-40">
+                <h1
+                  className="max-w-4xl text-foreground"
+                  style={{
+                    fontSize: "clamp(36px, 8vw, 72px)",
+                    lineHeight: 1.05,
+                    fontWeight: 500,
+                    letterSpacing: "-0.02em",
+                  }}
+                >
+                  Shaping{" "}
+                  <span
+                    style={{
+                      fontFamily: "'Instrument Serif', Georgia, serif",
+                      fontStyle: "italic",
+                      fontWeight: 400,
+                    }}
+                  >
+                    builders
+                  </span>
+                  <br />
+                  of tomorrow
+                </h1>
 
-              <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-primary-foreground/80 sm:text-lg md:text-xl">
-                Turn your ideas into full-stack web applications with AI.
-                Just describe what you want to build and watch it come to life.
-              </p>
+                <p
+                  className="mt-4 max-w-2xl px-2 text-muted-foreground sm:mt-6"
+                  style={{ fontSize: "clamp(13px, 3.5vw, 16px)" }}
+                >
+                  The AI workspace for turning ideas into production-ready websites, apps, live previews, and deployable code.
+                </p>
 
-              <div className="mx-auto mt-10 flex max-w-3xl justify-center">
-                <AnimatedAIInput />
+                <div className="mx-auto mt-8 flex w-full max-w-3xl justify-center sm:mt-10">
+                  <AnimatedAIInput />
+                </div>
               </div>
             </div>
           </div>
         </section>
 
         {/* ── TAGLINE ──────────────────────────────────────────────────────── */}
-        <Section className="py-16 sm:py-20">
-          <div className="mx-auto max-w-3xl text-center">
-            <p className="text-xl font-medium leading-snug tracking-tight text-foreground/70 sm:text-2xl md:text-3xl">
-              The fastest way for founders to turn{" "}
-              <span className="text-foreground">intent into a live website.</span>
+        <Section className="py-20 sm:py-24">
+          <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-end">
+            <div>
+              <SectionLabel>Why Lotus.build</SectionLabel>
+              <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
+                A focused build environment for founders who need the work to feel polished, not prototyped.
+              </p>
+            </div>
+            <p className="text-3xl font-medium leading-[1.05] tracking-[-0.045em] text-foreground sm:text-4xl lg:text-5xl">
+              The fastest way to turn{" "}
+              <span className="text-muted-foreground">a rough idea</span>{" "}
+              into a live product surface people can actually use.
             </p>
           </div>
         </Section>
 
         {/* ── FEATURES ─────────────────────────────────────────────────────── */}
-        <Section id="features" className="pb-20 sm:pb-24">
-          <div className="mx-auto max-w-6xl">
-            <div className="mb-10 text-center sm:mb-12">
-              <SectionLabel>Features</SectionLabel>
-              <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-                Everything you need to ship
-              </h2>
-            </div>
-
-            <div className="grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-border/60 bg-border/30 sm:grid-cols-2 lg:grid-cols-4">
-              {lotusBuildFeatureItems.map((item, idx) => {
-                const Icon = featureIcons[idx] ?? Star
-                return (
-                  <article
-                    key={item.title}
-                    className="group relative flex flex-col bg-card p-6 transition-colors duration-200 hover:bg-muted/60 sm:p-7"
-                  >
-                    {/* number */}
-                    <span className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border/50 bg-muted text-foreground/30 transition-colors group-hover:border-border group-hover:text-foreground/60">
-                      <Icon className="h-4 w-4" />
-                    </span>
-                    <h3 className="text-[15px] font-semibold leading-snug text-foreground">
-                      {item.title}
-                    </h3>
-                    <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
-                      {item.description}
-                    </p>
-                  </article>
-                )
-              })}
-            </div>
-          </div>
+        <Section id="features" className="pb-24 sm:pb-28">
+          <ColorfulBentoGrid />
         </Section>
 
         {/* ── METRICS ──────────────────────────────────────────────────────── */}
-        <Section className="border-y border-border/50 bg-muted/40 py-16 sm:py-20">
-          <div className="mx-auto max-w-5xl">
-            <div className="grid grid-cols-2 gap-8 text-center md:grid-cols-4">
-              {lotusBuildMetrics.map((metric, i) => (
-                <div key={metric.label} className="flex flex-col items-center gap-1">
-                  <p className="font-display text-4xl font-bold tabular-nums tracking-tight text-foreground sm:text-5xl">
+        <Section className="py-6">
+          <div className="mx-auto max-w-6xl rounded-[2rem] border border-border bg-card p-4 shadow-[0_24px_90px_-72px_var(--primary)] sm:p-6">
+            <div className="grid gap-px overflow-hidden rounded-[1.5rem] bg-border sm:grid-cols-2 lg:grid-cols-4">
+              {lotusBuildMetrics.map((metric) => (
+                <div key={metric.label} className="bg-secondary p-6 sm:p-7">
+                  <p className="text-4xl font-semibold tabular-nums tracking-[-0.045em] text-foreground sm:text-5xl">
                     {metric.value}
                   </p>
-                  <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground/60">
+                  <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                     {metric.label}
                   </p>
                 </div>
@@ -148,35 +156,34 @@ export default function Home() {
         </Section>
 
         {/* ── USE CASES ────────────────────────────────────────────────────── */}
-        <Section className="py-20 sm:py-24">
+        <Section id="use-cases" className="py-24 sm:py-28">
           <div className="mx-auto max-w-6xl">
-            <div className="mb-10 sm:mb-12">
+            <div className="mb-10 max-w-2xl sm:mb-12">
               <SectionLabel>Use cases</SectionLabel>
-              <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-                Built for every type of builder
+              <h2 className="text-3xl font-semibold tracking-[-0.035em] text-foreground sm:text-4xl">
+                Built for founders, agencies, and teams moving from idea to launch.
               </h2>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 lg:grid-cols-3">
               {lotusBuildUseCases.map((useCase, idx) => (
                 <article
                   key={useCase.title}
-                  className="group relative rounded-2xl border border-border/60 bg-card p-6 transition-all duration-200 hover:border-border hover:shadow-sm"
+                  className="group relative min-h-[280px] overflow-hidden rounded-[1.75rem] border border-border bg-card p-6 transition hover:-translate-y-0.5 hover:border-border-strong hover:shadow-[0_22px_70px_-58px_var(--primary)]"
                 >
-                  {/* index mark */}
-                  <span className="absolute right-5 top-5 text-[11px] font-medium tabular-nums text-muted-foreground/30">
+                  <div className="absolute inset-x-0 top-0 h-1 bg-accent opacity-0 transition group-hover:opacity-100" />
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                     {String(idx + 1).padStart(2, "0")}
                   </span>
-                  <h3 className="pr-8 text-[15px] font-semibold leading-snug text-foreground">
+                  <h3 className="mt-10 text-2xl font-semibold tracking-[-0.035em] text-foreground">
                     {useCase.title}
                   </h3>
-                  <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
+                  <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
                     {useCase.description}
                   </p>
-                  {/* hover arrow */}
-                  <div className="mt-4 flex items-center gap-1 text-[12px] font-medium text-muted-foreground/40 transition-all group-hover:text-foreground/60">
-                    Learn more
-                    <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+                  <div className="absolute bottom-6 left-6 right-6 flex items-center justify-between border-t border-border pt-4 text-sm font-medium text-foreground">
+                    <span>Build this flow</span>
+                    <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
                   </div>
                 </article>
               ))}
@@ -187,47 +194,31 @@ export default function Home() {
         {/* ── TESTIMONIALS ─────────────────────────────────────────────────── */}
         <Section
           id="testimonials"
-          className="border-t border-border/50 bg-muted/30 py-20 sm:py-24"
+          className="border-y border-border bg-secondary/55 py-24 sm:py-28"
         >
           <div className="mx-auto max-w-6xl">
-            {/* header */}
-            <div className="mb-10 flex flex-col gap-1 sm:mb-12 sm:flex-row sm:items-end sm:justify-between">
+            <div className="mb-10 grid gap-5 lg:grid-cols-[0.8fr_1.2fr] lg:items-end">
               <div>
                 <SectionLabel>Testimonials</SectionLabel>
-                <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-                  Loved by builders
+                <h2 className="text-3xl font-semibold tracking-[-0.035em] text-foreground sm:text-4xl">
+                  Loved by builders who ship.
                 </h2>
               </div>
+              <p className="max-w-xl text-sm leading-relaxed text-muted-foreground lg:justify-self-end">
+                Teams use Lotus to shorten the distance between what they want to build and what customers can actually open.
+              </p>
             </div>
 
-            {/* scrollable row */}
-            <div
-              className={`
-                -mx-4 flex gap-3 overflow-x-auto px-4
-                pb-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8
-                [scrollbar-width:thin]
-                [scrollbar-color:var(--border)_transparent]
-                [&::-webkit-scrollbar]:h-[3px]
-                [&::-webkit-scrollbar-track]:bg-transparent
-                [&::-webkit-scrollbar-thumb]:rounded-full
-                [&::-webkit-scrollbar-thumb]:bg-border/60
-              `}
-            >
-              {lotusBuildTestimonials.map((testimonial) => (
-                <blockquote
-                  key={testimonial.name}
-                  className="flex w-[290px] shrink-0 flex-col justify-between rounded-2xl border border-border/60 bg-card p-5 transition-all duration-200 hover:border-border hover:shadow-sm sm:w-[320px]"
-                >
-                  <div>
-                    <Quote className="mb-3 h-4 w-4 text-muted-foreground/30" />
-                    <p className="text-[13.5px] leading-relaxed text-foreground/75">
-                      {testimonial.text}
-                    </p>
-                  </div>
-                  <footer className="mt-5 flex items-center gap-2.5 border-t border-border/40 pt-4">
-                    {/* avatar initials */}
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-[11px] font-semibold text-muted-foreground">
-                      {testimonial.name
+            <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+              {lotusBuildTestimonials[0] ? (
+                <blockquote className="rounded-[2rem] border border-border bg-card p-7 shadow-[0_22px_80px_-68px_var(--primary)] sm:p-9">
+                  <Quote className="h-7 w-7 text-accent" />
+                  <p className="mt-8 max-w-2xl text-2xl font-medium leading-snug tracking-[-0.025em] text-foreground sm:text-3xl">
+                    “{lotusBuildTestimonials[0].text}”
+                  </p>
+                  <footer className="mt-8 flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-accent-soft text-sm font-semibold text-accent-soft-foreground">
+                      {lotusBuildTestimonials[0].name
                         .split(" ")
                         .map((n: string) => n[0])
                         .join("")
@@ -235,32 +226,58 @@ export default function Home() {
                         .slice(0, 2)}
                     </div>
                     <div>
-                      <p className="text-[13px] font-medium leading-tight text-foreground">
-                        {testimonial.name}
-                      </p>
-                      <p className="text-[11.5px] leading-tight text-muted-foreground">
-                        {testimonial.role}
-                      </p>
+                      <p className="text-sm font-semibold text-foreground">{lotusBuildTestimonials[0].name}</p>
+                      <p className="text-xs text-muted-foreground">{lotusBuildTestimonials[0].role}</p>
                     </div>
                   </footer>
                 </blockquote>
-              ))}
+              ) : null}
+
+              <div className="grid gap-4">
+                {lotusBuildTestimonials.slice(1, 4).map((testimonial) => (
+                  <blockquote key={testimonial.name} className="rounded-[1.5rem] border border-border bg-card p-5">
+                    <p className="text-sm leading-relaxed text-foreground/80">“{testimonial.text}”</p>
+                    <footer className="mt-5 flex items-center gap-3 border-t border-border pt-4">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted text-[11px] font-semibold text-muted-foreground">
+                        {testimonial.name
+                          .split(" ")
+                          .map((n: string) => n[0])
+                          .join("")
+                          .toUpperCase()
+                          .slice(0, 2)}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{testimonial.name}</p>
+                        <p className="text-xs text-muted-foreground">{testimonial.role}</p>
+                      </div>
+                    </footer>
+                  </blockquote>
+                ))}
+              </div>
             </div>
           </div>
         </Section>
 
         {/* ── CTA ──────────────────────────────────────────────────────────── */}
-        <Section className="py-24 sm:py-32">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-              Ready to build something?
-            </h2>
-            <p className="mx-auto mt-4 max-w-lg text-[15px] leading-relaxed text-muted-foreground">
-              Describe your idea below and we'll have a working prototype ready in minutes.
+        <Section className="border-t border-border py-28 sm:py-36">
+          <div className="mx-auto flex min-h-[52vh] max-w-4xl flex-col items-center justify-center text-center">
+            <p className="text-sm font-medium text-muted-foreground">
+              Start with a sentence.
             </p>
-            <div className="mx-auto mt-8 max-w-xl">
+            <h2 className="mt-4 text-4xl font-medium leading-[1.02] tracking-[-0.055em] text-foreground sm:text-5xl lg:text-6xl">
+              What do you want to build?
+            </h2>
+            <p className="mt-5 max-w-xl text-sm leading-7 text-muted-foreground sm:text-[15px]">
+              Lotus turns your prompt into a working project with code, preview, and edits in one place.
+            </p>
+
+            <div className="mt-10 w-full">
               <AnimatedAIInput />
             </div>
+
+            <p className="mt-5 text-xs text-muted-foreground/70">
+              Try: a launch page, a booking flow, a SaaS dashboard, or a mobile app prototype.
+            </p>
           </div>
         </Section>
 

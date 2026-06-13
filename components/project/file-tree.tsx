@@ -4,8 +4,8 @@ import { useState } from "react"
 import { ChevronRight, ChevronDown, FileCode, FolderOpen, Folder as FolderIcon, Loader2 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
-import type { FileNode, GeneratedFile } from "@/app/project/[id]/types"
-import { buildFileTree, getLanguageFromPath } from "@/app/project/[id]/utils"
+import type { FileNode, GeneratedFile } from "@/lib/projects/types"
+import { buildFileTree, getLanguageFromPath } from "@/lib/projects/utils"
 
 function getFileIcon(name: string): string {
   const ext = name.split(".").pop()?.toLowerCase()

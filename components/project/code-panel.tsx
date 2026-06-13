@@ -4,7 +4,7 @@ import { FileCode } from "lucide-react"
 import Editor from "@monaco-editor/react"
 import { cn } from "@/lib/utils"
 import { ProjectFileTree, getLanguageFromPath } from "./file-tree"
-import type { GeneratedFile } from "@/app/project/[id]/types"
+import type { GeneratedFile } from "@/lib/projects/types"
 
 export interface CodePanelProps {
   files: GeneratedFile[]

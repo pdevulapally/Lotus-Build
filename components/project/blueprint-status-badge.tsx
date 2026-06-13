@@ -1,6 +1,6 @@
 "use client"
 
-import type { BlueprintItemStatus, PlanningStatus } from "@/app/project/[id]/types"
+import type { BlueprintItemStatus, PlanningStatus } from "@/lib/projects/types"
 import { cn } from "@/lib/utils"
 
 const itemStatusStyles: Record<BlueprintItemStatus, string> = {

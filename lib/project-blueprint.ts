@@ -4,7 +4,7 @@ import type {
   Message,
   PlanningStatus,
   ProjectBlueprint,
-} from "@/app/project/[id]/types"
+} from "@/lib/projects/types"
 
 /** Setup requirements that may block or guide the build */
 export type SetupRequirementType = "auth" | "database" | "payments" | "supabase" | "stripe" | "custom-api" | "cms"

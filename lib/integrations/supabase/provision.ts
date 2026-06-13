@@ -1,6 +1,6 @@
 import OpenAI from "openai"
 
-import type { Message } from "@/app/project/[id]/types"
+import type { Message } from "@/lib/projects/types"
 import type { GenerationMeta } from "@/lib/generation-meta"
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })

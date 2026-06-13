@@ -6,8 +6,8 @@ import { User, Bot, Edit2, Copy, Check, Lightbulb, FileCode, FolderOpen } from "
 import { cn } from "@/lib/utils"
 import { TextShimmer } from "@/components/prompt-kit/text-shimmer"
 import { toast } from "@/hooks/use-toast"
-import type { Message, GeneratedFile } from "@/app/project/[id]/types"
-import { formatMessageTime } from "@/app/project/[id]/utils"
+import type { Message, GeneratedFile } from "@/lib/projects/types"
+import { formatMessageTime } from "@/lib/projects/utils"
 
 export interface ChatMessageProps {
   message: Message

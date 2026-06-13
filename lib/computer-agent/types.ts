@@ -64,6 +64,38 @@ export interface ComputerConversationTurn {
   runId?: string
 }
 
+export type ComputerAgentRuntimePhase =
+  | "idle"
+  | "understanding"
+  | "researching"
+  | "planning"
+  | "generating"
+  | "previewing"
+  | "fixing"
+  | "paused"
+  | "complete"
+  | "error"
+
+export type ComputerFollowUpIntent =
+  | "resume_previous_work"
+  | "new_instruction"
+  | "edit_existing_project"
+  | "answer_clarification"
+  | "cancel_or_pause"
+
+export interface ComputerAgentRuntimeCheckpoint {
+  phase: ComputerAgentRuntimePhase
+  lastCompletedPhase?: ComputerAgentRuntimePhase
+  nextAction?: string
+  effectiveRequest?: string
+  planText?: string
+  generatedFileCount?: number
+  lastError?: string
+  paused?: boolean
+  stoppedAt?: string
+  updatedAt: string
+}
+
 export interface ComputerArtifact {
   id: string
   type: ComputerArtifactType
@@ -82,6 +114,8 @@ export interface ComputerSession {
   status: ComputerSessionStatus
   activePanel: ComputerPanel
   timeline: ComputerTimelineEvent[]
+  conversationTurns?: ComputerConversationTurn[]
+  agentRuntime?: ComputerAgentRuntimeCheckpoint
   artifacts: ComputerArtifact[]
   createdAt: string
   updatedAt: string

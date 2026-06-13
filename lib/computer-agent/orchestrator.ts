@@ -52,6 +52,7 @@ export type OrchestratorContext = {
   conversationTurns: ComputerConversationTurn[]
   timeline: Array<{ title?: string; description?: string; kind?: string; status?: string }>
   phase: OrchestratorPhaseState
+  runtimeContext?: string
 }
 
 const VALID_ACTIONS = new Set<OrchestratorAction>([
@@ -100,6 +101,7 @@ export function buildOrchestratorUserMessage(context: OrchestratorContext): stri
     `Latest user message:\n${context.currentMessage}`,
     `Conversation:\n${conversation}`,
     `Recent timeline:\n${timeline}`,
+    context.runtimeContext ? `Runtime checkpoint:\n${context.runtimeContext}` : "",
     `Project state:\n- hasExistingProject: ${context.phase.hasExistingProject}\n- fileCount: ${context.phase.fileCount}\n- previewAvailable: ${context.phase.previewAvailable}`,
     `Phase state:\n- effectiveRequest: ${context.phase.effectiveRequest}\n- researchCompleted: ${context.phase.researchCompleted}\n- planCompleted: ${context.phase.planCompleted}\n- planTextLength: ${context.phase.planText.trim().length}`,
   ].join("\n\n")

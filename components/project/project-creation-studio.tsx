@@ -1,9 +1,9 @@
-﻿"use client"
+"use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { ArrowLeft } from "lucide-react"
 
-import type { Message, PlanningStatus, ProjectBlueprint, ProjectCreationMode } from "@/app/project/[id]/types"
+import type { Message, PlanningStatus, ProjectBlueprint, ProjectCreationMode } from "@/lib/projects/types"
 import { CreationBlueprintPanel } from "@/components/project/creation-blueprint-panel"
 import { TextShimmer } from "@/components/prompt-kit/text-shimmer"
 import { Button } from "@/components/ui/button"

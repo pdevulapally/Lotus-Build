@@ -1,4 +1,7 @@
 import type { AgentRuntimePhase, AgentRuntimeSnapshot, AgentSetupRequirement } from "@/lib/agent-runtime"
+import type { ProjectPlatform } from "@/lib/projects/platform"
+
+export type { ProjectPlatform }
 
 export interface GeneratedFile {
   path: string
@@ -65,6 +68,8 @@ export interface Project {
   files?: GeneratedFile[]
   sandboxUrl?: string
   sandboxId?: string
+  mobileSandboxId?: string
+  mobilePreviewEnsuredAt?: Date
   createdAt: Date
   messages?: Message[]
   error?: string
@@ -95,6 +100,7 @@ export interface Project {
   blueprint?: ProjectBlueprint
   planningStatus?: PlanningStatus
   creationMode?: ProjectCreationMode
+  platform?: ProjectPlatform
 }
 
 export interface FileNode {

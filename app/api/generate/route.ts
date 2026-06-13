@@ -5,12 +5,17 @@ import { DEFAULT_PLANS } from "@/lib/firebase"
 import { normalizeGeneratedCodeFiles } from "@/lib/generated-code-normalization"
 import {
   ensureGeneratedProjectScaffold,
-  injectMissingComponentStubs,
+  isForbiddenMobileWebFilePath,
   validateGeneratedProjectFiles,
   GENERATED_APP_DEPENDENCY_VERSIONS,
   type GeneratedProjectFile,
 } from "@/lib/generated-project-validation"
 import { chargeTokensForGeneration } from "@/lib/charge-tokens"
+import {
+  buildMobileGenerationSystemPrompt,
+  MOBILE_MODEL_RELIABILITY_PROMPT,
+} from "@/lib/generation/prompts/mobile"
+import { normalizePlatform, type ProjectPlatform } from "@/lib/projects/platform"
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 const nvidia = new OpenAI({
@@ -481,7 +486,25 @@ function assertValidFileBlockOutput(content: string) {
   return fileBlocks
 }
 
-function buildGenerationRepairPrompt(issues: string[], brokenContent?: string) {
+function buildGenerationRepairPrompt(issues: string[], brokenContent?: string, platform: ProjectPlatform = "web") {
+  if (platform === "mobile") {
+    return `Repair the Expo / React Native project output and return a fully corrected response in the exact required file streaming format.
+
+Detected issues:
+${issues.map((issue) => `- ${issue}`).join("\n")}
+${brokenContent ? `\nBroken output:\n${brokenContent}\n` : ""}
+Rules:
+- Keep the same product request, app intent, and design direction.
+- Ensure package.json, app.json, App.tsx, babel.config.js, and tailwind.config.js are present for new mobile apps.
+- package.json must use Expo SDK ~56.0.11, react 19.2.3, and react-native 0.85.3.
+- Remove any web-only files or dependencies: vite.config, index.html, src/main.tsx, src/index.css, postcss.config, vite, @vitejs/plugin-react, react-dom.
+- Use React Native and Expo only.
+- Fix all missing imports, missing components, missing assets, and missing package dependencies.
+- Do not explain the fixes.
+- Return exactly one AGENT_MESSAGE and corrected file blocks only.
+- Do not wrap files in JSON or markdown.`
+  }
+
   return `Repair the project output and return a fully corrected response in the exact required file streaming format.
 
 Detected issues:
@@ -497,11 +520,16 @@ Rules:
 - Do not wrap files in JSON or markdown.`
 }
 
-function validateGeneratedFiles(generatedContent: string, existingFiles?: { path: string; content: string }[]) {
+function validateGeneratedFiles(
+  generatedContent: string,
+  existingFiles?: { path: string; content: string }[],
+  platform: ProjectPlatform = "web"
+) {
   const fileBlocks = parseFileBlocks(generatedContent)
   const validation = validateGeneratedProjectFiles(fileBlocks, {
     existingFiles,
     requireNewAppScaffold: !existingFiles?.length,
+    platform,
   })
 
   return {
@@ -510,8 +538,13 @@ function validateGeneratedFiles(generatedContent: string, existingFiles?: { path
   }
 }
 
-function injectMissingCssFiles(fileBlocks: ParsedFileBlock[]): ParsedFileBlock[] {
-  return ensureGeneratedProjectScaffold(fileBlocks)
+function injectMissingCssFiles(fileBlocks: ParsedFileBlock[], platform: ProjectPlatform = "web"): ParsedFileBlock[] {
+  return ensureGeneratedProjectScaffold(fileBlocks, platform)
+}
+
+function filterFilesForPlatform<T extends { path: string }>(files: T[], platform: ProjectPlatform): T[] {
+  if (platform !== "mobile") return files
+  return files.filter((file) => !isForbiddenMobileWebFilePath(file.path))
 }
 
 async function generateWithNvidiaValidation(params: {
@@ -520,6 +553,7 @@ async function generateWithNvidiaValidation(params: {
   systemPrompt: string
   userMessageContent: string
   existingFiles?: { path: string; content: string }[]
+  platform: ProjectPlatform
 }) {
   const initial = await params.client.chat.completions.create({
     model: params.selectedModel,
@@ -579,10 +613,10 @@ async function generateWithNvidiaValidation(params: {
     assertValidFileBlockOutput(finalContent)
   }
 
-  let validation = validateGeneratedFiles(finalContent, params.existingFiles)
+  let validation = validateGeneratedFiles(finalContent, params.existingFiles, params.platform)
 
   if (validation.issues.length > 0) {
-    const repairPrompt = buildGenerationRepairPrompt(validation.issues)
+    const repairPrompt = buildGenerationRepairPrompt(validation.issues, undefined, params.platform)
 
     const repaired = await params.client.chat.completions.create({
       model: params.selectedModel,
@@ -597,26 +631,19 @@ async function generateWithNvidiaValidation(params: {
 
     finalContent = repaired.choices[0]?.message?.content || finalContent
     usageInfo = repaired.usage || usageInfo
-    validation = validateGeneratedFiles(finalContent, params.existingFiles)
+    validation = validateGeneratedFiles(finalContent, params.existingFiles, params.platform)
   }
 
-  let finalFileBlocks = validation.fileBlocks
+  let finalFileBlocks = filterFilesForPlatform(validation.fileBlocks, params.platform)
   const agentMessage = getAgentMessageBlock(finalContent)
   const beforeScaffold = mergeFilesByPath(params.existingFiles ?? [], finalFileBlocks)
-  const afterScaffold = injectMissingCssFiles(beforeScaffold)
+  const afterScaffold = injectMissingCssFiles(beforeScaffold, params.platform)
   const scaffoldChanges = getChangedFiles(beforeScaffold, afterScaffold)
   finalFileBlocks = mergeFilesByPath(finalFileBlocks, scaffoldChanges)
 
-  // Deterministic safety net for any local component imports the model left
-  // unresolved, so the preview always builds.
-  const beforeStub = mergeFilesByPath(params.existingFiles ?? [], finalFileBlocks)
-  const afterStub = injectMissingComponentStubs(beforeStub)
-  const stubChanges = getChangedFiles(beforeStub, afterStub)
-  finalFileBlocks = mergeFilesByPath(finalFileBlocks, stubChanges)
-
   finalFileBlocks = normalizeGeneratedCodeFiles(finalFileBlocks)
   finalContent = serializeGeneratorOutput(agentMessage, finalFileBlocks)
-  validation = validateGeneratedFiles(finalContent, params.existingFiles)
+  validation = validateGeneratedFiles(finalContent, params.existingFiles, params.platform)
 
   return {
     finalContent,
@@ -686,8 +713,9 @@ async function salvageWithOpenAI(params: {
   userMessageContent: string
   brokenContent: string
   issues: string[]
+  platform: ProjectPlatform
 }) {
-  const salvagePrompt = buildGenerationRepairPrompt(params.issues, params.brokenContent)
+  const salvagePrompt = buildGenerationRepairPrompt(params.issues, params.brokenContent, params.platform)
 
   const repaired = await openai.chat.completions.create({
     model: OPENAI_MODEL_MAP[DEFAULT_MODEL],
@@ -702,7 +730,8 @@ async function salvageWithOpenAI(params: {
   let content = repaired.choices[0]?.message?.content || params.brokenContent
   
   const agentMessage = getAgentMessageBlock(content)
-  const fileBlocks = normalizeGeneratedCodeFiles(injectMissingCssFiles(parseFileBlocks(content)))
+  const parsedBlocks = filterFilesForPlatform(parseFileBlocks(content), params.platform)
+  const fileBlocks = normalizeGeneratedCodeFiles(injectMissingCssFiles(parsedBlocks, params.platform))
   content = serializeGeneratorOutput(agentMessage, fileBlocks)
 
   return {
@@ -746,6 +775,7 @@ async function streamWithResolvedProvider(params: {
   controller: ReadableStreamDefaultController<Uint8Array>
   encoder: TextEncoder
   state: StreamState
+  platform: ProjectPlatform
 }) {
   if (params.provider === "nvidia") {
     const validated = await generateWithNvidiaValidation({
@@ -754,6 +784,7 @@ async function streamWithResolvedProvider(params: {
       systemPrompt: params.systemPrompt,
       userMessageContent: params.userMessageContent,
       existingFiles: params.existingFiles,
+      platform: params.platform,
     })
     params.state.usageInfo = validated.usageInfo
     params.state.streamedLength = validated.streamedLength
@@ -778,6 +809,7 @@ async function streamWithResolvedProvider(params: {
         userMessageContent: params.userMessageContent,
         brokenContent: validated.finalContent,
         issues: validated.remainingIssues,
+        platform: params.platform,
       })
       assertValidFileBlockOutput(salvaged.content)
       params.state.usageInfo = salvaged.usage || params.state.usageInfo
@@ -817,6 +849,8 @@ async function streamWithResolvedProvider(params: {
     }
   }
 
+  const emitIncremental = params.platform !== "mobile"
+
   const streamTokens = async (completion: Awaited<ReturnType<typeof createOpenAICompletion>>) => {
     let buffered = ""
     let finishReason: string | null = null
@@ -827,7 +861,7 @@ async function streamWithResolvedProvider(params: {
       const content = chunk.choices?.[0]?.delta?.content
       if (!content) continue
       buffered += content
-      if (!params.state.closed) {
+      if (emitIncremental && !params.state.closed) {
         try { params.controller.enqueue(params.encoder.encode(content)) }
         catch { params.state.closed = true }
       }
@@ -894,13 +928,13 @@ async function streamWithResolvedProvider(params: {
 
   params.state.streamedLength += output.length
 
-  const parsedBlocks = parseFileBlocks(output)
+  const parsedBlocks = filterFilesForPlatform(parseFileBlocks(output), params.platform)
   const beforeScaffold = mergeFilesByPath(params.existingFiles ?? [], parsedBlocks)
-  const afterScaffold = injectMissingCssFiles(beforeScaffold)
+  const afterScaffold = injectMissingCssFiles(beforeScaffold, params.platform)
   const scaffoldChanges = normalizeGeneratedCodeFiles(getChangedFiles(beforeScaffold, afterScaffold))
   let finalBlocks = mergeFilesByPath(parsedBlocks, scaffoldChanges)
 
-  if (scaffoldChanges.length && !params.state.closed) {
+  if (emitIncremental && scaffoldChanges.length && !params.state.closed) {
     const scaffoldPayload = serializeFileBlocks(scaffoldChanges)
     try {
       params.controller.enqueue(params.encoder.encode(scaffoldPayload))
@@ -910,7 +944,7 @@ async function streamWithResolvedProvider(params: {
     }
   }
 
-  let validation = validateGeneratedFiles(serializeFileBlocks(finalBlocks), params.existingFiles)
+  let validation = validateGeneratedFiles(serializeFileBlocks(finalBlocks), params.existingFiles, params.platform)
   if (validation.issues.length > 0 && !params.state.closed) {
     console.warn("OpenAI generation has validation issues, attempting salvage:", validation.issues)
     const salvaged = await salvageWithOpenAI({
@@ -918,48 +952,36 @@ async function streamWithResolvedProvider(params: {
       userMessageContent: params.userMessageContent,
       brokenContent: serializeFileBlocks(finalBlocks),
       issues: validation.issues,
+      platform: params.platform,
     })
-    const salvagedBlocks = normalizeGeneratedCodeFiles(parseFileBlocks(salvaged.content))
+    const salvagedBlocks = normalizeGeneratedCodeFiles(filterFilesForPlatform(parseFileBlocks(salvaged.content), params.platform))
     if (salvagedBlocks.length) {
       const beforeSalvage = mergeFilesByPath(params.existingFiles ?? [], finalBlocks)
       const afterSalvage = mergeFilesByPath(beforeSalvage, salvagedBlocks)
       const salvageChanges = getChangedFiles(beforeSalvage, afterSalvage)
       const salvagePayload = serializeFileBlocks(salvageChanges.length ? salvageChanges : salvagedBlocks)
-      try {
-        params.controller.enqueue(params.encoder.encode(salvagePayload))
+      if (emitIncremental) {
+        try {
+          params.controller.enqueue(params.encoder.encode(salvagePayload))
+          params.state.usageInfo = salvaged.usage || params.state.usageInfo
+          params.state.streamedLength += salvagePayload.length
+        }
+        catch { params.state.closed = true }
+      } else {
         params.state.usageInfo = salvaged.usage || params.state.usageInfo
-        params.state.streamedLength += salvagePayload.length
       }
-      catch { params.state.closed = true }
       finalBlocks = mergeFilesByPath(finalBlocks, salvagedBlocks)
-      validation = validateGeneratedFiles(serializeFileBlocks(finalBlocks), params.existingFiles)
+      validation = validateGeneratedFiles(serializeFileBlocks(finalBlocks), params.existingFiles, params.platform)
       if (validation.issues.length > 0) {
         console.warn("OpenAI salvage left unresolved validation issues:", validation.issues)
       }
     }
   }
 
-  // Deterministic safety net: if a generated module still imports local
-  // components that were never emitted, create minimal stub modules so the
-  // preview always builds instead of failing on unresolved imports.
-  if (!params.state.closed && validation.issues.some((issue) => issue.includes("Missing import target"))) {
-    const beforeStub = mergeFilesByPath(params.existingFiles ?? [], finalBlocks)
-    const afterStub = injectMissingComponentStubs(beforeStub)
-    const stubChanges = normalizeGeneratedCodeFiles(getChangedFiles(beforeStub, afterStub))
-    if (stubChanges.length) {
-      const stubPayload = serializeFileBlocks(stubChanges)
-      try {
-        params.controller.enqueue(params.encoder.encode(stubPayload))
-        params.state.streamedLength += stubPayload.length
-      } catch {
-        params.state.closed = true
-      }
-      finalBlocks = mergeFilesByPath(finalBlocks, stubChanges)
-      validation = validateGeneratedFiles(serializeFileBlocks(finalBlocks), params.existingFiles)
-      console.log(
-        `Stub injection created ${stubChanges.length} placeholder module(s); remaining issues: ${validation.issues.length}`
-      )
-    }
+  if (!emitIncremental && !params.state.closed) {
+    const finalContent = serializeGeneratorOutput(getAgentMessageBlock(output), finalBlocks)
+    params.controller.enqueue(params.encoder.encode(finalContent))
+    params.state.streamedLength = finalContent.length
   }
 }
 
@@ -973,6 +995,7 @@ async function runBuilderRuntime(params: {
   controller: ReadableStreamDefaultController<Uint8Array>
   encoder: TextEncoder
   state: StreamState
+  platform: ProjectPlatform
 }) {
   await streamWithResolvedProvider(params)
 }
@@ -990,6 +1013,7 @@ export async function POST(req: Request) {
     prompt: string
     model?: string
     idToken?: string
+    projectId?: string
     existingFiles?: { path: string; content: string }[]
     intent?: string
     skipDesignBrief?: boolean
@@ -1002,6 +1026,7 @@ export async function POST(req: Request) {
     prompt: rawPrompt,
     model = DEFAULT_MODEL,
     idToken,
+    projectId,
     existingFiles,
     intent,
   } = body
@@ -1029,6 +1054,22 @@ export async function POST(req: Request) {
     uid = decoded.uid
   } catch (err) {
     return new Response(JSON.stringify({ error: 'Invalid idToken' }), { status: 401 })
+  }
+
+  let projectPlatform: ProjectPlatform = "web"
+  const normalizedProjectId = typeof projectId === "string" ? projectId.trim() : ""
+  if (normalizedProjectId) {
+    const projectSnap = await adminDb.collection("projects").doc(normalizedProjectId).get()
+    if (!projectSnap.exists) {
+      return Response.json({ error: "Project not found" }, { status: 404 })
+    }
+
+    const projectData = projectSnap.data() as { ownerId?: unknown; platform?: unknown }
+    if (typeof projectData.ownerId === "string" && projectData.ownerId !== uid) {
+      return Response.json({ error: "Access denied" }, { status: 403 })
+    }
+
+    projectPlatform = normalizePlatform(projectData.platform)
   }
 
   // Check if token period has ended → reset monthly, then check remaining tokens
@@ -1361,8 +1402,12 @@ OPEN-SOURCE MODEL RELIABILITY RULES (MANDATORY):
 
   const isInspiration = intent === "inspiration"
   const designBrief = isFollowUp || body.skipDesignBrief === true ? "" : await deriveDesignBrief(prompt)
-  const systemPrompt = isFollowUp ? systemPromptFollowUp : systemPromptNew(designBrief)
-  const finalSystemPrompt = `${systemPrompt}\n\n${nvidiaReliabilityPrompt}`
+  const systemPrompt = projectPlatform === "mobile"
+    ? buildMobileGenerationSystemPrompt({ designBrief, isFollowUp })
+    : isFollowUp ? systemPromptFollowUp : systemPromptNew(designBrief)
+  const finalSystemPrompt = projectPlatform === "mobile"
+    ? `${systemPrompt}\n\n${MOBILE_MODEL_RELIABILITY_PROMPT}`
+    : `${systemPrompt}\n\n${nvidiaReliabilityPrompt}`
 
   // Build user message — inspiration mode prepends the reference site context
   const inspirationMarkdown = typeof body.inspirationContext?.markdown === "string"
@@ -1374,7 +1419,9 @@ OPEN-SOURCE MODEL RELIABILITY RULES (MANDATORY):
 
   const userMessageContent = isFollowUp
     ? buildFollowUpUserMessage(inspirationPrefix + prompt, promptFiles)
-    : `Create a Vite + React + TypeScript application: ${inspirationPrefix}${prompt}`
+    : projectPlatform === "mobile"
+      ? `Create an Expo + React Native + TypeScript mobile application: ${inspirationPrefix}${prompt}`
+      : `Create a Vite + React + TypeScript application: ${inspirationPrefix}${prompt}`
 
   const encoder = new TextEncoder()
   const streamState: StreamState = {
@@ -1396,6 +1443,7 @@ OPEN-SOURCE MODEL RELIABILITY RULES (MANDATORY):
           controller,
           encoder,
           state: streamState,
+          platform: projectPlatform,
         })
 
         streamState.closed = true

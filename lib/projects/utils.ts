@@ -1,4 +1,4 @@
-import type { GeneratedFile, FileNode } from "./types"
+import type { GeneratedFile, FileNode } from "@/lib/projects/types"
 
 export function formatMessageTime(iso: string): string {
   try {
@@ -26,18 +26,19 @@ export function extractAgentMessage(content: string): { agentMessage: string | n
 }
 
 export function buildFileTree(files: GeneratedFile[]): FileNode[] {
-  const root: { [key: string]: FileNode | { [key: string]: FileNode } } = {}
+  type MutableFileNode = Omit<FileNode, "children"> & { children?: Record<string, MutableFileNode> }
+  const root: Record<string, MutableFileNode> = {}
 
   files.forEach((file) => {
     const parts = file.path.split("/")
-    let current: Record<string, unknown> = root
+    let current = root
 
     parts.forEach((part, index) => {
       const isFile = index === parts.length - 1
       const currentPath = parts.slice(0, index + 1).join("/")
 
       if (!current[part]) {
-        ;(current as Record<string, FileNode | Record<string, FileNode>>)[part] = {
+        current[part] = {
           name: part,
           path: currentPath,
           type: isFile ? "file" : "folder",
@@ -47,27 +48,29 @@ export function buildFileTree(files: GeneratedFile[]): FileNode[] {
         }
       }
 
-      if (!isFile && (current[part] as FileNode).children) {
-        current = (current[part] as FileNode).children as unknown as Record<string, unknown>
-      }
+      if (!isFile) current = current[part].children ?? {}
     })
   })
 
-  const convertToArray = (obj: { [key: string]: FileNode }): FileNode[] => {
+  const convertToArray = (obj: Record<string, MutableFileNode>): FileNode[] => {
     return Object.values(obj)
       .map((node) => ({
-        ...node,
-        children: node.children
-          ? convertToArray(node.children as unknown as { [key: string]: FileNode })
-          : undefined,
+        name: node.name,
+        path: node.path,
+        type: node.type,
+        content: node.content,
+        isGenerating: node.isGenerating,
+        children: node.children ? convertToArray(node.children) : undefined,
       }))
-      .sort((a, b) => {
-        if (a.type !== b.type) return a.type === "folder" ? -1 : 1
-        return a.name.localeCompare(b.name)
-      })
+      .sort(sortFileNodes)
   }
 
-  return convertToArray(root as { [key: string]: FileNode })
+  return convertToArray(root)
+}
+
+function sortFileNodes(a: FileNode, b: FileNode): number {
+  if (a.type !== b.type) return a.type === "folder" ? -1 : 1
+  return a.name.localeCompare(b.name)
 }
 
 export function getLanguageFromPath(path: string): string {

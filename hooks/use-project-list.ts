@@ -55,6 +55,10 @@ export function useProjectList({
       const byIdUser = new Map<string, ProjectListItem>()
       const byIdEditor = new Map<string, ProjectListItem>()
       const byIdComputer = new Map<string, ProjectListItem>()
+      // Project docs that are backing stubs for a computer session (every build
+      // links one via `projectId`). These must not surface as their own rows —
+      // the computer session row owns the build and routes to /computer/[id].
+      const linkedProjectIds = new Set<string>()
       let ownerLoaded = false
       let userLoaded = false
       let editorLoaded = false
@@ -67,9 +71,15 @@ export function useProjectList({
       const maybeCommit = () => {
         if (!ownerLoaded || !userLoaded || !editorLoaded || !computerLoaded || cancelled) return
         const mergedMap = new Map<string, ProjectListItem>()
-        for (const p of byIdOwner.values()) mergedMap.set(p.id, p)
-        for (const p of byIdUser.values()) mergedMap.set(p.id, p)
-        for (const p of byIdEditor.values()) mergedMap.set(p.id, p)
+        const addProjectRows = (items: Iterable<ProjectListItem>) => {
+          for (const p of items) {
+            if (linkedProjectIds.has(p.id)) continue
+            mergedMap.set(p.id, p)
+          }
+        }
+        addProjectRows(byIdOwner.values())
+        addProjectRows(byIdUser.values())
+        addProjectRows(byIdEditor.values())
         for (const p of byIdComputer.values()) mergedMap.set(p.id, p)
         
         const merged = Array.from(mergedMap.values()).sort((a, b) => {
@@ -188,8 +198,12 @@ export function useProjectList({
           if (cancelled) return
           computerLoaded = true
           byIdComputer.clear()
+          linkedProjectIds.clear()
           snap.forEach((docSnap) => {
             const data = docSnap.data() as any
+            if (typeof data.projectId === "string" && data.projectId) {
+              linkedProjectIds.add(data.projectId)
+            }
             byIdComputer.set(docSnap.id, {
               id: docSnap.id,
               prompt: data.prompt || "",

@@ -6,6 +6,7 @@ import type { DocumentReference } from "firebase-admin/firestore"
 import { adminDb } from "@/lib/firebase-admin"
 import { requireUserUid } from "@/lib/server-auth"
 import type { ComputerTimelineEvent } from "@/lib/computer-agent/types"
+import type { ComputerAgentRuntimeCheckpoint } from "@/lib/computer-agent/types"
 import { createComputerAgentMessage } from "@/lib/computer-agent/agent-config"
 import type { MemoryContext } from "@/lib/computer-agent/agent-config"
 import {
@@ -25,9 +26,22 @@ import {
 } from "@/lib/computer-agent/orchestrator"
 import {
   ensureGeneratedProjectScaffold,
-  injectMissingComponentStubs,
   validateGeneratedProjectFiles,
 } from "@/lib/generated-project-validation"
+import { normalizePlatform, type ProjectPlatform } from "@/lib/projects/platform"
+import { ensureMobilePreview } from "@/lib/mobile-preview/ensure"
+import {
+  buildComputerSessionModeInstructions,
+  normalizeComputerSessionMode,
+  shouldDraftPlanForMode,
+  shouldGenerateForMode,
+} from "@/lib/computer-agent/session-modes"
+import {
+  buildComputerRuntimeContext,
+  createRuntimeCheckpoint,
+  normalizeComputerAgentRuntime,
+  resolveComputerFollowUpIntent,
+} from "@/lib/computer-agent/runtime"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -91,6 +105,27 @@ async function persistGeneratedFilesForSession(
 
   await adminDb.collection("projects").doc(projectId).update({
     files,
+    updatedAt: new Date(),
+  })
+}
+
+async function updateRuntimeCheckpoint(
+  docRef: DocumentReference,
+  runId: string,
+  patch: Partial<Omit<ComputerAgentRuntimeCheckpoint, "updatedAt">>,
+) {
+  const snap = await docRef.get()
+  const data = snap.data()
+  if (data?.currentRunId !== runId) return
+
+  const current = normalizeComputerAgentRuntime(data?.agentRuntime)
+  await docRef.update({
+    agentRuntime: createRuntimeCheckpoint({
+      ...current,
+      ...patch,
+      paused: false,
+      stoppedAt: undefined,
+    }),
     updatedAt: new Date(),
   })
 }
@@ -567,14 +602,14 @@ async function callErrorFixRoute(params: {
   }
 }
 
-/** Deterministic preview repair: inject scaffold + stub missing local modules. */
-function repairGeneratedFilesForPreview(files: GeneratedFile[]): GeneratedFile[] {
-  return injectMissingComponentStubs(ensureGeneratedProjectScaffold(files))
+/** Deterministic preview repair: inject only structural scaffold files. */
+function repairGeneratedFilesForPreview(files: GeneratedFile[], platform: ProjectPlatform = "web"): GeneratedFile[] {
+  return ensureGeneratedProjectScaffold(files, platform)
 }
 
 /** Shared validation used before sandbox startup. */
-function getGeneratedPreviewIssues(files: GeneratedFile[]): string[] {
-  return validateGeneratedProjectFiles(files, { requireNewAppScaffold: true }).issueMessages
+function getGeneratedPreviewIssues(files: GeneratedFile[], platform: ProjectPlatform = "web"): string[] {
+  return validateGeneratedProjectFiles(files, { requireNewAppScaffold: true, platform }).issueMessages
 }
 
 function normalizeTinyFishEvent(raw: unknown): Record<string, unknown> | null {
@@ -1378,6 +1413,8 @@ function buildAgentGenerationPrompt(params: {
   prompt: string
   planText: string
   webEvidence: WebEvidence[]
+  conversationContext?: string
+  runtimeContext?: string
   intent?: AgentWebIntent
   isEdit?: boolean
 }) {
@@ -1391,6 +1428,12 @@ function buildAgentGenerationPrompt(params: {
       : "",
     hasWebEvidence
       ? `Web evidence:\n${formatWebEvidenceList(params.webEvidence)}`
+      : "",
+    params.conversationContext
+      ? `Session conversation context:\n${params.conversationContext}`
+      : "",
+    params.runtimeContext
+      ? `Runtime checkpoint:\n${params.runtimeContext}`
       : "",
     params.isEdit
       ? "IMPORTANT: This is an edit to an existing project. ONLY output the files that need to change. Do NOT output unchanged files. Your changes will be merged surgically."
@@ -1451,7 +1494,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 })
     }
 
-    const data = docSnap.data() as { ownerId?: string; prompt?: unknown; model?: unknown; timeline?: unknown; projectId?: string }
+    const data = docSnap.data() as {
+      ownerId?: string
+      prompt?: unknown
+      model?: unknown
+      timeline?: unknown
+      projectId?: string
+      sessionMode?: unknown
+      agentRuntime?: unknown
+    }
     if (data.ownerId !== uid) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 })
     }
@@ -1485,6 +1536,15 @@ export async function POST(req: Request) {
     const builderModel = typeof data.model === "string" && data.model.trim()
       ? data.model.trim()
       : "GPT-5.5"
+    const sessionMode = normalizeComputerSessionMode(data.sessionMode)
+    const projectPlatform = normalizePlatform(data.platform)
+    const sessionModeInstructions = buildComputerSessionModeInstructions(sessionMode)
+    const savedRuntime = normalizeComputerAgentRuntime(data.agentRuntime)
+    const followUpIntent = resolveComputerFollowUpIntent(incomingPrompt, savedRuntime)
+    const runtimeContext = buildComputerRuntimeContext(savedRuntime, followUpIntent)
+    if (followUpIntent === "resume_previous_work" && savedRuntime.effectiveRequest) {
+      prompt = savedRuntime.effectiveRequest
+    }
     const authHeader =
       req.headers.get("authorization") || req.headers.get("Authorization") || ""
     const now = new Date()
@@ -1560,6 +1620,12 @@ export async function POST(req: Request) {
         previewUrl: null,
         timeline: [...timeline, { ...runStartedEvent, runId, index: timeline.length }],
         conversationTurns,
+        agentRuntime: createRuntimeCheckpoint({
+          phase: "understanding",
+          nextAction: "Decide the next best action from the session context.",
+          effectiveRequest: prompt,
+          paused: false,
+        }),
         updatedAt: now,
       })
     })
@@ -1605,7 +1671,7 @@ export async function POST(req: Request) {
       const orchestratorRes = await callAgent({
         max_tokens: 900,
         temperature: 0,
-        system: ORCHESTRATOR_SYSTEM_PROMPT,
+        system: `${ORCHESTRATOR_SYSTEM_PROMPT}\n\n${sessionModeInstructions}`,
         messages: [{
           role: "user",
           content: buildOrchestratorUserMessage({
@@ -1614,6 +1680,7 @@ export async function POST(req: Request) {
             conversationTurns,
             timeline: latestTimeline,
             phase: orchestratorPhase,
+            runtimeContext,
           }),
         }],
       }, { enableMcp: false }).catch(() => null)
@@ -1740,7 +1807,7 @@ export async function POST(req: Request) {
       if (decision.action === "draft_plan") {
         runProfile = {
           ...runProfile,
-          shouldDraftPlan: true,
+          shouldDraftPlan: shouldDraftPlanForMode(sessionMode, true),
           shouldShowDetailedNarration: true,
         }
         break
@@ -1757,7 +1824,10 @@ export async function POST(req: Request) {
           }
         }
         if (typeof decision.shouldDraftPlan === "boolean") {
-          runProfile = { ...runProfile, shouldDraftPlan: decision.shouldDraftPlan }
+          runProfile = {
+            ...runProfile,
+            shouldDraftPlan: shouldDraftPlanForMode(sessionMode, decision.shouldDraftPlan),
+          }
         }
         orchestratorReadyForBuild = true
         break
@@ -1769,6 +1839,11 @@ export async function POST(req: Request) {
       runProfile = getComputerRunProfile(prompt, orchestratorPhase.hasExistingProject)
     }
 
+    runProfile = {
+      ...runProfile,
+      shouldDraftPlan: shouldDraftPlanForMode(sessionMode, runProfile.shouldDraftPlan),
+    }
+
     await appendRunEvent({
       id: crypto.randomUUID(),
       title: runProfile.hasExistingProject ? "Reading request" : "Understanding request",
@@ -1776,6 +1851,16 @@ export async function POST(req: Request) {
       status: "complete",
       kind: "understanding",
       createdAt: new Date().toISOString(),
+    })
+    await updateRuntimeCheckpoint(docRef, runId, {
+      phase: "understanding",
+      lastCompletedPhase: "understanding",
+      effectiveRequest: prompt,
+      nextAction: runProfile.shouldUseWebTools
+        ? "Gather research evidence for the build."
+        : runProfile.shouldDraftPlan
+          ? "Draft a build plan from the current context."
+          : "Generate or edit project files from the current context.",
     })
 
     if (runProfile.shouldShowDetailedNarration) {
@@ -1816,6 +1901,11 @@ export async function POST(req: Request) {
     const webPlan = await createAgentWebPlan(callAgent, prompt, "", runProfile)
 
     if (runProfile.shouldUseWebTools) {
+      await updateRuntimeCheckpoint(docRef, runId, {
+        phase: "researching",
+        effectiveRequest: prompt,
+        nextAction: "Collect external context and convert it into usable build evidence.",
+      })
       await appendRunEvent({
         id: crypto.randomUUID(),
         title: "Web plan",
@@ -2110,6 +2200,11 @@ export async function POST(req: Request) {
         createdAt: new Date().toISOString(),
       })
     } else {
+      await updateRuntimeCheckpoint(docRef, runId, {
+        phase: "planning",
+        effectiveRequest: prompt,
+        nextAction: "Create a build brief before file generation.",
+      })
       const evidenceSummary = usableWebEvidence.length
         ? formatWebEvidenceList(usableWebEvidence)
         : ""
@@ -2172,6 +2267,13 @@ Rules:
           planText = rawPlan
           orchestratorPhase.planText = planText
           orchestratorPhase.planCompleted = true
+          await updateRuntimeCheckpoint(docRef, runId, {
+            phase: "planning",
+            lastCompletedPhase: "planning",
+            effectiveRequest: prompt,
+            planText,
+            nextAction: "Generate project files from the saved plan.",
+          })
           conversationTurns = appendConversationTurn(
             conversationTurns,
             createConversationTurn({
@@ -2257,8 +2359,9 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
       generationDecision = { shouldGenerate: true, reason: "decision_failed" }
     }
 
-    if (!generationDecision.shouldGenerate) {
-      generationDecision = { shouldGenerate: true, reason: generationDecision.reason || "builder_run" }
+    generationDecision = {
+      shouldGenerate: shouldGenerateForMode(sessionMode, generationDecision.shouldGenerate),
+      reason: generationDecision.reason || "builder_run",
     }
 
     await appendRunEvent({
@@ -2271,6 +2374,15 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
       kind: "code",
       createdAt: new Date().toISOString(),
     })
+    if (!generationDecision.shouldGenerate) {
+      await updateRuntimeCheckpoint(docRef, runId, {
+        phase: "complete",
+        lastCompletedPhase: planText ? "planning" : "understanding",
+        effectiveRequest: prompt,
+        planText: planText || undefined,
+        nextAction: "Wait for the user's next instruction.",
+      })
+    }
 
     if (runProfile.shouldShowDetailedNarration) {
     const buildNarration = await callAgent({
@@ -2310,24 +2422,36 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
     // By the time generation finishes (~15-30s), most packages are cached → sandbox install
     // takes 2-5s instead of 25s.
     let prewarmSandboxId: string | null = null
-    fetch(`${baseUrl}/api/sandbox/prewarm`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: authHeader },
-    })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d?.sandboxId) prewarmSandboxId = d.sandboxId })
-      .catch(() => {})
+    if (generationDecision.shouldGenerate) {
+      fetch(`${baseUrl}/api/sandbox/prewarm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: authHeader },
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (d?.sandboxId) prewarmSandboxId = d.sandboxId })
+        .catch(() => {})
+    }
 
     const generationPrompt = buildAgentGenerationPrompt({
       prompt,
       planText,
       webEvidence: usableWebEvidence,
+      conversationContext: formatConversationForOrchestrator(conversationTurns, 24),
+      runtimeContext,
       intent: webPlan.intent,
       isEdit: projectFiles.length > 0,
     })
     let generatedFiles: GeneratedFile[] = []
 
     if (generationDecision.shouldGenerate) {
+      await updateRuntimeCheckpoint(docRef, runId, {
+        phase: "generating",
+        effectiveRequest: prompt,
+        planText: planText || undefined,
+        nextAction: projectFiles.length > 0
+          ? "Apply the requested change to the existing project files."
+          : "Generate the project files.",
+      })
       let genData: unknown = null
       let generationFailed = false
       let generationError = ""
@@ -2357,6 +2481,7 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
             body: JSON.stringify({
               prompt: generationPrompt,
               model: builderModel,
+              projectId: data.projectId,
               existingFiles: projectFiles,
               intent: webPlan.intent,
               skipDesignBrief: Boolean(planText.trim()),
@@ -2399,7 +2524,7 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
         // Scaffold + stub before the first persist so no Firestore write ever stores a
         // project missing package.json/scaffold if the run is killed before the later
         // preflight repair. repairGeneratedFilesForPreview is idempotent.
-        generatedFiles = repairGeneratedFilesForPreview(generatedFiles)
+        generatedFiles = repairGeneratedFilesForPreview(generatedFiles, projectPlatform)
 
         if (data.projectId && generatedFiles.length > 0) {
           await adminDb.collection("projects").doc(data.projectId).update({
@@ -2407,6 +2532,14 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
             updatedAt: new Date()
           })
         }
+        await updateRuntimeCheckpoint(docRef, runId, {
+          phase: "generating",
+          lastCompletedPhase: "generating",
+          effectiveRequest: prompt,
+          planText: planText || undefined,
+          generatedFileCount: generatedFiles.length,
+          nextAction: "Repair and validate the generated files for preview.",
+        })
 
         genData = { files: generatedFiles }
 
@@ -2487,6 +2620,7 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
             const sessionData = sessionSnap.data() || {}
             if (!sessionData?.projectId) {
               const projectRef = adminDb.collection("projects").doc()
+              const sessionPlatform = normalizePlatform(sessionData.platform)
               await projectRef.set({
                 files: generatedFiles,
                 createdAt: new Date(),
@@ -2494,6 +2628,7 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
                 ownerId: uid,
                 name: `Computer project ${runId.slice(0, 8)}`,
                 prompt,
+                platform: sessionPlatform,
                 messages: [
                   {
                     role: "user",
@@ -2703,6 +2838,16 @@ Generation result: ${JSON.stringify(genData)}`,
           kind: "code",
           createdAt: new Date().toISOString(),
         })
+        await updateRuntimeCheckpoint(docRef, runId, {
+          phase: "error",
+          lastCompletedPhase: "generating",
+          effectiveRequest: prompt,
+          planText: planText || undefined,
+          lastError: generationError || `${classification.category}: ${classification.reason}`,
+          nextAction: classification.category !== "invalid_request"
+            ? "Recover the generated project from the failure details."
+            : "Explain the blocker and wait for user input.",
+        })
 
         // — Single fix attempt (never for invalid_request) —
         if (classification.category !== "invalid_request" && generatedFiles.length > 0) {
@@ -2749,14 +2894,22 @@ Generation result: ${JSON.stringify(genData)}`,
 
     // — Preview preflight repair —
     if (generatedFiles.length > 0) {
+      await updateRuntimeCheckpoint(docRef, runId, {
+        phase: "previewing",
+        lastCompletedPhase: "generating",
+        effectiveRequest: prompt,
+        planText: planText || undefined,
+        generatedFileCount: generatedFiles.length,
+        nextAction: "Prepare the generated files for preview.",
+      })
       // Deterministic repair first: scaffold config files and stub any local
       // component imports the model referenced but never generated.
-      generatedFiles = repairGeneratedFilesForPreview(generatedFiles)
+      generatedFiles = repairGeneratedFilesForPreview(generatedFiles, projectPlatform)
       await persistGeneratedFilesForSession(docRef, generatedFiles)
 
-      let previewIssues = getGeneratedPreviewIssues(generatedFiles)
+      let previewIssues = getGeneratedPreviewIssues(generatedFiles, projectPlatform)
 
-      if (previewIssues.length > 0) {
+      if (projectPlatform === "web" && previewIssues.length > 0) {
         const preflightEventId = crypto.randomUUID()
         await appendRunEvent({
           id: preflightEventId,
@@ -2780,9 +2933,9 @@ Generation result: ${JSON.stringify(genData)}`,
             await persistGeneratedFilesForSession(docRef, generatedFiles)
           }
 
-          generatedFiles = repairGeneratedFilesForPreview(generatedFiles)
+          generatedFiles = repairGeneratedFilesForPreview(generatedFiles, projectPlatform)
           await persistGeneratedFilesForSession(docRef, generatedFiles)
-          previewIssues = getGeneratedPreviewIssues(generatedFiles)
+          previewIssues = getGeneratedPreviewIssues(generatedFiles, projectPlatform)
 
           await updateTimelineEvent(docRef, runId, preflightEventId, {
             title: fixResult.success && previewIssues.length === 0 ? "Fix applied" : "Fix failed",
@@ -2815,7 +2968,7 @@ Generation result: ${JSON.stringify(genData)}`,
     }
 
     const previewReadinessIssues = generatedFiles.length > 0
-      ? getGeneratedPreviewIssues(generatedFiles)
+      ? getGeneratedPreviewIssues(generatedFiles, projectPlatform)
       : []
     const hasEntry = generatedFiles.length > 0 && previewReadinessIssues.length === 0
 
@@ -2847,12 +3000,69 @@ Generation result: ${JSON.stringify(genData)}`,
           kind: "sandbox",
           createdAt: new Date().toISOString(),
         })
+        await updateRuntimeCheckpoint(docRef, runId, {
+          phase: "previewing",
+          lastCompletedPhase: "generating",
+          effectiveRequest: prompt,
+          generatedFileCount: generatedFiles.length,
+          nextAction: "Start the preview sandbox and validate the app.",
+        })
 
         const sessionForSandbox = await docRef.get()
-        const sandboxProjectId = typeof sessionForSandbox.data()?.projectId === "string"
-          ? sessionForSandbox.data()?.projectId
+        const sandboxSessionData = sessionForSandbox.data() || {}
+        const sandboxProjectId = typeof sandboxSessionData.projectId === "string"
+          ? sandboxSessionData.projectId
           : undefined
+        const sessionPlatform = normalizePlatform(sandboxSessionData.platform)
 
+        if (sessionPlatform === "mobile" && sandboxProjectId) {
+          const mobileResult = await ensureMobilePreview({
+            projectId: sandboxProjectId,
+            userId: uid,
+            files: generatedFiles.map((file) => ({ path: file.path, content: file.content })),
+          })
+
+          if (mobileResult.kind === "queue_full") {
+            sandboxErrors = mobileResult.message
+          } else if (mobileResult.kind === "no_files") {
+            sandboxErrors = mobileResult.message
+          } else {
+            const mobileSandbox = mobileResult.sandbox
+            sandboxSuccess = mobileSandbox.status !== "failed"
+            const mobileWebUrl = mobileSandbox.urls?.web ?? null
+
+            if (mobileWebUrl) {
+              sandboxUrl = mobileWebUrl
+            }
+
+            if (await isActiveRun(docRef, runId)) {
+              if (mobileWebUrl) {
+                await docRef.update({
+                  previewUrl: mobileWebUrl,
+                  updatedAt: new Date(),
+                })
+              }
+
+              await appendRunEvent({
+                id: crypto.randomUUID(),
+                title: mobileSandbox.status === "running" ? "Preview ready" : "Starting mobile preview",
+                description:
+                  mobileWebUrl ||
+                  (mobileSandbox.queuePosition != null
+                    ? `In queue — position ${mobileSandbox.queuePosition}`
+                    : "The Expo dev server is coming online."),
+                status: mobileSandbox.status === "running" ? "complete" : "running",
+                kind: "sandbox",
+                createdAt: new Date().toISOString(),
+              })
+            }
+
+            if (mobileSandbox.status === "failed") {
+              sandboxErrors = mobileSandbox.error || "Mobile preview failed to start."
+              sandboxSuccess = false
+            }
+          }
+        } else {
         const sandboxRes = await fetch(`${baseUrl}/api/sandbox`, {
           method: "POST",
           headers: {
@@ -2967,12 +3177,28 @@ Generation result: ${JSON.stringify(genData)}`,
             }
           } catch {}
         }
+        }
       } catch (err) {
         console.error("Computer sandbox call failed:", err)
         sandboxErrors = err instanceof Error ? err.message : "Sandbox call failed"
+        await updateRuntimeCheckpoint(docRef, runId, {
+          phase: "error",
+          lastCompletedPhase: "generating",
+          effectiveRequest: prompt,
+          generatedFileCount: generatedFiles.length,
+          lastError: sandboxErrors,
+          nextAction: "Fix the preview startup failure.",
+        })
       }
 
       if (sandboxSuccess && !postPreviewCheckFailed) {
+        await updateRuntimeCheckpoint(docRef, runId, {
+          phase: "complete",
+          lastCompletedPhase: "previewing",
+          effectiveRequest: prompt,
+          generatedFileCount: generatedFiles.length,
+          nextAction: "Wait for the user's next instruction.",
+        })
         await appendRunEvent({
           id: crypto.randomUUID(),
           title: "Sandbox run successful",
@@ -2996,6 +3222,14 @@ Generation result: ${JSON.stringify(genData)}`,
           status: "error",
           kind: "sandbox",
           createdAt: new Date().toISOString(),
+        })
+        await updateRuntimeCheckpoint(docRef, runId, {
+          phase: "fixing",
+          lastCompletedPhase: "previewing",
+          effectiveRequest: prompt,
+          generatedFileCount: generatedFiles.length,
+          lastError: errorDescription,
+          nextAction: "Decide whether to repair the runtime error.",
         })
 
         // — Runtime fix decision —
@@ -3110,9 +3344,17 @@ Format:
           },
           activeRunId
         )
+        const runtimeSnap = await activeDocRef.get()
+        const runtime = normalizeComputerAgentRuntime(runtimeSnap.data()?.agentRuntime)
         await activeDocRef.update({
           status: "error",
           currentRunId: null,
+          agentRuntime: createRuntimeCheckpoint({
+            ...runtime,
+            phase: "error",
+            lastError: message,
+            nextAction: "Resume from the failed run and fix the error.",
+          }),
           updatedAt: new Date(),
         })
       } catch {}

@@ -1,6 +1,6 @@
 "use client"
 
-import type { BlueprintSection } from "@/app/project/[id]/types"
+import type { BlueprintSection } from "@/lib/projects/types"
 import { BlueprintStatusBadge } from "@/components/project/blueprint-status-badge"
 
 export function BlueprintSectionCard({ section }: { section: BlueprintSection }) {

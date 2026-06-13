@@ -1,6 +1,6 @@
 "use client"
 
-import type { PlanningStatus, ProjectBlueprint } from "@/app/project/[id]/types"
+import type { PlanningStatus, ProjectBlueprint } from "@/lib/projects/types"
 import { cn } from "@/lib/utils"
 
 function shorten(value?: string) {

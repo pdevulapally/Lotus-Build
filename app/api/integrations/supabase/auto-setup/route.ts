@@ -1,7 +1,7 @@
 import crypto from "crypto"
 import { NextResponse } from "next/server"
 
-import type { Message } from "@/app/project/[id]/types"
+import type { Message } from "@/lib/projects/types"
 import { adminDb } from "@/lib/firebase-admin"
 import { analyzeSupabaseProvisioningNeed } from "@/lib/integrations/supabase/provision"
 import { extractSqlTables, generatePostgresSchema } from "@/lib/integrations/supabase/schema"

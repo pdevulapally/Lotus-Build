@@ -1,100 +1,56 @@
 "use client"
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { doc, onSnapshot, updateDoc } from "firebase/firestore"
 import { AnimatePresence, motion } from "framer-motion"
 import {
-  Activity,
-  ArrowLeft,
-  BookOpen,
-  Brain,
-  Check,
-  ChevronsDown,
-  ChevronsUp,
   ChevronDown,
-  ChevronRight,
-  Code2,
-  Copy,
   Database,
   ExternalLink,
-  FileText,
   Github,
-  Globe2,
   KeyRound,
-  Laptop,
-  LayoutPanelLeft,
   Loader2,
   MessageSquare,
   Monitor,
-  Pencil,
   Rocket,
-  Search,
-  ShieldAlert,
-  Terminal,
-  Wrench,
-  Zap,
 } from "lucide-react"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { AnimatedAIInput } from "@/components/ui/animated-ai-input"
-import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { TokenLimitDialog } from "@/components/project/token-limit-dialog"
-import { BashTool } from "@/components/project/bash-tool"
-import { EditTool } from "@/components/project/edit-tool"
-import { TextShimmer } from "@/components/prompt-kit/text-shimmer"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/contexts/auth-context"
 import { db } from "@/lib/firebase"
 import { DeployTerminal } from "@/components/project/deploy-terminal"
-import { QuestionTool, type QuestionConfig, type QuestionAnswer } from "@/components/computer/question-tool"
+import { AgentFeed } from "@/components/computer/agent-feed"
+import { ComputerTopBar } from "@/components/computer/computer-top-bar"
+import { deriveComputerSessionProgress } from "@/components/computer/session-progress-model"
+import {
+  ErrorState,
+  LoadingShell,
+  WorkspaceContent,
+  WorkspaceTabBar,
+} from "@/components/computer/workspace-panel"
+import {
+  getLatestBrowserInspection,
+  getRunIdGroups,
+  isTokenLimitError,
+  type BrowserInspection,
+  type ComputerSessionResponse,
+  type ComputerSessionStatus,
+  type ComputerTimelineEvent,
+  type LocalMessage,
+  type WorkspaceTab,
+} from "@/components/computer/session-types"
+import { normalizePlatform } from "@/lib/projects/platform"
+import type {
+  ComputerAgentRuntimeCheckpoint,
+  ComputerConversationTurn,
+} from "@/lib/computer-agent/types"
 
-// ─── Types (unchanged) ────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-type ComputerSessionStatus = "idle" | "planning" | "running" | "error" | "complete"
-
-type ComputerTimelineEvent = {
-  id?: string
-  title: string
-  status: "pending" | "running" | "complete" | "error" | "skipped"
-  kind?: "understanding" | "research" | "browser" | "planning" | "code" | "sandbox" | "fix" | "security" | "user" | "question"
-  createdAt: string
-  description?: string
-  runId?: string
-  index: number
-  metadata?: Record<string, string | number | boolean | null>
-}
-
-type ComputerSessionResponse = {
-  id: string
-  prompt?: string
-  status: ComputerSessionStatus
-  timeline: ComputerTimelineEvent[]
-  previewUrl?: string | null
-  projectId?: string
-}
-
-type WorkspaceTab = "preview" | "browser" | "research"
-type MobileView  = "feed" | "workspace"
-
-type BrowserInspection = {
-  url: string
-  liveUrl: string
-  sessionId?: string
-  baseUrl?: string
-  provider?: string
-  title: string
-  expiresAt?: string
-  isExpired: boolean
-}
+type MobileView = "feed" | "workspace"
 
 type DeployProvider = "netlify" | "vercel"
 
@@ -131,86 +87,7 @@ type ComputerProjectIntegration = {
 
 type IntegrationAction = "github" | "supabase" | "env"
 
-type LocalMessage = {
-  role: "user" | "system"
-  content: string
-  runId?: string
-}
-
-// ─── Constants (unchanged) ────────────────────────────────────────────────────
-
-const STATUS_LABELS: Record<ComputerSessionStatus, string> = {
-  idle:     "Ready",
-  planning: "Thinking",
-  running:  "Thinking",
-  error:    "Error",
-  complete: "Done",
-}
-
-type KindConfig = {
-  icon: React.ElementType
-  bg: string
-  border: string
-  iconColor: string
-  label: string
-}
-
-const KIND_CONFIG: Record<string, KindConfig> = {
-  understanding: { icon: Brain,     bg: "bg-accent-soft",  border: "border-accent/20", iconColor: "text-accent", label: "Understanding" },
-  research:      { icon: Search,    bg: "bg-info-soft",    border: "border-info/20",   iconColor: "text-info",   label: "Research"      },
-  browser:       { icon: Globe2,    bg: "bg-info-soft",    border: "border-info/20",   iconColor: "text-info",   label: "Browser"       },
-  planning:      { icon: Activity,  bg: "bg-warning-soft", border: "border-warning/25",iconColor: "text-warning",label: "Planning"      },
-  code:          { icon: Code2,     bg: "bg-success-soft", border: "border-success/25",iconColor: "text-success",label: "Coding"        },
-  sandbox:       { icon: Terminal,  bg: "bg-muted",        border: "border-border",    iconColor: "text-muted-foreground", label: "Sandbox" },
-  fix:           { icon: Wrench,    bg: "bg-warning-soft", border: "border-warning/25",iconColor: "text-warning", label: "Fixing"        },
-  security:      { icon: ShieldAlert,bg: "bg-destructive/10", border: "border-destructive/20", iconColor: "text-destructive", label: "Security" },
-  user:          { icon: MessageSquare,bg:"bg-muted",      border: "border-border",    iconColor: "text-muted-foreground", label: "User"    },
-}
-
-function getKindCfg(kind?: string): KindConfig {
-  return KIND_CONFIG[kind ?? ""] ?? { icon: Zap, bg: "bg-muted", border: "border-border", iconColor: "text-muted-foreground", label: "" }
-}
-
-const EVENT_TITLES: Record<string, string> = {
-  "Run started":          "Starting run",
-  "Understanding request":"Reading request",
-  "Understanding insight":"Understanding insight",
-  "Planning execution":   "Planning approach",
-  "Planning failed":      "Planning hit a snag",
-  "Decision":             "Deciding next step",
-  "Web plan":             "Planning web context",
-  "Web skipped":          "Web context skipped",
-  "Researching web":      "Researching",
-  "Research complete":    "Research complete",
-  "Research insight":     "Research insight",
-  "Research failed":      "Research failed",
-  "Research skipped":     "Research skipped",
-  "Browser decision":     "Choosing whether to inspect",
-  "Browser live":         "browser live",
-  "Browser fallback":     "Collecting page context",
-  "Page inspected":       "Page inspected",
-  "Browser insight":      "Browser insight",
-  "Browser failed":       "Browser failed",
-  "Browser skipped":      "Browser skipped",
-  "Scrape context collected": "Page context collected",
-  "Fallback scrape collected": "Fallback context collected",
-  "Scrape failed":        "Page context failed",
-  "Generation decision":  "Preparing build",
-  "Build approach":       "Build approach",
-  "Code generated":       "Application generated",
-  "Generation failed":    "Generation failed",
-  "Fix applied":          "Fix applied",
-  "Fix failed":           "Fix failed",
-  "Starting sandbox":     "Starting preview",
-  "Preview ready":        "Preview ready",
-  "Sandbox run successful":"Preview running",
-  "Sandbox error":        "Preview error",
-  "Runtime fix applied":  "Runtime fix applied",
-  "Runtime fix failed":   "Runtime fix failed",
-  "Run failed":           "Run failed",
-}
-
-// ─── Helpers (unchanged) ──────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function shortenId(id: string) {
   if (id.length <= 12) return id
@@ -220,6 +97,43 @@ function shortenId(id: string) {
 function normalizeStatus(status: unknown): ComputerSessionStatus {
   return status === "idle" || status === "planning" || status === "running" ||
     status === "error" || status === "complete" ? status : "idle"
+}
+
+function normalizeConversationTurns(value: unknown): ComputerConversationTurn[] {
+  if (!Array.isArray(value)) return []
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object") return []
+    const turn = item as Record<string, unknown>
+    if ((turn.role !== "user" && turn.role !== "assistant") || typeof turn.content !== "string") return []
+    return [{
+      role: turn.role,
+      content: turn.content,
+      source: typeof turn.source === "string" ? turn.source as ComputerConversationTurn["source"] : "composer",
+      createdAt: typeof turn.createdAt === "string" ? turn.createdAt : new Date().toISOString(),
+      ...(typeof turn.runId === "string" ? { runId: turn.runId } : {}),
+    }]
+  })
+}
+
+function normalizeAgentRuntime(value: unknown): ComputerAgentRuntimeCheckpoint | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
+  const record = value as Record<string, unknown>
+  return {
+    phase: typeof record.phase === "string"
+      ? record.phase as ComputerAgentRuntimeCheckpoint["phase"]
+      : "idle",
+    ...(typeof record.lastCompletedPhase === "string"
+      ? { lastCompletedPhase: record.lastCompletedPhase as ComputerAgentRuntimeCheckpoint["lastCompletedPhase"] }
+      : {}),
+    ...(typeof record.nextAction === "string" ? { nextAction: record.nextAction } : {}),
+    ...(typeof record.effectiveRequest === "string" ? { effectiveRequest: record.effectiveRequest } : {}),
+    ...(typeof record.planText === "string" ? { planText: record.planText } : {}),
+    ...(typeof record.generatedFileCount === "number" ? { generatedFileCount: record.generatedFileCount } : {}),
+    ...(typeof record.lastError === "string" ? { lastError: record.lastError } : {}),
+    ...(typeof record.paused === "boolean" ? { paused: record.paused } : {}),
+    ...(typeof record.stoppedAt === "string" ? { stoppedAt: record.stoppedAt } : {}),
+    updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : new Date().toISOString(),
+  }
 }
 
 const STOPPED_COMPUTER_SESSIONS_KEY = "lotus.stoppedComputerSessions"
@@ -244,55 +158,6 @@ function normalizeTimeline(timeline: unknown): ComputerTimelineEvent[] {
   return timeline
     .map((e, i) => ({ ...(e as ComputerTimelineEvent), index: typeof (e as { index?: unknown }).index === "number" ? (e as { index: number }).index : i }))
     .sort((a, b) => a.index - b.index)
-}
-
-function getEventTitle(event: ComputerTimelineEvent) {
-  return EVENT_TITLES[event.title] || event.title
-}
-
-function isBrowserLiveViewExpired(event: ComputerTimelineEvent) {
-  const explicitExpiry = typeof event.metadata?.browserExpiresAt === "string" ? event.metadata.browserExpiresAt : ""
-  const expiryTime = explicitExpiry ? Date.parse(explicitExpiry) : NaN
-  if (Number.isFinite(expiryTime)) return Date.now() >= expiryTime
-
-  const createdTime = Date.parse(event.createdAt)
-  if (!Number.isFinite(createdTime)) return false
-  return Date.now() - createdTime > 5 * 60 * 1000
-}
-
-function getLatestBrowserInspection(events: ComputerTimelineEvent[]): BrowserInspection | null {
-  const browserEvents = [...events].sort((a, b) => a.index - b.index).reverse()
-  const found = browserEvents.find((e) =>
-    e.kind === "browser" &&
-    e.title !== "Browser live" &&
-    typeof e.metadata?.targetUrl === "string" &&
-    (e.metadata.targetUrl as string).startsWith("http")
-  )
-  if (!found?.metadata) return null
-  const url = typeof found.metadata.targetUrl === "string" ? found.metadata.targetUrl : ""
-  if (!url) return null
-  const liveUrl =
-    typeof found.metadata.browserLiveUrl === "string" && found.metadata.browserLiveUrl.startsWith("http")
-      ? found.metadata.browserLiveUrl
-      : ""
-  return {
-    url,
-    liveUrl,
-    sessionId: typeof found.metadata.browserSessionId === "string" ? found.metadata.browserSessionId : undefined,
-    baseUrl:   typeof found.metadata.browserBaseUrl   === "string" ? found.metadata.browserBaseUrl   : undefined,
-    provider:  typeof found.metadata.browserProvider  === "string" ? found.metadata.browserProvider  : undefined,
-    expiresAt: typeof found.metadata.browserExpiresAt === "string" ? found.metadata.browserExpiresAt : undefined,
-    isExpired: liveUrl ? isBrowserLiveViewExpired(found) : false,
-    title:     typeof found.metadata.pageTitle === "string" && found.metadata.pageTitle.trim() ? found.metadata.pageTitle : url,
-  }
-}
-
-function getBrowserProviderLabel(provider?: string) {
-  return "Browser"
-}
-
-function isTokenLimitError(message?: string | null) {
-  return /insufficient tokens|out of credits|token limit|no credits/i.test(message || "")
 }
 
 function getRunErrorMessage(message: string) {
@@ -331,41 +196,6 @@ function normalizePreviewEnsureError(value: unknown) {
 
   return messages.find((item) => item.matches.some((pattern) => pattern.test(message)))?.copy
     ?? "The preview could not be restored right now."
-}
-
-function formatClarificationAnswer(question: QuestionConfig, answer?: QuestionAnswer) {
-  if (!answer || answer.kind === "skip") return "Skipped"
-  if (answer.kind === "text") return answer.text?.trim() || "Answered"
-
-  const optionLabels = new Map((question.options ?? []).map((option) => [option.id, option.label]))
-  const selected = (answer.selectedIds ?? [])
-    .map((id) => optionLabels.get(id) ?? id)
-    .filter(Boolean)
-  const parts = [...selected]
-  if (answer.text?.trim()) parts.push(answer.text.trim())
-
-  return parts.join(", ") || "Answered"
-}
-
-function formatClarificationAnswerSet(
-  questions: QuestionConfig[],
-  answersByQuestion?: Record<number, QuestionAnswer>,
-  fallbackAnswer?: QuestionAnswer
-) {
-  if (fallbackAnswer?.kind === "skip") return "skip"
-
-  const answerEntries = questions
-    .map((question, index) => ({
-      question,
-      answer: answersByQuestion?.[index + 1] ?? (questions.length === 1 ? fallbackAnswer : undefined),
-    }))
-    .filter((entry) => entry.answer)
-
-  if (answerEntries.length === 0) return "skip"
-
-  return answerEntries
-    .map(({ question, answer }) => `Question: ${question.title}\nAnswer: ${formatClarificationAnswer(question, answer)}`)
-    .join("\n\n")
 }
 
 function getTokenLimitEvent(events: ComputerTimelineEvent[]) {
@@ -428,26 +258,7 @@ function formatSyncedAt(value: unknown) {
   return Number.isNaN(date.getTime()) ? "" : date.toLocaleString()
 }
 
-// Returns the first-run id and an ordered list of follow-up run ids derived from the timeline.
-// Used both by AgentFeed (display) and handleEditSubmit (pruning).
-function getRunIdGroups(events: ComputerTimelineEvent[]): { firstRunId: string | null; followUpRunIds: string[] } {
-  const visible = events.filter((e) => e.title !== "Session created")
-  const firstRunId = visible.find((e) => e.runId)?.runId ?? null
-  const seen = new Set<string>()
-  const followUpRunIds: string[] = []
-  for (const event of visible) {
-    if (!event.runId || event.runId === firstRunId) continue
-    if (!seen.has(event.runId)) {
-      seen.add(event.runId)
-      followUpRunIds.push(event.runId)
-    }
-  }
-  return { firstRunId, followUpRunIds }
-}
-
-// ─── Atoms ────────────────────────────────────────────────────────────────────
-
-// ─── Step strip ───────────────────────────────────────────────────────────────
+// ─── Deploy + integrations ────────────────────────────────────────────────────
 
 function DeployButton({
   projectId,
@@ -456,6 +267,7 @@ function DeployButton({
   deploymentLinks,
   onOpenChange,
   onDeploy,
+  headless = false,
 }: {
   projectId?: string
   open: boolean
@@ -463,13 +275,15 @@ function DeployButton({
   deploymentLinks?: Partial<Record<DeployProvider, DeploymentLink>>
   onOpenChange: (open: boolean) => void
   onDeploy: (provider: DeployProvider) => void
+  headless?: boolean
 }) {
   if (!projectId) return null
   const visibleStateSiteUrl = state.siteUrl || (state.provider ? deploymentLinks?.[state.provider]?.siteUrl ?? null : null)
   const hasStoredDeployments = Boolean(deploymentLinks?.netlify?.siteUrl || deploymentLinks?.vercel?.siteUrl)
 
   return (
-    <div className="relative">
+    <div className={cn("relative", headless && !open && "hidden")}>
+      {!headless && (
       <button
         type="button"
         onClick={() => onOpenChange(!open)}
@@ -488,9 +302,13 @@ function DeployButton({
           : <Rocket className="h-3.5 w-3.5" />}
         <span>Deploy</span>
       </button>
+      )}
 
       {open && (
-        <div className="absolute right-0 top-11 z-30 hidden w-[480px] max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-card p-3 shadow-[0_24px_70px_-32px_var(--primary)] sm:block">
+        <div className={cn(
+          "z-30 hidden w-[480px] max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-card p-3 shadow-[0_24px_70px_-32px_var(--primary)] sm:block",
+          headless ? "fixed right-6 top-16" : "absolute right-0 top-11",
+        )}>
           <div className="px-1 pb-2">
             <p className="text-[12px] font-semibold text-foreground">Publish this project</p>
             <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
@@ -580,6 +398,7 @@ function IntegrationsButton({
   onEnvChange,
   onEnvAdd,
   onEnvSave,
+  headless = false,
 }: {
   projectId?: string
   project: ComputerProjectIntegration | null
@@ -593,6 +412,7 @@ function IntegrationsButton({
   onEnvChange: (key: string, value: string) => void
   onEnvAdd: (key: string, value: string) => void
   onEnvSave: () => void
+  headless?: boolean
 }) {
   const [newEnvKey, setNewEnvKey] = useState("")
   const [newEnvValue, setNewEnvValue] = useState("")
@@ -604,7 +424,8 @@ function IntegrationsButton({
   const syncedAt = formatSyncedAt(project?.githubSyncedAt)
 
   return (
-    <div className="relative">
+    <div className={cn("relative", headless && !open && "hidden")}>
+      {!headless && (
       <button
         type="button"
         onClick={() => onOpenChange(!open)}
@@ -621,9 +442,13 @@ function IntegrationsButton({
         <span className="hidden sm:inline">Integrations</span>
         <ChevronDown className={cn("hidden h-3.5 w-3.5 opacity-50 transition-transform duration-200 sm:block", open && "rotate-180")} />
       </button>
+      )}
 
       {open && (
-        <div className="absolute right-0 top-11 z-30 hidden w-[360px] rounded-2xl border border-border bg-card p-3 shadow-[0_24px_70px_-32px_var(--primary)] sm:block">
+        <div className={cn(
+          "z-30 hidden w-[360px] rounded-2xl border border-border bg-card p-3 shadow-[0_24px_70px_-32px_var(--primary)] sm:block",
+          headless ? "fixed right-6 top-16" : "absolute right-0 top-11",
+        )}>
           <div className="mb-3">
             <p className="text-[12px] font-semibold text-foreground">Project integrations</p>
             <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
@@ -873,944 +698,6 @@ function MobileIntegrationsSheet({
   )
 }
 
-// ─── Plan description renderer ────────────────────────────────────────────────
-
-function renderInline(text: string): React.ReactNode {
-  return text.split(/(\*\*[^*]+\*\*)/).map((part, i) =>
-    part.startsWith("**") && part.endsWith("**")
-      ? <strong key={i} className="font-semibold text-zinc-700">{part.slice(2, -2)}</strong>
-      : part
-  )
-}
-
-function PlanDescription({ text }: { text: string }) {
-  return (
-    <div className="space-y-0.5 text-[12.5px] leading-relaxed">
-      {text.split("\n").map((line, i) => {
-        const t = line.trim()
-        if (!t) return <div key={i} className="h-1.5" />
-        if (t.match(/^#\s+/)) return null
-        const h2 = t.match(/^##\s+(.+)/)
-        if (h2) return <p key={i} className="pt-2 pb-0.5 text-[12px] font-semibold text-zinc-800">{renderInline(h2[1])}</p>
-        const h3 = t.match(/^###\s+(.+)/)
-        if (h3) return <p key={i} className="pt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400">{h3[1]}</p>
-        const li = t.match(/^[-*]\s+(.+)/)
-        if (li) return (
-          <div key={i} className="flex items-start gap-2 text-zinc-500">
-            <span className="mt-[6px] h-[3px] w-[3px] shrink-0 rounded-full bg-zinc-300" />
-            <span>{renderInline(li[1])}</span>
-          </div>
-        )
-        return <p key={i} className="text-zinc-500">{renderInline(t)}</p>
-      })}
-    </div>
-  )
-}
-
-// ─── Feed item ────────────────────────────────────────────────────────────────
-
-function SupabaseQuestionCard({ onSetup, onDecline }: { onSetup: () => void; onDecline?: () => void }) {
-  const [dismissed, setDismissed] = useState(false)
-  const [setting, setSetting] = useState(false)
-
-  if (dismissed) return null
-
-  const handleSetup = async () => {
-    setSetting(true)
-    try {
-      await onSetup()
-    } finally {
-      setSetting(false)
-    }
-  }
-
-  const handleDecline = () => {
-    setDismissed(true)
-    onDecline?.()
-  }
-
-  return (
-    <div className="my-3 overflow-hidden rounded-[10px] border border-border bg-muted shadow-sm">
-      <div className="flex h-8 items-center justify-between pl-3 pr-2.5">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <Database className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
-          <span className="truncate text-xs text-zinc-500">Backend detected</span>
-        </div>
-      </div>
-      <div className="border-t border-border bg-white px-3 py-3">
-        <p className="text-sm font-medium text-foreground">This app needs a database</p>
-        <p className="mt-1 text-xs text-zinc-500">
-          Connect Supabase to add auth, persistent storage, and a live backend — automatically wired into your code.
-        </p>
-        <div className="mt-3 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleSetup}
-            disabled={setting}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-accent-foreground transition-colors hover:bg-accent/90 disabled:opacity-60"
-          >
-            {setting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Database className="h-3 w-3" />}
-            {setting ? "Setting up..." : "Set up Supabase"}
-          </button>
-          <button
-            type="button"
-            onClick={handleDecline}
-            disabled={setting}
-            className="inline-flex items-center rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-800 disabled:opacity-60"
-          >
-            Not now
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function getPlanFileName(event: ComputerTimelineEvent) {
-  const rawId = event.id?.trim()
-  if (!rawId) return "plan-working.md"
-  return `plan-${rawId.slice(0, 8)}.md`
-}
-
-function PlanTool({ event }: { event: ComputerTimelineEvent }) {
-  const [isExpanded, setIsExpanded] = useState(false)
-  const summary = event.description?.trim() || ""
-  const hasSummary = summary.length > 0
-
-  return (
-    <div className="my-3 overflow-hidden rounded-[10px] border border-border bg-muted shadow-sm">
-      <div className="flex h-8 items-center justify-between pl-3 pr-2.5">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <FileText className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
-          <span className="truncate text-xs text-zinc-500">{getPlanFileName(event)}</span>
-        </div>
-        <button
-          type="button"
-          onClick={() => setIsExpanded((prev) => !prev)}
-          aria-label={isExpanded ? "Collapse plan" : "Expand plan"}
-          className="inline-flex h-5 w-5 items-center justify-center rounded-[4px] text-zinc-500 transition-colors hover:bg-white hover:text-foreground"
-        >
-          {isExpanded ? <ChevronsUp className="h-3.5 w-3.5" /> : <ChevronsDown className="h-3.5 w-3.5" />}
-        </button>
-      </div>
-
-      <div className="border-t border-border bg-white pt-2">
-        <div className="px-3 text-sm font-medium text-foreground">Plan drafted</div>
-
-        {hasSummary ? (
-          <div className="relative mt-1">
-            <div className={cn("px-3 pb-2 text-zinc-500", !isExpanded && "max-h-[94px] overflow-hidden")}>
-              <PlanDescription text={summary} />
-            </div>
-            {!isExpanded && (
-              <div className="absolute inset-x-0 bottom-0 h-16 px-3 pb-2">
-                <div className="absolute inset-x-0 bottom-0 h-full bg-gradient-to-b from-transparent to-white" />
-                <div className="relative flex h-full items-end">
-                  <button
-                    type="button"
-                    onClick={() => setIsExpanded(true)}
-                    className="-mx-1.5 h-5 rounded-[4px] px-1.5 text-xs text-zinc-500 transition-colors hover:text-foreground"
-                  >
-                    Read detailed plan
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="px-3 pb-2 text-xs text-zinc-500">No plan summary provided.</div>
-        )}
-
-        {(isExpanded || !hasSummary) && (
-          <div className="mt-2 flex items-center justify-between border-t border-border bg-muted py-2 pl-3.5 pr-2">
-            <button
-              type="button"
-              onClick={() => setIsExpanded((prev) => !prev)}
-              className="-mx-1.5 h-5 rounded-[4px] px-1.5 text-xs text-zinc-500 transition-colors hover:text-foreground"
-            >
-              {isExpanded ? "Hide detailed plan" : "Read detailed plan"}
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-const PROSE_EVENTS = ["Understanding insight", "Research insight", "Browser insight", "Build approach"]
-
-function getGeneratingFilePath(event: ComputerTimelineEvent) {
-  if (typeof event.metadata?.filePath === "string") return event.metadata.filePath
-  return event.title.startsWith("Generating ") ? event.title.slice("Generating ".length).trim() : undefined
-}
-
-function getEditToolVariant(event: ComputerTimelineEvent): "edit" | "write" {
-  return event.metadata?.editVariant === "edit" ? "edit" : "write"
-}
-
-function getFileContentMetadata(event: ComputerTimelineEvent) {
-  return {
-    oldContent: typeof event.metadata?.oldContent === "string" ? event.metadata.oldContent : undefined,
-    newContent: typeof event.metadata?.newContent === "string" ? event.metadata.newContent : undefined,
-  }
-}
-
-function getCommandMetadata(event: ComputerTimelineEvent) {
-  const command = typeof event.metadata?.command === "string" ? event.metadata.command : ""
-  if (!command.trim()) return null
-  const output = typeof event.metadata?.commandOutput === "string" ? event.metadata.commandOutput : undefined
-  return { command, output }
-}
-
-function FeedItem({ event, isLatest, isSessionRunning, onSupabaseSetup, onSupabaseDecline, onClarificationAnswer }: { event: ComputerTimelineEvent; isLatest: boolean; isSessionRunning: boolean; onSupabaseSetup?: () => void; onSupabaseDecline?: () => void; onClarificationAnswer?: (answer: string) => void }) {
-  const isComplete = event.status === "complete"
-  const isError    = event.status === "error"
-  const isRunning  = isSessionRunning && event.status === "running"
-  const isSkipped  = event.status === "skipped"
-  const title      = getEventTitle(event)
-  const description = isTokenLimitError(event.description)
-    ? "You have used all credits for this cycle."
-    : event.description
-
-  // Supabase question card
-  if (event.metadata?.questionType === "supabase") {
-    return <SupabaseQuestionCard onSetup={onSupabaseSetup ?? (() => {})} onDecline={onSupabaseDecline} />
-  }
-
-  // Dynamic clarification questions
-  if (event.metadata?.questionType === "clarification" && typeof event.metadata?.questions === "string") {
-    let questions: QuestionConfig[] = []
-    try { questions = JSON.parse(event.metadata.questions as string) } catch {}
-    if (questions.length > 0) {
-      return (
-        <QuestionTool
-          questions={questions}
-          allowSkip
-          submitLabel="Send"
-          nextLabel="Next"
-          skipLabel="Skip"
-          className="my-3"
-          onSubmitAnswer={(answer: QuestionAnswer, answersByQuestion?: Record<number, QuestionAnswer>) => {
-            if (!onClarificationAnswer) return
-            onClarificationAnswer(formatClarificationAnswerSet(questions, answersByQuestion, answer))
-          }}
-        />
-      )
-    }
-  }
-
-  // AI conversational reply — rendered as plain prose, no bubble, no icon
-  if (event.title === "Response" && event.description) {
-    return (
-      <div className="py-3 pr-2">
-        <p className="whitespace-pre-wrap break-words text-[14px] leading-[1.7] text-zinc-800 [overflow-wrap:anywhere]">
-          {event.description}
-        </p>
-      </div>
-    )
-  }
-
-  // Plan card — rendered only once when planning completes
-  if (event.title === "Planning execution" && isComplete && event.description) {
-    return <PlanTool event={event} />
-  }
-
-  const commandMetadata = getCommandMetadata(event)
-  if (commandMetadata) {
-    return (
-      <BashTool
-        state={isRunning ? "running" : "idle"}
-        command={commandMetadata.command}
-        output={commandMetadata.output || description}
-        className="my-2"
-      />
-    )
-  }
-
-  if (event.title === "Generating code") {
-    if (!isRunning) return null
-    return <EditTool state="waiting" variant="write" className="my-2" />
-  }
-
-  const generatedFilePath = getGeneratingFilePath(event)
-  if (generatedFilePath && event.kind === "code") {
-    const fileContent = getFileContentMetadata(event)
-    return (
-      <EditTool
-        state={isRunning ? "pending" : "completed"}
-        variant={getEditToolVariant(event)}
-        filePath={generatedFilePath}
-        oldContent={fileContent.oldContent}
-        newContent={fileContent.newContent}
-        className="my-2"
-      />
-    )
-  }
-
-  const isProse = PROSE_EVENTS.includes(event.title) && event.description
-
-  if (isProse) {
-    return (
-      <Collapsible defaultOpen className="my-2 group/collapsible">
-        <CollapsibleTrigger className="flex w-full items-start gap-1.5 outline-none text-left">
-          <div className="mt-1 flex h-3 w-3 shrink-0 items-center justify-center">
-            <ChevronRight className="h-2.5 w-2.5 text-zinc-400 transition-transform group-data-[state=open]/collapsible:rotate-90" />
-          </div>
-          {isRunning ? (
-            <TextShimmer className="text-[11px] font-semibold uppercase tracking-[0.14em] bg-gradient-to-r from-zinc-400 via-zinc-950 to-zinc-400">
-              {title}
-            </TextShimmer>
-          ) : (
-            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
-              {title}
-            </span>
-          )}
-        </CollapsibleTrigger>
-        <CollapsibleContent className="mt-2 ml-1.5 border-l-2 border-border pl-3">
-          <p className="text-[13.5px] leading-relaxed text-zinc-600">
-            {event.description}
-          </p>
-        </CollapsibleContent>
-      </Collapsible>
-    )
-  }
-
-  return (
-    <div className="flex items-start gap-2.5 py-1.5 w-full overflow-hidden">
-      <div className="flex h-5 w-4 shrink-0 items-center justify-center">
-        {isRunning ? (
-          <div className="relative flex h-1.5 w-1.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-zinc-900 opacity-20" />
-            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
-          </div>
-        ) : isError ? (
-          <div className="h-1.5 w-1.5 rounded-full bg-red-400" />
-        ) : (
-          <div className={cn("h-1.5 w-1.5 rounded-full", isSkipped ? "bg-zinc-200" : "bg-zinc-300")} />
-        )}
-      </div>
-      <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2">
-        {isRunning ? (
-          <TextShimmer className="bg-gradient-to-r from-zinc-400 via-zinc-950 to-zinc-400 text-[14px] font-medium">
-            {title}
-          </TextShimmer>
-        ) : (
-          <span className={cn("text-[14px] leading-relaxed", isError ? "text-red-600" : "text-zinc-800")}>
-            {title}
-          </span>
-        )}
-        {description && (
-          <span className={cn("min-w-0 truncate text-[11.5px]", isError ? "text-red-400" : "text-zinc-300")}>
-            {description.split("\n")[0]}
-          </span>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// ─── Editable user bubble ─────────────────────────────────────────────────────
-
-function UserMessageBubble({
-  content, index, isEditing, editText,
-  onEditStart, onEditChange, onEditSubmit, onEditCancel,
-}: {
-  content: string; index: number; isEditing: boolean; editText: string
-  onEditStart: (i: number, c: string) => void
-  onEditChange: (t: string) => void
-  onEditSubmit: (i: number) => void
-  onEditCancel: () => void
-}) {
-  const ref = useRef<HTMLTextAreaElement | null>(null)
-  const [copied, setCopied] = useState(false)
-  const handleCopy = async () => {
-    await navigator.clipboard?.writeText(content).catch(() => undefined)
-    setCopied(true)
-    window.setTimeout(() => setCopied(false), 1200)
-  }
-
-  useEffect(() => {
-    if (isEditing && ref.current) {
-      ref.current.focus()
-      const len = ref.current.value.length
-      ref.current.setSelectionRange(len, len)
-    }
-  }, [isEditing])
-
-  if (isEditing) {
-    return (
-      <div className="flex justify-end pb-4">
-        <div className="w-full max-w-[min(84%,42rem)]">
-          <div className="overflow-hidden rounded-[14px] bg-primary shadow-[0_1px_2px_var(--primary)]">
-          <textarea
-            ref={ref} value={editText} onChange={(e) => onEditChange(e.target.value)}
-            rows={Math.max(2, editText.split("\n").length)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onEditSubmit(index) }
-              if (e.key === "Escape") onEditCancel()
-            }}
-            className="w-full resize-none bg-transparent px-3.5 py-2.5 text-[13px] leading-relaxed text-zinc-100 outline-none placeholder:text-zinc-600"
-          />
-          </div>
-          <div className="mt-1.5 flex items-center justify-end gap-2">
-            <button type="button" onClick={onEditCancel} className="rounded-md px-2 py-1 text-[11px] text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800">Cancel</button>
-            <button type="button" onClick={() => onEditSubmit(index)} className="rounded-md bg-accent px-2.5 py-1 text-[11px] font-medium text-accent-foreground transition-colors hover:bg-accent/90">Submit</button>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="group flex w-full justify-end pb-4">
-      <div className="flex w-fit max-w-[min(84%,42rem)] min-w-0 flex-col items-end">
-        <div className="max-w-full rounded-[14px] bg-primary px-3.5 py-2.5 text-right shadow-[0_1px_2px_var(--primary)]">
-          <p className="whitespace-pre-wrap break-words text-left text-[13px] leading-relaxed text-zinc-100 [overflow-wrap:anywhere]">{content}</p>
-        </div>
-        <div className="mt-1.5 flex items-center gap-1 pr-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
-          <button
-            type="button"
-            onClick={handleCopy}
-            aria-label="Copy message"
-            title="Copy"
-            className="rounded-md p-1 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
-          >
-            {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-          </button>
-          <button
-            type="button"
-            onClick={() => onEditStart(index, content)}
-            aria-label="Edit and restore from this message"
-            title="Edit and restore"
-            className="rounded-md p-1 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── Agent feed ───────────────────────────────────────────────────────────────
-
-function AgentFeed({
-  prompt, events, localMessages, status, optimisticStart,
-  editingIndex, editText, onEditStart, onEditChange, onEditSubmit, onEditCancel,
-  onSupabaseSetup, onSupabaseDecline, onClarificationAnswer, onSwitchToPreview,
-}: {
-  prompt?: string; events: ComputerTimelineEvent[]
-  localMessages: LocalMessage[]
-  status: ComputerSessionStatus; optimisticStart?: boolean
-  editingIndex: number | null; editText: string
-  onEditStart: (i: number, c: string) => void
-  onEditChange: (t: string) => void
-  onEditSubmit: (i: number) => void
-  onEditCancel: () => void
-  onSupabaseSetup?: () => void
-  onSupabaseDecline?: () => void
-  onClarificationAnswer?: (answer: string) => void
-  onSwitchToPreview?: () => void
-}) {
-  const endRef    = useRef<HTMLDivElement | null>(null)
-  const isRunning = status === "running" || status === "planning"
-  const visible   = events.filter((e) => e.title !== "Session created")
-  const { firstRunId, followUpRunIds } = getRunIdGroups(events)
-  const initialEvents = firstRunId ? visible.filter((event) => event.runId === firstRunId) : visible
-  const runEventsById = new Map<string, ComputerTimelineEvent[]>()
-  for (const event of visible) {
-    if (!event.runId || event.runId === firstRunId) continue
-    const runEvents = runEventsById.get(event.runId) ?? []
-    runEvents.push(event)
-    runEventsById.set(event.runId, runEvents)
-  }
-  const localUserCount = localMessages.filter((msg) => msg.role === "user").length
-  const unpairedRunIds = followUpRunIds.slice(localUserCount)
-  const isStarting = optimisticStart && visible.length === 0
-  const isEmpty   = !prompt && visible.length === 0 && localMessages.length === 0 && !isStarting
-
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ block: "end", behavior: "smooth" })
-  }, [visible.length, localMessages.length, isStarting])
-
-  if (isEmpty) {
-    return (
-      <div className="flex h-full min-h-[180px] items-center justify-center text-center">
-        <div>
-          <p className="text-[13px] font-medium text-zinc-600">Ready to build</p>
-          <p className="mt-1 text-[11.5px] text-zinc-400">Send a message to start the agent.</p>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-0.5 pb-2">
-      {/* Prompt bubble */}
-      {prompt && (
-        <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.12 }} className="pb-4">
-          <UserMessageBubble
-            content={prompt} index={-1} isEditing={editingIndex === -1}
-            editText={editingIndex === -1 ? editText : ""}
-            onEditStart={onEditStart} onEditChange={onEditChange}
-            onEditSubmit={onEditSubmit} onEditCancel={onEditCancel}
-          />
-        </motion.div>
-      )}
-
-      {/* Optimistic start shimmer */}
-      <AnimatePresence initial={false}>
-        {isStarting && (
-          <motion.div key="optimistic" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }} className="py-1">
-            <TextShimmer className="bg-gradient-to-r from-zinc-500 via-zinc-950 to-zinc-500 font-mono text-[13px] font-semibold">
-              Starting agent...
-            </TextShimmer>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Timeline events — pure stream, no group dividers */}
-      <AnimatePresence initial={false}>
-        {initialEvents.map((event, i) => {
-          const isLatest = i === initialEvents.length - 1 && isRunning
-          return (
-            <motion.div key={event.id ?? `${event.title}-${i}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.14 }}>
-              <FeedItem event={event} isLatest={isLatest} isSessionRunning={isRunning} onSupabaseSetup={onSupabaseSetup} onSupabaseDecline={onSupabaseDecline} onClarificationAnswer={onClarificationAnswer} />
-            </motion.div>
-          )
-        })}
-      </AnimatePresence>
-
-      {/* Local follow-up messages */}
-      <AnimatePresence initial={false}>
-        {localMessages.map((msg, i) =>
-          msg.role === "user" ? (
-            <Fragment key={`user-fragment-${i}`}>
-              <motion.div key={`user-${i}`} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.12 }} className="pt-2">
-                <UserMessageBubble
-                content={msg.content} index={i} isEditing={editingIndex === i}
-                editText={editingIndex === i ? editText : ""}
-                onEditStart={onEditStart} onEditChange={onEditChange}
-                  onEditSubmit={onEditSubmit} onEditCancel={onEditCancel}
-                />
-              </motion.div>
-            {(runEventsById.get(msg.runId ?? followUpRunIds[localMessages.slice(0, i).filter((item) => item.role === "user").length]) ?? []).map((event, eventIndex, runEvents) => {
-              const isLatest = eventIndex === runEvents.length - 1 && isRunning
-              return (
-                <motion.div key={event.id ?? `${msg.runId}-${event.title}-${eventIndex}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.14 }}>
-                  <FeedItem event={event} isLatest={isLatest} isSessionRunning={isRunning} onSupabaseSetup={onSupabaseSetup} onSupabaseDecline={onSupabaseDecline} onClarificationAnswer={onClarificationAnswer} />
-                </motion.div>
-              )
-            })}
-            </Fragment>
-          ) : (
-            <motion.div key={`sys-${i}`} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.12 }} className="flex justify-center py-1">
-              <span className="text-[11px] text-zinc-400">{msg.content}</span>
-            </motion.div>
-          )
-        )}
-      </AnimatePresence>
-
-      {unpairedRunIds.map((runId) =>
-        (runEventsById.get(runId) ?? []).map((event, eventIndex, runEvents) => {
-          const isLatest = eventIndex === runEvents.length - 1 && isRunning
-          return (
-            <motion.div key={event.id ?? `${runId}-${event.title}-${eventIndex}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.14 }}>
-              <FeedItem event={event} isLatest={isLatest} isSessionRunning={isRunning} onSupabaseSetup={onSupabaseSetup} onSupabaseDecline={onSupabaseDecline} onClarificationAnswer={onClarificationAnswer} />
-            </motion.div>
-          )
-        })
-      )}
-
-      {/* Running shimmer */}
-      <AnimatePresence>
-        {isRunning && (
-          <motion.div initial={{ opacity: 0, y: 3 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }} className="py-3">
-            <TextShimmer className="bg-gradient-to-r from-zinc-500 via-zinc-950 to-zinc-500 text-[14px] font-medium">
-              {STATUS_LABELS[status]}
-            </TextShimmer>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Completion message */}
-      {status === "complete" && visible.length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.14 }} className="pt-4">
-          {events.some((e) => e.title === "Preview ready") ? (
-            <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50 px-3.5 py-3">
-              <p className="text-[13px] font-medium text-emerald-800">Preview is ready.</p>
-              {onSwitchToPreview && (
-                <button
-                  type="button"
-                  onClick={onSwitchToPreview}
-                  className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-success px-3 py-1.5 text-[12px] font-semibold text-success-foreground transition-colors hover:bg-success/90 sm:hidden"
-                >
-                  <Monitor className="h-3.5 w-3.5" />
-                  Open Preview
-                </button>
-              )}
-            </div>
-          ) : (
-            <p className="text-[13px] leading-relaxed text-zinc-800">Run complete.</p>
-          )}
-        </motion.div>
-      )}
-
-      <div ref={endRef} />
-    </div>
-  )
-}
-
-// ─── Research panel ───────────────────────────────────────────────────────────
-
-function ResearchPanel({ events }: { events: ComputerTimelineEvent[] }) {
-  const evidence = events.filter(
-    (e) => (e.kind === "research" || e.kind === "browser") && Boolean(e.description?.trim())
-  )
-  if (evidence.length === 0) {
-    return (
-      <div className="flex h-full items-center justify-center p-8 text-center">
-        <div>
-          <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-white text-zinc-300">
-            <BookOpen className="h-4.5 w-4.5" />
-          </div>
-          <p className="text-[13px] font-medium text-zinc-600">No research yet</p>
-          <p className="mt-1 text-[11.5px] leading-relaxed text-zinc-400">Research notes and inspected pages appear here.</p>
-        </div>
-      </div>
-    )
-  }
-  return (
-    <div className="h-full min-h-0 space-y-3 overflow-y-auto p-4 [scrollbar-width:thin] sm:p-5">
-      <AnimatePresence initial={false}>
-        {evidence.map((event, i) => (
-          <motion.div key={event.id ?? `${event.title}-${i}`} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.12 }}
-            className="rounded-2xl border border-border bg-white px-3.5 py-3 shadow-sm">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[12.5px] font-semibold text-zinc-800">{getEventTitle(event)}</p>
-                <p className="mt-0.5 text-[10px] uppercase tracking-[0.14em] text-zinc-400">{event.kind}</p>
-              </div>
-              <span className="shrink-0 font-mono text-[10px] text-zinc-400">
-                {new Date(event.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-              </span>
-            </div>
-            <p className="mt-2 whitespace-pre-wrap text-[11.5px] leading-relaxed text-zinc-500">{event.description}</p>
-          </motion.div>
-        ))}
-      </AnimatePresence>
-    </div>
-  )
-}
-
-// ─── Runtime error card ───────────────────────────────────────────────────────
-
-function RuntimeErrorCard({
-  error,
-  fixing,
-  onFix,
-  onDismiss,
-}: {
-  error: { message: string; stack: string }
-  fixing: boolean
-  onFix: () => void
-  onDismiss: () => void
-}) {
-  const [expanded, setExpanded] = useState(false)
-  return (
-    <div className="absolute bottom-4 right-4 z-20 w-[340px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-destructive/20 bg-card shadow-[0_12px_40px_-12px_var(--destructive),0_4px_16px_-4px_var(--primary)]">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-2 border-b border-red-100 bg-red-50 px-3.5 py-2.5">
-        <div className="flex items-center gap-2">
-          <span className="flex h-5 w-5 items-center justify-center rounded-md bg-red-100">
-            <ShieldAlert className="h-3 w-3 text-red-500" />
-          </span>
-          <span className="text-[12px] font-semibold text-red-700">Runtime Error</span>
-        </div>
-        <button
-          type="button"
-          onClick={onDismiss}
-          className="flex h-5 w-5 items-center justify-center rounded-md text-red-400 transition-colors hover:bg-red-100 hover:text-red-600"
-        >
-          <span className="text-[14px] leading-none">×</span>
-        </button>
-      </div>
-      {/* Error message */}
-      <div className="px-3.5 py-3">
-        <p className="line-clamp-2 text-[12px] leading-relaxed text-zinc-700">{error.message}</p>
-        {/* Stack trace toggle */}
-        {error.stack && (
-          <div className="mt-2">
-            <button
-              type="button"
-              onClick={() => setExpanded((v) => !v)}
-              className="text-[11px] text-zinc-400 transition-colors hover:text-zinc-700"
-            >
-              {expanded ? 'Hide stack trace' : 'Show stack trace'}
-            </button>
-            {expanded && (
-              <pre className="mt-1.5 max-h-[120px] overflow-y-auto rounded-lg border border-zinc-100 bg-zinc-50 p-2 text-[10px] leading-relaxed text-zinc-500 [scrollbar-width:thin]">
-                {error.stack}
-              </pre>
-            )}
-          </div>
-        )}
-      </div>
-      {/* Action row */}
-      <div className="flex items-center gap-2 border-t border-border bg-card px-3.5 py-2.5">
-        <button
-          type="button"
-          onClick={onFix}
-          disabled={fixing}
-          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-[12px] font-semibold text-accent-foreground transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {fixing
-            ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Fixing...</>
-            : <><Wrench className="h-3.5 w-3.5" /> Fix with AI</>}
-        </button>
-        <button
-          type="button"
-          onClick={onDismiss}
-          className="inline-flex h-8 items-center rounded-lg border border-zinc-200 bg-white px-3 text-[12px] font-medium text-zinc-500 transition-colors hover:text-zinc-800"
-        >
-          Dismiss
-        </button>
-      </div>
-    </div>
-  )
-}
-
-// ─── Workspace panel ──────────────────────────────────────────────────────────
-
-function WorkspaceHeaderLink({ href }: { href: string }) {
-  return (
-    <a href={href} target="_blank" rel="noreferrer"
-      className="inline-flex min-w-0 items-center gap-1 truncate text-[11px] text-zinc-400 transition-colors hover:text-zinc-700">
-      <span className="truncate">{href}</span>
-      <ExternalLink className="h-3 w-3 shrink-0" />
-    </a>
-  )
-}
-
-function LaptopSwitcher({ label, title, url, icon, onClick }: {
-  label: string; title: string; url: string; icon: React.ReactNode; onClick: () => void
-}) {
-  return (
-    <button type="button" onClick={onClick}
-      className="absolute bottom-4 right-4 z-10 w-[180px] rounded-2xl border border-border bg-muted p-2 text-left shadow-[0_12px_40px_-18px_var(--primary)] transition hover:-translate-y-0.5">
-      <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-1">
-        <div className="aspect-[16/10] overflow-hidden rounded-lg border border-white/10 bg-white">
-          <div className="flex h-full flex-col">
-            <div className="h-4 border-b border-zinc-200 bg-zinc-100" />
-            <div className="flex flex-1 items-center justify-center bg-card text-zinc-300">
-              <Laptop className="h-5 w-5" />
-            </div>
-          </div>
-        </div>
-      </div>
-      <div className="mt-2 flex items-start gap-2 px-0.5">
-        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-500">{icon}</span>
-        <div className="min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">{label}</p>
-          <p className="truncate text-[12px] font-semibold text-zinc-800">{title}</p>
-          <p className="truncate text-[10.5px] text-zinc-400">{url}</p>
-        </div>
-      </div>
-    </button>
-  )
-}
-
-function WorkspaceContent({
-  session, status, activeTab, browserInspection, isEnsuringPreview, previewEnsureError, onSwitchView,
-  runtimeError, fixingError, onFixError, onDismissError, onRetryPreview,
-}: {
-  session: ComputerSessionResponse; status: ComputerSessionStatus; activeTab: WorkspaceTab
-  browserInspection: BrowserInspection | null
-  isEnsuringPreview: boolean
-  previewEnsureError: string | null
-  onSwitchView: (v: WorkspaceTab) => void
-  runtimeError: { message: string; stack: string } | null
-  fixingError: boolean
-  onFixError: () => void
-  onDismissError: () => void
-  onRetryPreview: () => void
-}) {
-  if (activeTab === "research") {
-    return <ResearchPanel events={session.timeline} />
-  }
-
-  if (activeTab === "browser" && browserInspection) {
-    return (
-      <motion.div key="browser" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}
-        className="flex h-full min-h-0 flex-col p-3 sm:p-3 lg:p-4">
-        <div className="mb-2 flex min-w-0 items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-400">
-              {getBrowserProviderLabel(browserInspection.provider)}
-            </p>
-            <p className="mt-0.5 truncate text-[12px] font-medium text-zinc-800">{browserInspection.title}</p>
-          </div>
-          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-            <WorkspaceHeaderLink href={browserInspection.url} />
-          </div>
-        </div>
-        <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-sidebar-border bg-sidebar shadow-sm">
-          {browserInspection.liveUrl && !browserInspection.isExpired ? (
-            <iframe src={browserInspection.liveUrl} className="h-full w-full bg-white"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-              referrerPolicy="no-referrer" title="Remote browser" />
-          ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-              <p className="text-sm text-zinc-400">
-                {browserInspection.isExpired ? "Live view has expired." : "Live view unavailable."}
-              </p>
-              <a href={browserInspection.url} target="_blank" rel="noopener noreferrer"
-                className="text-xs text-zinc-500 underline underline-offset-2 hover:text-zinc-300">
-                Open {browserInspection.url} in a new tab
-              </a>
-            </div>
-          )}
-          {session.previewUrl && (
-            <LaptopSwitcher label="Preview" title="Generated app" url={session.previewUrl}
-              icon={<Monitor className="h-3.5 w-3.5" />} onClick={() => onSwitchView("preview")} />
-          )}
-        </div>
-      </motion.div>
-    )
-  }
-
-  if (activeTab === "preview" && session.previewUrl) {
-    return (
-      <motion.div key="preview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}
-        className="flex h-full min-h-0 flex-col p-3 sm:p-3 lg:p-4">
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-400">Live Preview</p>
-          <div className="flex items-center gap-2">
-            <WorkspaceHeaderLink href={session.previewUrl} />
-          </div>
-        </div>
-        <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-border bg-white shadow-sm">
-          <iframe src={session.previewUrl} className="h-full w-full"
-            sandbox="allow-scripts allow-same-origin allow-forms" title="Live preview" />
-          {isEnsuringPreview && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-end justify-center pb-4">
-              <div className="rounded-full border border-border bg-card/90 px-3 py-1.5 text-[11px] font-medium text-zinc-500 shadow-sm backdrop-blur-sm">
-                Refreshing preview…
-              </div>
-            </div>
-          )}
-          {previewEnsureError && !isEnsuringPreview && (
-            <div className="absolute inset-x-0 bottom-0 z-10 flex items-end justify-center p-4">
-              <div className="flex max-w-[360px] items-center gap-2 rounded-xl border border-border bg-card/95 px-3 py-2 text-[12px] text-muted-foreground shadow-sm backdrop-blur-sm">
-                <span className="min-w-0 flex-1">{previewEnsureError}</span>
-                <button
-                  type="button"
-                  onClick={onRetryPreview}
-                  className="shrink-0 rounded-lg border border-border bg-white px-2.5 py-1 text-[12px] font-medium text-zinc-700 hover:bg-zinc-50"
-                >
-                  Retry
-                </button>
-              </div>
-            </div>
-          )}
-          {browserInspection && !browserInspection.isExpired && (
-            <LaptopSwitcher label="Browser" title={browserInspection.title} url={browserInspection.url}
-              icon={<Globe2 className="h-3.5 w-3.5" />} onClick={() => onSwitchView("browser")} />
-          )}
-          {runtimeError && (
-            <RuntimeErrorCard
-              error={runtimeError}
-              fixing={fixingError}
-              onFix={onFixError}
-              onDismiss={onDismissError}
-            />
-          )}
-        </div>
-      </motion.div>
-    )
-  }
-
-  // Empty state
-  return (
-    <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}
-      className="flex h-full items-center justify-center p-8 text-center">
-      <div className="max-w-xs">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-white text-zinc-300 shadow-sm">
-          <Monitor className="h-5 w-5" />
-        </div>
-        {(isEnsuringPreview || previewEnsureError) && (
-          <p className="mb-1 text-[12px] font-medium text-zinc-500">
-            {previewEnsureError || "Restoring preview..."}
-          </p>
-        )}
-        <p className="text-[13px] font-semibold text-zinc-700">
-          {status === "running" ? "Preparing workspace…" : "Workspace will appear here."}
-        </p>
-        <p className="mt-1.5 text-[12px] leading-relaxed text-zinc-400">
-          {status === "running"
-            ? "The preview will appear once the sandbox reports a ready URL."
-            : "Preview, browser, and research appear here once the agent runtime is connected."}
-        </p>
-      </div>
-    </motion.div>
-  )
-}
-
-// ─── Loading + error ──────────────────────────────────────────────────────────
-
-function LoadingShell() {
-  return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-background">
-      <header className="relative z-10 shrink-0 px-3 pt-3 pb-2.5 sm:px-4">
-        <div className="flex h-12 items-center gap-3 rounded-[1.4rem] border border-border bg-card/90 px-4 backdrop-blur-md">
-          <div className="h-5 w-5 animate-pulse rounded-lg bg-zinc-200" />
-          <div className="h-3 w-36 animate-pulse rounded bg-zinc-200" />
-          <div className="ml-auto h-6 w-24 animate-pulse rounded-full bg-zinc-200" />
-        </div>
-      </header>
-      <div className="flex flex-1 gap-2 overflow-hidden px-2 pb-2 sm:px-2 sm:pb-2 lg:gap-3 lg:px-3 lg:pb-3">
-        <div className="hidden w-[clamp(20rem,34vw,23.75rem)] shrink-0 animate-pulse rounded-[1.25rem] border border-border bg-card/95 sm:block lg:rounded-[1.4rem] xl:w-[clamp(24rem,30vw,26.25rem)]" />
-        <div className="flex-1 animate-pulse rounded-[1.25rem] border border-border bg-card/95 lg:rounded-[1.4rem]" />
-      </div>
-    </div>
-  )
-}
-
-function ErrorState({ message }: { message: string }) {
-  return (
-    <div className="flex h-[100dvh] items-center justify-center bg-background px-4">
-      <div className="w-full max-w-md rounded-[1.5rem] border border-border bg-card/95 p-8 text-center shadow-[0_4px_24px_-8px_var(--primary)]">
-        <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-white text-zinc-400 shadow-sm">
-          <ShieldAlert className="h-5 w-5" />
-        </div>
-        <h1 className="text-[15px] font-semibold text-foreground">Session not found</h1>
-        <p className="mt-2 text-[13px] leading-relaxed text-zinc-500">{message}</p>
-        <Button asChild className="mt-6 inline-flex h-9 items-center gap-1.5 rounded-xl bg-accent px-4 text-[12px] font-semibold text-accent-foreground hover:bg-accent/90">
-          <Link href="/"><ArrowLeft className="h-3.5 w-3.5" />Back home</Link>
-        </Button>
-      </div>
-    </div>
-  )
-}
-
-// ─── Tab button ───────────────────────────────────────────────────────────────
-
-function TabBtn({ active, onClick, icon, label, dot }: {
-  active: boolean; onClick: () => void; icon: React.ReactNode; label: string; dot?: boolean
-}) {
-  return (
-    <button type="button" onClick={onClick}
-      className={cn(
-        "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-[12.5px] font-medium transition-colors",
-        active ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-      )}>
-      {icon}
-      {label}
-      {dot && <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-warning" />}
-    </button>
-  )
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ComputerPage() {
@@ -1852,6 +739,8 @@ export default function ComputerPage() {
   const previousPreviewUrlRef = useRef<string | null | undefined>(undefined)
   const previewEnsureKeyRef = useRef<string | null>(null)
   const prevSessionStatusRef = useRef<ComputerSessionStatus | null>(null)
+  const prevMobileSyncStatusRef = useRef<ComputerSessionStatus | null>(null)
+  const lastCodeEventCountRef = useRef(0)
 
   // ── Firestore listener (unchanged) ────────────────────────────────────────
   useEffect(() => {
@@ -1867,14 +756,23 @@ export default function ComputerPage() {
         if (d.ownerId && d.ownerId !== user.uid) {
           setSession(null); setError("Session not found or access denied."); setLoading(false); return
         }
+        const conversationTurns = normalizeConversationTurns(d.conversationTurns)
         setSession({
           id: snap.id,
           prompt:    typeof d.prompt    === "string" ? d.prompt    : undefined,
           status:    normalizeStatus(d.status),
           timeline:  normalizeTimeline(d.timeline),
+          conversationTurns,
+          agentRuntime: normalizeAgentRuntime(d.agentRuntime),
           previewUrl: typeof d.previewUrl === "string" ? d.previewUrl : null,
           projectId:  typeof d.projectId  === "string" ? d.projectId  : undefined,
+          platform: normalizePlatform(d.platform),
         })
+        setLocalMessages(
+          conversationTurns
+            .filter((turn) => turn.role === "user" && turn.source === "composer")
+            .map((turn) => ({ role: "user", content: turn.content, runId: turn.runId }))
+        )
         setError(null); setLoading(false)
       },
       () => { setSession(null); setError("Failed to load session."); setLoading(false) }
@@ -1963,9 +861,22 @@ export default function ComputerPage() {
   const browserInspection  = useMemo(() => session ? getLatestBrowserInspection(session.timeline) : null, [session])
   const tokenLimitEvent    = useMemo(() => session ? getTokenLimitEvent(session.timeline) : undefined, [session])
   const visibleCount       = session?.timeline.filter((e) => e.title !== "Session created").length ?? 0
+  const projectFileCount   = projectIntegration?.files?.length ?? 0
+  const generatedFileCount = session?.agentRuntime?.generatedFileCount ?? 0
+  const hasProjectFiles    = projectFileCount > 0 || generatedFileCount > 0
   const isBuildTokenBlocked = Boolean(userData && remainingTokens <= 0)
   const isSessionStopped = Boolean(session?.id && stoppedSessionIds.has(session.id))
   const effectiveStatus: ComputerSessionStatus = isSessionStopped ? "idle" : (session?.status ?? "idle")
+  const sessionProgress = useMemo(
+    () => session
+      ? deriveComputerSessionProgress({
+        session,
+        status: effectiveStatus,
+        optimisticStart: optimisticStart || isStartingRun,
+      })
+      : null,
+    [effectiveStatus, isStartingRun, optimisticStart, session],
+  )
   const isRunning = !isSessionStopped && (optimisticStart || isStartingRun ||
     session?.status === "running" || session?.status === "planning"
   )
@@ -2037,11 +948,37 @@ export default function ComputerPage() {
     }
   }, [session, session?.previewUrl, setActiveTab, setMobileView])
   useEffect(() => {
+    if (!session?.projectId) return
+    if (normalizePlatform(session.platform) !== "mobile") return
+    if (!hasProjectFiles) return
+    setActiveTab("preview")
+    setMobileView("workspace")
+  }, [hasProjectFiles, session?.platform, session?.projectId, setActiveTab, setMobileView])
+  useEffect(() => {
+    if (!session?.projectId || normalizePlatform(session.platform) !== "mobile") return
+
+    const prev = prevMobileSyncStatusRef.current
+    prevMobileSyncStatusRef.current = session.status
+    if (prev === "running" && (session.status === "complete" || session.status === "error")) {
+      setPreviewRetryNonce((current) => current + 1)
+    }
+  }, [session?.platform, session?.projectId, session?.status])
+  useEffect(() => {
+    if (!session || normalizePlatform(session.platform) !== "mobile") return
+
+    const codeEventCount = session.timeline.filter((event) => event.kind === "code").length
+    if (codeEventCount > lastCodeEventCountRef.current) {
+      lastCodeEventCountRef.current = codeEventCount
+      setPreviewRetryNonce((current) => current + 1)
+    }
+  }, [session])
+  useEffect(() => {
     const projectId = session?.projectId
     const prevStatus = prevSessionStatusRef.current
     prevSessionStatusRef.current = session?.status ?? null
 
     if (!projectId || !user || authLoading) return
+    if (normalizePlatform(session.platform) === "mobile") return
     if (session.status === "idle" || session.status === "planning" || session.status === "running") return
 
     // Skip ensure-preview when the run just completed and already set a previewUrl.
@@ -2602,14 +1539,15 @@ export default function ComputerPage() {
   if (loading) return <LoadingShell />
   if (error || !session) return <ErrorState message={error ?? "Session not found or access denied."} />
 
-  const hasPreview    = Boolean(session.previewUrl)
+  const sessionPlatform = normalizePlatform(session.platform)
+  const hasPreview    = sessionPlatform === "mobile"
+    ? Boolean(session.projectId && hasProjectFiles)
+    : Boolean(session.previewUrl)
   const hasBrowser    = Boolean(browserInspection)
   const hasResearch   = session.timeline.some((e) => (e.kind === "research" || e.kind === "browser") && e.description?.trim())
-  const projectFileCount = projectIntegration?.files?.length ?? 0
   const deploymentLinks = getProjectDeploymentLinks(projectIntegration)
   const liveSiteUrl = deploymentLinks.netlify?.siteUrl || deploymentLinks.vercel?.siteUrl
   const planLabel = userData?.planId && userData.planId !== "free" ? userData.planId : "Free"
-  const titleMenuItemClass = "h-9 rounded-xl px-2.5 text-sm focus:bg-secondary/80 focus:text-foreground"
 
   return (
     <div className="relative flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground sm:p-2.5 lg:p-3">
@@ -2617,249 +1555,98 @@ export default function ComputerPage() {
       {/* ── App shell ── */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-card sm:rounded-[1.4rem] sm:border sm:border-border-strong/50 sm:shadow-2xl">
 
-      {/* ── Top bar ── */}
-      <header className="relative z-30 shrink-0 bg-transparent sm:border-b sm:border-border sm:bg-card/95">
-        <div className="grid h-14 w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 sm:gap-3 sm:px-4 lg:px-6">
-          <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
-            <Link href="/" aria-label="Back"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-            <span className="hidden h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground sm:inline-flex">
-              <Laptop className="h-3.5 w-3.5" />
-              <span className="sr-only">Computer session</span>
-            </span>
-          </div>
+      <ComputerTopBar
+        session={session}
+        sessionTitle={sessionTitle}
+        firstPrompt={firstPrompt}
+        projectIntegration={projectIntegration}
+        projectFileCount={projectFileCount}
+        remainingTokens={remainingTokens}
+        planLabel={planLabel}
+        liveSiteUrl={liveSiteUrl}
+        isEditingTitle={isEditingTitle}
+        titleDraft={titleDraft}
+        titleSaving={titleSaving}
+        titleError={titleError}
+        onTitleDraftChange={setTitleDraft}
+        onEditTitleStart={() => {
+          setTitleDraft(firstPrompt || "")
+          setTitleError(null)
+          setIsEditingTitle(true)
+        }}
+        onEditTitleCancel={() => {
+          setIsEditingTitle(false)
+          setTitleError(null)
+          setTitleDraft(firstPrompt || "")
+        }}
+        onTitleSave={async () => {
+          if (!session) return
+          const trimmed = titleDraft.trim()
+          if (!trimmed) return
+          setTitleSaving(true)
+          setTitleError(null)
+          try {
+            await updateDoc(doc(db, "computerSessions", session.id), { prompt: trimmed })
+            setIsEditingTitle(false)
+          } catch {
+            setTitleError("Could not save title. Please try again.")
+          } finally {
+            setTitleSaving(false)
+          }
+        }}
+        onTitleError={setTitleError}
+        onOpenIntegrations={() => {
+          setIntegrationsOpen(true)
+          setDeployOpen(false)
+        }}
+        onOpenDeploy={() => {
+          setDeployOpen(true)
+          setIntegrationsOpen(false)
+        }}
+      />
 
-          <div className="flex min-w-0 items-center justify-center px-1">
-            {isEditingTitle ? (
-              <div className="flex min-w-0 flex-1 items-center justify-center gap-2">
-                <input
-                  value={titleDraft}
-                  onChange={(event) => setTitleDraft(event.target.value)}
-                  className="min-w-0 max-w-[min(58vw,26rem)] flex-1 rounded-full border border-border bg-card px-3 py-1.5 text-center text-sm text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
-                  placeholder="Enter a session title"
-                  aria-label="Edit session title"
-                  autoFocus
-                />
-                <div className="flex shrink-0 gap-1.5">
-                  <Button type="button" size="sm" variant="outline" onClick={() => { setIsEditingTitle(false); setTitleError(null); setTitleDraft(firstPrompt || "") }}>
-                    Cancel
-                  </Button>
-                  <Button type="button" size="sm" disabled={titleSaving || !titleDraft.trim()} onClick={async () => {
-                    if (!session) return
-                    const trimmed = titleDraft.trim()
-                    if (!trimmed) return
-                    setTitleSaving(true)
-                    setTitleError(null)
-                    try {
-                      await updateDoc(doc(db, "computerSessions", session.id), { prompt: trimmed })
-                      setIsEditingTitle(false)
-                    } catch (err) {
-                      setTitleError("Could not save title. Please try again.")
-                    } finally {
-                      setTitleSaving(false)
-                    }
-                  }}>
-                    Save
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className="group flex min-w-0 max-w-[min(58vw,26rem)] items-center gap-1.5 rounded-2xl px-3 py-1.5 text-center transition hover:bg-secondary/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20"
-                    aria-label="Open session menu"
-                  >
-                    <span className="truncate text-sm font-semibold tracking-[-0.01em] text-foreground lg:text-[15px]">
-                      {sessionTitle}
-                    </span>
-                    <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition group-data-[state=open]:rotate-180" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="center"
-                  sideOffset={10}
-                  className="w-[calc(100vw-1.5rem)] max-w-[21rem] rounded-2xl border-border bg-card p-2 shadow-2xl"
-                >
-                  <DropdownMenuItem asChild className={titleMenuItemClass}>
-                    <Link href="/projects">
-                      <ArrowLeft className="h-4 w-4" />
-                      Go to projects
-                    </Link>
-                  </DropdownMenuItem>
+      {(deployOpen || integrationsOpen) && (
+        <button
+          type="button"
+          aria-label="Close panel"
+          className="fixed inset-0 z-30 hidden bg-transparent sm:block"
+          onClick={() => {
+            setDeployOpen(false)
+            setIntegrationsOpen(false)
+          }}
+        />
+      )}
 
-                  <DropdownMenuSeparator className="my-2" />
-
-                  <DropdownMenuLabel className="px-2 py-1">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-xs font-semibold text-accent-soft-foreground">
-                        {(projectIntegration?.name || sessionTitle).trim().charAt(0).toUpperCase()}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-foreground">
-                          {projectIntegration?.name || sessionTitle}
-                        </p>
-                        <p className="truncate text-[11px] font-normal text-muted-foreground">
-                          {session.projectId ? `Project ${session.projectId.slice(0, 8)}` : "Computer session"}
-                        </p>
-                      </div>
-                      <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                        {planLabel}
-                      </span>
-                    </div>
-                  </DropdownMenuLabel>
-
-                  <div className="my-2 rounded-xl bg-secondary px-3 py-2.5">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-xs font-semibold text-foreground">Credits</p>
-                        <p className="mt-0.5 text-[11px] text-muted-foreground">Available for computer runs</p>
-                      </div>
-                      <span className="shrink-0 text-sm font-medium text-foreground">{remainingTokens} left</span>
-                    </div>
-                  </div>
-
-                  <DropdownMenuItem
-                    className={titleMenuItemClass}
-                    onSelect={() => {
-                      setTitleDraft(firstPrompt || "")
-                      setTitleError(null)
-                      setIsEditingTitle(true)
-                    }}
-                  >
-                    <Pencil className="h-4 w-4" />
-                    Rename session
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className={titleMenuItemClass}
-                    onSelect={() => {
-                      setIntegrationsOpen(true)
-                      setDeployOpen(false)
-                    }}
-                    disabled={!session.projectId}
-                  >
-                    <KeyRound className="h-4 w-4" />
-                    Connectors
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className={titleMenuItemClass}
-                    onSelect={() => {
-                      setDeployOpen(true)
-                      setIntegrationsOpen(false)
-                    }}
-                    disabled={!session.projectId}
-                  >
-                    <Rocket className="h-4 w-4" />
-                    Deploy
-                  </DropdownMenuItem>
-
-                  <DropdownMenuSeparator className="my-2" />
-
-                  <DropdownMenuItem asChild disabled={!session.previewUrl} className={titleMenuItemClass}>
-                    <a href={session.previewUrl || "#"} target="_blank" rel="noreferrer">
-                      <Monitor className="h-4 w-4" />
-                      Open preview
-                      <ExternalLink className="ml-auto h-3.5 w-3.5" />
-                    </a>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild disabled={!liveSiteUrl} className={titleMenuItemClass}>
-                    <a href={liveSiteUrl || "#"} target="_blank" rel="noreferrer">
-                      <Globe2 className="h-4 w-4" />
-                      Open live site
-                      <ExternalLink className="ml-auto h-3.5 w-3.5" />
-                    </a>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild disabled={!projectIntegration?.githubRepoUrl} className={titleMenuItemClass}>
-                    <a href={projectIntegration?.githubRepoUrl || "#"} target="_blank" rel="noreferrer">
-                      <Github className="h-4 w-4" />
-                      {projectIntegration?.githubRepoFullName || "GitHub repository"}
-                      <ExternalLink className="ml-auto h-3.5 w-3.5" />
-                    </a>
-                  </DropdownMenuItem>
-
-                  <DropdownMenuSeparator className="my-2" />
-
-                  <div className="grid grid-cols-2 gap-1.5 px-1 py-1">
-                    <div className="rounded-xl border border-border bg-background px-2.5 py-2">
-                      <p className="text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">Files</p>
-                      <p className="mt-1 text-sm font-semibold text-foreground">{projectFileCount}</p>
-                    </div>
-                    <div className="rounded-xl border border-border bg-background px-2.5 py-2">
-                      <p className="text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">Supabase</p>
-                      <p className="mt-1 truncate text-sm font-semibold text-foreground">
-                        {projectIntegration?.supabaseProjectRef ? "Connected" : "Not connected"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <DropdownMenuSeparator className="my-2" />
-
-                  <DropdownMenuItem
-                    className={titleMenuItemClass}
-                    onSelect={() => {
-                      void navigator.clipboard?.writeText(session.id)
-                    }}
-                  >
-                    <Copy className="h-4 w-4" />
-                    Copy session ID
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild className={titleMenuItemClass}>
-                    <Link href="/settings">
-                      <LayoutPanelLeft className="h-4 w-4" />
-                      Settings
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild className={titleMenuItemClass}>
-                    <Link href="/help">
-                      <BookOpen className="h-4 w-4" />
-                      Help
-                      <ExternalLink className="ml-auto h-3.5 w-3.5" />
-                    </Link>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
-
-          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-            <IntegrationsButton
-              projectId={session.projectId}
-              project={projectIntegration}
-              open={integrationsOpen}
-              busy={integrationBusy}
-              message={integrationMessage}
-              envValues={envValues}
-              onOpenChange={(open) => {
-                setIntegrationsOpen(open)
-                if (open) setDeployOpen(false)
-              }}
-              onGithubSync={handleGithubSync}
-              onSupabaseSetup={handleSupabaseSetup}
-              onEnvChange={(key, value) => setEnvValues((current) => ({ ...current, [key]: value }))}
-              onEnvAdd={handleEnvAdd}
-              onEnvSave={handleEnvSave}
-            />
-            <DeployButton
-              projectId={session.projectId}
-              open={deployOpen}
-              state={deployState}
-              deploymentLinks={getProjectDeploymentLinks(projectIntegration)}
-              onOpenChange={(open) => {
-                setDeployOpen(open)
-                if (open) setIntegrationsOpen(false)
-              }}
-              onDeploy={handleDeploy}
-            />
-          </div>
-        </div>
-
-        {titleError && (
-          <p className="px-3 pt-1.5 text-xs text-destructive sm:px-4 lg:px-6">{titleError}</p>
-        )}
-      </header>
+      <IntegrationsButton
+        projectId={session.projectId}
+        project={projectIntegration}
+        open={integrationsOpen}
+        busy={integrationBusy}
+        message={integrationMessage}
+        envValues={envValues}
+        headless
+        onOpenChange={(open) => {
+          setIntegrationsOpen(open)
+          if (open) setDeployOpen(false)
+        }}
+        onGithubSync={handleGithubSync}
+        onSupabaseSetup={handleSupabaseSetup}
+        onEnvChange={(key, value) => setEnvValues((current) => ({ ...current, [key]: value }))}
+        onEnvAdd={handleEnvAdd}
+        onEnvSave={handleEnvSave}
+      />
+      <DeployButton
+        projectId={session.projectId}
+        open={deployOpen}
+        state={deployState}
+        deploymentLinks={deploymentLinks}
+        headless
+        onOpenChange={(open) => {
+          setDeployOpen(open)
+          if (open) setIntegrationsOpen(false)
+        }}
+        onDeploy={handleDeploy}
+      />
 
       {/* ── Body ── */}
       <div className="relative flex min-h-0 w-full flex-1 overflow-hidden">
@@ -2875,6 +1662,7 @@ export default function ComputerPage() {
             <AgentFeed
               prompt={firstPrompt} events={session.timeline}
               localMessages={localMessages} status={effectiveStatus}
+              progress={sessionProgress}
               optimisticStart={optimisticStart}
               editingIndex={editingMsgIndex} editText={editText}
               onEditStart={handleEditStart} onEditChange={setEditText}
@@ -2923,26 +1711,14 @@ export default function ComputerPage() {
           "flex min-w-0 flex-1 flex-col overflow-hidden bg-background",
           mobileView !== "workspace" && "hidden sm:flex"
         )}>
-          {/* Workspace tab bar */}
-          <div className="hidden shrink-0 items-center justify-between gap-2 border-b border-border bg-card px-3 py-2 sm:flex lg:px-4">
-            <div className="flex min-w-0 items-center gap-0.5 overflow-x-auto rounded-lg bg-muted p-0.5 [scrollbar-width:none]">
-              <TabBtn active={activeTab === "preview"} onClick={() => setActiveTab("preview")}
-                icon={<Monitor className="h-3.5 w-3.5" />} label="Preview"
-                dot={hasPreview && activeTab !== "preview"} />
-              <TabBtn active={activeTab === "browser"} onClick={() => setActiveTab("browser")}
-                icon={<Globe2 className="h-3.5 w-3.5" />} label="Browser"
-                dot={hasBrowser && activeTab !== "browser"} />
-              <TabBtn active={activeTab === "research"} onClick={() => setActiveTab("research")}
-                icon={<BookOpen className="h-3.5 w-3.5" />} label="Research"
-                dot={hasResearch && activeTab !== "research"} />
-            </div>
-            {/* Completion badge */}
-            {effectiveStatus === "complete" && (
-              <span className="flex items-center gap-1 rounded-full bg-success-soft px-2.5 py-1 text-[10px] font-semibold text-success-soft-foreground">
-                <Check className="h-2.5 w-2.5 stroke-[3]" />Done
-              </span>
-            )}
-          </div>
+          <WorkspaceTabBar
+            activeTab={activeTab}
+            hasPreview={hasPreview}
+            hasBrowser={hasBrowser}
+            hasResearch={hasResearch}
+            onTabChange={setActiveTab}
+            showCompleteBadge={effectiveStatus === "complete"}
+          />
 
           {/* Workspace content */}
           <div className="relative min-h-0 flex-1 bg-background">
@@ -2951,10 +1727,14 @@ export default function ComputerPage() {
                 transition={{ duration: 0.16 }} className="h-full min-h-0">
                 <WorkspaceContent
                   session={session} status={effectiveStatus} activeTab={activeTab}
+                  progress={sessionProgress}
                   browserInspection={browserInspection}
+                  hasProjectFiles={hasProjectFiles}
+                  projectFileCount={projectFileCount}
                   isEnsuringPreview={isEnsuringPreview}
                   previewEnsureError={previewEnsureError}
                   onSwitchView={setActiveTab}
+                  getAuthHeader={getOptionalAuthHeader}
                   runtimeError={runtimeError}
                   fixingError={fixingError}
                   onFixError={async () => {
@@ -2972,6 +1752,7 @@ export default function ComputerPage() {
                     setPreviewEnsureError(null)
                     setPreviewRetryNonce((n) => n + 1)
                   }}
+                  previewSyncNonce={previewRetryNonce}
                 />
               </motion.div>
             </AnimatePresence>
@@ -2982,73 +1763,35 @@ export default function ComputerPage() {
 
       {/* ── Mobile view switcher ── */}
       <nav
-        className="absolute inset-x-3 z-20 mx-auto max-w-md rounded-[1.7rem] border border-border/65 bg-card/80 px-1.5 py-1.5 shadow-[0_22px_70px_-28px_var(--primary),0_1px_0_var(--primary-foreground)_inset,0_0_0_1px_var(--primary-foreground)_inset] backdrop-blur-2xl sm:hidden"
-        style={{ bottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+        className="absolute inset-x-4 z-20 mx-auto max-w-sm rounded-2xl border border-border bg-card/90 px-1 py-1 shadow-lg backdrop-blur-xl sm:hidden"
+        style={{ bottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
       >
-        <div className="grid grid-cols-4 gap-1">
+        <div className="grid grid-cols-2 gap-1">
           <button
             type="button"
             onClick={() => setMobileView("feed")}
             className={cn(
-              "relative flex h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-[1.15rem] text-[10.5px] font-semibold transition-all duration-200",
+              "flex h-11 items-center justify-center gap-2 rounded-xl text-[13px] font-medium transition-colors",
               mobileView === "feed"
-                ? "bg-primary text-primary-foreground shadow-[0_12px_26px_-15px_var(--primary),0_1px_0_var(--primary-foreground)_inset]"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
           >
-            <MessageSquare className={cn("h-4 w-4 transition-transform duration-200", mobileView === "feed" && "-translate-y-0.5")} />
+            <MessageSquare className="h-4 w-4" />
             Chat
-            {mobileView === "feed" && <span className="absolute bottom-1 h-0.5 w-4 rounded-full bg-primary-foreground/70" />}
           </button>
           <button
             type="button"
             onClick={() => { setMobileView("workspace"); setActiveTab("preview") }}
             className={cn(
-              "relative flex h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-[1.15rem] text-[10.5px] font-semibold transition-all duration-200",
-              mobileView === "workspace" && activeTab === "preview"
-                ? "bg-primary text-primary-foreground shadow-[0_12px_26px_-15px_var(--primary),0_1px_0_var(--primary-foreground)_inset]"
-                : hasPreview
-                  ? "text-foreground hover:bg-muted"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              "flex h-11 items-center justify-center gap-2 rounded-xl text-[13px] font-medium transition-colors",
+              mobileView === "workspace"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
           >
-            <Monitor className={cn("h-4 w-4 transition-transform duration-200", mobileView === "workspace" && activeTab === "preview" && "-translate-y-0.5")} />
+            <Monitor className="h-4 w-4" />
             Preview
-            {mobileView === "workspace" && activeTab === "preview" && <span className="absolute bottom-1 h-0.5 w-4 rounded-full bg-primary-foreground/70" />}
-          </button>
-          <button
-            type="button"
-            onClick={() => { setMobileView("workspace"); setActiveTab("browser") }}
-            className={cn(
-              "relative flex h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-[1.15rem] text-[10.5px] font-semibold transition-all duration-200",
-              mobileView === "workspace" && activeTab === "browser"
-                ? "bg-primary text-primary-foreground shadow-[0_12px_26px_-15px_var(--primary),0_1px_0_var(--primary-foreground)_inset]"
-                : hasBrowser
-                  ? "text-foreground hover:bg-muted"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            )}
-          >
-            <Globe2 className={cn("h-4 w-4 transition-transform duration-200", mobileView === "workspace" && activeTab === "browser" && "-translate-y-0.5")} />
-            Browser
-            {mobileView === "workspace" && activeTab === "browser" && <span className="absolute bottom-1 h-0.5 w-4 rounded-full bg-primary-foreground/70" />}
-            {hasBrowser && !(mobileView === "workspace" && activeTab === "browser") && <span className="absolute right-3 top-2 h-1.5 w-1.5 rounded-full bg-info" />}
-          </button>
-          <button
-            type="button"
-            onClick={() => { setMobileView("workspace"); setActiveTab("research") }}
-            className={cn(
-              "relative flex h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-[1.15rem] text-[10.5px] font-semibold transition-all duration-200",
-              mobileView === "workspace" && activeTab === "research"
-                ? "bg-primary text-primary-foreground shadow-[0_12px_26px_-15px_var(--primary),0_1px_0_var(--primary-foreground)_inset]"
-                : hasResearch
-                  ? "text-foreground hover:bg-muted"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            )}
-          >
-            <BookOpen className={cn("h-4 w-4 transition-transform duration-200", mobileView === "workspace" && activeTab === "research" && "-translate-y-0.5")} />
-            Research
-            {mobileView === "workspace" && activeTab === "research" && <span className="absolute bottom-1 h-0.5 w-4 rounded-full bg-primary-foreground/70" />}
-            {hasResearch && !(mobileView === "workspace" && activeTab === "research") && <span className="absolute right-3 top-2 h-1.5 w-1.5 rounded-full bg-warning" />}
           </button>
         </div>
       </nav>
