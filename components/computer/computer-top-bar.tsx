@@ -277,8 +277,17 @@ export function ComputerTopBar({
           )}
         </div>
 
-        {/* ── Right: deploy button ── */}
-        <div className="flex items-center justify-end">
+        {/* ── Right: connect + deploy ── */}
+        <div className="flex items-center justify-end gap-1.5">
+          <button
+            type="button"
+            onClick={onOpenIntegrations}
+            disabled={!session.projectId}
+            className="hidden sm:inline-flex h-7 items-center gap-1.5 rounded-lg border border-border/60 bg-background px-3 text-[12px] font-semibold text-foreground/70 transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+          >
+            <KeyRound className="h-3 w-3" />
+            Connect
+          </button>
           <button
             type="button"
             onClick={onOpenDeploy}

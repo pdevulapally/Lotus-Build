@@ -477,7 +477,7 @@ export function AnimatedAIInput({
         </AnimatePresence>
 
         {/* textarea */}
-        <div className={cn("px-4 pt-3.5", contextBadge ? "pt-2.5" : "")}>
+        <div className={cn("px-3 sm:px-4 pt-3.5", contextBadge ? "pt-2.5" : "")}>
           <textarea
             ref={textareaRef}
             value={value}
@@ -505,11 +505,11 @@ export function AnimatedAIInput({
           "flex items-center justify-between gap-2 px-3 pb-3",
           isSlimCompact ? "pb-2.5" : ""
         )}>
-          {/* left side */}
-          <div className="flex items-center gap-1">
+          {/* left side — single row, scrolls horizontally on mobile */}
+          <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [&::-webkit-scrollbar]:hidden">
             {/* platform selector (create mode, non-compact only) */}
             {mode === "create" && !compact && (
-              <div className="flex items-center rounded-lg border border-border/60 bg-muted/40 p-0.5 text-xs font-medium">
+              <div className="flex shrink-0 items-center rounded-lg border border-border/60 bg-muted/40 p-0.5 text-xs font-medium">
                 {PLATFORM_OPTIONS.map((option) => (
                   <motion.button
                     key={option.id}
@@ -520,13 +520,14 @@ export function AnimatedAIInput({
                       setSelectedPlatform(option.id);
                     }}
                     className={cn(
-                      "rounded-md px-2.5 py-1 transition-all duration-150",
+                      "rounded-md px-2 py-1 transition-all duration-150",
                       selectedPlatform === option.id
                         ? "bg-amber-100 text-[#1c1c1c] shadow-sm"
                         : "text-muted-foreground hover:text-foreground",
                     )}
                   >
-                    {option.label}
+                    <span className="hidden sm:inline">{option.label}</span>
+                    <span className="sm:hidden">{option.id === "web" ? "Web" : "Mobile"}</span>
                   </motion.button>
                 ))}
               </div>
@@ -538,14 +539,14 @@ export function AnimatedAIInput({
                   <button
                     type="button"
                     className={cn(
-                      "flex h-7 items-center gap-1 rounded-lg border border-border/60 bg-muted/40",
+                      "flex shrink-0 h-7 items-center gap-1 rounded-lg border border-border/60 bg-muted/40",
                       "px-2.5 text-xs font-medium text-muted-foreground",
                       "transition-all duration-150 hover:bg-muted hover:text-foreground",
                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
                     )}
                     aria-label="Choose session mode"
                   >
-                    <span className="text-foreground">{selectedSessionMode.label}</span>
+                    <span className="truncate text-foreground">{selectedSessionMode.label}</span>
                     <ChevronUp className="h-3 w-3 shrink-0 opacity-50" />
                   </button>
                 </DropdownMenuTrigger>
@@ -608,11 +609,11 @@ export function AnimatedAIInput({
                 <button
                   type="button"
                   className={cn(
-                    "flex h-7 items-center gap-1 rounded-lg border border-border/60 bg-muted/40",
+                    "flex shrink-0 h-7 items-center gap-1 rounded-lg border border-border/60 bg-muted/40",
                     "px-2.5 text-xs font-medium text-muted-foreground",
                     "transition-all duration-150 hover:bg-muted hover:text-foreground",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
-                    "max-w-[140px] truncate"
+                    "max-w-[90px] sm:max-w-[140px]"
                   )}
                 >
                   <span className="truncate">{displayModelLabel}</span>
@@ -624,9 +625,8 @@ export function AnimatedAIInput({
                 align="start"
                 side="top"
                 sideOffset={8}
-                avoidCollisions={false}
                 className={cn(
-                  "w-[22rem] max-h-[26rem] overflow-y-auto overscroll-contain",
+                  "w-[calc(100vw-2rem)] max-w-[22rem] max-h-[60vw] sm:max-h-[26rem] overflow-y-auto overscroll-contain",
                   "rounded-xl border border-border/70 bg-popover p-1.5 shadow-xl",
                   "backdrop-blur-sm"
                 )}
