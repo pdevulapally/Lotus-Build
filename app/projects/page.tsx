@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { deleteDoc, doc } from "firebase/firestore"
@@ -591,9 +591,40 @@ function ReferralDialog({
 
 /* ─── Page ────────────────────────────────────────────────────────────────── */
 
+function OnboardingBanner() {
+  const searchParams = useSearchParams()
+  const { currentWorkspace } = useAuth()
+  const [dismissed, setDismissed] = useState(false)
+
+  if (dismissed || searchParams.get("onboarding") !== "true") return null
+
+  return (
+    <div className="mb-6 flex items-start gap-3 rounded-2xl border border-border/60 bg-background px-4 py-3.5 shadow-sm">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-[13px] font-bold text-accent">
+        {(currentWorkspace?.name ?? "W").charAt(0).toUpperCase()}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[13.5px] font-semibold text-foreground">
+          Welcome to {currentWorkspace?.name ?? "your new workspace"}
+        </p>
+        <p className="mt-0.5 text-[12.5px] text-muted-foreground">
+          Your workspace is ready. Start a build below and it will be scoped to this workspace.
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={() => setDismissed(true)}
+        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-muted-foreground/50 transition-colors hover:bg-muted hover:text-foreground"
+        aria-label="Dismiss"
+      >
+        <X className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  )
+}
+
 export default function ProjectsPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const { user, userData, currentWorkspace, signOut } = useAuth()
 
   const isTeamsPlan = !!userData?.planId && planIdForDisplay(userData.planId) === "team"
@@ -602,9 +633,6 @@ export default function ProjectsPage() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(false)
   const [referralOpen, setReferralOpen] = useState(false)
-  const [onboardingDismissed, setOnboardingDismissed] = useState(false)
-
-  const showOnboarding = !onboardingDismissed && searchParams.get("onboarding") === "true"
 
   useEffect(() => {
     if (!isTeamsPlan && scope === "team") setScope("user")
@@ -765,29 +793,9 @@ export default function ProjectsPage() {
             <div className="w-full max-w-[44rem]">
 
               {/* Workspace onboarding banner */}
-              {showOnboarding && (
-                <div className="mb-6 flex items-start gap-3 rounded-2xl border border-border/60 bg-background px-4 py-3.5 shadow-sm">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-[13px] font-bold text-accent">
-                    {(currentWorkspace?.name ?? "W").charAt(0).toUpperCase()}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[13.5px] font-semibold text-foreground">
-                      Welcome to {currentWorkspace?.name ?? "your new workspace"}
-                    </p>
-                    <p className="mt-0.5 text-[12.5px] text-muted-foreground">
-                      Your workspace is ready. Start a build below and it will be scoped to this workspace.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setOnboardingDismissed(true)}
-                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-muted-foreground/50 transition-colors hover:bg-muted hover:text-foreground"
-                    aria-label="Dismiss"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              )}
+              <Suspense fallback={null}>
+                <OnboardingBanner />
+              </Suspense>
 
               {/* Plan pill */}
               <div className="mb-8 flex justify-center">
