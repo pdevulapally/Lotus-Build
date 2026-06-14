@@ -457,44 +457,155 @@ It must also be:
 
 ## AI website generation quality rules
 
-The generate pipeline (`/api/generate`) must produce modern, editorial, non-generic websites.
+The generate pipeline (`/api/generate/route.ts`) must produce modern, editorial, non-generic websites.
 
-### Design brief (`deriveDesignBrief`)
+### How the generation pipeline works (new sites)
 
-Produces a structured brief with 9 fields: PALETTE, FONTS, PERSONALITY, HERO_FORMAT, HERO_HEADLINE, SECTIONS (with layout descriptors), TYPOGRAPHY_APPROACH, STANDOUT, ANTI_PATTERN.
+1. `deriveDesignBrief(prompt)` is called first — it produces a structured design brief
+2. The brief is injected into `systemPromptNew(designBrief)` as the authoritative visual spec
+3. `extractCriticalChecklist(brief)` extracts HERO_FORMAT, HERO_HEADLINE, STANDOUT, LAYOUT_VOCABULARY, ANTI_PATTERN and appends them as a final hard-constraint block at the end of the system prompt (models attend more to instructions near the end)
+4. The full prompt is sent to the model for streaming code generation
+
+### How the generation pipeline works (follow-ups)
+
+When `isFollowUp === true`:
+- `deriveDesignBrief` is **skipped**
+- `systemPromptFollowUp` is used instead
+- This prompt enforces a BANNED PATTERNS list and a DESIGN QUALITY CHECKLIST specific to follow-up edits
+- Never weaken the follow-up prompt's design enforcement — follow-ups are where design regresses most
+
+### Design brief (`deriveDesignBrief`) — current state
+
+- **Temperature: `0.75`** — allows creative exploration, prevents deterministic convergence
+- **`max_completion_tokens: 1400`** — enough tokens for a section-by-section specific brief
+- **Aesthetic vector injection**: Before every call, one of 10 distinct aesthetic directions is randomly sampled from `AESTHETIC_VECTORS` and injected into the creative director system prompt as `MANDATORY AESTHETIC VECTOR`. This forces different visual directions for similar prompts. Do not remove or reduce this list.
+- **Prompt length: `3000` chars** (up from 2000)
+
+Produces a structured brief with 11 fields:
+`PALETTE`, `FONTS`, `PERSONALITY`, `VISUAL_REFERENCE`, `HERO_FORMAT`, `HERO_HEADLINE`, `SECTIONS`, `TYPOGRAPHY_APPROACH`, `STANDOUT`, `LAYOUT_VOCABULARY` (domain-specific layout patterns), `ANTI_PATTERN`
+
+### `LAYOUT_VOCABULARY` field (important)
+
+This field asks the creative director to describe 2-3 domain-specific layout or content patterns that the business actually uses in the real world — patterns that a generic AI template would never know to include. The generator is required to implement these patterns in the site sections. Do not remove this field from the brief prompt.
 
 ### Banned AI slop patterns (enforced in system prompt)
 
-The following must never appear in generated output:
+The following must NEVER appear in generated output. Their presence is a build failure:
 
-1. Hero with centered text + stock photo background + CTA button
-2. Three-column "icon + title + blurb" feature cards
-3. Generic "Trusted by 10,000+ companies" social proof band
-4. "How it works" 3-step numbered list with icons
-5. Full-width footer with 4 identical column layouts
-6. "Start your free trial today" CTA section with gradient background
-7. Testimonials in quote cards with avatar + name + title
-8. Pricing table with 3 identical columns (Starter/Pro/Enterprise)
-9. "FAQ" accordion section at the bottom
+1. Centered headline + centered subheadline + two CTA buttons as hero
+2. Any quantity of identical-structure cards in a row (3, 4, 5 cards — all banned)
+3. Gradient hero backgrounds (blue-to-purple, teal-to-blue, or any obvious gradient)
+4. Stock photo with dark overlay + centered white text as the hero
+5. Generic section headings: "Why Choose Us", "Our Features", "How It Works", "Get Started Today"
+6. Three identical testimonial cards with avatar + stars + quote + name + title
+7. Numbered 1-2-3 steps in identical icon cards for "How It Works"
+8. Footer with 4 identical link column grid
+9. Uniform vertical padding across all sections
+10. Purple gradients on white backgrounds
+11. Shadows on every card
+12. Plain white or plain off-white background for the entire site
 
 ### Modern pattern requirements (enforced in system prompt)
 
-Generated sites must use at least one of:
+Generated sites must implement at least 4 of:
 
-- Asymmetric multi-column layouts
-- Large editorial typography as a design element
-- Bento-style grid compositions
-- Horizontal scrolling sections
-- Full-bleed imagery with type overlays
-- Data-forward hero sections
-- Unconventional whitespace use
-- Mixed type scales (e.g. 9px + 72px on the same screen)
+- Typographically dominant hero (left-aligned or asymmetric, no filler subheadline)
+- Alternating image-left/text-right rows OR bento grid with varied cell sizes OR editorial numbered list (01, 02, 03)
+- Single oversized pull-quote OR inline client logo marquee strip (not a card grid)
+- Large numerals as visual anchors in a stats section
+- Section decorative numbers or letters as background elements
+- Split screen (two exact halves, different backgrounds)
+- Navigation: wordmark left, 3-5 links right, no big CTA button
+- Horizontal scroll strip for logos/tags/social proof
+- One grid-breaking element per page
+- Generous section vertical padding and max-width with proper horizontal padding
 
-### Rules for agents touching generate
+### Rules for agents touching `/api/generate/route.ts`
 
-- Do not remove the BANNED PATTERNS or MODERN PATTERNS sections from the system prompt
-- Do not revert `deriveDesignBrief` to a shorter or more generic version
-- `max_tokens` for the design brief is 520 — do not reduce it
+- Do not remove the BANNED PATTERNS or MODERN PATTERNS sections from `systemPromptNew`
+- Do not remove the DESIGN QUALITY CHECKLIST from `systemPromptFollowUp`
+- Do not revert `deriveDesignBrief` to a shorter, less specific, or lower-temperature version
+- Do not reduce `max_completion_tokens` for the design brief below 1400
+- Do not reduce `temperature` for the design brief below 0.7
+- Do not remove or shrink `AESTHETIC_VECTORS` — the random sampling is what prevents design convergence
+- Do not remove `extractCriticalChecklist` or its injection at the end of `systemPromptNew`
+- Do not remove `LAYOUT_VOCABULARY` from the brief prompt or the critical checklist extraction
+- `skipDesignBrief: true` in the request body bypasses the brief — only use this for inspiration mode or cases where a brief is genuinely not needed
+
+---
+
+## Mobile sandbox / preview system
+
+The mobile preview sandbox is an Expo/React Native VPS-based environment orchestrated by a separate service.
+
+### Infrastructure
+
+- Hosted on FastHost VPS: 2 vCPU, 4 GB RAM, 120 GB NVMe
+- Orchestrator service runs on this VPS, exposes an API consumed by the Next.js app via `ORCHESTRATOR_URL` env var
+- The Next.js app never starts sandboxes directly — it calls the orchestrator, which manages Expo Metro instances
+
+### Key files
+
+| File | Role |
+|---|---|
+| `lib/orchestrator/client.ts` | All HTTP calls to the orchestrator (ensureSandbox, getSandbox, writeSandboxFiles, sandboxHeartbeat, destroySandbox) |
+| `lib/mobile-preview/ensure.ts` | Business logic: reuse existing sandbox or create new one, sync files, persist sandbox ID to Firestore |
+| `app/api/projects/[id]/ensure-mobile-preview/route.ts` | Route called by the frontend to ensure/reuse a sandbox |
+| `app/api/mobile-preview/[sandboxId]/heartbeat/route.ts` | Keep-alive heartbeat (every 60s when preview is running) |
+| `components/computer/mobile-preview.tsx` | Frontend React component — polls sandbox status, renders phone frame, handles error states |
+
+### "Metro did not become ready in time" — what it means
+
+Metro is React Native's JavaScript bundler. On a 2 vCPU / 4 GB VPS, if multiple sandboxes start simultaneously or the machine is under CPU/RAM pressure, Metro times out during the bundling phase. The orchestrator returns `{ status: "failed", error: "Metro did not become ready in time" }`.
+
+### How the frontend handles this (current implementation)
+
+- `isRetryableError(error)` detects Metro timeout, connection refused, and timed-out errors via regex
+- `normalizePreviewError(error)` maps technical orchestrator errors to user-friendly English
+- Auto-retry: when a "failed" sandbox has a retryable error, the frontend automatically retries up to `MAX_AUTO_RETRIES = 2` times with a `AUTO_RETRY_DELAY_MS = 4000` ms delay between attempts
+- After 2 auto-retries, a manual "Try again" button is shown
+- `handleRetry()` resets the auto-retry counter so manual retry can trigger fresh auto-retries
+- The "failed" view shows "Preview timed out — retrying…" during auto-retry and the friendly error message at all times
+
+### Sandbox lifecycle
+
+```
+queued → starting → running → stopping → (expired)
+                 ↘ failed
+```
+
+- `ACTIVE_STATUSES = ["queued", "starting", "running", "stopping"]`
+- Failed sandboxes are cleared from Firestore (`mobileSandboxId = null`) and a new one is created
+- Heartbeat fires every 60 seconds when the sandbox is running and the tab is visible
+- On tab visibility change, the frontend also syncs files and sends a heartbeat
+
+### Rules for agents touching mobile preview
+
+- Do not increase `MAX_AUTO_RETRIES` beyond 3 — each retry creates a new VPS sandbox instance
+- Do not decrease `AUTO_RETRY_DELAY_MS` below 3000 — the VPS needs time to free resources
+- `normalizePreviewError` should always map technical errors to user-friendly copy; do not expose raw orchestrator error strings to users
+- `orchestratorRequest` in `client.ts` has a 15-second `AbortSignal.timeout` — do not reduce this, the VPS can be slow under load
+- Never expose `ORCHESTRATOR_URL` or `ORCHESTRATOR_API_KEY` to the client
+
+---
+
+## Reasoning component (`components/ai-elements/reasoning.tsx`)
+
+The `ReasoningContent` component renders AI reasoning text. It supports:
+
+- **Streaming animation**: characters are revealed progressively using `useStreamingText` when `isStreaming=true`
+- **Code block rendering**: triple-backtick fenced code blocks (e.g. ` ```html\n...\` `` `) are parsed by `parseContentBlocks()` and rendered as styled `<pre><code>` elements with a language label
+- **Plain text**: regular text segments are rendered with `whitespace-pre-wrap`
+
+### `parseContentBlocks(text)`
+
+Splits a reasoning string into `TextBlock` and `CodeBlock` segments using a global regex. Only matches **complete** ` ``` ` pairs — partial/open code fences during streaming remain as plain text until the closing fence arrives.
+
+### Rules for agents touching reasoning
+
+- Do not replace `parseContentBlocks` with `dangerouslySetInnerHTML` — security risk
+- Do not add a markdown library just for this component unless the scope genuinely expands to full markdown rendering
+- If extending `parseContentBlocks`, ensure partial (unclosed) code fences still degrade gracefully to plain text
 
 ---
 

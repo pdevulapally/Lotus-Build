@@ -85,8 +85,6 @@ export function ComputerTopBar({
   onOpenIntegrations: () => void
   onOpenDeploy: () => void
 }) {
-  const hasPreview = Boolean(session.previewUrl)
-
   return (
     <header className="relative z-30 shrink-0 bg-transparent sm:border-b sm:border-border sm:bg-card/95">
       <div className="grid h-14 w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 sm:gap-3 sm:px-4 lg:px-6">
@@ -272,17 +270,15 @@ export function ComputerTopBar({
         </div>
 
         <div className="flex shrink-0 items-center justify-end">
-          {hasPreview && (
-            <a
-              href={session.previewUrl!}
-              target="_blank"
-              rel="noreferrer"
-              className="hidden h-8 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-[12px] font-medium text-foreground transition-colors hover:bg-muted sm:inline-flex"
-            >
-              <Monitor className="h-3.5 w-3.5" />
-              Preview
-            </a>
-          )}
+          <button
+            type="button"
+            onClick={onOpenDeploy}
+            disabled={!session.projectId}
+            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-[12px] font-medium text-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-40"
+          >
+            <Rocket className="h-3.5 w-3.5" />
+            Deploy
+          </button>
         </div>
       </div>
 

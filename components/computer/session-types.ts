@@ -22,6 +22,7 @@ export type ComputerSessionResponse = {
   id: string
   prompt?: string
   status: ComputerSessionStatus
+  sessionMode?: string
   timeline: ComputerTimelineEvent[]
   conversationTurns?: ComputerConversationTurn[]
   agentRuntime?: ComputerAgentRuntimeCheckpoint

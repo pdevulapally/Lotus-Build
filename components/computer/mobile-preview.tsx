@@ -10,6 +10,27 @@ import { cn } from "@/lib/utils"
 
 const POLL_MS = 3000
 const HEARTBEAT_MS = 60_000
+const MAX_AUTO_RETRIES = 2
+const AUTO_RETRY_DELAY_MS = 4000
+
+function isRetryableError(error: string | null): boolean {
+  if (!error) return false
+  return /metro did not become ready|metro.*timeout|timed out|econnrefused/i.test(error)
+}
+
+function normalizePreviewError(error: string | null): string {
+  if (!error) return "The mobile preview failed to start. Please try again."
+  if (/metro did not become ready|metro.*timeout/i.test(error)) {
+    return "The preview server took too long to start. This can happen when resources are busy."
+  }
+  if (/out of memory|oom/i.test(error)) {
+    return "The preview ran out of memory. Please try again in a moment."
+  }
+  if (/econnrefused|unreachable/i.test(error)) {
+    return "Could not reach the preview service. Please try again."
+  }
+  return error
+}
 
 /** iPhone-style viewport ratio (375×812). Inline sizing avoids % width collapse in shrink-wrapped flex parents. */
 const PHONE_FRAME_STYLE: CSSProperties = {
@@ -73,6 +94,8 @@ export function MobilePreview({
   const sandboxRef = useRef<MobileSandbox | null>(null)
   const pollTimerRef = useRef<number | null>(null)
   const heartbeatTimerRef = useRef<number | null>(null)
+  const autoRetryTimerRef = useRef<number | null>(null)
+  const autoRetryCountRef = useRef(0)
   const getAuthHeaderRef = useRef(getAuthHeader)
   const creatingRef = useRef(false)
 
@@ -89,6 +112,13 @@ export function MobilePreview({
     if (heartbeatTimerRef.current !== null) {
       window.clearInterval(heartbeatTimerRef.current)
       heartbeatTimerRef.current = null
+    }
+  }, [])
+
+  const clearAutoRetry = useCallback(() => {
+    if (autoRetryTimerRef.current !== null) {
+      window.clearTimeout(autoRetryTimerRef.current)
+      autoRetryTimerRef.current = null
     }
   }, [])
 
@@ -186,18 +216,42 @@ export function MobilePreview({
 
   useEffect(() => {
     sandboxRef.current = null
+    autoRetryCountRef.current = 0
+    clearAutoRetry()
     void ensurePreview()
     return () => {
       creatingRef.current = false
       clearPoll()
       clearHeartbeat()
+      clearAutoRetry()
     }
-  }, [projectId, ensurePreview, clearPoll, clearHeartbeat])
+  }, [projectId, ensurePreview, clearPoll, clearHeartbeat, clearAutoRetry])
 
   useEffect(() => {
     if (syncNonce === 0) return
     void ensurePreview({ quiet: true })
   }, [syncNonce, ensurePreview])
+
+  useEffect(() => {
+    if (view.kind !== "failed") {
+      clearAutoRetry()
+      return
+    }
+
+    const rawError = view.sandbox.error
+    if (!isRetryableError(rawError) || autoRetryCountRef.current >= MAX_AUTO_RETRIES) return
+
+    autoRetryCountRef.current += 1
+    autoRetryTimerRef.current = window.setTimeout(() => {
+      autoRetryTimerRef.current = null
+      sandboxRef.current = null
+      clearPoll()
+      clearHeartbeat()
+      void ensurePreview()
+    }, AUTO_RETRY_DELAY_MS)
+
+    return clearAutoRetry
+  }, [view, ensurePreview, clearPoll, clearHeartbeat, clearAutoRetry])
 
   useEffect(() => {
     const sandbox = sandboxRef.current
@@ -242,6 +296,8 @@ export function MobilePreview({
   }, [clearHeartbeat, ensurePreview, sendHeartbeat, view.kind])
 
   const handleRetry = () => {
+    autoRetryCountRef.current = 0
+    clearAutoRetry()
     sandboxRef.current = null
     clearPoll()
     clearHeartbeat()
@@ -293,21 +349,32 @@ export function MobilePreview({
         </PreviewShell>
       )}
 
-      {view.kind === "failed" && (
-        <PreviewShell title="Preview failed" subtitle={view.message}>
-          <div className="mx-auto flex max-w-md flex-col items-center gap-4 rounded-2xl border border-border bg-card p-6 text-center">
-            <p className="text-sm text-[#1c1c1c]">{view.message}</p>
-            <button
-              type="button"
-              onClick={handleRetry}
-              className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-white px-4 text-sm font-semibold text-[#1c1c1c] transition hover:bg-muted"
-            >
-              <RefreshCw className="h-4 w-4" />
-              Try again
-            </button>
-          </div>
-        </PreviewShell>
-      )}
+      {view.kind === "failed" && (() => {
+        const willAutoRetry = isRetryableError(view.sandbox.error) && autoRetryCountRef.current < MAX_AUTO_RETRIES
+        const friendlyMessage = normalizePreviewError(view.sandbox.error)
+        return (
+          <PreviewShell
+            title={willAutoRetry ? "Preview timed out — retrying…" : "Preview failed"}
+            subtitle={willAutoRetry ? "Attempting to restart the preview automatically." : friendlyMessage}
+          >
+            <div className="mx-auto flex max-w-md flex-col items-center gap-4 rounded-2xl border border-border bg-card p-6 text-center">
+              <p className="text-sm text-[#1c1c1c]">{friendlyMessage}</p>
+              {willAutoRetry ? (
+                <p className="text-xs text-muted-foreground">Retrying automatically in a moment…</p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleRetry}
+                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-white px-4 text-sm font-semibold text-[#1c1c1c] transition hover:bg-muted"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Try again
+                </button>
+              )}
+            </div>
+          </PreviewShell>
+        )
+      })()}
 
       {view.kind === "error" && (
         <PreviewShell title="Preview unavailable" subtitle={view.message}>

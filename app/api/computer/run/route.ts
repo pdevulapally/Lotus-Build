@@ -1502,6 +1502,7 @@ export async function POST(req: Request) {
       projectId?: string
       sessionMode?: unknown
       agentRuntime?: unknown
+      planApproved?: unknown
     }
     if (data.ownerId !== uid) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 })
@@ -1540,6 +1541,11 @@ export async function POST(req: Request) {
     const projectPlatform = normalizePlatform(data.platform)
     const sessionModeInstructions = buildComputerSessionModeInstructions(sessionMode)
     const savedRuntime = normalizeComputerAgentRuntime(data.agentRuntime)
+    const planApproved = Boolean(data.planApproved)
+    // Clear the flag immediately so a retry doesn't double-build
+    if (planApproved) {
+      await docRef.update({ planApproved: null }).catch(() => {})
+    }
     const followUpIntent = resolveComputerFollowUpIntent(incomingPrompt, savedRuntime)
     const runtimeContext = buildComputerRuntimeContext(savedRuntime, followUpIntent)
     if (followUpIntent === "resume_previous_work" && savedRuntime.effectiveRequest) {
@@ -1891,6 +1897,11 @@ export async function POST(req: Request) {
     }
 
     let planText = orchestratorPhase.planText
+    // When a plan was explicitly approved, inherit the saved plan so generation
+    // skips re-planning and uses the text the user reviewed and approved.
+    if (planApproved && !planText && savedRuntime.planText) {
+      planText = savedRuntime.planText
+    }
 
     if (!(await isActiveRun(docRef, runId))) {
       return NextResponse.json({ ok: false, message: "Run no longer active" })
@@ -1968,6 +1979,12 @@ export async function POST(req: Request) {
           status: "complete",
           kind: "research",
           createdAt: new Date().toISOString(),
+          metadata: {
+            searchQuery: webPlan.searchQuery || prompt,
+            searchResultsJson: JSON.stringify(
+              searchResults.slice(0, 8).map((r) => ({ title: r.title, source: r.url }))
+            ),
+          },
         })
 
         const researchNarration = await callAgent({
@@ -2360,8 +2377,10 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
     }
 
     generationDecision = {
-      shouldGenerate: shouldGenerateForMode(sessionMode, generationDecision.shouldGenerate),
-      reason: generationDecision.reason || "builder_run",
+      shouldGenerate: planApproved
+        ? true
+        : shouldGenerateForMode(sessionMode, generationDecision.shouldGenerate),
+      reason: planApproved ? "plan_approved" : (generationDecision.reason || "builder_run"),
     }
 
     await appendRunEvent({

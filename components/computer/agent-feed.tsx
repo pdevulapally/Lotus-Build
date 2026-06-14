@@ -1,11 +1,23 @@
 "use client"
 
-import { Fragment, useEffect, useRef, useState } from "react"
+import { Fragment, useEffect, useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
-import { Check, ChevronsDown, ChevronsUp, Copy, Database, FileText, Loader2, Monitor, Pencil } from "lucide-react"
-import { BashTool } from "@/components/project/bash-tool"
-import { EditTool } from "@/components/project/edit-tool"
+import {
+  Check,
+  ChevronRight,
+  ChevronsDown,
+  ChevronsUp,
+  Copy,
+  Database,
+  FileCode2,
+  Loader2,
+  Monitor,
+  Pencil,
+} from "lucide-react"
 import { TextShimmer } from "@/components/prompt-kit/text-shimmer"
+import { lineDiff, countDiffStats, type DiffOp } from "@/components/project/edit-tool"
+import { BashTool } from "@/components/project/bash-tool"
+import { SearchTool, type SearchResult } from "@/components/project/search-tool"
 import { QuestionTool, type QuestionAnswer, type QuestionConfig } from "@/components/computer/question-tool"
 import {
   Reasoning,
@@ -34,9 +46,12 @@ const QUIET_COMPLETED_EVENTS = new Set([
   "Web skipped",
   "Research skipped",
   "Browser skipped",
-  "Research complete",
   "Web plan",
   "Understanding request",
+  // Redundant with "Preview ready" which is the user-facing signal
+  "Sandbox run successful",
+  // Intermediate state — "Preview ready" or sandbox error supersedes it
+  "Starting sandbox",
 ])
 
 function shouldHideCompletedFeedItem(event: ComputerTimelineEvent) {
@@ -122,12 +137,23 @@ function renderInline(text: string): React.ReactNode {
   )
 }
 
+function sanitizePlanText(text: string): string {
+  return text
+    .split("\n")
+    .filter((line) => !/^[ \t]*[-*_]{3,}[ \t]*$/.test(line))
+    .map((line) => line.trimEnd())
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+}
+
 function PlanDescription({ text }: { text: string }) {
   return (
     <div className="space-y-0.5 text-[12.5px] leading-relaxed">
       {text.split("\n").map((line, i) => {
         const t = line.trim()
-        if (!t) return <div key={i} className="h-1.5" />
+        if (!t) return null
+        if (/^[-*_]{3,}$/.test(t)) return null
         if (t.match(/^#\s+/)) return null
         const h2 = t.match(/^##\s+(.+)/)
         if (h2) return <p key={i} className="pt-2 pb-0.5 text-[12px] font-semibold text-foreground">{renderInline(h2[1])}</p>
@@ -189,52 +215,156 @@ function SupabaseQuestionCard({ onSetup, onDecline }: { onSetup: () => void; onD
   )
 }
 
-function getPlanFileName(event: ComputerTimelineEvent) {
-  const rawId = event.id?.trim()
-  if (!rawId) return "plan-working.md"
-  return `plan-${rawId.slice(0, 8)}.md`
-}
-
-function PlanTool({ event }: { event: ComputerTimelineEvent }) {
+function PlanTool({ event, onApprovePlan }: { event: ComputerTimelineEvent; onApprovePlan?: () => void }) {
   const [isExpanded, setIsExpanded] = useState(false)
-  const summary = event.description?.trim() || ""
-  const hasSummary = summary.length > 0
+  const [isApproving, setIsApproving] = useState(false)
+  const summary = sanitizePlanText(event.description || "")
+
+  const handleApprove = async () => {
+    if (isApproving || !onApprovePlan) return
+    setIsApproving(true)
+    try { await onApprovePlan() } finally { setIsApproving(false) }
+  }
 
   return (
-    <div className="my-3 overflow-hidden rounded-xl border border-border bg-muted/40">
-      <div className="flex h-8 items-center justify-between pl-3 pr-2.5">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-          <span className="truncate text-xs text-muted-foreground">{getPlanFileName(event)}</span>
-        </div>
-        <button
-          type="button"
-          onClick={() => setIsExpanded((prev) => !prev)}
-          aria-label={isExpanded ? "Collapse plan" : "Expand plan"}
-          className="inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground"
-        >
-          {isExpanded ? <ChevronsUp className="h-3.5 w-3.5" /> : <ChevronsDown className="h-3.5 w-3.5" />}
-        </button>
-      </div>
-      <div className="border-t border-border px-3 py-2">
-        <p className="text-sm font-medium text-foreground">Plan drafted</p>
-        {hasSummary ? (
-          <div className={cn("mt-1", !isExpanded && "max-h-[94px] overflow-hidden")}>
-            <PlanDescription text={summary} />
-          </div>
-        ) : (
-          <p className="mt-1 text-xs text-muted-foreground">No plan summary provided.</p>
-        )}
-        {hasSummary && !isExpanded && (
+    <div className="overflow-hidden rounded-xl border border-border bg-muted/40">
+      <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
+        <span className="text-xs font-medium text-muted-foreground">Plan drafted</span>
+        {summary && (
           <button
             type="button"
-            onClick={() => setIsExpanded(true)}
-            className="mt-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            onClick={() => setIsExpanded((v) => !v)}
+            className="flex items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
           >
-            Read detailed plan
+            {isExpanded ? (
+              <ChevronsUp className="h-3 w-3 shrink-0" />
+            ) : (
+              <ChevronsDown className="h-3 w-3 shrink-0" />
+            )}
+            {isExpanded ? "Show less" : "Read detailed plan"}
           </button>
         )}
       </div>
+      {summary && (
+        <div
+          className={cn(
+            "overflow-hidden px-3 pb-3 pt-2.5",
+            !isExpanded && "max-h-[94px]",
+          )}
+        >
+          <PlanDescription text={summary} />
+        </div>
+      )}
+      {onApprovePlan && (
+        <div className="flex items-center gap-3 border-t border-border px-3 py-2.5">
+          <button
+            type="button"
+            onClick={handleApprove}
+            disabled={isApproving}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-accent-foreground transition-colors hover:bg-accent/90 disabled:opacity-60"
+          >
+            <Check className="h-3.5 w-3.5 shrink-0" />
+            {isApproving ? "Starting build…" : "Approve and build"}
+          </button>
+          <span className="text-[11px] text-muted-foreground">or type to revise</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+function FeedFileItem({
+  filePath,
+  variant,
+  isRunning,
+  isPending,
+  oldContent,
+  newContent,
+}: {
+  filePath?: string
+  variant: "edit" | "write"
+  isRunning: boolean
+  isPending: boolean
+  oldContent?: string
+  newContent?: string
+}) {
+  const [open, setOpen] = useState(false)
+  const fileName = filePath?.split("/").pop() || filePath || ""
+  const isWrite = variant === "write"
+
+  const diffOps = useMemo<DiffOp[] | null>(() => {
+    if (isPending || isRunning) return null
+    if (isWrite && newContent) return newContent.split("\n").map((text) => ({ type: "add" as const, text }))
+    if (oldContent !== undefined && newContent !== undefined) return lineDiff(oldContent, newContent)
+    return null
+  }, [isPending, isRunning, isWrite, oldContent, newContent])
+
+  const stats = useMemo(() => (diffOps ? countDiffStats(diffOps) : null), [diffOps])
+  const hasDiff = Boolean(diffOps && diffOps.length > 0)
+
+  const label = isPending || isRunning
+    ? `${isWrite ? "Creating" : "Editing"} ${fileName}`
+    : `${isWrite ? "Created" : "Edited"} ${fileName}`
+
+  return (
+    <div className="py-1">
+      <button
+        type="button"
+        disabled={!hasDiff}
+        onClick={() => hasDiff && setOpen((v) => !v)}
+        className="flex w-full items-center gap-2.5 text-left"
+      >
+        <FileCode2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40" />
+        {isPending || isRunning ? (
+          <TextShimmer className="min-w-0 flex-1 text-xs font-medium">
+            {label}
+          </TextShimmer>
+        ) : (
+          <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground/80">{label}</span>
+        )}
+        {stats && !isPending && !isRunning && (stats.added > 0 || stats.removed > 0) && (
+          <span className="flex shrink-0 gap-1.5 font-mono text-[11px]">
+            {stats.added > 0 && <span className="text-emerald-600/80">+{stats.added}</span>}
+            {stats.removed > 0 && <span className="text-rose-500/80">-{stats.removed}</span>}
+          </span>
+        )}
+        {hasDiff && (
+          <ChevronRight
+            className={cn(
+              "h-3 w-3 shrink-0 text-muted-foreground/30 transition-transform duration-150",
+              open && "rotate-90",
+            )}
+          />
+        )}
+      </button>
+      {open && hasDiff && (
+        <div className="ml-6 mt-2 max-h-64 overflow-auto rounded-lg bg-muted/50 font-mono text-[11.5px] leading-[1.55] [scrollbar-width:thin]">
+          {diffOps!.map((op, i) => (
+            <div
+              key={i}
+              className={cn(
+                "flex min-w-max items-start px-2.5 py-px",
+                op.type === "add" && "bg-emerald-50/60 text-emerald-800",
+                op.type === "remove" && "bg-rose-50/60 text-rose-800",
+                op.type === "context" && "text-muted-foreground",
+              )}
+            >
+              <span
+                className={cn(
+                  "w-4 shrink-0 select-none",
+                  op.type === "add" && "text-emerald-600",
+                  op.type === "remove" && "text-rose-500",
+                  op.type === "context" && "text-muted-foreground/30",
+                )}
+              >
+                {op.type === "add" ? "+" : op.type === "remove" ? "−" : " "}
+              </span>
+              <span className="min-w-0 flex-1 whitespace-pre pr-3">{op.text || " "}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -245,6 +375,7 @@ function FeedItem({
   onSupabaseSetup,
   onSupabaseDecline,
   onClarificationAnswer,
+  onApprovePlan,
 }: {
   event: ComputerTimelineEvent
   isLatest: boolean
@@ -252,6 +383,7 @@ function FeedItem({
   onSupabaseSetup?: () => void
   onSupabaseDecline?: () => void
   onClarificationAnswer?: (answer: string) => void
+  onApprovePlan?: () => void
 }) {
   const isComplete = event.status === "complete"
   const isError = event.status === "error"
@@ -287,12 +419,29 @@ function FeedItem({
     }
   }
 
+  if (event.title === "Researching web") {
+    if (isRunning) {
+      return <SearchTool state="searching" query={event.description || ""} className="my-3" />
+    }
+    return null
+  }
+
+  if (event.title === "Research complete") {
+    const queryVal = typeof event.metadata?.searchQuery === "string" ? event.metadata.searchQuery : ""
+    let results: SearchResult[] = []
+    const rawJson = typeof event.metadata?.searchResultsJson === "string" ? event.metadata.searchResultsJson : ""
+    if (rawJson) {
+      try { results = JSON.parse(rawJson) } catch {}
+    }
+    return <SearchTool state="done" query={queryVal} results={results} defaultOpen={false} className="my-3" />
+  }
+
   if (shouldHideCompletedFeedItem(event)) return null
 
   if (event.title === "Response" && event.description) {
     return (
-      <div className="py-3 pr-2">
-        <p className="whitespace-pre-wrap break-words text-[14px] leading-[1.7] text-foreground [overflow-wrap:anywhere]">
+      <div className="py-4 pr-2">
+        <p className="whitespace-pre-wrap break-words text-[14px] leading-[1.75] text-foreground [overflow-wrap:anywhere]">
           {event.description}
         </p>
       </div>
@@ -300,7 +449,7 @@ function FeedItem({
   }
 
   if (event.title === "Planning execution" && isComplete && event.description) {
-    return <PlanTool event={event} />
+    return <PlanTool event={event} onApprovePlan={onApprovePlan} />
   }
 
   const commandMetadata = getCommandMetadata(event)
@@ -317,27 +466,32 @@ function FeedItem({
 
   if (event.title === "Generating code") {
     if (!isRunning) return null
-    return <EditTool state="waiting" variant="write" className="my-2" />
+    return (
+      <div className="flex items-center gap-2.5 py-1.5">
+        <FileCode2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40" />
+        <TextShimmer className="text-xs font-medium">Generating code…</TextShimmer>
+      </div>
+    )
   }
 
   const generatedFilePath = getGeneratingFilePath(event)
   if (generatedFilePath && event.kind === "code") {
     const fileContent = getFileContentMetadata(event)
     return (
-      <EditTool
-        state={isRunning ? "pending" : "completed"}
-        variant={getEditToolVariant(event)}
+      <FeedFileItem
         filePath={generatedFilePath}
+        variant={getEditToolVariant(event)}
+        isRunning={isRunning}
+        isPending={isRunning}
         oldContent={fileContent.oldContent}
         newContent={fileContent.newContent}
-        className="my-2"
       />
     )
   }
 
   if (PROSE_EVENTS.includes(event.title) && event.description) {
     return (
-      <Reasoning className="my-2" isStreaming={isRunning}>
+      <Reasoning className="my-3" isStreaming={isSessionRunning}>
         <ReasoningTrigger />
         <ReasoningContent>{event.description}</ReasoningContent>
       </Reasoning>
@@ -348,36 +502,42 @@ function FeedItem({
   const secondaryLine = getFeedItemSecondaryLine(title, description, showDetail)
 
   return (
-    <div className={cn(isRunning ? "py-1.5" : "py-0.5")}>
+    <div className={cn(isRunning ? "py-2.5" : "py-1")}>
       <div className="min-w-0 flex-1">
         {isRunning ? (
-          <TextShimmer className="text-[13px] font-medium">
-            {title}
-          </TextShimmer>
-        ) : (
-            <p
-              className={cn(
-                "text-[13px] leading-snug",
-                isError
-                  ? "font-medium text-destructive"
-                  : isSkipped
-                    ? "text-muted-foreground/60"
-                    : "text-muted-foreground/80",
-              )}
-            >
+          <div className="flex items-center gap-2.5">
+            <span className="relative flex h-2 w-2 shrink-0">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-foreground/20" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-foreground/50" />
+            </span>
+            <TextShimmer className="text-[13px] font-medium">
               {title}
-            </p>
-          )}
-          {secondaryLine && (
-            <p
-              className={cn(
-                "mt-0.5 text-[12px] leading-relaxed [overflow-wrap:anywhere]",
-                isError ? "text-destructive/80" : "text-muted-foreground",
-              )}
-            >
-              {secondaryLine}
-            </p>
-          )}
+            </TextShimmer>
+          </div>
+        ) : (
+          <p
+            className={cn(
+              "text-[13px] leading-snug",
+              isError
+                ? "font-medium text-destructive"
+                : isSkipped
+                  ? "text-muted-foreground/40"
+                  : "text-muted-foreground/70",
+            )}
+          >
+            {title}
+          </p>
+        )}
+        {secondaryLine && (
+          <p
+            className={cn(
+              "mt-1 text-[12px] leading-relaxed [overflow-wrap:anywhere]",
+              isError ? "text-destructive/80" : "text-muted-foreground/60",
+            )}
+          >
+            {secondaryLine}
+          </p>
+        )}
       </div>
     </div>
   )
@@ -455,7 +615,7 @@ export function AgentFeed({
   prompt, events, localMessages, status, optimisticStart,
   progress,
   editingIndex, editText, onEditStart, onEditChange, onEditSubmit, onEditCancel,
-  onSupabaseSetup, onSupabaseDecline, onClarificationAnswer, onSwitchToPreview,
+  onSupabaseSetup, onSupabaseDecline, onClarificationAnswer, onApprovePlan, onSwitchToPreview,
 }: {
   prompt?: string
   events: ComputerTimelineEvent[]
@@ -472,6 +632,7 @@ export function AgentFeed({
   onSupabaseSetup?: () => void
   onSupabaseDecline?: () => void
   onClarificationAnswer?: (answer: string) => void
+  onApprovePlan?: () => void
   onSwitchToPreview?: () => void
 }) {
   const endRef = useRef<HTMLDivElement | null>(null)
@@ -509,7 +670,7 @@ export function AgentFeed({
   }
 
   const renderFeedItem = (event: ComputerTimelineEvent, isLatest: boolean, key: string) => (
-    <motion.div key={key} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.14 }}>
+    <motion.div key={key} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
       <FeedItem
         event={event}
         isLatest={isLatest}
@@ -517,14 +678,15 @@ export function AgentFeed({
         onSupabaseSetup={onSupabaseSetup}
         onSupabaseDecline={onSupabaseDecline}
         onClarificationAnswer={onClarificationAnswer}
+        onApprovePlan={onApprovePlan}
       />
     </motion.div>
   )
 
   return (
-    <div className="space-y-0.5 pb-2">
+    <div className="space-y-2.5 pb-4">
       {prompt && (
-        <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.12 }} className="pb-4">
+        <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.12 }} className="pb-5">
           <UserMessageBubble
             content={prompt} index={-1} isEditing={editingIndex === -1}
             editText={editingIndex === -1 ? editText : ""}
@@ -536,7 +698,7 @@ export function AgentFeed({
 
       <AnimatePresence initial={false}>
         {isStarting && (
-          <motion.div key="optimistic" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }} className="py-1">
+          <motion.div key="optimistic" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }} className="py-2">
             <TextShimmer className="text-[13px] font-medium">Starting...</TextShimmer>
           </motion.div>
         )}
@@ -552,7 +714,7 @@ export function AgentFeed({
         {localMessages.map((msg, i) =>
           msg.role === "user" ? (
             <Fragment key={`user-fragment-${i}`}>
-              <motion.div key={`user-${i}`} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.12 }} className="pt-2">
+              <motion.div key={`user-${i}`} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.12 }} className="pt-5">
                 <UserMessageBubble
                   content={msg.content} index={i} isEditing={editingIndex === i}
                   editText={editingIndex === i ? editText : ""}
@@ -565,8 +727,8 @@ export function AgentFeed({
               )}
             </Fragment>
           ) : (
-            <motion.div key={`sys-${i}`} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.12 }} className="flex justify-center py-1">
-              <span className="text-[11px] text-muted-foreground">{msg.content}</span>
+            <motion.div key={`sys-${i}`} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.12 }} className="flex justify-center py-2">
+              <span className="text-[11px] text-muted-foreground/60">{msg.content}</span>
             </motion.div>
           )
         )}
@@ -580,12 +742,12 @@ export function AgentFeed({
 
       <AnimatePresence>
         {showGlobalThinking && (
-          <motion.div initial={{ opacity: 0, y: 3 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }} className="py-2">
+          <motion.div initial={{ opacity: 0, y: 3 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }} className="py-2.5">
             <TextShimmer className="text-[13px] font-medium">
               {progress?.label ?? "Working..."}
             </TextShimmer>
             {progress?.description && (
-              <p className="mt-0.5 text-[12px] leading-relaxed text-muted-foreground">
+              <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground/70">
                 {progress.description}
               </p>
             )}
@@ -594,9 +756,9 @@ export function AgentFeed({
       </AnimatePresence>
 
       {status === "complete" && visible.length > 0 && events.some((e) => e.title === "Preview ready") && (
-        <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.14 }} className="pt-3">
+        <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }} className="pt-5 border-t border-border/40">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-[13px] text-muted-foreground">Preview is ready.</p>
+            <p className="text-[13px] text-muted-foreground/70">Preview is ready.</p>
             {onSwitchToPreview && (
               <button
                 type="button"

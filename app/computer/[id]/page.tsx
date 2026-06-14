@@ -759,9 +759,10 @@ export default function ComputerPage() {
         const conversationTurns = normalizeConversationTurns(d.conversationTurns)
         setSession({
           id: snap.id,
-          prompt:    typeof d.prompt    === "string" ? d.prompt    : undefined,
-          status:    normalizeStatus(d.status),
-          timeline:  normalizeTimeline(d.timeline),
+          prompt:      typeof d.prompt      === "string" ? d.prompt      : undefined,
+          status:      normalizeStatus(d.status),
+          sessionMode: typeof d.sessionMode === "string" ? d.sessionMode : undefined,
+          timeline:    normalizeTimeline(d.timeline),
           conversationTurns,
           agentRuntime: normalizeAgentRuntime(d.agentRuntime),
           previewUrl: typeof d.previewUrl === "string" ? d.previewUrl : null,
@@ -1106,6 +1107,26 @@ export default function ComputerPage() {
     }
     finally { setIsStartingRun(false) }
   }, [clearStoppedSession, getOptionalAuthHeader, isBuildTokenBlocked, isStartingRun, session, showTokenLimit])
+
+  // ── handleApprovePlan — approves a plan and triggers code generation ──────
+  const handleApprovePlan = useCallback(async () => {
+    if (!session || isRunning) return
+    await updateDoc(doc(db, "sessions", session.id), { planApproved: true })
+    await handleRun("Approved. Build from the plan.")
+  }, [session, isRunning, handleRun])
+
+  const showPlanApproval = useMemo(() => {
+    if (!session || isRunning) return false
+    if (session.sessionMode !== "plan") return false
+    const events = session.timeline
+    const hasPlan = events.some(
+      (e) => e.kind === "planning" && e.status === "complete" && e.title === "Planning execution"
+    )
+    const hasGenerated = events.some(
+      (e) => e.status === "complete" && e.kind === "code" && e.title?.startsWith("Generating ")
+    )
+    return hasPlan && !hasGenerated
+  }, [session, isRunning])
 
   // ── handleStop — halts an in-flight run immediately ───────────────────────
   const handleStop = useCallback(async () => {
@@ -1670,6 +1691,7 @@ export default function ComputerPage() {
               onSupabaseSetup={handleSupabaseYes}
               onSupabaseDecline={handleSupabaseNo}
               onClarificationAnswer={handleClarificationAnswer}
+              onApprovePlan={showPlanApproval ? handleApprovePlan : undefined}
               onSwitchToPreview={() => { setMobileView("workspace"); setActiveTab("preview") }}
             />
           </div>

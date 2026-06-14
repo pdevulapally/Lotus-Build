@@ -5,10 +5,10 @@ import { Check, FileCode2, X } from "lucide-react"
 import { TextShimmer } from "@/components/prompt-kit/text-shimmer"
 import { cn } from "@/lib/utils"
 
-type DiffOp = { type: "context" | "remove" | "add"; text: string }
+export type DiffOp = { type: "context" | "remove" | "add"; text: string }
 type ApprovalDecision = "approved" | "rejected" | null
 
-function lineDiff(oldText: string, newText: string): DiffOp[] {
+export function lineDiff(oldText: string, newText: string): DiffOp[] {
   const a = oldText.split("\n")
   const b = newText.split("\n")
   const m = a.length
@@ -42,7 +42,7 @@ function lineDiff(oldText: string, newText: string): DiffOp[] {
   return ops
 }
 
-function countDiffStats(ops: DiffOp[]) {
+export function countDiffStats(ops: DiffOp[]) {
   return ops.reduce(
     (stats, op) => {
       if (op.type === "add") stats.added++

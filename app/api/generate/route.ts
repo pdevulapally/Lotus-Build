@@ -653,9 +653,32 @@ async function generateWithNvidiaValidation(params: {
   }
 }
 
+// Distinct aesthetic territories. One is randomly sampled per generation so the same
+// prompt never converges on the same design. The creative director interprets the chosen
+// vector in the context of the actual prompt — a "brutalist bakery" is still a bakery,
+// not a generic brutalist template.
+const AESTHETIC_VECTORS = [
+  "editorial/magazine: dramatically oversized display type (100px+), generous asymmetric whitespace, image used as editorial photography not hero banner, text anchors composition",
+  "swiss grid: strict mathematical column grid, typographic hierarchy as the sole decoration, near-monochrome palette with one precise accent, every element has a grid reason",
+  "brutalist/raw: exposed structural elements, extreme weight contrast in type, unconventional layout that breaks expected patterns, high contrast black/white with one saturated accent",
+  "nordic restraint: extreme negative space, muted organic palette (stone/birch/slate), humanist serif body type, sections breathe — padding doubles what feels comfortable",
+  "editorial dark/luxury: rich near-black background, warm champagne or cream type, restrained single accent, premium vocabulary — no gradients, no glow, just weight and tone",
+  "artisan/craft: warm earth palette derived from the product's material or origin, tactile texture via CSS, handwritten or high-contrast serif display, storytelling-first section order",
+  "precision/technical: monospace type as accent, data-forward layout with numbers as visual anchors, cool neutral palette, grid-defined spacing, information density as a feature",
+  "mediterranean warmth: rich terracotta/ochre/fig palette, generous padding, sensory copy that references texture and smell, full-bleed background tones shift from warm to warm-dark",
+  "japanese refinement: asymmetric negative space used intentionally, one restrained accent color maximum, typography as the only decoration, intervals of true emptiness between elements",
+  "art deco revival: structured symmetry with geometric ornament as CSS shapes, high-contrast palette (black/cream/gold or black/cream/rust), period-appropriate display typeface, horizontal ruled lines as dividers",
+] as const
+
+function sampleAestheticVector(): string {
+  return AESTHETIC_VECTORS[Math.floor(Math.random() * AESTHETIC_VECTORS.length)]
+}
+
 // Derives a specific design brief from the user's prompt before generation.
-// Uses no category defaults — every decision is reasoned from the actual business context.
+// A randomly sampled aesthetic vector forces genuine creative variance — the same
+// prompt will produce a different visual direction on each run.
 async function deriveDesignBrief(prompt: string): Promise<string> {
+  const aestheticVector = sampleAestheticVector()
   try {
     const res = await openai.chat.completions.create({
       model: OPENAI_MODEL_MAP[DEFAULT_MODEL],
@@ -664,43 +687,47 @@ async function deriveDesignBrief(prompt: string): Promise<string> {
           role: "system",
           content: `You are the creative director at a world-class digital agency (Pentagram, Fantasy Interactive, Instrument, Huge). Your job is to produce a committed, specific design brief that will make the AI developer generate a genuinely distinctive website — one that could not have been produced by any other AI tool.
 
-STEP 1 — DOMAIN ANALYSIS (think silently):
-Before choosing anything, answer these internally:
+MANDATORY AESTHETIC VECTOR — you must work within this creative territory:
+"${aestheticVector}"
+Interpret this vector through the lens of the client's actual domain and business context. A brutalist bakery is still a bakery — the vector shapes how you present it, not what it is.
+
+STEP 1 — DOMAIN ANALYSIS (think silently before writing anything):
 - What industry/domain is this? Who are their customers and what do those customers already trust?
 - What is the best-designed real website in this exact niche? (e.g. for a law firm: Debevoise; for a bakery: Tartine; for a SaaS: Linear, Vercel, Craft)
 - What visual language does that reference use? (type scale, palette, whitespace, image style)
-- What would make THIS specific business look credible, premium, and on-brand — not just "a website for that category"?
+- What layout patterns does this domain actually use in the real world that no generic AI template would know? (e.g. a fishmonger lists catch by weight, a wine bar lists bottles by region not price, a gym lists class types not "our services")
+- What would make THIS specific business look immediately credible to someone who knows the industry?
 
-STEP 2 — OUTPUT THE BRIEF:
-Every decision must be specific. Vague is not allowed.
+STEP 2 — WRITE THE BRIEF. Be specific. Vague is not allowed.
 - NOT: "warm tones" → MUST: "#f2ede4 background, #b8652a accent, #1a1612 text"
 - NOT: "large hero" → MUST: "full-bleed #0f0f0e bg, 108px Playfair Display italic left-aligned, max 6 words, no subheadline, single ghost-border button bottom-left corner"
 - NOT: "clean layout" → MUST: "two-column grid: large stat/number left (120px bold), short descriptor right (14px/1.6), 5 rows"
 
-CRITICAL CONSTRAINT — this brief must produce a site that looks nothing like a generic AI output:
+CRITICAL CONSTRAINT:
 - No gradient hero. No centered headline + subheadline + two buttons. No three identical feature cards. No "Why Choose Us". No testimonial card grid.
-- The site must be immediately readable as a specific brand in a specific industry — not as "a website".
+- The site must be immediately readable as this specific brand in this specific industry — not as "a website".
 - At least one section must use a structural device no AI tool would default to: a large editorial number as section anchor, a full-bleed split screen, a horizontal scroll strip, a table-style service list, or a typographic-only hero with no imagery.
 
-Output this exact structure (plain text, no markdown headers, no bullet points outside the SECTIONS list):
+Output EXACTLY this structure (plain text, no markdown headers, no bullet points outside the SECTIONS and LAYOUT_VOCABULARY lists):
 PALETTE: [bg hex] [primary-text hex] [accent hex] [muted-surface hex] [border hex]
 FONTS: [display font name, Google Fonts] / [body font name, Google Fonts]
 PERSONALITY: [adjective 1], [adjective 2], [adjective 3]
-VISUAL_REFERENCE: [name of 1-2 real-world websites this should feel inspired by — be specific, e.g. "Linear.app (tight grid, monospace accents) and Notion.so (generous whitespace)"]
-HERO_FORMAT: [exact implementation — bg color, type size in px, alignment, max words in headline, subheadline yes/no, CTA style and position, any image/no image]
-HERO_HEADLINE: [the actual headline for this business — punchy, specific, under 8 words, sounds like the brand owner wrote it]
-SECTIONS: [ordered list of sections, each as: SectionName: layout-description — be specific about number of columns, what anchors each row, image placement, type treatment]
-TYPOGRAPHY_APPROACH: [display size range, label style, body size/line-height, any mixed-weight techniques]
-STANDOUT: [one concrete unexpected layout or composition decision that makes this site immediately memorable — must be implementable in React/Tailwind]
-ANTI_PATTERN: [describe the generic AI version of this exact site — the one we must NOT produce]`,
+VISUAL_REFERENCE: [1-2 specific real websites, e.g. "Linear.app (tight grid, monospace accents) and Craft.do (generous whitespace)"]
+HERO_FORMAT: [exact: bg color hex, display type size in px, alignment, max headline word count, subheadline yes/no, CTA style and screen position, image yes/no and treatment]
+HERO_HEADLINE: [the actual written headline — punchy, specific, under 8 words, sounds like the brand owner wrote it]
+SECTIONS: [ordered list — each entry: SectionName: exact layout description (columns, anchoring element, type treatment, what makes it non-generic)]
+TYPOGRAPHY_APPROACH: [display size range, label style treatment, body size and line-height, any mixed-weight or mixed-case techniques]
+STANDOUT: [one concrete unexpected layout or composition decision implementable in React/Tailwind — be specific about the implementation]
+LAYOUT_VOCABULARY: [2-3 domain-specific layout or content patterns for this exact business type that a generic template would never include — derive from how this industry actually presents information in the real world]
+ANTI_PATTERN: [describe in one sentence the exact generic AI version of this site — the one we must not produce]`,
         },
         {
           role: "user",
-          content: prompt.slice(0, 2000),
+          content: prompt.slice(0, 3000),
         },
       ],
-      max_completion_tokens: 700,
-      temperature: 0.25,
+      max_completion_tokens: 1400,
+      temperature: 0.75,
     })
     return res.choices[0]?.message?.content?.trim() || ""
   } catch {
@@ -1154,20 +1181,37 @@ HARD RULES:
 - If you are about to return more than 4 files for a STYLE or CONTENT request, stop and reconsider
 
 PRODUCTION STANDARD (FOLLOW-UP):
-- Maintain or elevate the existing design quality.
-- Never downgrade visual polish when making changes.
-- Match the domain aesthetic already established.
+- Maintain or elevate the existing design quality. Never downgrade visual polish when making changes.
+- Match the domain aesthetic already established. If the site has a committed aesthetic direction (editorial, brutalist, luxury, etc.) — new sections must execute that same direction with equal conviction.
 - Keep all existing content — only change what was asked.
 - If adding new sections, they must match the visual language of existing sections exactly.
 - Never introduce placeholder content in follow-up edits.
 - Preserve the existing project architecture and file structure. Do NOT convert an existing React/Vite project into standalone HTML/CSS/JS.
 - Never say you are building "a single-page HTML/CSS/JS file" in the agent message. Describe the actual targeted React/Vite change.
 
+BANNED PATTERNS (FOLLOW-UP) — these are design regressions and must NEVER be introduced during edits:
+- Rows of identical-structure cards (2, 3, 4, or 5 — all banned unless the existing design already uses this exact pattern).
+- Centered headline + centered subheadline paragraph + CTA button layout for any new section.
+- Gradient backgrounds (blue-to-purple, teal-to-blue, or any obvious gradient) on any new element.
+- Generic section headings: "Why Choose Us", "Our Features", "What We Offer", "How It Works", "Get Started Today". Rewrite with brand-specific copy.
+- Three identical testimonial cards with avatar + stars + quote + name.
+- Numbered 1-2-3 steps in icon cards.
+- Purple gradients on white backgrounds.
+- A new footer that is just 4 identical link columns.
+- Adding the same shadow to every card or element.
+
+DESIGN QUALITY CHECKLIST (FOLLOW-UP) — before outputting any changed file, verify:
+1. Does the new section use the same structural vocabulary as the rest of the site? (alternating rows → add alternating row; bento → add bento cell; editorial list → add editorial row)
+2. Does it use the same CSS variables (--font-display, --font-body, --bg-primary, --accent, etc.) already defined in index.css?
+3. Does the section padding rhythm match existing sections?
+4. Is every new heading specific brand-voice copy — not a generic template heading?
+5. If there is motion in the existing site, does the new section also use the same animation style?
+6. Would a creative director looking at the new section and the existing site immediately see they belong together?
+
 UI STANDARD: When adding or changing UI, match or elevate the existing design language. Specifically:
 - Read the existing code before adding anything. Match the exact font variables, color system, spacing scale, and component patterns already in use.
 - New sections must use the same typographic scale (large display sizes, label styles, body size) and section padding rhythm already established.
 - Preserve the aesthetic direction of the existing site. If it is editorial/dark/luxury/playful — new sections must be the same. Do NOT regress to a generic style.
-- NEVER add: rows of identical cards, centered-text banner CTAs, gradient backgrounds, generic section headings ("Why Choose Us", "Get Started"). These are banned regardless of context.
 - New sections must use the same structural vocabulary: if the site uses alternating rows, add an alternating row. If it uses bento grids, add a bento cell. Do not introduce a new structural pattern that breaks visual cohesion.
 - Motion: match the existing animation style. If the site uses scroll-triggered reveals, new elements must also reveal on scroll. Do not add animations that conflict with the existing motion language.
 - Typography: never introduce a new font or change the font variables. Use the existing --font-display and --font-body from the CSS variables.
@@ -1182,11 +1226,14 @@ DEPENDENCIES (CRITICAL):
 - NEVER use HiOutlineMenu, HiOutlineBars3 or any Hi* icon — they are unreliable across versions.
 - PREFER lucide-react for ALL icons when it is listed in package.json. Only use react-icons when lucide-react does not have what you need and react-icons is listed in package.json.
 - NEVER hallucinate lucide-react icon names. 'RocketLaunch' does not exist, use 'Rocket'. Use exact lucide casing: 'Github' not 'GitHub', 'Linkedin' not 'LinkedIn', 'Youtube' not 'YouTube'.
+- CRITICAL — SOCIAL BRAND ICONS DO NOT EXIST IN LUCIDE-REACT: Never import Facebook, Twitter, Instagram, TikTok, Snapchat, Pinterest, Reddit, WhatsApp, Telegram, or any other social media brand icon from lucide-react — these exports were removed and will crash the app with a SyntaxError at runtime. For social media links, use ExternalLink or Share2 from lucide-react, or write an inline SVG path directly in JSX (no extra package).
 - If you import lucide-react, add "lucide-react": "${GENERATED_APP_DEPENDENCY_VERSIONS["lucide-react"]}" to dependencies if not already present.
 - If you use framer-motion, add "framer-motion": "${GENERATED_APP_DEPENDENCY_VERSIONS["framer-motion"]}" to dependencies.
 - Check the existing package.json first. Only add packages that are truly needed and don't already exist.
 - NEVER use packages that don't exist on npm (e.g., @shadcn/ui).
 - For the favicon in index.html, ALWAYS use an inline SVG: <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>"> to prevent 404 errors.
+
+CRITICAL OUTPUT REQUIREMENT: You MUST ALWAYS output at least one ===FILE: path=== ... ===END_FILE=== block. The generation pipeline fails completely if no file blocks are produced. Even if the change is small, output the full modified file inside a file block.
 
 CRITICAL: Do NOT regenerate the entire project. Output ONLY:
 1. One AGENT_MESSAGE (see below).
@@ -1207,6 +1254,26 @@ Then immediately output the file blocks. No other text between ===END_AGENT_MESS
 BACKEND DETECTION: If the user's request clearly implies a need for a backend, database, or persistent data, output at the very end (after all ===END_FILE=== blocks):
 ===META: suggestsBackend=true===
 Only when the app would clearly benefit from a database or backend.`
+
+  function extractCriticalChecklist(brief: string): string {
+    if (!brief) return ""
+    const lines: Record<string, string> = {}
+    for (const line of brief.split("\n")) {
+      const sep = line.indexOf(":")
+      if (sep === -1) continue
+      const key = line.slice(0, sep).trim().toUpperCase()
+      const val = line.slice(sep + 1).trim()
+      if (val) lines[key] = val
+    }
+    const parts: string[] = []
+    if (lines["HERO_FORMAT"]) parts.push(`HERO: ${lines["HERO_FORMAT"]}`)
+    if (lines["HERO_HEADLINE"]) parts.push(`HEADLINE: ${lines["HERO_HEADLINE"]}`)
+    if (lines["STANDOUT"]) parts.push(`STANDOUT ELEMENT (mandatory, do not omit): ${lines["STANDOUT"]}`)
+    if (lines["LAYOUT_VOCABULARY"]) parts.push(`DOMAIN LAYOUT PATTERNS (must appear in sections): ${lines["LAYOUT_VOCABULARY"]}`)
+    if (lines["ANTI_PATTERN"]) parts.push(`DO NOT BUILD THIS: ${lines["ANTI_PATTERN"]}`)
+    if (!parts.length) return ""
+    return `\n\nCRITICAL IMPLEMENTATION CHECKLIST — verify these are in your output before generating files:\n${parts.map((p) => `⚠ ${p}`).join("\n")}`
+  }
 
   const systemPromptNew = (designBrief: string) => `${designBrief ? `DESIGN BRIEF — implement every decision in this brief exactly. This is the authoritative visual specification for this build. Do not substitute defaults.\n\n${designBrief}\n\n---\n\n` : ""}You are an expert React developer building a real production website for a real business. Every decision must serve this specific client — not a category template.
 
@@ -1339,6 +1406,7 @@ Dependencies requirements (MUST follow):
 - NEVER use HiOutlineMenu, HiOutlineBars3 or any Hi* icon — they are unreliable across versions.
 - PREFER lucide-react for ALL icons when it is listed in package.json. Only use react-icons when lucide-react does not have what you need and react-icons is listed in package.json.
 - NEVER hallucinate lucide-react icon names. 'RocketLaunch' does not exist, use 'Rocket'. Use exact lucide casing: 'Github' not 'GitHub', 'Linkedin' not 'LinkedIn', 'Youtube' not 'YouTube'.
+- CRITICAL — SOCIAL BRAND ICONS DO NOT EXIST IN LUCIDE-REACT: Never import Facebook, Twitter, Instagram, TikTok, Snapchat, Pinterest, Reddit, WhatsApp, Telegram, or any other social media brand icon from lucide-react — these exports were removed and will crash the app with a SyntaxError at runtime. For social media links, use ExternalLink or Share2 from lucide-react, or write an inline SVG path directly in JSX (no extra package).
 - If you import lucide-react, add "lucide-react": "${GENERATED_APP_DEPENDENCY_VERSIONS["lucide-react"]}" to dependencies if not already present.
 - If you use Tailwind CSS, include tailwindcss, postcss, and autoprefixer in devDependencies.
 - FRAMER MOTION API RULES (CRITICAL):
@@ -1382,7 +1450,7 @@ The output must be immediately recognisable as designed for this specific busine
 
 BACKEND DETECTION: If the user's request clearly implies a need for a backend, database, or persistent data (e.g. user accounts, login/signup, saving data, todos, forms that persist, dashboards with data, CRUD, API, auth), then at the very end of your response output exactly this line on its own line (after all ===END_FILE=== blocks):
 ===META: suggestsBackend=true===
-Do NOT output this for purely static sites, landing pages, or UI-only apps with no data persistence. Only when the app would clearly benefit from a database or backend.`
+Do NOT output this for purely static sites, landing pages, or UI-only apps with no data persistence. Only when the app would clearly benefit from a database or backend.${extractCriticalChecklist(designBrief)}`
 
   const nvidiaReliabilityPrompt = `
 OPEN-SOURCE MODEL RELIABILITY RULES (MANDATORY):
