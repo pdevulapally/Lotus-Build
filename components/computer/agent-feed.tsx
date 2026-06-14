@@ -11,7 +11,6 @@ import {
   Database,
   FileCode2,
   Loader2,
-  Monitor,
   Pencil,
 } from "lucide-react"
 import { TextShimmer } from "@/components/prompt-kit/text-shimmer"
@@ -149,24 +148,24 @@ function sanitizePlanText(text: string): string {
 
 function PlanDescription({ text }: { text: string }) {
   return (
-    <div className="space-y-0.5 text-[12.5px] leading-relaxed">
+    <div className="space-y-0.5 text-[13px] leading-relaxed">
       {text.split("\n").map((line, i) => {
         const t = line.trim()
         if (!t) return null
         if (/^[-*_]{3,}$/.test(t)) return null
         if (t.match(/^#\s+/)) return null
         const h2 = t.match(/^##\s+(.+)/)
-        if (h2) return <p key={i} className="pt-2 pb-0.5 text-[12px] font-semibold text-foreground">{renderInline(h2[1])}</p>
+        if (h2) return <p key={i} className="pt-2 pb-0.5 text-[13px] font-semibold text-foreground">{renderInline(h2[1])}</p>
         const h3 = t.match(/^###\s+(.+)/)
-        if (h3) return <p key={i} className="pt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{h3[1]}</p>
+        if (h3) return <p key={i} className="pt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{h3[1]}</p>
         const li = t.match(/^[-*]\s+(.+)/)
         if (li) return (
-          <div key={i} className="flex items-start gap-2 text-muted-foreground">
-            <span className="mt-[6px] h-[3px] w-[3px] shrink-0 rounded-full bg-border" />
+          <div key={i} className="flex items-start gap-2 font-semibold text-foreground/65">
+            <span className="mt-[7px] h-[3px] w-[3px] shrink-0 rounded-full bg-border" />
             <span>{renderInline(li[1])}</span>
           </div>
         )
-        return <p key={i} className="text-muted-foreground">{renderInline(t)}</p>
+        return <p key={i} className="font-semibold text-foreground/65">{renderInline(t)}</p>
       })}
     </div>
   )
@@ -179,36 +178,38 @@ function SupabaseQuestionCard({ onSetup, onDecline }: { onSetup: () => void; onD
   if (dismissed) return null
 
   return (
-    <div className="my-3 overflow-hidden rounded-xl border border-border bg-muted/50">
-      <div className="px-3 py-3">
-        <div className="flex items-center gap-1.5">
-          <Database className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-          <span className="text-xs font-medium text-foreground">This app needs a database</span>
-        </div>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Connect Supabase to add auth and persistent storage.
-        </p>
-        <div className="mt-3 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={async () => {
-              setSetting(true)
-              try { await onSetup() } finally { setSetting(false) }
-            }}
-            disabled={setting}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-accent-foreground transition-colors hover:bg-accent/90 disabled:opacity-60"
-          >
-            {setting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Database className="h-3 w-3" />}
-            {setting ? "Setting up..." : "Set up Supabase"}
-          </button>
-          <button
-            type="button"
-            onClick={() => { setDismissed(true); onDecline?.() }}
-            disabled={setting}
-            className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-60"
-          >
-            Not now
-          </button>
+    <div className="overflow-hidden rounded-xl border border-border/50 bg-background">
+      <div className="flex items-start gap-3 px-4 py-3.5">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border/50 bg-muted/50">
+          <Database className="h-4 w-4 text-foreground/70" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[13px] font-semibold text-foreground">This app needs a database</p>
+          <p className="mt-0.5 text-[12px] text-muted-foreground">
+            Connect Supabase to add auth and persistent storage.
+          </p>
+          <div className="mt-3 flex items-center gap-4">
+            <button
+              type="button"
+              onClick={async () => {
+                setSetting(true)
+                try { await onSetup() } finally { setSetting(false) }
+              }}
+              disabled={setting}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-[12px] font-semibold text-accent-foreground transition-colors hover:bg-accent/90 disabled:opacity-60"
+            >
+              {setting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Database className="h-3 w-3" />}
+              {setting ? "Setting up..." : "Set up Supabase"}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setDismissed(true); onDecline?.() }}
+              disabled={setting}
+              className="text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-60"
+            >
+              Not now
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -227,8 +228,8 @@ function PlanTool({ event, onApprovePlan }: { event: ComputerTimelineEvent; onAp
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-muted/40">
-      <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
+    <div className="overflow-hidden rounded-xl border border-border/50 bg-background">
+      <div className="flex items-center justify-between gap-2 border-b border-border/50 px-3 py-2">
         <span className="text-xs font-medium text-muted-foreground">Plan drafted</span>
         {summary && (
           <button
@@ -256,7 +257,7 @@ function PlanTool({ event, onApprovePlan }: { event: ComputerTimelineEvent; onAp
         </div>
       )}
       {onApprovePlan && (
-        <div className="flex items-center gap-3 border-t border-border px-3 py-2.5">
+        <div className="flex items-center gap-3 border-t border-border/50 px-3 py-2.5">
           <button
             type="button"
             onClick={handleApprove}
@@ -308,20 +309,20 @@ function FeedFileItem({
     : `${isWrite ? "Created" : "Edited"} ${fileName}`
 
   return (
-    <div className="py-1">
+    <div className="overflow-hidden rounded-xl border border-border/50 bg-background">
       <button
         type="button"
         disabled={!hasDiff}
         onClick={() => hasDiff && setOpen((v) => !v)}
-        className="flex w-full items-center gap-2.5 text-left"
+        className="flex h-8 w-full items-center gap-2.5 px-3 text-left"
       >
-        <FileCode2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40" />
+        <FileCode2 className="h-3.5 w-3.5 shrink-0 text-foreground/30" />
         {isPending || isRunning ? (
-          <TextShimmer className="min-w-0 flex-1 text-xs font-medium">
+          <TextShimmer className="min-w-0 flex-1 text-xs font-semibold">
             {label}
           </TextShimmer>
         ) : (
-          <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground/80">{label}</span>
+          <span className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground/70">{label}</span>
         )}
         {stats && !isPending && !isRunning && (stats.added > 0 || stats.removed > 0) && (
           <span className="flex shrink-0 gap-1.5 font-mono text-[11px]">
@@ -339,12 +340,12 @@ function FeedFileItem({
         )}
       </button>
       {open && hasDiff && (
-        <div className="ml-6 mt-2 max-h-64 overflow-auto rounded-lg bg-muted/50 font-mono text-[11.5px] leading-[1.55] [scrollbar-width:thin]">
+        <div className="max-h-64 overflow-auto border-t border-border/50 bg-background font-mono text-[11.5px] leading-[1.55] [scrollbar-width:thin]">
           {diffOps!.map((op, i) => (
             <div
               key={i}
               className={cn(
-                "flex min-w-max items-start px-2.5 py-px",
+                "flex min-w-max items-start px-3 py-px",
                 op.type === "add" && "bg-emerald-50/60 text-emerald-800",
                 op.type === "remove" && "bg-rose-50/60 text-rose-800",
                 op.type === "context" && "text-muted-foreground",
@@ -510,19 +511,19 @@ function FeedItem({
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-foreground/20" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-foreground/50" />
             </span>
-            <TextShimmer className="text-[13px] font-medium">
+            <TextShimmer className="text-[13.5px] font-semibold">
               {title}
             </TextShimmer>
           </div>
         ) : (
           <p
             className={cn(
-              "text-[13px] leading-snug",
+              "text-[13.5px] leading-snug",
               isError
-                ? "font-medium text-destructive"
+                ? "font-semibold text-destructive"
                 : isSkipped
-                  ? "text-muted-foreground/40"
-                  : "text-muted-foreground/70",
+                  ? "font-semibold text-muted-foreground/40"
+                  : "font-semibold text-foreground/60",
             )}
           >
             {title}
@@ -531,7 +532,7 @@ function FeedItem({
         {secondaryLine && (
           <p
             className={cn(
-              "mt-1 text-[12px] leading-relaxed [overflow-wrap:anywhere]",
+              "mt-1 text-[12.5px] leading-relaxed [overflow-wrap:anywhere]",
               isError ? "text-destructive/80" : "text-muted-foreground/60",
             )}
           >
@@ -592,7 +593,7 @@ function UserMessageBubble({
     <div className="group flex w-full justify-end pb-4">
       <div className="flex w-fit max-w-[min(84%,42rem)] min-w-0 flex-col items-end">
         <div className="max-w-full rounded-[14px] bg-primary px-3.5 py-2.5 text-right shadow-[0_1px_2px_var(--primary)]">
-          <p className="whitespace-pre-wrap break-words text-left text-[13px] leading-relaxed text-primary-foreground [overflow-wrap:anywhere]">{content}</p>
+          <p className="whitespace-pre-wrap break-words text-left text-[14px] font-medium leading-relaxed text-primary-foreground [overflow-wrap:anywhere]">{content}</p>
         </div>
         <div className="mt-1.5 flex items-center gap-1 pr-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
           <button type="button" onClick={async () => {
@@ -615,7 +616,7 @@ export function AgentFeed({
   prompt, events, localMessages, status, optimisticStart,
   progress,
   editingIndex, editText, onEditStart, onEditChange, onEditSubmit, onEditCancel,
-  onSupabaseSetup, onSupabaseDecline, onClarificationAnswer, onApprovePlan, onSwitchToPreview,
+  onSupabaseSetup, onSupabaseDecline, onClarificationAnswer, onApprovePlan,
 }: {
   prompt?: string
   events: ComputerTimelineEvent[]
@@ -633,7 +634,6 @@ export function AgentFeed({
   onSupabaseDecline?: () => void
   onClarificationAnswer?: (answer: string) => void
   onApprovePlan?: () => void
-  onSwitchToPreview?: () => void
 }) {
   const endRef = useRef<HTMLDivElement | null>(null)
   const isRunning = status === "running" || status === "planning"
@@ -755,23 +755,6 @@ export function AgentFeed({
         )}
       </AnimatePresence>
 
-      {status === "complete" && visible.length > 0 && events.some((e) => e.title === "Preview ready") && (
-        <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }} className="pt-5 border-t border-border/40">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-[13px] text-muted-foreground/70">Preview is ready.</p>
-            {onSwitchToPreview && (
-              <button
-                type="button"
-                onClick={onSwitchToPreview}
-                className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-medium text-accent transition-colors hover:text-accent/80 sm:hidden"
-              >
-                <Monitor className="h-3.5 w-3.5" />
-                Open preview
-              </button>
-            )}
-          </div>
-        </motion.div>
-      )}
 
       <div ref={endRef} />
     </div>

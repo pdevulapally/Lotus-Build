@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import Link from "next/link"
 import {
   ArrowLeft,
@@ -42,7 +43,7 @@ export type ComputerProjectIntegration = {
   envVarNames?: string[]
 }
 
-const titleMenuItemClass = "h-9 rounded-xl px-2.5 text-sm focus:bg-secondary/80 focus:text-foreground"
+const menuItemClass = "h-9 rounded-xl px-2.5 text-sm focus:bg-secondary/80 focus:text-foreground"
 
 export function ComputerTopBar({
   session,
@@ -85,37 +86,50 @@ export function ComputerTopBar({
   onOpenIntegrations: () => void
   onOpenDeploy: () => void
 }) {
+  const projectInitial = (projectIntegration?.name || sessionTitle).trim().charAt(0).toUpperCase()
+
   return (
-    <header className="relative z-30 shrink-0 bg-transparent sm:border-b sm:border-border sm:bg-card/95">
-      <div className="grid h-14 w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 sm:gap-3 sm:px-4 lg:px-6">
-        <div className="flex shrink-0 items-center">
+    <header className="relative z-30 shrink-0 border-b border-border/60 bg-sidebar/90 backdrop-blur-sm">
+      <div className="grid h-12 w-full grid-cols-[1fr_auto_1fr] items-center px-3 sm:px-4">
+
+        {/* ── Left: back arrow + logo ── */}
+        <div className="flex items-center gap-2">
           <Link
             href="/"
             aria-label="Back"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>
+          <Image
+            src="/Images/lotus-official-logo.png"
+            alt="Lotus"
+            width={28}
+            height={28}
+            className="shrink-0 object-contain"
+          />
         </div>
 
-        <div className="flex min-w-0 items-center justify-center px-1">
+        {/* ── Centre: project name ── */}
+        <div className="flex items-center justify-center">
           {isEditingTitle ? (
-            <div className="flex min-w-0 flex-1 items-center justify-center gap-2">
+            <div className="flex items-center gap-2">
               <input
                 value={titleDraft}
-                onChange={(event) => onTitleDraftChange(event.target.value)}
-                className="min-w-0 max-w-[min(58vw,26rem)] flex-1 rounded-full border border-border bg-card px-3 py-1.5 text-center text-sm text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
+                onChange={(e) => onTitleDraftChange(e.target.value)}
+                className="w-[min(40vw,18rem)] rounded-lg border border-border bg-card px-3 py-1 text-sm text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
                 placeholder="Enter a session title"
                 aria-label="Edit session title"
                 autoFocus
               />
-              <div className="flex shrink-0 gap-1.5">
-                <Button type="button" size="sm" variant="outline" onClick={onEditTitleCancel}>
+              <div className="flex shrink-0 gap-1">
+                <Button type="button" size="sm" variant="outline" className="h-7 rounded-lg" onClick={onEditTitleCancel}>
                   Cancel
                 </Button>
                 <Button
                   type="button"
                   size="sm"
+                  className="h-7 rounded-lg"
                   disabled={titleSaving || !titleDraft.trim()}
                   onClick={() => void onTitleSave()}
                 >
@@ -128,21 +142,25 @@ export function ComputerTopBar({
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="group flex min-w-0 max-w-[min(58vw,26rem)] items-center gap-1.5 rounded-2xl px-3 py-1.5 text-center transition hover:bg-secondary/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20"
+                  className="group flex min-w-0 max-w-[min(50vw,22rem)] items-center gap-1.5 rounded-xl px-2 py-1 transition hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20"
                   aria-label="Open session menu"
                 >
-                  <span className="truncate text-sm font-semibold tracking-[-0.01em] text-foreground lg:text-[15px]">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-accent-soft text-[10px] font-bold text-accent-soft-foreground">
+                    {projectInitial}
+                  </span>
+                  <span className="min-w-0 truncate text-[13.5px] font-semibold tracking-[-0.01em] text-foreground">
                     {sessionTitle}
                   </span>
-                  <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition group-data-[state=open]:rotate-180" />
+                  <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground/60 transition group-data-[state=open]:rotate-180" />
                 </button>
               </DropdownMenuTrigger>
+
               <DropdownMenuContent
                 align="center"
                 sideOffset={10}
                 className="w-[calc(100vw-1.5rem)] max-w-[21rem] rounded-2xl border-border bg-card p-2 shadow-2xl"
               >
-                <DropdownMenuItem asChild className={titleMenuItemClass}>
+                <DropdownMenuItem asChild className={menuItemClass}>
                   <Link href="/projects">
                     <ArrowLeft className="h-4 w-4" />
                     Go to projects
@@ -154,7 +172,7 @@ export function ComputerTopBar({
                 <DropdownMenuLabel className="px-2 py-1">
                   <div className="flex min-w-0 items-center gap-2">
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-xs font-semibold text-accent-soft-foreground">
-                      {(projectIntegration?.name || sessionTitle).trim().charAt(0).toUpperCase()}
+                      {projectInitial}
                     </span>
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-foreground">
@@ -180,44 +198,36 @@ export function ComputerTopBar({
                   </div>
                 </div>
 
-                <DropdownMenuItem className={titleMenuItemClass} onSelect={onEditTitleStart}>
+                <DropdownMenuItem className={menuItemClass} onSelect={onEditTitleStart}>
                   <Pencil className="h-4 w-4" />
                   Rename session
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  className={titleMenuItemClass}
-                  onSelect={onOpenIntegrations}
-                  disabled={!session.projectId}
-                >
+                <DropdownMenuItem className={menuItemClass} onSelect={onOpenIntegrations} disabled={!session.projectId}>
                   <KeyRound className="h-4 w-4" />
                   Connectors
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  className={titleMenuItemClass}
-                  onSelect={onOpenDeploy}
-                  disabled={!session.projectId}
-                >
+                <DropdownMenuItem className={menuItemClass} onSelect={onOpenDeploy} disabled={!session.projectId}>
                   <Rocket className="h-4 w-4" />
                   Deploy
                 </DropdownMenuItem>
 
                 <DropdownMenuSeparator className="my-2" />
 
-                <DropdownMenuItem asChild disabled={!session.previewUrl} className={titleMenuItemClass}>
+                <DropdownMenuItem asChild disabled={!session.previewUrl} className={menuItemClass}>
                   <a href={session.previewUrl || "#"} target="_blank" rel="noreferrer">
                     <Monitor className="h-4 w-4" />
                     Open preview
                     <ExternalLink className="ml-auto h-3.5 w-3.5" />
                   </a>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild disabled={!liveSiteUrl} className={titleMenuItemClass}>
+                <DropdownMenuItem asChild disabled={!liveSiteUrl} className={menuItemClass}>
                   <a href={liveSiteUrl || "#"} target="_blank" rel="noreferrer">
                     <Globe2 className="h-4 w-4" />
                     Open live site
                     <ExternalLink className="ml-auto h-3.5 w-3.5" />
                   </a>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild disabled={!projectIntegration?.githubRepoUrl} className={titleMenuItemClass}>
+                <DropdownMenuItem asChild disabled={!projectIntegration?.githubRepoUrl} className={menuItemClass}>
                   <a href={projectIntegration?.githubRepoUrl || "#"} target="_blank" rel="noreferrer">
                     <Github className="h-4 w-4" />
                     {projectIntegration?.githubRepoFullName || "GitHub repository"}
@@ -243,21 +253,19 @@ export function ComputerTopBar({
                 <DropdownMenuSeparator className="my-2" />
 
                 <DropdownMenuItem
-                  className={titleMenuItemClass}
-                  onSelect={() => {
-                    void navigator.clipboard?.writeText(session.id)
-                  }}
+                  className={menuItemClass}
+                  onSelect={() => void navigator.clipboard?.writeText(session.id)}
                 >
                   <Copy className="h-4 w-4" />
                   Copy session ID
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild className={titleMenuItemClass}>
+                <DropdownMenuItem asChild className={menuItemClass}>
                   <Link href="/settings">
                     <LayoutPanelLeft className="h-4 w-4" />
                     Settings
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild className={titleMenuItemClass}>
+                <DropdownMenuItem asChild className={menuItemClass}>
                   <Link href="/help">
                     <BookOpen className="h-4 w-4" />
                     Help
@@ -269,21 +277,22 @@ export function ComputerTopBar({
           )}
         </div>
 
-        <div className="flex shrink-0 items-center justify-end">
+        {/* ── Right: deploy button ── */}
+        <div className="flex items-center justify-end">
           <button
             type="button"
             onClick={onOpenDeploy}
             disabled={!session.projectId}
-            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-[12px] font-medium text-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-40"
+            className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-accent px-3 text-[12px] font-semibold text-accent-foreground transition-colors hover:bg-accent/90 disabled:pointer-events-none disabled:opacity-40"
           >
-            <Rocket className="h-3.5 w-3.5" />
+            <Rocket className="h-3 w-3" />
             Deploy
           </button>
         </div>
       </div>
 
       {titleError && (
-        <p className="px-3 pt-1.5 text-xs text-destructive sm:px-4 lg:px-6">{titleError}</p>
+        <p className="px-4 pb-1.5 text-xs text-destructive">{titleError}</p>
       )}
     </header>
   )

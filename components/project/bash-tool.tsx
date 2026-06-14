@@ -103,22 +103,22 @@ export const BashTool = React.memo(function BashTool({
   const summary = extractCommandSummary(command)
 
   return (
-    <div className={cn("overflow-hidden rounded-[10px] border border-border bg-muted shadow-sm", className)}>
+    <div className={cn("overflow-hidden rounded-xl border border-border/50 bg-background", className)}>
       <div className="flex h-8 items-center justify-between gap-3 pl-2.5 pr-2">
         <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
-          <Terminal className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
+          <Terminal className="h-3.5 w-3.5 shrink-0 text-foreground/30" />
           {isRunning ? (
-            <TextShimmer className="truncate bg-gradient-to-r from-zinc-500 via-zinc-950 to-zinc-500 text-xs font-medium">
+            <TextShimmer className="truncate text-xs font-semibold">
               Running command: {summary}
             </TextShimmer>
           ) : (
-            <span className="truncate text-xs text-zinc-500">Ran command: {summary}</span>
+            <span className="truncate text-xs font-semibold text-foreground/70">Ran command: {summary}</span>
           )}
         </div>
-        {isRunning && <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-zinc-500" />}
+        {isRunning && <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />}
       </div>
 
-      <div className="border-t border-border bg-white px-2.5 py-1.5 font-mono text-[12px] leading-4">
+      <div className="border-t border-border/50 bg-background px-2.5 py-1.5 font-mono text-[12px] leading-4">
         <div className="break-all">
           <span className="select-none text-amber-600">$ </span>
           <span className="text-foreground">{command}</span>

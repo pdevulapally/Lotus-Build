@@ -185,17 +185,17 @@ export function WorkspaceTabBar({
   ]
 
   return (
-    <div className="hidden shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2 sm:flex lg:px-4">
-      <div className="flex min-w-0 items-center gap-1">
+    <div className="hidden h-11 shrink-0 items-center justify-between gap-2 border-b border-border/50 bg-card px-3 sm:flex lg:px-4">
+      <div className="flex items-center rounded-lg bg-muted/60 p-0.5">
         {tabs.filter((tab) => tab.show || tab.id === "preview").map((tab) => (
           <button
             key={tab.id}
             type="button"
             onClick={() => onTabChange(tab.id)}
             className={cn(
-              "inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[12px] font-medium transition-colors",
+              "inline-flex h-6 items-center gap-1.5 rounded-md px-2.5 text-[12px] font-semibold transition-all duration-150",
               activeTab === tab.id
-                ? "bg-muted text-foreground"
+                ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
@@ -205,7 +205,7 @@ export function WorkspaceTabBar({
         ))}
       </div>
       {showCompleteBadge && (
-        <span className="text-[11px] font-medium text-muted-foreground">Done</span>
+        <span className="rounded-full bg-muted/60 px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">Done</span>
       )}
     </div>
   )
@@ -317,11 +317,8 @@ export function WorkspaceContent({
   if (activeTab === "preview" && session.previewUrl) {
     return (
       <motion.div key="preview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}
-        className="flex h-full min-h-0 flex-col p-3 lg:p-4">
-        <div className="mb-2 flex items-center justify-end">
-          <WorkspaceHeaderLink href={session.previewUrl} />
-        </div>
-        <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-border bg-card">
+        className="flex h-full min-h-0 flex-col">
+        <div className="relative min-h-0 flex-1 overflow-hidden">
           <iframe src={session.previewUrl} className="h-full w-full" sandbox="allow-scripts allow-same-origin allow-forms" title="Live preview" />
           {isEnsuringPreview && (
             <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-end justify-center pb-4">

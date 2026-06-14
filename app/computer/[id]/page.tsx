@@ -446,68 +446,70 @@ function IntegrationsButton({
 
       {open && (
         <div className={cn(
-          "z-30 hidden w-[360px] rounded-2xl border border-border bg-card p-3 shadow-[0_24px_70px_-32px_var(--primary)] sm:block",
+          "z-30 hidden w-[340px] overflow-hidden rounded-2xl border border-border/50 bg-background shadow-[0_16px_48px_-12px_rgba(0,0,0,0.18)] sm:block",
           headless ? "fixed right-6 top-16" : "absolute right-0 top-11",
         )}>
-          <div className="mb-3">
-            <p className="text-[12px] font-semibold text-foreground">Project integrations</p>
-            <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
-              Connect services directly to this generated website.
-            </p>
+          {/* Header */}
+          <div className="border-b border-border/50 px-4 py-3">
+            <p className="text-[13px] font-semibold text-foreground">Integrations</p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">Connect services to your project.</p>
           </div>
 
-          <div className="space-y-2.5">
-            <div className="rounded-xl border border-border bg-background p-3 transition-colors hover:border-border-strong">
-              <div className="flex items-start justify-between gap-3">
+          <div className="divide-y divide-border/40">
+            {/* GitHub */}
+            <div className="flex items-center justify-between gap-3 px-4 py-3">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border/50 bg-muted/50">
+                  <Github className="h-3.5 w-3.5 text-foreground/70" />
+                </span>
                 <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <Github className="h-3.5 w-3.5 text-muted-foreground" />
-                    <p className="text-[12px] font-semibold text-foreground">GitHub</p>
-                  </div>
-                  <p className="mt-1 truncate text-[11px] text-muted-foreground">
+                  <p className="text-[12px] font-semibold text-foreground">GitHub</p>
+                  <p className="truncate text-[11px] text-muted-foreground">
                     {hasGitHub ? project?.githubRepoFullName || project?.githubRepoUrl : "Create or update a repository"}
                   </p>
-                  {syncedAt ? <p className="mt-0.5 text-[10.5px] text-muted-foreground/70">Last synced {syncedAt}</p> : null}
+                  {syncedAt ? <p className="text-[10px] text-muted-foreground/60">Last synced {syncedAt}</p> : null}
                 </div>
-                <button
-                  type="button"
-                  onClick={onGithubSync}
-                  disabled={busy !== null}
-                  className="rounded-lg border border-border bg-card px-2.5 py-1 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-60"
-                >
-                  {busy === "github" ? "Syncing..." : hasGitHub ? "Sync" : "Publish"}
-                </button>
               </div>
+              <button
+                type="button"
+                onClick={onGithubSync}
+                disabled={busy !== null}
+                className="shrink-0 rounded-lg border border-border/50 bg-muted/50 px-2.5 py-1 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-60"
+              >
+                {busy === "github" ? "Syncing..." : hasGitHub ? "Sync" : "Publish"}
+              </button>
             </div>
 
-            <div className="rounded-xl border border-border bg-background p-3 transition-colors hover:border-border-strong">
-              <div className="flex items-start justify-between gap-3">
+            {/* Supabase */}
+            <div className="flex items-center justify-between gap-3 px-4 py-3">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border/50 bg-muted/50">
+                  <Database className="h-3.5 w-3.5 text-foreground/70" />
+                </span>
                 <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <Database className="h-3.5 w-3.5 text-muted-foreground" />
-                    <p className="text-[12px] font-semibold text-foreground">Supabase</p>
-                  </div>
-                  <p className="mt-1 truncate text-[11px] text-muted-foreground">
-                    {hasSupabase ? project?.supabaseProjectRef || project?.supabaseUrl : "Provision database and app credentials"}
+                  <p className="text-[12px] font-semibold text-foreground">Supabase</p>
+                  <p className="truncate text-[11px] text-muted-foreground">
+                    {hasSupabase ? project?.supabaseProjectRef || project?.supabaseUrl : "Provision database and credentials"}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={onSupabaseSetup}
-                  disabled={busy !== null}
-                  className="rounded-lg bg-primary px-2.5 py-1 text-[11px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
-                >
-                  {busy === "supabase" ? "Setting up..." : hasSupabase ? "Re-run" : "Set up"}
-                </button>
               </div>
+              <button
+                type="button"
+                onClick={onSupabaseSetup}
+                disabled={busy !== null}
+                className="shrink-0 rounded-lg bg-accent px-2.5 py-1 text-[11px] font-semibold text-accent-foreground transition-colors hover:bg-accent/90 disabled:opacity-60"
+              >
+                {busy === "supabase" ? "Setting up..." : hasSupabase ? "Re-run" : "Set up"}
+              </button>
             </div>
 
-            <div className="rounded-xl border border-border bg-background p-3">
-              <div className="flex items-center gap-1.5">
+            {/* Env vars */}
+            <div className="px-4 py-3">
+              <div className="mb-2.5 flex items-center gap-2">
                 <KeyRound className="h-3.5 w-3.5 text-muted-foreground" />
                 <p className="text-[12px] font-semibold text-foreground">Environment variables</p>
               </div>
-              <div className="mt-2 space-y-2">
+              <div className="space-y-2">
                 {envNames.map((name) => (
                   <label key={name} className="block">
                     <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{name}</span>
@@ -515,22 +517,22 @@ function IntegrationsButton({
                       value={envValues[name] || ""}
                       onChange={(event) => onEnvChange(name, event.target.value)}
                       placeholder="Value"
-                      className="mt-1 h-8 w-full rounded-lg border border-border bg-card px-2 text-[12px] outline-none focus:border-ring"
+                      className="mt-1 h-8 w-full rounded-lg border border-border/50 bg-muted/30 px-2.5 text-[12px] text-foreground outline-none placeholder:text-muted-foreground/50 focus:border-border focus:ring-0"
                     />
                   </label>
                 ))}
-                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[1fr_1fr_auto]">
+                <div className="grid grid-cols-[1fr_1fr_auto] gap-1.5">
                   <input
                     value={newEnvKey}
                     onChange={(event) => setNewEnvKey(event.target.value)}
                     placeholder="KEY"
-                    className="h-8 min-w-0 rounded-lg border border-border bg-card px-2 text-[12px] outline-none focus:border-ring"
+                    className="h-8 min-w-0 rounded-lg border border-border/50 bg-muted/30 px-2.5 text-[12px] text-foreground outline-none placeholder:text-muted-foreground/50 focus:border-border"
                   />
                   <input
                     value={newEnvValue}
                     onChange={(event) => setNewEnvValue(event.target.value)}
                     placeholder="Value"
-                    className="h-8 min-w-0 rounded-lg border border-border bg-card px-2 text-[12px] outline-none focus:border-ring"
+                    className="h-8 min-w-0 rounded-lg border border-border/50 bg-muted/30 px-2.5 text-[12px] text-foreground outline-none placeholder:text-muted-foreground/50 focus:border-border"
                   />
                   <button
                     type="button"
@@ -542,7 +544,7 @@ function IntegrationsButton({
                       setNewEnvValue("")
                     }}
                     disabled={busy !== null || !newEnvKey.trim()}
-                    className="rounded-lg border border-border bg-card px-2.5 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                    className="rounded-lg border border-border/50 bg-muted/50 px-2.5 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-50"
                   >
                     Add
                   </button>
@@ -551,7 +553,7 @@ function IntegrationsButton({
                   type="button"
                   onClick={onEnvSave}
                   disabled={busy !== null}
-                  className="rounded-lg border border-border bg-card px-2.5 py-1 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-60"
+                  className="w-full rounded-lg border border-border/50 bg-muted/50 px-2.5 py-1.5 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-60"
                 >
                   {busy === "env" ? "Saving..." : "Save and update preview"}
                 </button>
@@ -560,9 +562,9 @@ function IntegrationsButton({
           </div>
 
           {message ? (
-            <p className="mt-3 rounded-xl border border-border bg-secondary px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
-              {message}
-            </p>
+            <div className="border-t border-border/50 px-4 py-3">
+              <p className="text-[11px] leading-relaxed text-muted-foreground">{message}</p>
+            </div>
           ) : null}
         </div>
       )}
@@ -1571,10 +1573,10 @@ export default function ComputerPage() {
   const planLabel = userData?.planId && userData.planId !== "free" ? userData.planId : "Free"
 
   return (
-    <div className="relative flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground sm:p-2.5 lg:p-3">
+    <div className="relative flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground sm:p-2 lg:p-2.5">
 
       {/* ── App shell ── */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-card sm:rounded-[1.4rem] sm:border sm:border-border-strong/50 sm:shadow-2xl">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-card sm:rounded-2xl sm:border sm:border-border/70 sm:shadow-[0_8px_48px_-8px_rgba(0,0,0,0.14)]">
 
       <ComputerTopBar
         session={session}
@@ -1674,8 +1676,8 @@ export default function ComputerPage() {
 
         {/* ── Chat panel (left) ── */}
         <div className={cn(
-          "flex w-full shrink-0 flex-col overflow-hidden bg-card sm:border-r sm:border-border",
-          "sm:w-[20rem] md:w-[22rem] lg:w-[24rem] xl:w-[25rem] 2xl:w-[27rem]",
+          "flex w-full shrink-0 flex-col overflow-hidden bg-sidebar sm:border-r sm:border-border/60",
+          "sm:w-[38%] md:w-[37%] lg:w-[380px] xl:w-[420px] 2xl:w-[460px]",
           mobileView !== "feed" && "hidden sm:flex"
         )}>
           {/* Feed scroll area */}
@@ -1692,12 +1694,13 @@ export default function ComputerPage() {
               onSupabaseDecline={handleSupabaseNo}
               onClarificationAnswer={handleClarificationAnswer}
               onApprovePlan={showPlanApproval ? handleApprovePlan : undefined}
-              onSwitchToPreview={() => { setMobileView("workspace"); setActiveTab("preview") }}
             />
           </div>
 
           {/* Composer */}
-          <div className="shrink-0 bg-card px-3 pt-3 pb-[5.25rem] sm:pb-3 lg:px-4">
+          <div className="shrink-0 bg-sidebar px-3 pt-3 pb-[5.25rem] sm:pb-3 lg:px-4">
+
+
             {isBuildTokenBlocked && (
               <div className="mb-3 rounded-xl border border-warning/25 bg-warning-soft px-3 py-2.5">
                 <p className="text-sm font-medium text-warning-soft-foreground">You have used all credits for this cycle.</p>
@@ -1724,13 +1727,14 @@ export default function ComputerPage() {
               onSubmit={handleRun}
               placeholder="Message the agent..."
               disabled={isBuildTokenBlocked}
+              wrapperClassName="bg-sidebar border-border/40"
             />
           </div>
         </div>
 
         {/* ── Workspace panel (right) ── */}
         <div className={cn(
-          "flex min-w-0 flex-1 flex-col overflow-hidden bg-background",
+          "flex min-w-0 flex-1 flex-col overflow-hidden bg-card",
           mobileView !== "workspace" && "hidden sm:flex"
         )}>
           <WorkspaceTabBar
@@ -1785,34 +1789,34 @@ export default function ComputerPage() {
 
       {/* ── Mobile view switcher ── */}
       <nav
-        className="absolute inset-x-4 z-20 mx-auto max-w-sm rounded-2xl border border-border bg-card/90 px-1 py-1 shadow-lg backdrop-blur-xl sm:hidden"
-        style={{ bottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+        className="absolute inset-x-3 z-20 mx-auto max-w-xs rounded-2xl border border-border/60 bg-card/95 px-1 py-1 shadow-xl shadow-black/10 backdrop-blur-xl sm:hidden"
+        style={{ bottom: "max(0.875rem, env(safe-area-inset-bottom))" }}
       >
         <div className="grid grid-cols-2 gap-1">
           <button
             type="button"
             onClick={() => setMobileView("feed")}
             className={cn(
-              "flex h-11 items-center justify-center gap-2 rounded-xl text-[13px] font-medium transition-colors",
+              "flex h-10 items-center justify-center gap-1.5 rounded-xl text-[12.5px] font-medium transition-all",
               mobileView === "feed"
-                ? "bg-primary text-primary-foreground"
+                ? "bg-primary text-primary-foreground shadow-sm"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
           >
-            <MessageSquare className="h-4 w-4" />
+            <MessageSquare className="h-3.5 w-3.5" />
             Chat
           </button>
           <button
             type="button"
             onClick={() => { setMobileView("workspace"); setActiveTab("preview") }}
             className={cn(
-              "flex h-11 items-center justify-center gap-2 rounded-xl text-[13px] font-medium transition-colors",
+              "flex h-10 items-center justify-center gap-1.5 rounded-xl text-[12.5px] font-medium transition-all",
               mobileView === "workspace"
-                ? "bg-primary text-primary-foreground"
+                ? "bg-primary text-primary-foreground shadow-sm"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
           >
-            <Monitor className="h-4 w-4" />
+            <Monitor className="h-3.5 w-3.5" />
             Preview
           </button>
         </div>

@@ -82,6 +82,7 @@ interface AnimatedAIInputProps {
   initialModel?: string;
   contextBadge?: { label: string; value: string; onClear?: () => void } | null;
   submitLabel?: string;
+  wrapperClassName?: string;
 }
 
 type SpeechRecognitionResultLike = {
@@ -242,6 +243,7 @@ export function AnimatedAIInput({
   initialModel,
   contextBadge,
   submitLabel,
+  wrapperClassName,
 }: AnimatedAIInputProps) {
   const router = useRouter();
   const { user, userData } = useAuth();
@@ -437,12 +439,13 @@ export function AnimatedAIInput({
       {/* outer shell */}
       <div
         className={cn(
-          "relative rounded-2xl border bg-card transition-all duration-200",
+          "relative rounded-2xl border transition-all duration-200",
           "shadow-[0_2px_12px_rgba(0,0,0,0.06)]",
           disabled && "opacity-55 pointer-events-none",
           isFocused
             ? "border-border shadow-[0_2px_20px_rgba(0,0,0,0.09)]"
-            : "border-border/70 hover:border-border"
+            : "border-border/70 hover:border-border",
+          wrapperClassName ?? "bg-card"
         )}
       >
         {/* context badge row */}

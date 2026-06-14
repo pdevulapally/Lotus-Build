@@ -147,15 +147,15 @@ export const SearchTool = React.memo(function SearchTool({
       </button>
 
       {expandable && isOpen && (
-        <div className="overflow-hidden rounded-[10px] border border-border bg-muted shadow-sm">
-          <div className="flex items-center px-2.5 h-7 border-b border-border text-xs gap-1">
+        <div className="overflow-hidden rounded-[10px] border border-border/50 bg-background shadow-sm">
+          <div className="flex items-center px-2.5 h-7 border-b border-border/50 text-xs gap-1">
             <span className="text-foreground font-medium">Searched for</span>
             {" "}
             <span className="text-muted-foreground truncate">
               &ldquo;{query}&rdquo;
             </span>
           </div>
-          <div className="max-h-[200px] overflow-y-auto overflow-x-hidden bg-card [scrollbar-width:thin]">
+          <div className="max-h-[200px] overflow-y-auto overflow-x-hidden bg-background [scrollbar-width:thin]">
             <div className="flex flex-col gap-0.5 p-1">
               {results.map((result, i) => (
                 <div

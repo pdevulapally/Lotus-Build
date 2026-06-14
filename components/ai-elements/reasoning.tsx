@@ -243,7 +243,7 @@ export function ReasoningContent({
     <CollapsibleContent>
       <div
         className={cn(
-          "pl-[1.375rem] pt-1.5 text-[13px] leading-[1.65] text-muted-foreground",
+          "pl-[1.375rem] pt-1.5 text-[13.5px] font-semibold leading-[1.65] text-foreground/65",
           className,
         )}
       >
