@@ -150,9 +150,9 @@ function SearchBar({
         onChange={(e) => onChange(e.target.value)}
         placeholder="Search builds…"
         className={cn(
-          "h-9 w-full rounded-xl border border-border bg-background pl-8 pr-8",
+          "h-9 w-full rounded-xl border border-border/50 bg-background pl-8 pr-8",
           "text-[13px] text-foreground placeholder:text-muted-foreground/50",
-          "outline-none transition-colors focus:border-border-strong focus:ring-0"
+          "outline-none transition-colors focus:border-border focus:ring-0"
         )}
       />
       {value && (
@@ -210,7 +210,7 @@ function Sidebar({
     : user?.email?.slice(0, 1).toUpperCase() ?? "U"
 
   return (
-    <div className="flex h-full flex-col bg-card">
+    <div className="flex h-full flex-col bg-sidebar">
 
       {/* ── Logo row ── */}
       <div className="flex h-16 shrink-0 items-center justify-between px-4">
@@ -253,14 +253,14 @@ function Sidebar({
           type="button"
           onClick={() => { onClose?.(); onNewBuild() }}
           className={cn(
-            "flex h-9 w-full items-center justify-center gap-2 rounded-xl border border-border bg-card px-3",
-            "text-[13px] font-medium text-foreground shadow-sm",
+            "flex h-9 w-full items-center justify-center gap-2 rounded-xl border border-border/50 bg-background px-3",
+            "text-[13px] font-semibold text-foreground",
             "transition-colors hover:bg-muted",
             "active:scale-[0.985]"
           )}
         >
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-soft-foreground">
-            <Pencil className="h-3.5 w-3.5" />
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-accent-soft text-accent-soft-foreground">
+            <Pencil className="h-3 w-3" />
           </span>
           <span>New build</span>
         </button>
@@ -363,7 +363,7 @@ function Sidebar({
       </div>
 
       {/* ── User row ── */}
-      <div className="shrink-0 border-t border-border px-3 py-3">
+      <div className="shrink-0 border-t border-border/50 px-3 py-3">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -695,28 +695,27 @@ export default function ProjectsPage() {
         {/* ── Mobile drawer ── */}
         <div
           className={cn(
-            "fixed inset-y-0 left-0 z-50 w-[min(21.5rem,calc(100vw-1rem))] p-2",
+            "fixed inset-y-0 left-0 z-50 w-[min(21.5rem,calc(100vw-1rem))]",
+            "border-r border-border/60 shadow-[4px_0_24px_-8px_rgba(0,0,0,0.12)]",
             "transition-transform duration-200 ease-in-out lg:hidden",
             mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
           )}
         >
-          <div className="h-full overflow-hidden rounded-[1.5rem] border border-border bg-card shadow-[0_24px_80px_-44px_var(--primary)]">
-            <Sidebar
-              {...sidebarProps}
-              onClose={() => setMobileSidebarOpen(false)}
-              onToggle={() => setMobileSidebarOpen(false)}
-            />
-          </div>
+          <Sidebar
+            {...sidebarProps}
+            onClose={() => setMobileSidebarOpen(false)}
+            onToggle={() => setMobileSidebarOpen(false)}
+          />
         </div>
 
         {/* ── Desktop sidebar ── */}
         <aside
           className={cn(
-            "hidden shrink-0 p-3 transition-[width,padding] duration-200 ease-in-out lg:flex lg:flex-col",
-            desktopSidebarCollapsed ? "lg:w-0 lg:overflow-hidden lg:p-0" : "lg:w-[304px]"
+            "hidden shrink-0 transition-[width] duration-200 ease-in-out lg:block",
+            desktopSidebarCollapsed ? "lg:w-0 lg:overflow-hidden" : "lg:w-[280px]"
           )}
         >
-          <div className="h-full w-[280px] overflow-hidden rounded-[1.625rem] border border-border bg-card shadow-[0_18px_70px_-54px_var(--primary)]">
+          <div className="h-full border-r border-border/60">
             <Sidebar {...sidebarProps} onToggle={() => setDesktopSidebarCollapsed(true)} />
           </div>
         </aside>
@@ -725,7 +724,7 @@ export default function ProjectsPage() {
         <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
 
           {/* ── Mobile top bar ── */}
-          <header className="relative z-10 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-card/90 px-4 backdrop-blur-sm lg:hidden">
+          <header className="relative z-10 flex h-14 shrink-0 items-center gap-3 border-b border-border/50 bg-background/90 px-4 backdrop-blur-sm lg:hidden">
             <button
               type="button"
               onClick={() => setMobileSidebarOpen(true)}
@@ -749,7 +748,7 @@ export default function ProjectsPage() {
               className={cn(
                 "absolute left-4 top-4 z-20 hidden lg:flex",
                 "h-9 w-9 items-center justify-center rounded-xl",
-                "border border-border/60 bg-card text-muted-foreground shadow-sm",
+                "border border-border/50 bg-background text-muted-foreground",
                 "transition-colors hover:bg-muted hover:text-foreground"
               )}
             >
@@ -758,21 +757,26 @@ export default function ProjectsPage() {
           )}
 
           {/* ── Composer surface ── */}
-          <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-5 pb-[10vh] pt-8 sm:px-6">
-            <div className="w-full max-w-[42rem]">
-              <div className="mb-7 text-center">
-                <div className="mb-6 flex items-center justify-center gap-3 text-[11.5px] text-muted-foreground">
-                  <span>{stats.planName} plan</span>
-                  <span className="h-3 w-px bg-border" />
-                  <Link href="/pricing" className="font-medium text-accent transition-colors hover:text-accent/80">
+          <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-5 pb-[10vh] pt-8 sm:px-8">
+            <div className="w-full max-w-[44rem]">
+
+              {/* Plan pill */}
+              <div className="mb-8 flex justify-center">
+                <div className="inline-flex items-center gap-2.5 rounded-full border border-border/50 bg-background px-3.5 py-1.5 text-[12px] text-muted-foreground shadow-sm">
+                  <span className="font-medium">{stats.planName} plan</span>
+                  <span className="h-3 w-px bg-border/60" />
+                  <Link href="/pricing" className="font-semibold text-accent transition-colors hover:text-accent/80">
                     Upgrade
                   </Link>
                 </div>
+              </div>
 
-                <h1 className="text-[2.25rem] font-semibold tracking-[-0.045em] text-foreground sm:text-[2.85rem]">
+              {/* Greeting */}
+              <div className="mb-8 text-center">
+                <h1 className="text-[2rem] font-semibold tracking-[-0.04em] text-foreground sm:text-[2.6rem]">
                   {greeting}{firstName ? `, ${firstName}` : ""}
                 </h1>
-                <p className="mx-auto mt-3 max-w-[28rem] text-[13.5px] leading-relaxed text-muted-foreground sm:text-[14px]">
+                <p className="mx-auto mt-3 max-w-[30rem] text-[13.5px] leading-relaxed text-muted-foreground">
                   Describe what you want to build. Lotus will create a focused workspace from your brief.
                 </p>
               </div>
