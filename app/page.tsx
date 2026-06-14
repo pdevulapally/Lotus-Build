@@ -75,41 +75,39 @@ export default function Home() {
               x5-playsinline="true"
             />
 
-            <div className="relative z-10">
-              <div className="flex flex-col items-center px-4 pb-8 pt-36 text-center sm:pb-12 sm:pt-40">
-                <h1
-                  className="max-w-4xl text-foreground"
+            <div className="relative z-10 flex h-full flex-col items-center justify-center px-4 pb-12 pt-20 text-center sm:pb-16 sm:pt-24">
+              <h1
+                className="max-w-4xl text-foreground"
+                style={{
+                  fontSize: "clamp(32px, 7vw, 72px)",
+                  lineHeight: 1.05,
+                  fontWeight: 500,
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                Shaping{" "}
+                <span
                   style={{
-                    fontSize: "clamp(36px, 8vw, 72px)",
-                    lineHeight: 1.05,
-                    fontWeight: 500,
-                    letterSpacing: "-0.02em",
+                    fontFamily: "'Instrument Serif', Georgia, serif",
+                    fontStyle: "italic",
+                    fontWeight: 400,
                   }}
                 >
-                  Shaping{" "}
-                  <span
-                    style={{
-                      fontFamily: "'Instrument Serif', Georgia, serif",
-                      fontStyle: "italic",
-                      fontWeight: 400,
-                    }}
-                  >
-                    builders
-                  </span>
-                  <br />
-                  of tomorrow
-                </h1>
+                  builders
+                </span>
+                <br />
+                of tomorrow
+              </h1>
 
-                <p
-                  className="mt-4 max-w-2xl px-2 text-muted-foreground sm:mt-6"
-                  style={{ fontSize: "clamp(13px, 3.5vw, 16px)" }}
-                >
-                  The AI workspace for turning ideas into production-ready websites, apps, live previews, and deployable code.
-                </p>
+              <p
+                className="mt-4 max-w-xl px-2 text-muted-foreground sm:mt-6 sm:max-w-2xl"
+                style={{ fontSize: "clamp(13px, 3vw, 16px)" }}
+              >
+                The AI workspace for turning ideas into production-ready websites, apps, live previews, and deployable code.
+              </p>
 
-                <div className="mx-auto mt-8 flex w-full max-w-3xl justify-center sm:mt-10">
-                  <AnimatedAIInput />
-                </div>
+              <div className="mx-auto mt-7 w-full max-w-2xl sm:mt-10 sm:max-w-3xl">
+                <AnimatedAIInput />
               </div>
             </div>
           </div>

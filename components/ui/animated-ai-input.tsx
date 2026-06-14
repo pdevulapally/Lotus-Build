@@ -539,7 +539,7 @@ export function AnimatedAIInput({
                   <button
                     type="button"
                     className={cn(
-                      "flex shrink-0 h-7 items-center gap-1 rounded-lg border border-border/60 bg-muted/40",
+                      "hidden sm:flex shrink-0 h-7 items-center gap-1 rounded-lg border border-border/60 bg-muted/40",
                       "px-2.5 text-xs font-medium text-muted-foreground",
                       "transition-all duration-150 hover:bg-muted hover:text-foreground",
                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
