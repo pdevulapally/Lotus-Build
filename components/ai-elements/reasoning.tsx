@@ -26,9 +26,24 @@ function useReasoningContext() {
   return context
 }
 
-function sanitizeReasoningText(text: string): string {
+/** Strip fenced code, streaming/unclosed fences, and agent JSON payload blobs from reasoning text. */
+function stripCodeArtifacts(text: string): string {
   return text
+    // Complete fenced code blocks
     .replace(/```[\s\S]*?```/g, "")
+    // Unclosed fence through end of string (streaming / malformed)
+    .replace(/```[\w-]*\n?[\s\S]*$/g, "")
+    // Orphan opening fence line
+    .replace(/^```[\w-]*\s*$/gm, "")
+    // Standalone JSON payloads with a "type" key (multiline or compact)
+    .replace(/^[ \t]*\{\s*\n?[ \t]*"type"\s*:\s*"[^"]*"[\s\S]*?^[ \t]*\}[ \t]*$/gm, "")
+    .replace(/^[ \t]*\{\s*"type"\s*:\s*"[^"]*"[^}]*\}[ \t]*$/gm, "")
+    // Truncated standalone JSON payload still streaming (no closing brace yet)
+    .replace(/^[ \t]*\{\s*\n?[ \t]*"type"\s*:\s*"[^"]*"[\s\S]*$/gm, "")
+}
+
+function sanitizeReasoningText(text: string): string {
+  return stripCodeArtifacts(text)
     .replace(/\*{0,2}Tool:\*{0,2}\s*\S+[^\n]*\n[ \t]*\*{0,2}Query:\*{0,2}[^\n]+/g, "")
     .replace(/^[ \t]*\*{0,2}Tool:\*{0,2}[^\n]*$/gm, "")
     // Strip tool result blocks echoed into reasoning (e.g. "Assistant (research_results): ...")
