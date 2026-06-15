@@ -187,7 +187,7 @@ function FullBuildsPanel({
   scope: "user" | "team"
   onOpenBuild: (build: ProjectSummary) => void
 }) {
-  const title = scope === "team" ? "All team builds" : "All your builds"
+  const title = scope === "team" ? "Team build directory" : "Build directory"
 
   return (
     <div className="mt-5 overflow-hidden rounded-3xl border border-background/65 bg-background/78 shadow-[0_24px_80px_-62px_var(--primary)] backdrop-blur-xl">
@@ -195,7 +195,7 @@ function FullBuildsPanel({
         <div className="min-w-0">
           <p className="text-[13px] font-semibold text-foreground">{title}</p>
           <p className="mt-0.5 text-[12px] text-muted-foreground">
-            Reopen any build from this workspace.
+            Search your saved builds and reopen the one you need.
           </p>
         </div>
         <span className="shrink-0 rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-medium text-accent-soft-foreground">
@@ -207,7 +207,7 @@ function FullBuildsPanel({
         <SearchBar value={search} onChange={onSearchChange} />
       </div>
 
-      <div className="max-h-[15.5rem] overflow-y-auto p-2 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
+      <div className="max-h-[24rem] overflow-y-auto p-2 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
         {loading ? (
           <div className="space-y-2 p-2">
             {Array.from({ length: 3 }).map((_, i) => (
@@ -228,26 +228,33 @@ function FullBuildsPanel({
             </p>
           </div>
         ) : (
-          <div className="space-y-1">
+          <div className="grid gap-2 sm:grid-cols-2">
             {builds.map((build) => {
               const status = PROJECT_STATUS_META[build.status] ?? PROJECT_STATUS_META.pending
+              const title = projectTitle(build.prompt, 72)
 
               return (
                 <button
                   key={build.id}
                   type="button"
                   onClick={() => onOpenBuild(build)}
-                  className="group flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-colors hover:bg-muted/70"
+                  className="group flex min-h-[7.25rem] flex-col rounded-2xl border border-border/55 bg-background/70 p-3.5 text-left transition-colors hover:border-border-strong hover:bg-background"
                 >
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13px] font-medium text-foreground">
-                      {projectTitle(build.prompt, 58)}
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="min-w-0 flex-1 text-[13.5px] font-semibold leading-snug text-foreground">
+                      {title}
                     </span>
-                    <span className="mt-0.5 block text-[11px] text-muted-foreground">
-                      {build.kind === "computer" ? "Computer agent" : "Website build"} · {status.label}
+                    <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                  </div>
+                  <p className="mt-2 line-clamp-2 text-[12px] leading-5 text-muted-foreground">
+                    {(build.prompt || "").trim() || "Untitled build"}
+                  </p>
+                  <div className="mt-auto flex items-center justify-between gap-3 pt-3 text-[11px] text-muted-foreground">
+                    <span>{build.kind === "computer" ? "Computer agent" : "Website build"}</span>
+                    <span className="rounded-full bg-secondary px-2 py-0.5 text-[10.5px] font-medium text-muted-foreground">
+                      {status.label}
                     </span>
-                  </span>
-                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                  </div>
                 </button>
               )
             })}
@@ -1013,7 +1020,7 @@ export default function ProjectsPage() {
                   {/* Greeting */}
                   <div className="mb-8 text-center">
                     <h1 className="text-[2rem] font-medium tracking-[-0.055em] text-foreground/88 sm:text-[2.6rem]">
-                      {greeting}{firstName ? `, ${firstName}` : ""}
+                      <span className="font-semibold">{greeting}</span>{firstName ? `, ${firstName}` : ""}
                     </h1>
                     <p className="mx-auto mt-4 max-w-[30rem] text-[14px] leading-7 text-foreground/58">
                       Describe what you want to build. Lotus turns the brief into a focused workspace.
