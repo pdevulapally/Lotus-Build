@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
+import { MeshGradient } from "@paper-design/shaders-react"
 import { deleteDoc, doc } from "firebase/firestore"
 import {
   Settings,
@@ -13,17 +14,18 @@ import {
   CreditCard,
   X,
   ChevronRight,
-  Pencil,
   PanelLeft,
   Gift,
   Copy,
   Check,
   Share2,
-  Sparkles,
   ChevronDown,
+  Lock,
+  Plus,
 } from "lucide-react"
 
 import { ProtectedRoute } from "@/components/auth/protected-route"
+import { CreateWorkspaceModal } from "@/components/workspaces/create-workspace-modal"
 import { useAuth } from "@/contexts/auth-context"
 import {
   DropdownMenu,
@@ -65,6 +67,8 @@ const sidebarActionClass =
 const accountMenuItemClass =
   "h-10 cursor-pointer rounded-xl px-3 text-[13px] text-foreground focus:bg-muted focus:text-foreground"
 
+const RECENT_BUILDS_LIMIT = 6
+
 function projectTitle(prompt: string, max = 42): string {
   const t = (prompt || "").trim()
   if (!t) return "Untitled build"
@@ -101,8 +105,6 @@ function TaskRow({
           "transition-colors hover:bg-muted"
         )}
       >
-        {/* status pip */}
-        <span className={cn("h-2 w-2 shrink-0 rounded-full", status.dot)} />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[13px] font-medium leading-snug text-foreground/85 group-hover/row:text-foreground">
             {projectTitle(p.prompt, 34)}
@@ -146,7 +148,7 @@ function SearchBar({
       <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/55" />
       <input
         type="text"
-        value={value}
+        value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Search builds…"
         className={cn(
@@ -168,13 +170,99 @@ function SearchBar({
   )
 }
 
+/* ─── FullBuildsPanel ────────────────────────────────────────────────────── */
+
+function FullBuildsPanel({
+  builds,
+  loading,
+  search,
+  onSearchChange,
+  scope,
+  onOpenBuild,
+}: {
+  builds: ProjectSummary[]
+  loading: boolean
+  search: string
+  onSearchChange: (v: string) => void
+  scope: "user" | "team"
+  onOpenBuild: (build: ProjectSummary) => void
+}) {
+  const title = scope === "team" ? "All team builds" : "All your builds"
+
+  return (
+    <div className="mt-5 overflow-hidden rounded-3xl border border-background/65 bg-background/78 shadow-[0_24px_80px_-62px_var(--primary)] backdrop-blur-xl">
+      <div className="flex items-center justify-between gap-4 border-b border-border/55 px-4 py-3.5 sm:px-5">
+        <div className="min-w-0">
+          <p className="text-[13px] font-semibold text-foreground">{title}</p>
+          <p className="mt-0.5 text-[12px] text-muted-foreground">
+            Reopen any build from this workspace.
+          </p>
+        </div>
+        <span className="shrink-0 rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-medium text-accent-soft-foreground">
+          {builds.length}
+        </span>
+      </div>
+
+      <div className="px-2 pt-2">
+        <SearchBar value={search} onChange={onSearchChange} />
+      </div>
+
+      <div className="max-h-[15.5rem] overflow-y-auto p-2 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
+        {loading ? (
+          <div className="space-y-2 p-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-12 animate-pulse rounded-2xl bg-muted/70"
+                style={{ opacity: 1 - i * 0.16 }}
+              />
+            ))}
+          </div>
+        ) : builds.length === 0 ? (
+          <div className="px-4 py-6 text-center">
+            <p className="text-[13px] font-medium text-foreground">
+              {search ? "No matching builds" : "No builds yet"}
+            </p>
+            <p className="mt-1 text-[12px] text-muted-foreground">
+              {search ? "Try a different search." : "Start with a prompt and your builds will appear here."}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {builds.map((build) => {
+              const status = PROJECT_STATUS_META[build.status] ?? PROJECT_STATUS_META.pending
+
+              return (
+                <button
+                  key={build.id}
+                  type="button"
+                  onClick={() => onOpenBuild(build)}
+                  className="group flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-colors hover:bg-muted/70"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13px] font-medium text-foreground">
+                      {projectTitle(build.prompt, 58)}
+                    </span>
+                    <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                      {build.kind === "computer" ? "Computer agent" : "Website build"} · {status.label}
+                    </span>
+                  </span>
+                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 /* ─── Sidebar ────────────────────────────────────────────────────────────── */
 
 function Sidebar({
   filtered,
   projectsLoading,
-  search,
-  onSearchChange,
   stats,
   router,
   handleDeleteProject,
@@ -182,16 +270,18 @@ function Sidebar({
   signOut,
   onClose,
   onToggle,
-  onNewBuild,
   onShare,
   isTeamsPlan,
   scope,
   setScope,
+  workspaces,
+  currentWorkspace,
+  switchWorkspace,
+  isPaidUser,
+  onCreateWorkspace,
 }: {
   filtered: ProjectSummary[]
   projectsLoading: boolean
-  search: string
-  onSearchChange: (v: string) => void
   stats: { planName: string }
   router: ReturnType<typeof useRouter>
   handleDeleteProject: (e: React.MouseEvent, id: string, kind?: string) => void
@@ -199,15 +289,30 @@ function Sidebar({
   signOut: () => void
   onClose?: () => void
   onToggle?: () => void
-  onNewBuild: () => void
   onShare: () => void
   isTeamsPlan: boolean
   scope: "user" | "team"
   setScope: (s: "user" | "team") => void
+  workspaces: Array<{ id: string; name: string; slug?: string }>
+  currentWorkspace: { id: string; name: string; slug?: string } | null
+  switchWorkspace: (workspaceId: string) => Promise<void>
+  isPaidUser: boolean
+  onCreateWorkspace: () => void
 }) {
   const initials = user?.displayName
     ? user.displayName.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
     : user?.email?.slice(0, 1).toUpperCase() ?? "U"
+  const otherWorkspaces = workspaces.filter((w) => w.id !== currentWorkspace?.id)
+  const selectedWorkspaceName = currentWorkspace?.name ?? "Personal workspace"
+  const selectedWorkspaceInitial = selectedWorkspaceName.charAt(0).toUpperCase()
+  const recentBuilds = filtered.slice(0, RECENT_BUILDS_LIMIT)
+  const hiddenBuildCount = Math.max(0, filtered.length - recentBuilds.length)
+  const handleWorkspaceSelect = async (workspaceId: string) => {
+    await switchWorkspace(workspaceId)
+    if (isTeamsPlan) setScope("team")
+    onClose?.()
+    router.push("/projects")
+  }
 
   return (
     <div className="flex h-full flex-col bg-sidebar">
@@ -230,9 +335,9 @@ function Sidebar({
               type="button"
               onClick={onToggle}
               aria-label="Collapse sidebar"
-              className={cn(sidebarActionClass, "h-8 w-8")}
+              className={cn(sidebarActionClass, "h-9 w-9")}
             >
-              <PanelLeft className="h-3.5 w-3.5" />
+              <PanelLeft className="h-4 w-4" />
             </button>
           )}
           {onClose && (
@@ -247,23 +352,99 @@ function Sidebar({
         </div>
       </div>
 
-      {/* ── New build button ── */}
+      {/* ── Workspace switcher ── */}
       <div className="px-3 pb-3">
-        <button
-          type="button"
-          onClick={() => { onClose?.(); onNewBuild() }}
-          className={cn(
-            "flex h-9 w-full items-center justify-center gap-2 rounded-xl border border-border/50 bg-background px-3",
-            "text-[13px] font-semibold text-foreground",
-            "transition-colors hover:bg-muted",
-            "active:scale-[0.985]"
-          )}
-        >
-          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-accent-soft text-accent-soft-foreground">
-            <Pencil className="h-3 w-3" />
-          </span>
-          <span>New build</span>
-        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className={cn(
+                "group flex h-11 w-full items-center gap-2.5 rounded-2xl bg-background px-3",
+                "text-left shadow-[0_10px_40px_-34px_var(--primary)] transition-colors hover:bg-muted"
+              )}
+              aria-label="Switch workspace"
+            >
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-[11px] font-semibold text-accent-soft-foreground">
+                {selectedWorkspaceInitial}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[13px] font-semibold text-foreground">
+                  {selectedWorkspaceName}
+                </span>
+                <span className="block text-[11px] text-muted-foreground">Workspace</span>
+              </span>
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="start"
+            sideOffset={8}
+            className="w-[15.75rem] overflow-hidden rounded-2xl border-border bg-card p-1.5 shadow-[0_24px_80px_-50px_var(--primary)]"
+          >
+            <div className="px-2 pb-1.5 pt-1 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground/65">
+              Workspaces
+            </div>
+
+            {/* Current workspace */}
+            <DropdownMenuItem
+              disabled
+              className="flex cursor-default items-center gap-2.5 rounded-xl px-2.5 py-2.5 opacity-100 focus:bg-muted"
+            >
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-[11px] font-semibold text-accent-soft-foreground">
+                {selectedWorkspaceInitial}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
+                {selectedWorkspaceName}
+              </span>
+              <Check className="h-3.5 w-3.5 shrink-0 text-accent" />
+            </DropdownMenuItem>
+
+            {isPaidUser ? (
+              <>
+                {otherWorkspaces.map((workspace) => (
+                  <DropdownMenuItem
+                    key={workspace.id}
+                    onSelect={() => void handleWorkspaceSelect(workspace.id)}
+                    className="flex cursor-pointer items-center gap-2.5 rounded-xl px-2.5 py-2.5 focus:bg-muted"
+                  >
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-muted text-[11px] font-semibold text-muted-foreground">
+                      {workspace.name.charAt(0).toUpperCase()}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground/80">
+                      {workspace.name}
+                    </span>
+                  </DropdownMenuItem>
+                ))}
+
+                <DropdownMenuItem
+                  onSelect={onCreateWorkspace}
+                  className="flex cursor-pointer items-center gap-2.5 rounded-xl px-2.5 py-2.5 focus:bg-muted"
+                >
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-dashed border-border/80 text-muted-foreground">
+                    <Plus className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="text-[13px] font-medium text-muted-foreground">Add workspace</span>
+                </DropdownMenuItem>
+              </>
+            ) : (
+              <div className="mx-1 mt-1 flex items-center gap-2.5 rounded-xl border border-border/40 bg-muted/30 px-2.5 py-2">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-muted">
+                  <Lock className="h-3.5 w-3.5 text-muted-foreground/60" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[12px] font-medium text-muted-foreground">Switch workspaces</p>
+                  <Link
+                    href="/pricing"
+                    className="text-[11px] font-semibold text-accent underline underline-offset-2 hover:text-accent/80"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Upgrade to unlock
+                  </Link>
+                </div>
+              </div>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* ── Team / personal scope toggle ── */}
@@ -295,13 +476,12 @@ function Sidebar({
       {/* ── Section header ── */}
       <div className="mb-2 flex items-center justify-between px-4">
         <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-          {scope === "team" ? "Team builds" : "Your builds"}
+          {scope === "team" ? "Recent team builds" : "Recent builds"}
         </span>
-        <span className="text-[11px] text-muted-foreground">{filtered.length}</span>
+        <span className="text-[11px] text-muted-foreground">
+          {recentBuilds.length}{hiddenBuildCount ? `/${filtered.length}` : ""}
+        </span>
       </div>
-
-      {/* ── Search ── */}
-      <SearchBar value={search} onChange={onSearchChange} />
 
       {/* ── Task list ── */}
       <div className="flex-1 overflow-y-auto pb-2 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
@@ -315,18 +495,16 @@ function Sidebar({
               />
             ))}
           </div>
-        ) : filtered.length === 0 ? (
+        ) : recentBuilds.length === 0 ? (
           <div className="mx-3 rounded-2xl border border-border bg-muted/35 px-4 py-8 text-center">
-            <p className="text-[13px] font-medium text-foreground">
-              {search ? "No matching builds" : "No builds yet"}
-            </p>
+            <p className="text-[13px] font-medium text-foreground">No recent builds</p>
             <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
-              {search ? "Try a different search." : "Start with a prompt and your builds will appear here."}
+              Start with a prompt and your builds will appear here.
             </p>
           </div>
         ) : (
           <div className="space-y-0.5 px-2">
-            {filtered.map((p) => (
+            {recentBuilds.map((p) => (
               <TaskRow
                 key={p.id}
                 p={p}
@@ -337,6 +515,11 @@ function Sidebar({
                 onDelete={(e) => handleDeleteProject(e, p.id, p.kind)}
               />
             ))}
+            {hiddenBuildCount > 0 ? (
+              <div className="px-2 pb-1 pt-1.5 text-[11px] text-muted-foreground">
+                {hiddenBuildCount} more in all builds below
+              </div>
+            ) : null}
           </div>
         )}
       </div>
@@ -492,9 +675,9 @@ function ReferralDialog({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center">
+    <div className="fixed inset-0 z-[60] flex items-end justify-center px-3 pb-3 sm:items-center sm:p-6">
       <div
-        className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+        className="absolute inset-0 bg-primary/35 backdrop-blur-md"
         onClick={onClose}
         aria-hidden
       />
@@ -502,52 +685,54 @@ function ReferralDialog({
         role="dialog"
         aria-modal="true"
         aria-label="Invite a friend"
-        className="relative z-10 w-full max-w-[400px] rounded-t-2xl border border-border bg-card p-6 shadow-2xl sm:rounded-2xl"
+        className="relative z-10 max-h-[calc(100dvh-1.5rem)] w-full max-w-[36rem] overflow-y-auto rounded-[1.75rem] border border-border/70 bg-card p-4 shadow-[0_32px_120px_-60px_var(--primary)] sm:max-h-[calc(100dvh-3rem)] sm:p-6"
       >
         <button
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <X className="h-3.5 w-3.5" />
         </button>
 
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-soft">
-          <Gift className="h-4.5 w-4.5 text-accent-soft-foreground" />
+        <div className="pr-10">
+          <p className="mb-3 inline-flex rounded-full bg-accent-soft px-3 py-1 text-[11px] font-medium text-accent-soft-foreground">
+            500 credits each
+          </p>
+          <h2 className="text-[22px] font-semibold tracking-[-0.035em] text-foreground sm:text-[26px]">
+            Invite friends, earn credits
+          </h2>
+          <p className="mt-2 max-w-[30rem] text-[13.5px] leading-6 text-muted-foreground sm:text-[14px]">
+            Share your link. When a friend joins a paid plan, you both receive{" "}
+            <span className="font-medium text-foreground">500 credits</span>.
+          </p>
         </div>
 
-        <h2 className="mt-3.5 text-[16px] font-semibold tracking-tight text-foreground">
-          Invite friends, earn credits
-        </h2>
-        <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">
-          When a friend subscribes to a paid plan, you both get{" "}
-          <span className="font-medium text-foreground">500 credits</span> added to your monthly allowance.
-        </p>
-
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <div className="rounded-xl border border-border/60 bg-muted/50 px-3 py-3">
-            <p className="text-[22px] font-semibold leading-none text-foreground">{referralCount}</p>
-            <p className="mt-1 text-[11px] text-muted-foreground">
+        <div className="mt-5 grid gap-2 sm:grid-cols-2">
+          <div className="rounded-2xl border border-border/65 bg-secondary/55 px-4 py-3.5">
+            <p className="text-[24px] font-semibold leading-none tracking-[-0.03em] text-foreground">
+              {referralCount}
+            </p>
+            <p className="mt-1.5 text-[12px] text-muted-foreground">
               Friend{referralCount === 1 ? "" : "s"} joined
             </p>
           </div>
-          <div className="rounded-xl border border-border/60 bg-muted/50 px-3 py-3">
-            <p className="flex items-center gap-1 text-[22px] font-semibold leading-none text-foreground">
-              <Sparkles className="h-4 w-4 text-accent" />
+          <div className="rounded-2xl border border-border/65 bg-secondary/55 px-4 py-3.5">
+            <p className="text-[24px] font-semibold leading-none tracking-[-0.03em] text-foreground">
               {creditsEarned.toLocaleString()}
             </p>
-            <p className="mt-1 text-[11px] text-muted-foreground">Credits earned</p>
+            <p className="mt-1.5 text-[12px] text-muted-foreground">Credits earned</p>
           </div>
         </div>
 
-        <div className="mt-4">
-          <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">
+        <div className="mt-5">
+          <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground/65">
             Your link
           </p>
-          <div className="flex items-stretch gap-2">
-            <div className="flex min-w-0 flex-1 items-center rounded-xl border border-border/60 bg-muted/40 px-3 py-2">
-              <span className="truncate text-[12px] text-foreground/70">
+          <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+            <div className="flex min-w-0 items-center rounded-2xl border border-border/65 bg-background px-3.5 py-3">
+              <span className="truncate text-[13px] text-muted-foreground">
                 {link || "Sign in to generate your link"}
               </span>
             </div>
@@ -556,7 +741,7 @@ function ReferralDialog({
               onClick={handleCopy}
               disabled={!link}
               className={cn(
-                "inline-flex h-[38px] shrink-0 items-center gap-1.5 rounded-xl px-3.5 text-[12.5px] font-semibold",
+                "inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-2xl px-5 text-[13px] font-semibold",
                 "transition-all active:scale-[0.97] disabled:opacity-50",
                 copied
                   ? "bg-success-soft text-success-soft-foreground"
@@ -575,9 +760,9 @@ function ReferralDialog({
             onClick={handleShare}
             disabled={!link}
             className={cn(
-              "mt-2.5 flex w-full items-center justify-center gap-2 rounded-xl",
-              "border border-border/60 bg-transparent px-4 py-2.5",
-              "text-[12.5px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+              "mt-2.5 flex h-12 w-full items-center justify-center gap-2 rounded-2xl",
+              "border border-border/65 bg-background px-4",
+              "text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
             )}
           >
             <Share2 className="h-3.5 w-3.5" />
@@ -625,14 +810,16 @@ function OnboardingBanner() {
 
 export default function ProjectsPage() {
   const router = useRouter()
-  const { user, userData, currentWorkspace, signOut } = useAuth()
+  const { user, userData, workspaces, currentWorkspace, switchWorkspace, signOut } = useAuth()
 
   const isTeamsPlan = !!userData?.planId && planIdForDisplay(userData.planId) === "team"
+  const isPaidUser = !!userData?.planId && userData.planId !== "free"
   const [scope, setScope] = useState<"user" | "team">("user")
   const [search, setSearch] = useState("")
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(false)
   const [referralOpen, setReferralOpen] = useState(false)
+  const [createModalOpen, setCreateModalOpen] = useState(false)
 
   useEffect(() => {
     if (!isTeamsPlan && scope === "team") setScope("user")
@@ -676,14 +863,6 @@ export default function ProjectsPage() {
     }
   }
 
-  const handleNewBuild = () => {
-    setTimeout(() => {
-      const el = document.querySelector<HTMLElement>("[data-animated-ai-input]")
-      el?.focus()
-      el?.scrollIntoView({ behavior: "smooth", block: "center" })
-    }, 150)
-  }
-
   const greeting = (() => {
     const h = new Date().getHours()
     if (h < 12) return "Good morning"
@@ -693,21 +872,27 @@ export default function ProjectsPage() {
 
   const firstName = user?.displayName?.split(" ")[0] ?? ""
 
+  const handleOpenBuild = useCallback((build: ProjectSummary) => {
+    router.push(build.kind === "computer" ? `/computer/${build.id}` : `/project/${build.id}`)
+  }, [router])
+
   const sidebarProps = {
-    filtered,
+    filtered: projects,
     projectsLoading,
-    search,
-    onSearchChange: setSearch,
     stats,
     router,
     handleDeleteProject,
     user,
     signOut,
-    onNewBuild: handleNewBuild,
     onShare: () => { setMobileSidebarOpen(false); setReferralOpen(true) },
     isTeamsPlan,
     scope,
     setScope,
+    workspaces,
+    currentWorkspace,
+    switchWorkspace,
+    isPaidUser,
+    onCreateWorkspace: () => setCreateModalOpen(true),
   }
 
   return (
@@ -747,7 +932,7 @@ export default function ProjectsPage() {
             desktopSidebarCollapsed ? "lg:w-0 lg:overflow-hidden" : "lg:w-[280px]"
           )}
         >
-          <div className="h-full border-r border-border/60">
+          <div className="relative h-full bg-sidebar after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:z-10 after:w-8 after:translate-x-full after:bg-gradient-to-r after:from-sidebar after:to-transparent">
             <Sidebar {...sidebarProps} onToggle={() => setDesktopSidebarCollapsed(true)} />
           </div>
         </aside>
@@ -789,36 +974,68 @@ export default function ProjectsPage() {
           )}
 
           {/* ── Composer surface ── */}
-          <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-5 pb-[10vh] pt-8 sm:px-8">
-            <div className="w-full max-w-[44rem]">
+          <div className="relative z-10 flex min-h-0 flex-1 pt-3 sm:pt-4">
+            <div className="relative min-h-0 w-full flex-1 overflow-hidden rounded-t-[1.125rem] shadow-[0_28px_100px_-86px_var(--primary)] sm:rounded-t-[1.25rem]">
+              <div className="h-full overflow-y-auto [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
+                <div className="relative isolate flex min-h-[calc(100dvh+12rem)] w-full flex-col items-center justify-start overflow-hidden rounded-t-[1.125rem] px-5 pb-24 pt-14 sm:rounded-t-[1.25rem] sm:px-8 sm:pb-28 sm:pt-16 lg:pt-20">
+              <MeshGradient
+                className="absolute inset-0 z-0 h-full w-full rounded-t-[inherit] opacity-82"
+                colors={["#B76422", "#e0c5a8", "#d8c8e5"]}
+                distortion={0.42}
+                fit="cover"
+                grainMixer={0.1}
+                grainOverlay={0.05}
+                maxPixelCount={1200000}
+                rotation={42}
+                scale={1.08}
+                speed={0.14}
+                swirl={0.22}
+              />
+              <div className="relative z-10 w-full max-w-[60rem]">
+                <div className="mx-auto w-full max-w-[44rem]">
 
-              {/* Workspace onboarding banner */}
-              <Suspense fallback={null}>
-                <OnboardingBanner />
-              </Suspense>
+                  {/* Workspace onboarding banner */}
+                  <Suspense fallback={null}>
+                    <OnboardingBanner />
+                  </Suspense>
 
-              {/* Plan pill */}
-              <div className="mb-8 flex justify-center">
-                <div className="inline-flex items-center gap-2.5 rounded-full border border-border/50 bg-background px-3.5 py-1.5 text-[12px] text-muted-foreground shadow-sm">
-                  <span className="font-medium">{stats.planName} plan</span>
-                  <span className="h-3 w-px bg-border/60" />
-                  <Link href="/pricing" className="font-semibold text-accent transition-colors hover:text-accent/80">
-                    Upgrade
-                  </Link>
+                  {/* Plan pill */}
+                  <div className="mb-8 flex justify-center">
+                    <div className="inline-flex items-center gap-2.5 rounded-full border border-background/60 bg-background/72 px-3.5 py-1.5 text-[12px] text-muted-foreground shadow-[0_16px_50px_-38px_var(--primary)] backdrop-blur-xl">
+                      <span className="font-medium text-foreground">{stats.planName} workspace</span>
+                      <span className="h-3 w-px bg-border/70" />
+                      <Link href="/pricing" className="font-semibold text-accent transition-colors hover:text-accent/80">
+                        Upgrade
+                      </Link>
+                    </div>
+                  </div>
+
+                  {/* Greeting */}
+                  <div className="mb-8 text-center">
+                    <h1 className="text-[2rem] font-medium tracking-[-0.055em] text-foreground/88 sm:text-[2.6rem]">
+                      {greeting}{firstName ? `, ${firstName}` : ""}
+                    </h1>
+                    <p className="mx-auto mt-4 max-w-[30rem] text-[14px] leading-7 text-foreground/58">
+                      Describe what you want to build. Lotus turns the brief into a focused workspace.
+                    </p>
+                  </div>
+
+                  <AnimatedAIInput
+                    placeholder="Describe the app, website, or flow you want to create..."
+                    wrapperClassName="border-background/70 bg-background/82 shadow-[0_26px_90px_-68px_var(--primary)] backdrop-blur-xl"
+                  />
+                </div>
+                <FullBuildsPanel
+                  builds={filtered}
+                  loading={projectsLoading}
+                  search={search}
+                  onSearchChange={setSearch}
+                  scope={scope}
+                  onOpenBuild={handleOpenBuild}
+                />
+              </div>
                 </div>
               </div>
-
-              {/* Greeting */}
-              <div className="mb-8 text-center">
-                <h1 className="text-[2rem] font-semibold tracking-[-0.04em] text-foreground sm:text-[2.6rem]">
-                  {greeting}{firstName ? `, ${firstName}` : ""}
-                </h1>
-                <p className="mx-auto mt-3 max-w-[30rem] text-[13.5px] leading-relaxed text-muted-foreground">
-                  Describe what you want to build. Lotus will create a focused workspace from your brief.
-                </p>
-              </div>
-
-              <AnimatedAIInput />
             </div>
           </div>
         </main>
@@ -829,6 +1046,11 @@ export default function ProjectsPage() {
           referralCode={user?.uid ?? null}
           referralCount={userData?.referralCount ?? 0}
           creditsEarned={userData?.referralCreditsEarned ?? 0}
+        />
+
+        <CreateWorkspaceModal
+          open={createModalOpen}
+          onClose={() => setCreateModalOpen(false)}
         />
       </div>
     </ProtectedRoute>

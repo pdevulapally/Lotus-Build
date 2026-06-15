@@ -16,7 +16,7 @@ export const PLAN_DISPLAY: Record<PlanId, PlanDisplayConfig> = {
     description: "Perfect for trying Lotus.build before going live.",
     features: [
       "10,000 credits/month",
-      "5 agent runs per period",
+      "Single personal workspace",
       "Community support",
       "Public projects",
       "Export to GitHub",
@@ -27,7 +27,7 @@ export const PLAN_DISPLAY: Record<PlanId, PlanDisplayConfig> = {
     recommended: true,
     features: [
       "120,000 credits/month",
-      "60 agent runs per period",
+      "Create and switch workspaces",
       "Premium templates + visual edit",
       "Priority support",
     ],
@@ -36,7 +36,7 @@ export const PLAN_DISPLAY: Record<PlanId, PlanDisplayConfig> = {
     description: "Agency-grade scale for teams shipping many client sites.",
     features: [
       "500,000 credits/month",
-      "200 agent runs per period",
+      "Create and switch workspaces",
       "Client handoff + white-label",
       "Priority support",
     ],

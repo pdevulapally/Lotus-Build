@@ -19,13 +19,6 @@ export const lotusBuildFeatureItems = [
   },
 ] as const
 
-export const lotusBuildMetrics = [
-  { value: "50K+", label: "Apps Built" },
-  { value: "100M+", label: "Lines Generated" },
-  { value: "<30s", label: "Average Build Time" },
-  { value: "98%", label: "User Satisfaction" },
-] as const
-
 export const lotusBuildUseCases = [
   {
     title: "SaaS Launch",
@@ -43,24 +36,24 @@ export const lotusBuildUseCases = [
 
 export const lotusBuildTestimonials = [
   {
-    text: "I built a complete SaaS dashboard in 30 minutes. What would have taken weeks was done in a single prompt session.",
-    name: "Sarah Chen",
-    role: "Indie Hacker",
+    text: "Lotus feels less like prompting a demo and more like shaping the first real version of a product.",
+    name: "Founder building an MVP",
+    role: "Idea to live preview",
   },
   {
-    text: "Lotus.build is like having a senior developer on demand. It understands exactly what I want to build.",
-    name: "Marcus Johnson",
-    role: "Startup Founder",
+    text: "The useful part is how it keeps the prompt, preview, and edits together. There is less context switching.",
+    name: "Product lead",
+    role: "Internal tools and launch pages",
   },
   {
-    text: "We use Lotus.build to prototype client projects. It's 10x faster than our previous workflow.",
-    name: "Emily Rodriguez",
-    role: "Agency Owner",
+    text: "It gives client ideas a polished surface quickly, then leaves room to refine the details instead of starting over.",
+    name: "Agency team",
+    role: "Client concept work",
   },
   {
-    text: "As a non-developer, I finally built my dream app without getting blocked by complexity.",
-    name: "David Park",
-    role: "Product Designer",
+    text: "The flow stays understandable even when the output becomes technical. That makes it easier to keep moving.",
+    name: "Solo builder",
+    role: "Early product validation",
   },
 ] as const
 

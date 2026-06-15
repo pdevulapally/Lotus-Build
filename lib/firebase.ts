@@ -32,31 +32,31 @@ export const PLAN_FEATURES: Record<UserPlan, { name: string; tokensPerMonth: num
   free: {
     name: "Free",
     tokensPerMonth: 10000,
-    features: ["10,000 tokens/month", "Basic code generation", "Community support"],
+    features: ["10,000 tokens/month", "Single personal workspace", "Basic code generation", "Community support"],
   },
   pro: {
     name: "Pro",
     tokensPerMonth: 120000,
-    features: ["120,000 credits/month", "60 agent runs per period", "Premium templates + visual edit", "Priority support"],
+    features: ["120,000 credits/month", "Create and switch workspaces", "Premium templates + visual edit", "Priority support"],
   },
   team: {
     name: "Agency",
     tokensPerMonth: 500000,
-    features: ["500,000 credits/month", "200 agent runs per period", "Client handoff + white-label", "Priority support"],
+    features: ["500,000 credits/month", "Create and switch workspaces", "Client handoff + white-label", "Priority support"],
   },
   enterprise: {
     name: "Agency",
     tokensPerMonth: 500000,
-    features: ["500,000 credits/month", "200 agent runs per period", "Client handoff + white-label", "Priority support"],
+    features: ["500,000 credits/month", "Create and switch workspaces", "Client handoff + white-label", "Priority support"],
   },
 }
 
 // Convenience: default plan docs to seed in Firestore (optional)
 export const DEFAULT_PLANS: Record<UserPlan, { id: string; name: string; tokensPerMonth: number; features: string[] }> = {
-  free: { id: 'free', name: 'Hobby', tokensPerMonth: 10000, features: ['10,000 credits/month', 'Public projects', 'Community support'] },
-  pro: { id: 'pro', name: 'Pro', tokensPerMonth: 120000, features: ['120,000 credits/month', '60 agent runs per period', 'Premium templates + visual edit', 'Priority support'] },
-  team: { id: 'team', name: 'Agency', tokensPerMonth: 500000, features: ['500,000 credits/month', '200 agent runs per period', 'Client handoff + white-label', 'Priority support'] },
-  enterprise: { id: 'enterprise', name: 'Agency', tokensPerMonth: 500000, features: ['500,000 credits/month', '200 agent runs per period', 'Client handoff + white-label', 'Priority support'] },
+  free: { id: 'free', name: 'Hobby', tokensPerMonth: 10000, features: ['10,000 credits/month', 'Single personal workspace', 'Public projects', 'Community support'] },
+  pro: { id: 'pro', name: 'Pro', tokensPerMonth: 120000, features: ['120,000 credits/month', 'Create and switch workspaces', 'Premium templates + visual edit', 'Priority support'] },
+  team: { id: 'team', name: 'Agency', tokensPerMonth: 500000, features: ['500,000 credits/month', 'Create and switch workspaces', 'Client handoff + white-label', 'Priority support'] },
+  enterprise: { id: 'enterprise', name: 'Agency', tokensPerMonth: 500000, features: ['500,000 credits/month', 'Create and switch workspaces', 'Client handoff + white-label', 'Priority support'] },
 }
 
 export { app, db, auth, googleProvider, githubProvider }

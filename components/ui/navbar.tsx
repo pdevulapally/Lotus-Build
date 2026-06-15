@@ -72,9 +72,11 @@ export function Navbar() {
     <header className="fixed left-0 right-0 top-6 z-40 px-4 sm:top-7">
       <nav className="relative max-w-5xl w-full mx-auto flex h-12 items-center justify-between px-4 sm:px-6 rounded-full bg-card/90 border border-border shadow-[0_18px_60px_-42px_var(--primary)] backdrop-blur-xl md:grid md:grid-cols-[1fr_auto_1fr]">
         {/* Left: Logo */}
-        <Link href="/" className="flex items-center gap-2 shrink-0 md:justify-self-start">
+        <Link href="/" className="group flex shrink-0 items-center gap-2 md:justify-self-start">
           <img src="/Images/lotus-official-logo.png" alt="lotus.build" className="h-7 w-7 object-contain" />
-          <span className="font-display text-lg font-semibold text-foreground">Lotus.build</span>
+          <span className="font-display text-[17px] font-semibold leading-none tracking-[-0.04em] text-foreground">
+            Lotus Build
+          </span>
         </Link>
 
         {/* Center Nav Links (desktop/tablet) */}

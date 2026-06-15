@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import { motion } from "framer-motion"
+import { MeshGradient } from "@paper-design/shaders-react"
 import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { ArrowUp, Check, FileText, Loader2, Mail, Rocket } from "lucide-react"
+import { Loader2, Mail } from "lucide-react"
 
 function GoogleIcon() {
   return (
@@ -134,10 +135,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background md:grid md:grid-cols-2">
+    <div className="min-h-screen bg-background p-3 md:grid md:grid-cols-2 md:gap-3">
 
       {/* ── Form column ── */}
-      <div className="flex min-h-screen flex-col px-5 py-7 sm:px-8 md:min-h-0 md:px-10 lg:px-14 xl:px-16">
+      <div className="flex min-h-[calc(100vh-24px)] flex-col rounded-[2rem] bg-card px-5 py-6 sm:px-8 md:min-h-0 md:px-10 lg:px-14 xl:px-16">
         <Link href="/" className="flex w-fit items-center gap-2">
           <Image src="/Images/lotus-official-logo.png" alt="Lotus" width={30} height={30} className="object-contain" />
           <span className="text-[15px] font-semibold tracking-tight text-foreground">Lotus.build</span>
@@ -148,51 +149,46 @@ export default function LoginPage() {
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
-            className="mx-auto w-full max-w-[400px]"
+            className="mx-auto w-full max-w-[420px]"
           >
-            <h1 className="text-[1.9rem] font-semibold tracking-[-0.03em] text-foreground sm:text-[2.15rem]">
+            <h1 className="text-4xl font-medium leading-[1.02] tracking-[-0.055em] text-foreground sm:text-5xl">
               Welcome back
             </h1>
-            <p className="mt-2 text-[14px] text-muted-foreground">
-              Sign in to continue building with Lotus.
+            <p className="mt-4 max-w-sm text-sm leading-7 text-muted-foreground">
+              Continue shaping your projects, previews, and launches in one calm workspace.
             </p>
 
             {error && (
-              <div className="mt-5 rounded-xl border border-destructive/20 bg-destructive/8 px-4 py-3 text-[13px] text-destructive">
+              <div className="mt-6 rounded-2xl bg-destructive/10 px-4 py-3 text-[13px] text-destructive">
                 {error}
               </div>
             )}
 
-            <div className="mt-7 flex flex-col gap-2.5">
+            <div className="mt-8 grid gap-2.5 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={handleGoogleSignIn}
                 disabled={isLoading}
-                className="flex h-11 w-full items-center justify-center gap-2.5 rounded-xl border border-border/60 bg-background text-[13.5px] font-medium text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-11 w-full items-center justify-center gap-2.5 rounded-2xl bg-secondary text-[13.5px] font-medium text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <GoogleIcon />
-                Continue with Google
+                Google
               </button>
               <button
                 type="button"
                 onClick={handleGithubSignIn}
                 disabled={isLoading}
-                className="flex h-11 w-full items-center justify-center gap-2.5 rounded-xl border border-border/60 bg-background text-[13.5px] font-medium text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-11 w-full items-center justify-center gap-2.5 rounded-2xl bg-secondary text-[13.5px] font-medium text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <GithubIcon />
-                Continue with GitHub
+                GitHub
               </button>
             </div>
 
-            <div className="relative my-7">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border/60" />
-              </div>
-              <div className="relative flex justify-center">
-                <span className="bg-background px-3 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground/60">
-                  or continue with email
-                </span>
-              </div>
+            <div className="my-7 flex justify-center">
+              <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground/60">
+                or continue with email
+              </span>
             </div>
 
             <form onSubmit={handleEmailSignIn} className="space-y-4">
@@ -204,7 +200,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="h-11 rounded-xl border-border/60 bg-background text-[14px] placeholder:text-muted-foreground/50"
+                  className="h-12 rounded-2xl border-transparent bg-secondary/70 px-4 text-[14px] placeholder:text-muted-foreground/50 focus-visible:ring-1 focus-visible:ring-border-strong"
                   required
                 />
               </div>
@@ -226,7 +222,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Your password"
-                  className="h-11 rounded-xl border-border/60 bg-background text-[14px] placeholder:text-muted-foreground/50"
+                  className="h-12 rounded-2xl border-transparent bg-secondary/70 px-4 text-[14px] placeholder:text-muted-foreground/50 focus-visible:ring-1 focus-visible:ring-border-strong"
                   required
                 />
               </div>
@@ -234,7 +230,7 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="h-11 w-full rounded-xl bg-primary text-[14px] font-semibold text-primary-foreground hover:bg-primary/90"
+                className="h-12 w-full rounded-2xl bg-primary text-[14px] font-semibold text-primary-foreground hover:bg-primary/90"
               >
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Sign in"}
               </Button>
@@ -259,198 +255,71 @@ export default function LoginPage() {
         </p>
       </div>
 
-      {/* ── Illustration column ── */}
-      <div className="hidden md:flex md:items-stretch md:p-5 lg:p-7">
-        <div className="relative flex w-full overflow-hidden rounded-[2rem] bg-primary text-primary-foreground">
+      {/* ── Right content ── */}
+      <div className="hidden md:flex md:items-stretch">
+        <div className="relative flex w-full overflow-hidden rounded-[2rem] text-primary-foreground">
+          <MeshGradient
+            className="absolute inset-0 h-full w-full"
+            colors={["#A34300", "#dbba95", "#d0bce1"]}
+            distortion={0.35}
+            fit="cover"
+            grainMixer={0.08}
+            grainOverlay={0.04}
+            maxPixelCount={1200000}
+            rotation={50}
+            scale={1.15}
+            speed={0.12}
+            swirl={0.18}
+          />
 
-          {/* Ambient glow layers */}
-          <div className="pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full bg-accent/30 blur-[90px]" />
-          <div className="pointer-events-none absolute -bottom-24 right-0 h-72 w-72 rounded-full bg-accent/15 blur-[80px]" />
-          <div className="pointer-events-none absolute left-1/2 top-1/2 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary-foreground/[0.03] blur-[60px]" />
-
-          <div className="relative flex w-full flex-col justify-between p-7 xl:p-10">
-
-            {/* Headline */}
+          <div className="relative flex w-full flex-col justify-between p-8 lg:p-10">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-primary-foreground/10 bg-primary-foreground/[0.06] px-3 py-1.5">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
-                <span className="text-[11px] font-medium text-primary-foreground/50">Session active</span>
-              </div>
-              <h2 className="mt-4 max-w-[260px] text-[1.75rem] font-semibold leading-[1.06] tracking-[-0.045em] xl:max-w-xs xl:text-[2rem]">
-                Pick up where your build left off.
+              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-primary-foreground/50">
+                Your workspace is ready
+              </p>
+              <h2 className="mt-6 max-w-xl text-5xl font-medium leading-[0.98] tracking-[-0.07em] lg:text-6xl">
+                Return to the surface that is already in motion.
               </h2>
+              <p className="mt-6 max-w-md text-sm leading-7 text-primary-foreground/62">
+                Sign in and the same prompt thread, preview, and project state are waiting without the dashboard noise.
+              </p>
             </div>
 
-            {/* Workspace mock */}
             <motion.div
-              initial={{ opacity: 0, y: 24 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ duration: 0.55, delay: 0.12, ease: "easeOut" }}
+              className="max-w-xl rounded-[1.75rem] bg-background/15 p-3 shadow-[0_30px_120px_-70px_var(--accent)] backdrop-blur-xl"
             >
-              {/* Browser window */}
-              <div className="overflow-hidden rounded-2xl border border-primary-foreground/10 bg-background shadow-[0_32px_80px_-16px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)]">
-
-                {/* Title bar */}
-                <div className="flex h-9 items-center gap-3 border-b border-border/60 bg-sidebar px-3.5">
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <div className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
-                    <div className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
-                    <div className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
-                  </div>
-                  <div className="flex flex-1 items-center justify-center">
-                    <div className="flex h-5 items-center gap-1 rounded-md bg-muted/70 px-3">
-                      <span className="text-[9.5px] text-muted-foreground">lotus.build/app/my-project</span>
-                    </div>
-                  </div>
-                  <div className="shrink-0 flex h-6 items-center gap-1 rounded-md bg-accent px-2">
-                    <Rocket className="h-2.5 w-2.5 text-accent-foreground" />
-                    <span className="text-[9.5px] font-semibold text-accent-foreground">Deploy</span>
-                  </div>
+              <div className="rounded-[1.35rem] border border-primary-foreground/15 bg-primary-foreground/10 p-4 backdrop-blur-xl">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-primary-foreground/50">
+                    Resume
+                  </span>
+                  <span className="rounded-full bg-primary-foreground/12 px-3 py-1 text-xs text-primary-foreground/70">
+                    Live preview saved
+                  </span>
                 </div>
 
-                {/* Split body */}
-                <div className="grid grid-cols-[5fr_7fr] divide-x divide-border/50" style={{ height: 284 }}>
+                <p className="mt-8 max-w-md text-2xl font-medium leading-[1.08] tracking-[-0.045em] text-primary-foreground">
+                  “Tighten the hero, keep the structure, make the page feel more premium.”
+                </p>
 
-                  {/* Left — agent feed */}
-                  <div className="flex flex-col overflow-hidden bg-sidebar">
-                    {/* Tab bar */}
-                    <div className="flex items-center border-b border-border/50 px-3">
-                      <div className="relative border-b-2 border-foreground py-2 pr-3">
-                        <span className="text-[10px] font-semibold text-foreground">Chat</span>
-                      </div>
-                      <div className="py-2 px-3">
-                        <span className="text-[10px] text-muted-foreground/60">Files</span>
-                      </div>
-                    </div>
-
-                    {/* Messages */}
-                    <div className="flex flex-col gap-2.5 overflow-hidden p-3">
-                      {/* User bubble */}
-                      <div className="flex justify-end">
-                        <div className="max-w-[88%] rounded-2xl rounded-tr-sm bg-foreground px-2.5 py-1.5">
-                          <p className="text-[10px] leading-relaxed text-background">
-                            Add a pricing section, 3 tiers
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Lotus response */}
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-1.5">
-                          <div className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-accent-soft">
-                            <span className="text-[8px] font-bold text-accent">L</span>
-                          </div>
-                          <span className="text-[9.5px] font-semibold text-muted-foreground">Lotus</span>
-                        </div>
-                        <div className="space-y-1">
-                          <div className="h-1.5 w-full rounded-full bg-muted/80" />
-                          <div className="h-1.5 w-5/6 rounded-full bg-muted/60" />
-                          <div className="h-1.5 w-3/4 rounded-full bg-muted/40" />
-                        </div>
-                      </div>
-
-                      {/* File done */}
-                      <div className="rounded-lg border border-border/60 bg-background p-2">
-                        <div className="flex items-center gap-1.5">
-                          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-accent/10">
-                            <FileText className="h-3 w-3 text-accent" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[9.5px] font-semibold text-foreground">pricing.tsx</p>
-                            <p className="text-[9px] text-muted-foreground">247 lines added</p>
-                          </div>
-                          <Check className="h-3 w-3 shrink-0 text-accent" />
-                        </div>
-                      </div>
-
-                      {/* File in progress */}
-                      <div className="rounded-lg border border-border/60 bg-background p-2 opacity-65">
-                        <div className="flex items-center gap-1.5">
-                          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted">
-                            <FileText className="h-3 w-3 text-muted-foreground" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[9.5px] font-semibold text-foreground">globals.css</p>
-                            <p className="text-[9px] text-muted-foreground">Updating…</p>
-                          </div>
-                          <div className="h-3 w-3 shrink-0 animate-spin rounded-full border-[1.5px] border-border border-t-accent" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right — live preview */}
-                  <div className="flex flex-col overflow-hidden bg-background">
-                    {/* Preview bar */}
-                    <div className="flex items-center gap-2 border-b border-border/50 bg-muted/20 px-3 py-2">
-                      <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
-                      <span className="text-[9.5px] text-muted-foreground">Live preview</span>
-                    </div>
-
-                    {/* Page mock — pricing section */}
-                    <div className="flex-1 overflow-hidden p-3.5 space-y-3">
-                      {/* Section title */}
-                      <div className="space-y-1 text-center">
-                        <div className="mx-auto h-2.5 w-20 rounded-full bg-foreground/70" />
-                        <div className="mx-auto h-1.5 w-28 rounded-full bg-muted/70" />
-                        <div className="mx-auto h-1.5 w-20 rounded-full bg-muted/50" />
-                      </div>
-
-                      {/* 3 pricing cards */}
-                      <div className="grid grid-cols-3 gap-1.5">
-                        {[
-                          { featured: false },
-                          { featured: true },
-                          { featured: false },
-                        ].map(({ featured }, i) => (
-                          <div
-                            key={i}
-                            className={`rounded-xl border p-2 ${featured
-                              ? "border-accent/25 bg-primary shadow-[0_6px_20px_rgba(0,0,0,0.22)]"
-                              : "border-border/80 bg-card"
-                            }`}
-                          >
-                            {featured && (
-                              <div className="mb-1.5 inline-flex rounded-full bg-accent px-1.5 py-px">
-                                <span className="text-[7px] font-bold uppercase tracking-wide text-accent-foreground">Popular</span>
-                              </div>
-                            )}
-                            <div className={`mb-1.5 h-2.5 w-10 rounded-full ${featured ? "bg-primary-foreground/80" : "bg-foreground/65"}`} />
-                            <div className={`mb-0.5 h-1.5 w-full rounded-full ${featured ? "bg-primary-foreground/20" : "bg-muted"}`} />
-                            <div className={`mb-3 h-1.5 w-3/4 rounded-full ${featured ? "bg-primary-foreground/15" : "bg-muted/70"}`} />
-                            <div className={`h-6 w-full rounded-lg ${featured ? "bg-accent" : "bg-muted/50"}`} />
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* CTA strip */}
-                      <div className="flex items-center justify-between rounded-lg bg-muted/40 px-2.5 py-2">
-                        <div className="flex items-center gap-1.5">
-                          <div className="h-3 w-3 rounded-sm bg-accent/50" />
-                          <div className="h-1.5 w-12 rounded-full bg-foreground/30" />
-                        </div>
-                        <div className="flex gap-1.5">
-                          <div className="h-1.5 w-7 rounded-full bg-muted-foreground/25" />
-                          <div className="h-1.5 w-7 rounded-full bg-muted-foreground/25" />
-                        </div>
-                      </div>
-
-                      {/* Input mock */}
-                      <div className="flex items-center gap-2 rounded-xl border border-border/50 bg-background px-2.5 py-2">
-                        <div className="flex-1 h-1.5 rounded-full bg-muted/60" />
-                        <div className="flex h-5 w-5 items-center justify-center rounded-lg bg-accent">
-                          <ArrowUp className="h-2.5 w-2.5 text-accent-foreground" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                <div className="mt-8 flex flex-wrap gap-2">
+                  {["Prompt thread", "Preview URL", "Project files"].map((item) => (
+                    <span
+                      key={item}
+                      className="rounded-full bg-primary-foreground/12 px-3 py-1.5 text-xs text-primary-foreground/70"
+                    >
+                      {item}
+                    </span>
+                  ))}
                 </div>
               </div>
             </motion.div>
 
-            {/* Tagline */}
-            <p className="max-w-[260px] text-[12px] leading-relaxed text-primary-foreground/40 xl:max-w-xs">
-              Your projects, memory, previews, and deployments stay connected in one calm workspace.
+            <p className="max-w-sm text-xs leading-6 text-primary-foreground/55">
+              Built to feel closer to a creative canvas than an admin panel.
             </p>
           </div>
         </div>

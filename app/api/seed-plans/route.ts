@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server'
 import { adminDb } from '@/lib/firebase-admin'
 
 const DEFAULT_PLANS = {
-  free: { id: 'free', name: 'Hobby', tokensPerMonth: 10000, features: ['10,000 credits/month', 'Public projects', 'Community support'] },
-  pro: { id: 'pro', name: 'Pro', tokensPerMonth: 120000, features: ['120,000 credits/month', '60 agent runs per period', 'Premium templates + visual edit', 'Priority support'] },
-  team: { id: 'team', name: 'Agency', tokensPerMonth: 500000, features: ['500,000 credits/month', '200 agent runs per period', 'Client handoff + white-label', 'Priority support'] },
-  enterprise: { id: 'enterprise', name: 'Agency', tokensPerMonth: 500000, features: ['500,000 credits/month', '200 agent runs per period', 'Client handoff + white-label', 'Priority support'] },
+  free: { id: 'free', name: 'Hobby', tokensPerMonth: 10000, features: ['10,000 credits/month', 'Single personal workspace', 'Public projects', 'Community support'] },
+  pro: { id: 'pro', name: 'Pro', tokensPerMonth: 120000, features: ['120,000 credits/month', 'Create and switch workspaces', 'Premium templates + visual edit', 'Priority support'] },
+  team: { id: 'team', name: 'Agency', tokensPerMonth: 500000, features: ['500,000 credits/month', 'Create and switch workspaces', 'Client handoff + white-label', 'Priority support'] },
+  enterprise: { id: 'enterprise', name: 'Agency', tokensPerMonth: 500000, features: ['500,000 credits/month', 'Create and switch workspaces', 'Client handoff + white-label', 'Priority support'] },
 }
 
 function requiredEnv(name: string) {

@@ -11,14 +11,14 @@ const DEFAULT_PAID_PLANS = {
     priceCents: 9900,
     interval: "month" as const,
     tokensPerMonth: 120000,
-    features: ["120,000 credits/month", "60 agent runs per period", "Premium templates + visual edit", "Priority support"],
+    features: ["120,000 credits/month", "Create and switch workspaces", "Premium templates + visual edit", "Priority support"],
   },
   team: {
     name: "Agency",
     priceCents: 29900,
     interval: "month" as const,
     tokensPerMonth: 500000,
-    features: ["500,000 credits/month", "200 agent runs per period", "Client handoff + white-label", "Priority support"],
+    features: ["500,000 credits/month", "Create and switch workspaces", "Client handoff + white-label", "Priority support"],
   },
 }
 
@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
   if (!stripe) {
     return Response.json({
       plans: [
-        { id: "free", name: "Hobby", price: 0, interval: "forever", priceId: null, tokensPerMonth: 10000, features: ["10,000 credits/month", "Public projects", "Community support"] },
+        { id: "free", name: "Hobby", price: 0, interval: "forever", priceId: null, tokensPerMonth: 10000, features: ["10,000 credits/month", "Single personal workspace", "Public projects", "Community support"] },
         { id: "pro", name: "Pro", price: 9900, interval: "month", priceId: null, tokensPerMonth: 120000, features: DEFAULT_PAID_PLANS.pro.features },
         { id: "team", name: "Agency", price: 29900, interval: "month", priceId: null, tokensPerMonth: 500000, features: DEFAULT_PAID_PLANS.team.features },
       ],

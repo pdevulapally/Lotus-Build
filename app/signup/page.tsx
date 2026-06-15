@@ -5,11 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import { motion } from "framer-motion"
+import { MeshGradient } from "@paper-design/shaders-react"
 import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ArrowUp, Loader2 } from "lucide-react"
+import { Loader2 } from "lucide-react"
 
 function GoogleIcon() {
   return (
@@ -112,10 +113,10 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background md:grid md:grid-cols-2">
+    <div className="min-h-screen bg-background p-3 md:grid md:grid-cols-2 md:gap-3">
 
       {/* ── Form column ── */}
-      <div className="flex min-h-screen flex-col px-5 py-7 sm:px-8 md:min-h-0 md:px-10 lg:px-14 xl:px-16">
+      <div className="flex min-h-[calc(100vh-24px)] flex-col rounded-[2rem] bg-card px-5 py-6 sm:px-8 md:min-h-0 md:px-10 lg:px-14 xl:px-16">
 
         {/* Logo */}
         <Link href="/" className="flex w-fit items-center gap-2">
@@ -135,53 +136,48 @@ export default function SignupPage() {
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
-            className="mx-auto w-full max-w-[400px]"
+            className="mx-auto w-full max-w-[420px]"
           >
-            <h1 className="text-[1.9rem] font-semibold tracking-[-0.03em] text-foreground sm:text-[2.15rem]">
+            <h1 className="text-4xl font-medium leading-[1.02] tracking-[-0.055em] text-foreground sm:text-5xl">
               Create your account
             </h1>
-            <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">
-              Start free. Describe what you want to build and ship in minutes.
+            <p className="mt-4 max-w-sm text-sm leading-7 text-muted-foreground">
+              Start with a rough idea, then shape it into a polished product surface.
             </p>
 
             {error && (
-              <div className="mt-5 rounded-xl border border-destructive/20 bg-destructive/8 px-4 py-3 text-[13px] text-destructive">
+              <div className="mt-6 rounded-2xl bg-destructive/10 px-4 py-3 text-[13px] text-destructive">
                 {error}
               </div>
             )}
 
             {/* Social auth */}
-            <div className="mt-7 flex flex-col gap-2.5">
+            <div className="mt-8 grid gap-2.5 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={handleGoogleSignIn}
                 disabled={isLoading}
-                className="flex h-11 w-full items-center justify-center gap-2.5 rounded-xl border border-border/60 bg-background text-[13.5px] font-medium text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-11 w-full items-center justify-center gap-2.5 rounded-2xl bg-secondary text-[13.5px] font-medium text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <GoogleIcon />
-                Continue with Google
+                Google
               </button>
               <button
                 type="button"
                 onClick={handleGithubSignIn}
                 disabled={isLoading}
-                className="flex h-11 w-full items-center justify-center gap-2.5 rounded-xl border border-border/60 bg-background text-[13.5px] font-medium text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-11 w-full items-center justify-center gap-2.5 rounded-2xl bg-secondary text-[13.5px] font-medium text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <GithubIcon />
-                Continue with GitHub
+                GitHub
               </button>
             </div>
 
             {/* Divider */}
-            <div className="relative my-7">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border/60" />
-              </div>
-              <div className="relative flex justify-center">
-                <span className="bg-background px-3 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground/60">
-                  or continue with email
-                </span>
-              </div>
+            <div className="my-7 flex justify-center">
+              <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground/60">
+                or continue with email
+              </span>
             </div>
 
             {/* Email form */}
@@ -196,7 +192,7 @@ export default function SignupPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="h-11 rounded-xl border-border/60 bg-background text-[14px] placeholder:text-muted-foreground/50 focus:border-ring"
+                  className="h-12 rounded-2xl border-transparent bg-secondary/70 px-4 text-[14px] placeholder:text-muted-foreground/50 focus-visible:ring-1 focus-visible:ring-border-strong"
                   required
                 />
               </div>
@@ -211,7 +207,7 @@ export default function SignupPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="At least 6 characters"
-                  className="h-11 rounded-xl border-border/60 bg-background text-[14px] placeholder:text-muted-foreground/50 focus:border-ring"
+                  className="h-12 rounded-2xl border-transparent bg-secondary/70 px-4 text-[14px] placeholder:text-muted-foreground/50 focus-visible:ring-1 focus-visible:ring-border-strong"
                   required
                 />
               </div>
@@ -226,7 +222,7 @@ export default function SignupPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Repeat your password"
-                  className="h-11 rounded-xl border-border/60 bg-background text-[14px] placeholder:text-muted-foreground/50 focus:border-ring"
+                  className="h-12 rounded-2xl border-transparent bg-secondary/70 px-4 text-[14px] placeholder:text-muted-foreground/50 focus-visible:ring-1 focus-visible:ring-border-strong"
                   required
                 />
               </div>
@@ -234,7 +230,7 @@ export default function SignupPage() {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="h-11 w-full rounded-xl bg-primary text-[14px] font-semibold text-primary-foreground hover:bg-primary/90"
+                className="h-12 w-full rounded-2xl bg-primary text-[14px] font-semibold text-primary-foreground hover:bg-primary/90"
               >
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create account"}
               </Button>
@@ -266,90 +262,71 @@ export default function SignupPage() {
         </p>
       </div>
 
-      {/* ── Illustration column ── */}
-      <div className="hidden bg-sidebar/70 p-5 md:flex md:items-stretch md:p-6 lg:p-8">
-        <div className="relative flex w-full overflow-hidden rounded-[2rem] border border-border/60 bg-primary text-primary-foreground">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_18%,var(--accent)_0,transparent_22%),radial-gradient(circle_at_76%_74%,oklch(0.35_0.02_60)_0,transparent_34%)] opacity-40" />
-          <div className="absolute inset-x-10 top-10 h-px bg-primary-foreground/10" />
-          <div className="relative flex w-full flex-col justify-between p-8 xl:p-12">
+      {/* ── Right content ── */}
+      <div className="hidden md:flex md:items-stretch">
+        <div className="relative flex w-full overflow-hidden rounded-[2rem] text-primary-foreground">
+          <MeshGradient
+            className="absolute inset-0 h-full w-full"
+            colors={["#A34300", "#dbba95", "#d0bce1"]}
+            distortion={0.32}
+            fit="cover"
+            grainMixer={0.08}
+            grainOverlay={0.04}
+            maxPixelCount={1200000}
+            rotation={28}
+            scale={1.18}
+            speed={0.12}
+            swirl={0.16}
+          />
+
+          <div className="relative flex w-full flex-col justify-between p-8 lg:p-10">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-primary-foreground/40">
+              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-primary-foreground/50">
                 From first prompt
               </p>
-              <h2 className="mt-3 max-w-xs text-[2rem] font-semibold leading-[0.98] tracking-[-0.05em] xl:max-w-sm xl:text-[2.4rem]">
-                Shape a real product before you write code.
+              <h2 className="mt-6 max-w-xl text-5xl font-medium leading-[0.98] tracking-[-0.07em] lg:text-6xl">
+                Start with a sentence. Let the interface take shape.
               </h2>
+              <p className="mt-6 max-w-md text-sm leading-7 text-primary-foreground/62">
+                The first screen should feel designed, not assembled from generic cards.
+              </p>
             </div>
 
             <motion.div
-              initial={{ opacity: 0, y: 22 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.55, delay: 0.15 }}
-              className="w-full"
+              transition={{ duration: 0.55, delay: 0.12, ease: "easeOut" }}
+              className="ml-auto max-w-xl rounded-[1.75rem] bg-background/15 p-3 shadow-[0_30px_120px_-70px_var(--accent)] backdrop-blur-xl"
             >
-              <div className="relative rounded-[1.5rem] border border-primary-foreground/10 bg-card p-4 text-foreground shadow-[0_34px_90px_-46px_var(--accent)]">
-                <div className="flex items-center justify-between border-b border-border pb-3">
-                  <div className="flex items-center gap-1.5">
-                    <span className="h-2.5 w-2.5 rounded-full bg-accent" />
-                    <span className="h-2.5 w-2.5 rounded-full bg-border" />
-                    <span className="h-2.5 w-2.5 rounded-full bg-border" />
-                  </div>
-                  <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-accent-soft-foreground">
-                    Building
+              <div className="rounded-[1.35rem] border border-primary-foreground/15 bg-primary-foreground/10 p-4 backdrop-blur-xl">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-primary-foreground/50">
+                    First build
+                  </span>
+                  <span className="rounded-full bg-primary-foreground/12 px-3 py-1 text-xs text-primary-foreground/70">
+                    Guided setup
                   </span>
                 </div>
 
-                <div className="grid gap-3 pt-3">
-                  <div className="flex min-h-12 items-center gap-3 rounded-xl border border-border bg-primary px-3.5 text-primary-foreground">
-                    <span className="min-w-0 flex-1 truncate text-[12.5px] text-primary-foreground/65">
-                      Build a polished site for my AI design studio
+                <p className="mt-8 max-w-md text-2xl font-medium leading-[1.08] tracking-[-0.045em] text-primary-foreground">
+                  “Build a premium launch page for an AI design studio.”
+                </p>
+
+                <div className="mt-8 flex flex-wrap gap-2">
+                  {["Clarify", "Generate", "Preview", "Refine"].map((item) => (
+                    <span
+                      key={item}
+                      className="rounded-full bg-primary-foreground/12 px-3 py-1.5 text-xs text-primary-foreground/70"
+                    >
+                      {item}
                     </span>
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground">
-                      <ArrowUp className="h-3.5 w-3.5" />
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-[0.9fr_1.1fr] gap-3">
-                    <div className="space-y-2 rounded-xl border border-border bg-background p-3">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                        Plan
-                      </p>
-                      {["Audience", "Pages", "Style"].map((item) => (
-                        <div key={item} className="flex items-center justify-between rounded-lg bg-card px-2.5 py-1.5">
-                          <span className="text-[11.5px] font-medium text-foreground">{item}</span>
-                          <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="rounded-xl bg-background p-3">
-                      <div className="h-20 rounded-xl bg-muted/60" />
-                      <div className="mt-3 h-4 w-3/4 rounded-full bg-primary" />
-                      <div className="mt-2 h-2.5 w-full rounded-full bg-muted" />
-                      <div className="mt-1.5 h-2.5 w-2/3 rounded-full bg-muted" />
-                      <div className="mt-4 grid grid-cols-3 gap-1.5">
-                        <div className="h-10 rounded-lg bg-card" />
-                        <div className="h-10 rounded-lg bg-card" />
-                        <div className="h-10 rounded-lg bg-card" />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2.5">
-                    {["Prompt", "Preview", "Deploy"].map((item) => (
-                      <div key={item} className="rounded-xl border border-border bg-card p-3">
-                        <div className="mb-2.5 h-1.5 w-6 rounded-full bg-accent" />
-                        <p className="text-[11.5px] font-semibold text-foreground">{item}</p>
-                        <p className="mt-0.5 text-[10.5px] text-muted-foreground">Included</p>
-                      </div>
-                    ))}
-                  </div>
+                  ))}
                 </div>
               </div>
             </motion.div>
 
-            <p className="max-w-xs text-[12.5px] leading-relaxed text-primary-foreground/50 xl:max-w-sm">
-              Lotus turns loose ideas into a calm build flow: clarify, generate, preview, refine, and launch.
+            <p className="max-w-sm text-xs leading-6 text-primary-foreground/55">
+              A build surface for founders who want taste and speed in the same place.
             </p>
           </div>
         </div>
