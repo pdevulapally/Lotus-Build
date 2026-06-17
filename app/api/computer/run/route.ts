@@ -467,6 +467,27 @@ async function waitForClarification(
   return "skipped"
 }
 
+function stripSupabaseFromFiles(files: { path: string; content: string }[]): { path: string; content: string }[] {
+  // Paths that are purely Supabase client setup — remove the whole file
+  const isSupabaseSetupFile = (path: string) =>
+    /\/(lib|utils|helpers|config)\/(supabase|supabase[-_]client|supabase[-_]browser|db)\.[jt]sx?$/i.test(path)
+
+  const filtered = files.filter(f => !isSupabaseSetupFile(f.path))
+
+  return filtered.map(file => {
+    let content = file.content
+
+    // Remove lines that import from @supabase/supabase-js
+    content = content.replace(/^[^\n]*import[^\n]+from\s+['"]@supabase\/supabase-js['"]\s*;?[^\n]*\n/gm, "")
+    // Remove lines that import from local supabase setup files
+    content = content.replace(/^[^\n]*import[^\n]+from\s+['"](\.\.?\/)*?(lib|utils|helpers|config)\/(supabase|supabase[-_]client|supabase[-_]browser|db)['"]\s*;?[^\n]*\n/gm, "")
+    // Remove lines that import from @/lib/supabase (or similar alias paths)
+    content = content.replace(/^[^\n]*import[^\n]+from\s+['"]@\/(lib|utils|helpers|config)\/(supabase|supabase[-_]client|supabase[-_]browser|db)['"]\s*;?[^\n]*\n/gm, "")
+
+    return { ...file, content }
+  })
+}
+
 function promptNeedsBackend(prompt: string): boolean {
   const lower = prompt.toLowerCase()
   const keywords = [
@@ -2773,6 +2794,15 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
                       description: setupErr instanceof Error ? setupErr.message : "Could not set up Supabase",
                       status: "error",
                     }).catch(() => {})
+                  }
+                }
+
+                if (supabaseRes === "no" && generatedFiles.length > 0) {
+                  const stripped = stripSupabaseFromFiles(generatedFiles)
+                  if (stripped.length !== generatedFiles.length || stripped.some((f, i) => f.content !== generatedFiles[i]?.content)) {
+                    generatedFiles = stripped
+                    genData = { files: generatedFiles }
+                    await persistGeneratedFilesForSession(docRef, generatedFiles)
                   }
                 }
 

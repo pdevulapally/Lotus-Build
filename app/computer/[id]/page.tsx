@@ -1456,8 +1456,19 @@ export default function ComputerPage() {
 
   const handleSupabaseNo = useCallback(async () => {
     if (!session?.id) return
-    await updateDoc(doc(db, "computerSessions", session.id), { supabaseAnswer: "no" }).catch(() => {})
-  }, [session?.id])
+    try {
+      const auth = await getOptionalAuthHeader()
+      const res = await fetch("/api/computer/supabase-decline", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...auth },
+        body: JSON.stringify({ sessionId: session.id }),
+      })
+      if (!res.ok) throw new Error("decline endpoint failed")
+    } catch {
+      // fallback: direct client write if the endpoint is unavailable
+      await updateDoc(doc(db, "computerSessions", session.id), { supabaseAnswer: "no" }).catch(() => {})
+    }
+  }, [session?.id, getOptionalAuthHeader])
 
   const handleEnvAdd = useCallback((key: string, value: string) => {
     const name = key.trim()
