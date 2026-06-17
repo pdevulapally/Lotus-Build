@@ -2,6 +2,7 @@ import OpenAI from "openai"
 import { NextResponse } from "next/server"
 import { adminDb } from "@/lib/firebase-admin"
 import { assertProjectCanEdit } from "@/lib/project-access"
+import { createProjectVersion } from "@/lib/project-versions/service"
 import { requireUserUid } from "@/lib/server-auth"
 
 export const runtime = "nodejs"
@@ -297,6 +298,17 @@ export async function POST(req: Request) {
           },
           { merge: true }
         )
+
+        try {
+          await createProjectVersion({
+            projectId,
+            label: "After: automatic fix",
+            files: result.files,
+            source: "fix",
+          })
+        } catch (versionErr) {
+          console.error("Failed to create fix version snapshot:", versionErr)
+        }
       }
 
       if (!projectId) {

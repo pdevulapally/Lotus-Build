@@ -88,6 +88,7 @@ const GENERATION_MAX_OUTPUT_TOKENS = (() => {
 })()
 const MAX_CONTINUATION_ROUNDS = 2
 const MAX_PROMPT_CHARS = 12000
+const MAX_FOLLOWUP_FILE_CONTEXT_CHARS = 200000
 const STRICT_FILE_FORMAT_RETRY_PROMPT = `Your previous response did not follow the required file format.
 
 You MUST output ONLY file blocks using:
@@ -306,6 +307,24 @@ function selectRelevantFiles(existingFiles: ProjectFileInput[], prompt: string) 
   )
 
   return dedupeFilesByPath(dependencyExpanded).slice(0, FILE_SELECTION_LIMIT * 2)
+}
+
+function selectFollowUpFiles(existingFiles: ProjectFileInput[], prompt: string): ProjectFileInput[] {
+  const dedupedFiles = dedupeFilesByPath(existingFiles)
+  const coreFiles = dedupedFiles.filter((f) => isCoreContextFile(f.path))
+  const otherFiles = dedupedFiles.filter((f) => !isCoreContextFile(f.path))
+  // Core files always lead. Non-core files ordered by ascending content size so the maximum
+  // number of distinct files fits within the budget — the model reasons over scope, not the scorer.
+  const ordered = [...coreFiles, ...otherFiles.sort((a, b) => a.content.length - b.content.length)]
+  let used = prompt.length
+  const result: ProjectFileInput[] = []
+  for (const file of ordered) {
+    const size = file.path.length + file.content.length + 50
+    if (used + size > MAX_FOLLOWUP_FILE_CONTEXT_CHARS) break
+    result.push(file)
+    used += size
+  }
+  return result
 }
 
 function isOpenSourceNvidiaModel(modelId: string): boolean {
@@ -1151,11 +1170,7 @@ export async function POST(req: Request) {
   const requestedModel = typeof model === "string" && model.trim() ? model : DEFAULT_MODEL
   const { client, selectedModel, provider } = await resolveModel(requestedModel)
   const isFollowUp = Array.isArray(safeExistingFiles) && safeExistingFiles.length > 0
-  let promptFiles = isFollowUp ? selectRelevantFiles(safeExistingFiles || [], prompt) : []
-
-  if (isFollowUp) {
-    promptFiles = trimPromptFilesToBudget(prompt, promptFiles)
-  }
+  const promptFiles = isFollowUp ? selectFollowUpFiles(safeExistingFiles || [], prompt) : []
 
   const systemPromptFollowUp = `You are an expert React developer. The user is asking for CHANGES or ADDITIONS to an existing project. You will receive the current project files.
 

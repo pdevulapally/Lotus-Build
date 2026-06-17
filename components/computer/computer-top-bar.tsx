@@ -13,8 +13,10 @@ import {
   ExternalLink,
   Github,
   Globe2,
+  History,
   KeyRound,
   LayoutPanelLeft,
+  PanelLeft,
   Lock,
   LogOut,
   Monitor,
@@ -34,6 +36,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/contexts/auth-context"
 import { CreateWorkspaceModal } from "@/components/workspaces/create-workspace-modal"
+import { cn } from "@/lib/utils"
 import type { ComputerSessionResponse } from "@/components/computer/session-types"
 
 export type ComputerProjectIntegration = {
@@ -80,6 +83,9 @@ export function ComputerTopBar({
   onTitleError,
   onOpenIntegrations,
   onOpenDeploy,
+  onOpenHistory,
+  chatPanelCollapsed = false,
+  onToggleChatPanel,
 }: {
   session: ComputerSessionResponse
   sessionTitle: string
@@ -100,6 +106,9 @@ export function ComputerTopBar({
   onTitleError: (message: string | null) => void
   onOpenIntegrations: () => void
   onOpenDeploy: () => void
+  onOpenHistory?: () => void
+  chatPanelCollapsed?: boolean
+  onToggleChatPanel?: () => void
 }) {
   const router = useRouter()
   const { user, userData, workspaces, currentWorkspace, switchWorkspace, signOut } = useAuth()
@@ -120,10 +129,17 @@ export function ComputerTopBar({
   return (
     <>
       <header className="relative z-30 shrink-0 border-b border-border/60 bg-sidebar/90 backdrop-blur-sm">
-        <div className="grid h-12 w-full grid-cols-[1fr_auto_1fr] items-center px-3 sm:px-4">
+        <div className="flex h-12 w-full items-center px-3 sm:px-4">
 
-          {/* ── Left: back + logo ── */}
-          <div className="flex items-center gap-2">
+          {/* ── Left: back + logo + chat panel toggle ── */}
+          <div
+            className={cn(
+              "flex min-w-0 items-center gap-2 sm:shrink-0 sm:pr-2",
+              chatPanelCollapsed
+                ? "sm:border-r-0"
+                : "sm:w-[38%] sm:border-r sm:border-border/60 md:w-[37%] lg:w-[380px] xl:w-[420px] 2xl:w-[460px]",
+            )}
+          >
             <Link
               href="/"
               aria-label="Back"
@@ -138,10 +154,23 @@ export function ComputerTopBar({
               height={28}
               className="shrink-0 object-contain"
             />
+            {onToggleChatPanel ? (
+              <button
+                type="button"
+                onClick={onToggleChatPanel}
+                aria-label={chatPanelCollapsed ? "Show chat panel" : "Collapse chat panel"}
+                className={cn(
+                  "hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:inline-flex",
+                  chatPanelCollapsed ? "" : "ml-auto",
+                )}
+              >
+                <PanelLeft className="h-4 w-4" />
+              </button>
+            ) : null}
           </div>
 
           {/* ── Centre: session title dropdown ── */}
-          <div className="flex items-center justify-center">
+          <div className="flex min-w-0 flex-1 items-center justify-center px-2">
             {isEditingTitle ? (
               <div className="flex items-center gap-2">
                 <input
@@ -308,6 +337,12 @@ export function ComputerTopBar({
                       <ItemIcon><Rocket className="h-3.5 w-3.5" /></ItemIcon>
                       Deploy
                     </DropdownMenuItem>
+                    {onOpenHistory ? (
+                      <DropdownMenuItem className="h-9 rounded-xl px-2.5 text-[13px] gap-2.5 focus:bg-muted/60" onSelect={onOpenHistory} disabled={!session.projectId}>
+                        <ItemIcon><History className="h-3.5 w-3.5" /></ItemIcon>
+                        Version history
+                      </DropdownMenuItem>
+                    ) : null}
                   </div>
 
                   <DropdownMenuSeparator className="mx-2 bg-border/50" />
@@ -390,7 +425,7 @@ export function ComputerTopBar({
           </div>
 
           {/* ── Right: connect + deploy ── */}
-          <div className="flex items-center justify-end gap-1.5">
+          <div className="flex shrink-0 items-center justify-end gap-1.5">
             <button
               type="button"
               onClick={onOpenIntegrations}
@@ -399,6 +434,15 @@ export function ComputerTopBar({
             >
               <KeyRound className="h-3 w-3" />
               Connect
+            </button>
+            <button
+              type="button"
+              onClick={onOpenHistory}
+              disabled={!session.projectId || !onOpenHistory}
+              className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-border/60 bg-background px-2.5 text-[12px] font-semibold text-foreground/70 transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40 sm:px-3"
+            >
+              <History className="h-3 w-3" />
+              <span className="hidden sm:inline">History</span>
             </button>
             <button
               type="button"

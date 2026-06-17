@@ -101,6 +101,8 @@ export interface Project {
   planningStatus?: PlanningStatus
   creationMode?: ProjectCreationMode
   platform?: ProjectPlatform
+  currentVersionId?: string
+  versionCount?: number
 }
 
 export interface FileNode {

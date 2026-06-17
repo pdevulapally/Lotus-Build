@@ -42,6 +42,8 @@ import {
   normalizeComputerAgentRuntime,
   resolveComputerFollowUpIntent,
 } from "@/lib/computer-agent/runtime"
+import { createRunVersion } from "@/lib/project-versions/service"
+import { runAgenticGeneration } from "@/lib/computer-agent/agentic-generation"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -2507,49 +2509,39 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
       })
 
       try {
-        const controller = new AbortController()
-        const timeout = setTimeout(() => controller.abort(), 300000)
-        let genRes: Response
-
-        try {
-          genRes = await fetch(`${baseUrl}/api/generate`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: authHeader,
-            },
-            body: JSON.stringify({
-              prompt: generationPrompt,
-              model: builderModel,
-              projectId: data.projectId,
-              existingFiles: projectFiles,
-              intent: webPlan.intent,
-              skipDesignBrief: Boolean(planText.trim()),
-            }),
-            signal: controller.signal,
-          })
-        } finally {
-          clearTimeout(timeout)
-        }
-
         let lastEventId: string | null = null
 
-        const { files: generatedPatchFiles, suggestsBackend: genSuggestsBackend } = await parseGenerateResponse(genRes, async (path) => {
-          const newEventId = crypto.randomUUID()
-          lastEventId = newEventId
-
-          await appendRunEvent({
-            id: newEventId,
-            title: `Generating ${path}`,
-            description: undefined,
-            status: "running",
-            kind: "code",
-            createdAt: new Date().toISOString(),
-            metadata: {
-              filePath: path,
-              editVariant: projectFiles.length > 0 ? "edit" : "write",
-            },
-          })
+        const { files: generatedPatchFiles, suggestsBackend: genSuggestsBackend } = await runAgenticGeneration({
+          prompt: generationPrompt,
+          existingFiles: projectFiles,
+          platform: projectPlatform,
+          isEdit: projectFiles.length > 0,
+          onFileWritten: async (file) => {
+            const newEventId = crypto.randomUUID()
+            lastEventId = newEventId
+            await appendRunEvent({
+              id: newEventId,
+              title: `Generating ${file.path}`,
+              description: undefined,
+              status: "running",
+              kind: "code",
+              createdAt: new Date().toISOString(),
+              metadata: {
+                filePath: file.path,
+                editVariant: projectFiles.length > 0 ? "edit" : "write",
+              },
+            })
+          },
+          onToolCall: async (title) => {
+            await appendRunEvent({
+              id: crypto.randomUUID(),
+              title,
+              description: undefined,
+              status: "complete",
+              kind: "code",
+              createdAt: new Date().toISOString(),
+            })
+          },
         })
         generatedFiles = generatedPatchFiles
 
@@ -2636,7 +2628,7 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
           console.error("Failed to cleanup file events:", e)
         }
 
-        if (!genRes.ok || generatedFiles.length === 0) {
+        if (generatedFiles.length === 0) {
           generationFailed = true
         } else {
           // Build a comma-separated list of file paths for the UI to display
@@ -3362,6 +3354,36 @@ Format:
 
     if (!(await isActiveRun(docRef, runId))) {
       return NextResponse.json({ ok: false, message: "Run no longer active" })
+    }
+
+    try {
+      const finalSnap = await docRef.get()
+      const finalData = finalSnap.data() || {}
+      const projectId = typeof finalData.projectId === "string"
+        ? finalData.projectId
+        : data.projectId
+
+      if (projectId && generatedFiles.length > 0) {
+        const finalTimeline = Array.isArray(finalData.timeline)
+          ? (finalData.timeline as ComputerTimelineEvent[])
+          : sessionTimeline
+        const finalTurns = sanitizeConversationTurns(finalData.conversationTurns)
+        const visible = finalTimeline.filter((event) => event.title !== "Session created")
+        const firstRunId = visible.find((event) => event.runId)?.runId ?? null
+
+        await createRunVersion({
+          projectId,
+          sessionId: parsed.data.sessionId,
+          runId,
+          files: generatedFiles,
+          conversationTurns: finalTurns,
+          timeline: finalTimeline,
+          firstRunId,
+          source: "run",
+        })
+      }
+    } catch (versionErr) {
+      console.error("Failed to create project version snapshot:", versionErr)
     }
 
     await docRef.update({

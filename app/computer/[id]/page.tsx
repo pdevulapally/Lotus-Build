@@ -6,9 +6,13 @@ import { useParams } from "next/navigation"
 import { doc, onSnapshot, updateDoc } from "firebase/firestore"
 import { AnimatePresence, motion } from "framer-motion"
 import {
+  AlertTriangle,
+  CheckCircle2,
   ChevronDown,
+  ChevronRight,
   Database,
   ExternalLink,
+  Globe,
   Github,
   KeyRound,
   Loader2,
@@ -24,6 +28,7 @@ import { db } from "@/lib/firebase"
 import { DeployTerminal } from "@/components/project/deploy-terminal"
 import { AgentFeed } from "@/components/computer/agent-feed"
 import { ComputerTopBar } from "@/components/computer/computer-top-bar"
+import { VersionHistoryPanel } from "@/components/computer/version-history-panel"
 import { deriveComputerSessionProgress } from "@/components/computer/session-progress-model"
 import {
   ErrorState,
@@ -306,78 +311,141 @@ function DeployButton({
 
       {open && (
         <div className={cn(
-          "z-30 hidden w-[480px] max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-card p-3 shadow-[0_24px_70px_-32px_var(--primary)] sm:block",
+          "z-30 hidden w-[460px] max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-card p-4 shadow-[0_24px_70px_-32px_var(--primary)] sm:block",
           headless ? "fixed right-6 top-16" : "absolute right-0 top-11",
         )}>
-          <div className="px-1 pb-2">
-            <p className="text-[12px] font-semibold text-foreground">Publish this project</p>
-            <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
-              Deploy directly from this generated project.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {(["netlify", "vercel"] as DeployProvider[]).map((provider) => (
-              <button
-                key={provider}
-                type="button"
-                onClick={() => onDeploy(provider)}
-                disabled={state.busy}
-                className="rounded-xl border border-border bg-background px-3 py-2.5 text-left text-[12px] font-semibold text-foreground transition-colors hover:border-border-strong hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {getDeployProviderLabel(provider)}
-              </button>
-            ))}
-          </div>
-          {hasStoredDeployments && (
-            <div className="mt-2 space-y-1.5">
-              {(["netlify", "vercel"] as DeployProvider[]).map((provider) => {
-                const link = deploymentLinks?.[provider]
-                if (!link?.siteUrl) return null
-                return (
-                  <a
-                    key={provider}
-                    href={link.siteUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center justify-between gap-2 rounded-xl border border-border bg-background px-3 py-2 text-[11px] font-semibold text-foreground transition-colors hover:border-border-strong hover:bg-muted"
-                  >
-                    <span className="truncate">{getDeployProviderLabel(provider)} live site</span>
-                    <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
-                  </a>
-                )
-              })}
-            </div>
-          )}
 
-          {(state.step || state.error || visibleStateSiteUrl) && (
-            <div className="mt-2 rounded-xl border border-border bg-secondary p-2.5">
-              <div className="flex items-center gap-1.5">
-                {state.busy && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
-                <p className="min-w-0 truncate text-[11px] font-medium text-muted-foreground">
-                  {state.provider ? getDeployProviderLabel(state.provider) : "Deploy"}
-                  {state.step ? ` - ${state.step}` : ""}
-                </p>
+          {/* ── Success state ─────────────────────────────────────── */}
+          {!state.busy && visibleStateSiteUrl && !state.error && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
+                <p className="text-[13px] font-semibold text-foreground">Your website is live!</p>
               </div>
-              {state.error && (
-                <p className="mt-1.5 text-[11px] leading-relaxed text-destructive">{state.error}</p>
-              )}
-                <DeployTerminal 
-                  logs={state.logs}
-                  currentStep={state.step}
-                  className="mt-1.5"
-                />
-              {visibleStateSiteUrl && (
-                <a
-                  href={visibleStateSiteUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-2.5 inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-success py-2 text-[11px] font-bold text-success-foreground transition-all hover:bg-success/90 active:scale-[0.98]"
-                >
-                  <span>Open live site</span>
+              <a
+                href={visibleStateSiteUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-success py-3 text-[13px] font-bold text-success-foreground transition-all hover:bg-success/90 active:scale-[0.98]"
+              >
+                <Globe className="h-4 w-4" />
+                <span>Visit your website</span>
+                <ExternalLink className="h-3.5 w-3.5 opacity-70" />
+              </a>
+              {state.adminUrl && (
+                <a href={state.adminUrl} target="_blank" rel="noreferrer"
+                  className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground">
+                  <span>View on {state.provider ? getDeployProviderLabel(state.provider) : "dashboard"}</span>
                   <ExternalLink className="h-3 w-3" />
                 </a>
               )}
+              <DeployTerminal logs={state.logs} currentStep={state.step} />
+              <div className="border-t border-border pt-3">
+                <p className="mb-2 text-[11px] font-medium text-muted-foreground">Also publish to another platform</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {(["netlify", "vercel"] as DeployProvider[]).map((provider) => (
+                    <button key={provider} type="button" onClick={() => onDeploy(provider)}
+                      disabled={state.busy}
+                      className="rounded-xl border border-border bg-background px-3 py-2 text-left text-[11px] font-semibold text-muted-foreground transition-colors hover:border-border-strong hover:bg-muted hover:text-foreground disabled:opacity-40">
+                      {getDeployProviderLabel(provider)}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
+          )}
+
+          {/* ── Deploying state ───────────────────────────────────── */}
+          {state.busy && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2.5">
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold text-foreground">
+                    Publishing to {state.provider ? getDeployProviderLabel(state.provider) : "your host"}…
+                  </p>
+                  {state.step && (
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">{state.step}</p>
+                  )}
+                </div>
+              </div>
+              <DeployTerminal logs={state.logs} currentStep={state.step} />
+            </div>
+          )}
+
+          {/* ── Error state ───────────────────────────────────────── */}
+          {!state.busy && state.error && (
+            <div className="space-y-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold text-foreground">Couldn't publish your website</p>
+                  <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{state.error}</p>
+                </div>
+              </div>
+              <DeployTerminal logs={state.logs} currentStep={state.step} />
+            </div>
+          )}
+
+          {/* ── Provider selection (default) ──────────────────────── */}
+          {!state.busy && !state.step && !state.error && (
+            <div className="space-y-3">
+              <div>
+                <p className="text-[13px] font-semibold text-foreground">Get your website online</p>
+                <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+                  Pick a platform and your site goes live in seconds — no technical setup needed.
+                </p>
+              </div>
+
+              {hasStoredDeployments && (
+                <div className="space-y-1.5">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Your live sites</p>
+                  {(["netlify", "vercel"] as DeployProvider[]).map((provider) => {
+                    const link = deploymentLinks?.[provider]
+                    if (!link?.siteUrl) return null
+                    return (
+                      <a key={provider} href={link.siteUrl} target="_blank" rel="noreferrer"
+                        className="flex items-center justify-between gap-2 rounded-xl border border-success/30 bg-success/5 px-3 py-2.5 text-[11px] font-semibold text-foreground transition-colors hover:bg-success/10">
+                        <div className="flex items-center gap-2">
+                          <Globe className="h-3 w-3 text-success" />
+                          <span>{getDeployProviderLabel(provider)} site</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-success">
+                          <span className="text-[10px] font-medium">Live</span>
+                          <ExternalLink className="h-3 w-3" />
+                        </div>
+                      </a>
+                    )
+                  })}
+                  <p className="pt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Publish to a new platform</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => onDeploy("netlify")} disabled={state.busy}
+                  className="group relative rounded-xl border border-border bg-background px-3 py-3 text-left transition-all hover:border-primary/30 hover:bg-muted disabled:opacity-40">
+                  <div className="flex items-start justify-between gap-1">
+                    <p className="text-[12px] font-semibold text-foreground">Netlify</p>
+                    <span className="rounded-full bg-success/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-success">Free</span>
+                  </div>
+                  <p className="mt-1 text-[11px] leading-snug text-muted-foreground">No credit card needed. Best for most websites.</p>
+                </button>
+                <button type="button" onClick={() => onDeploy("vercel")} disabled={state.busy}
+                  className="rounded-xl border border-border bg-background px-3 py-3 text-left transition-all hover:border-primary/30 hover:bg-muted disabled:opacity-40">
+                  <p className="text-[12px] font-semibold text-foreground">Vercel</p>
+                  <p className="mt-1 text-[11px] leading-snug text-muted-foreground">Fast and reliable. Great for React & Next.js apps.</p>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Retry button (error state) ────────────────────────── */}
+          {!state.busy && state.error && state.provider && (
+            <button type="button" onClick={() => onDeploy(state.provider!)}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background py-2.5 text-[12px] font-semibold text-foreground transition-colors hover:bg-muted">
+              <Rocket className="h-3.5 w-3.5" />
+              Try again
+            </button>
           )}
         </div>
       )}
@@ -587,47 +655,123 @@ function MobileDeploySheet({
 }) {
   if (!open) return null
   const visibleStateSiteUrl = state.siteUrl || (state.provider ? deploymentLinks?.[state.provider]?.siteUrl ?? null : null)
+  const hasStoredDeployments = Boolean(deploymentLinks?.netlify?.siteUrl || deploymentLinks?.vercel?.siteUrl)
+
   return (
-    <div className="fixed inset-x-3 bottom-[5.6rem] z-50 max-h-[min(72dvh,32rem)] overflow-y-auto rounded-[1.45rem] border border-border bg-card p-3 shadow-[0_24px_80px_-32px_var(--primary)] [scrollbar-width:thin] sm:hidden">
-      <div className="mb-3 flex items-start justify-between gap-3 px-1">
+    <div className="fixed inset-x-3 bottom-[5.6rem] z-50 max-h-[min(72dvh,36rem)] overflow-y-auto rounded-[1.45rem] border border-border bg-card p-4 shadow-[0_24px_80px_-32px_var(--primary)] [scrollbar-width:thin] sm:hidden">
+      {/* Header */}
+      <div className="mb-4 flex items-start justify-between gap-3">
         <div>
-          <p className="text-[13px] font-semibold text-foreground">Deploy website</p>
-          <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">Publish this generated project.</p>
+          <p className="text-[14px] font-semibold text-foreground">Get your website online</p>
+          <p className="mt-0.5 text-[12px] leading-relaxed text-muted-foreground">Your site goes live in seconds.</p>
         </div>
-        <button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+        <button type="button" onClick={onClose}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
           <span className="text-base leading-none">×</span>
         </button>
       </div>
-      <div className="space-y-2">
-        {(["netlify", "vercel"] as DeployProvider[]).map((provider) => (
-          <button
-            key={provider}
-            type="button"
-            onClick={() => onDeploy(provider)}
-            disabled={state.busy}
-            className="flex w-full items-center justify-between rounded-2xl border border-border bg-background px-3.5 py-3 text-left text-[13px] font-semibold text-foreground transition-colors hover:border-border-strong hover:bg-muted disabled:opacity-60"
-          >
-            <span>{getDeployProviderLabel(provider)}</span>
-            <Rocket className="h-4 w-4 text-muted-foreground" />
-          </button>
-        ))}
-      </div>
-      {visibleStateSiteUrl && (
-        <a href={visibleStateSiteUrl} target="_blank" rel="noreferrer"
-          className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-2xl bg-success py-3 text-[12px] font-bold text-success-foreground transition-colors hover:bg-success/90">
-          Open live site
-          <ExternalLink className="h-3.5 w-3.5" />
-        </a>
-      )}
-      {(state.step || state.error) && (
-        <div className="mt-3 rounded-2xl border border-border bg-secondary p-3">
-          <div className="flex items-center gap-1.5">
-            {state.busy && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
-            <p className="min-w-0 truncate text-[12px] font-medium text-muted-foreground">
-              {state.provider ? getDeployProviderLabel(state.provider) : "Deploy"}{state.step ? ` - ${state.step}` : ""}
-            </p>
+
+      {/* Success state */}
+      {!state.busy && visibleStateSiteUrl && !state.error && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-success" />
+            <p className="text-[13px] font-semibold text-foreground">Your website is live!</p>
           </div>
-          {state.error && <p className="mt-2 text-[11px] leading-relaxed text-destructive">{state.error}</p>}
+          <a href={visibleStateSiteUrl} target="_blank" rel="noreferrer"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-success py-3.5 text-[13px] font-bold text-success-foreground transition-colors hover:bg-success/90">
+            <Globe className="h-4 w-4" />
+            Visit your website
+            <ExternalLink className="h-3.5 w-3.5 opacity-70" />
+          </a>
+          <DeployTerminal logs={state.logs} currentStep={state.step} />
+        </div>
+      )}
+
+      {/* Deploying state */}
+      {state.busy && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <Loader2 className="h-5 w-5 shrink-0 animate-spin text-primary" />
+            <div>
+              <p className="text-[13px] font-semibold text-foreground">
+                Publishing to {state.provider ? getDeployProviderLabel(state.provider) : "your host"}…
+              </p>
+              {state.step && <p className="mt-0.5 text-[12px] text-muted-foreground">{state.step}</p>}
+            </div>
+          </div>
+          <DeployTerminal logs={state.logs} currentStep={state.step} />
+        </div>
+      )}
+
+      {/* Error state */}
+      {!state.busy && state.error && (
+        <div className="space-y-3">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+            <div>
+              <p className="text-[13px] font-semibold text-foreground">Couldn't publish your website</p>
+              <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">{state.error}</p>
+            </div>
+          </div>
+          <DeployTerminal logs={state.logs} currentStep={state.step} />
+          {state.provider && (
+            <button type="button" onClick={() => onDeploy(state.provider!)}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-background py-3 text-[12px] font-semibold text-foreground transition-colors hover:bg-muted">
+              <Rocket className="h-4 w-4" />
+              Try again
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Provider selection (default) */}
+      {!state.busy && !state.step && !state.error && (
+        <div className="space-y-3">
+          {hasStoredDeployments && (
+            <div className="space-y-2">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Your live sites</p>
+              {(["netlify", "vercel"] as DeployProvider[]).map((provider) => {
+                const link = deploymentLinks?.[provider]
+                if (!link?.siteUrl) return null
+                return (
+                  <a key={provider} href={link.siteUrl} target="_blank" rel="noreferrer"
+                    className="flex items-center justify-between gap-2 rounded-2xl border border-success/30 bg-success/5 px-4 py-3 text-[12px] font-semibold text-foreground transition-colors hover:bg-success/10">
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-3.5 w-3.5 text-success" />
+                      <span>{getDeployProviderLabel(provider)} site</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-success">
+                      <span className="text-[10px] font-medium">Live</span>
+                      <ExternalLink className="h-3 w-3" />
+                    </div>
+                  </a>
+                )
+              })}
+              <p className="pt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Deploy to a new platform</p>
+            </div>
+          )}
+          <div className="space-y-2">
+            <button type="button" onClick={() => onDeploy("netlify")} disabled={state.busy}
+              className="flex w-full items-center justify-between rounded-2xl border border-border bg-background px-4 py-3.5 text-left transition-all hover:border-primary/30 hover:bg-muted disabled:opacity-40">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[13px] font-semibold text-foreground">Netlify</span>
+                  <span className="rounded-full bg-success/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-success">Free</span>
+                </div>
+                <p className="mt-0.5 text-[12px] text-muted-foreground">No credit card. Best for most websites.</p>
+              </div>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+            </button>
+            <button type="button" onClick={() => onDeploy("vercel")} disabled={state.busy}
+              className="flex w-full items-center justify-between rounded-2xl border border-border bg-background px-4 py-3.5 text-left transition-all hover:border-primary/30 hover:bg-muted disabled:opacity-40">
+              <div>
+                <p className="text-[13px] font-semibold text-foreground">Vercel</p>
+                <p className="mt-0.5 text-[12px] text-muted-foreground">Fast and reliable. Great for React apps.</p>
+              </div>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -711,6 +855,7 @@ export default function ComputerPage() {
   const [loading,           setLoading]           = useState(true)
   const [error,             setError]             = useState<string | null>(null)
   const [mobileView,        setMobileView]        = useState<MobileView>("feed")
+  const [desktopChatCollapsed, setDesktopChatCollapsed] = useState(false)
   const [localMessages,     setLocalMessages]     = useState<LocalMessage[]>([])
   const [isStartingRun,     setIsStartingRun]     = useState(false)
   const [runError,          setRunError]          = useState<string | null>(null)
@@ -719,6 +864,7 @@ export default function ComputerPage() {
   const [editingMsgIndex,   setEditingMsgIndex]   = useState<number | null>(null)
   const [editText,          setEditText]          = useState("")
   const [deployOpen,        setDeployOpen]        = useState(false)
+  const [historyOpen,       setHistoryOpen]       = useState(false)
   const [deployState,       setDeployState]       = useState<DeployState>(INITIAL_DEPLOY_STATE)
   const [integrationsOpen,  setIntegrationsOpen]  = useState(false)
   const [integrationBusy,   setIntegrationBusy]   = useState<IntegrationAction | null>(null)
@@ -1179,6 +1325,20 @@ export default function ComputerPage() {
     // Truncate local messages to the edit point.
     setLocalMessages((c) => index < 0 ? [] : [...c.slice(0, index), { role: "user", content: t }])
 
+    // Prune discarded runs from versions and restore files to the branch point.
+    if (runIdsToRemove.size > 0 && session.projectId) {
+      try {
+        const auth = await getOptionalAuthHeader()
+        await fetch(`/api/projects/${encodeURIComponent(session.projectId)}/versions/branch`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...auth },
+          body: JSON.stringify({ removeRunIds: Array.from(runIdsToRemove) }),
+        })
+      } catch {
+        // Best effort — timeline prune still proceeds.
+      }
+    }
+
     // Prune discarded runs from the Firestore timeline and reset status so the
     // new run can start even if the previous one ended in "complete" or "error".
     if (runIdsToRemove.size > 0) {
@@ -1215,6 +1375,35 @@ export default function ComputerPage() {
       setIsStartingRun(false)
     }
   }, [clearStoppedSession, editText, getOptionalAuthHeader, isBuildTokenBlocked, isStartingRun, localMessages, session, showTokenLimit])
+
+  const handleHistoryRestored = useCallback(async () => {
+    const projectId = session?.projectId
+    if (!projectId || !session) return
+
+    previewEnsureKeyRef.current = null
+    setPreviewEnsureError(null)
+    setPreviewRetryNonce((current) => current + 1)
+    setActiveTab("preview")
+    setMobileView("workspace")
+
+    try {
+      const auth = await getOptionalAuthHeader()
+      const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/ensure-preview`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...auth },
+        body: JSON.stringify({ force: true }),
+      })
+      const json = await res.json().catch(() => ({})) as { previewUrl?: string; error?: string }
+      if (!res.ok || !json.previewUrl) {
+        throw new Error(json.error || "Failed to refresh preview")
+      }
+      await updateDoc(doc(db, "computerSessions", session.id), {
+        previewUrl: String(json.previewUrl),
+      })
+    } catch (err) {
+      setPreviewEnsureError(err instanceof Error ? err.message : "Could not refresh preview after restore.")
+    }
+  }, [getOptionalAuthHeader, session])
 
   const startNetlifyConnection = useCallback(async () => {
     if (!session?.projectId) return
@@ -1632,14 +1821,23 @@ export default function ComputerPage() {
         onOpenIntegrations={() => {
           setIntegrationsOpen(true)
           setDeployOpen(false)
+          setHistoryOpen(false)
         }}
         onOpenDeploy={() => {
           setDeployOpen(true)
           setIntegrationsOpen(false)
+          setHistoryOpen(false)
         }}
+        onOpenHistory={() => {
+          setHistoryOpen(true)
+          setDeployOpen(false)
+          setIntegrationsOpen(false)
+        }}
+        chatPanelCollapsed={desktopChatCollapsed}
+        onToggleChatPanel={() => setDesktopChatCollapsed((collapsed) => !collapsed)}
       />
 
-      {(deployOpen || integrationsOpen) && (
+      {(deployOpen || integrationsOpen || historyOpen) && (
         <button
           type="button"
           aria-label="Close panel"
@@ -1647,6 +1845,7 @@ export default function ComputerPage() {
           onClick={() => {
             setDeployOpen(false)
             setIntegrationsOpen(false)
+            setHistoryOpen(false)
           }}
         />
       )}
@@ -1682,13 +1881,32 @@ export default function ComputerPage() {
         onDeploy={handleDeploy}
       />
 
+      <VersionHistoryPanel
+        projectId={session.projectId}
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        onRestored={handleHistoryRestored}
+        getAuthHeader={getOptionalAuthHeader}
+        variant="popover"
+      />
+      <VersionHistoryPanel
+        projectId={session.projectId}
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        onRestored={handleHistoryRestored}
+        getAuthHeader={getOptionalAuthHeader}
+        variant="sheet"
+      />
+
       {/* ── Body ── */}
       <div className="relative flex min-h-0 w-full flex-1 overflow-hidden">
 
         {/* ── Chat panel (left) ── */}
         <div className={cn(
-          "flex w-full shrink-0 flex-col overflow-hidden bg-sidebar sm:border-r sm:border-border/60",
-          "sm:w-[38%] md:w-[37%] lg:w-[380px] xl:w-[420px] 2xl:w-[460px]",
+          "flex w-full shrink-0 flex-col overflow-hidden bg-sidebar transition-[width] duration-200 ease-in-out sm:border-r sm:border-border/60",
+          desktopChatCollapsed
+            ? "sm:w-0 sm:overflow-hidden sm:border-r-0"
+            : "sm:w-[38%] md:w-[37%] lg:w-[380px] xl:w-[420px] 2xl:w-[460px]",
           mobileView !== "feed" && "hidden sm:flex"
         )}>
           {/* Feed scroll area */}
