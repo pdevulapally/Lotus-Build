@@ -11,7 +11,7 @@ type TerminalCtx = {
   isStreaming: boolean
   onClear?: () => void
   autoScroll: boolean
-  scrollRef: React.RefObject<HTMLDivElement>
+  scrollRef: React.RefObject<HTMLDivElement | null>
 }
 
 const Ctx = createContext<TerminalCtx | null>(null)

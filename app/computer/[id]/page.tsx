@@ -1405,6 +1405,53 @@ export default function ComputerPage() {
     }
   }, [getOptionalAuthHeader, session])
 
+  const handleRestoreCheckpoint = useCallback(async (targetRunId: string) => {
+    if (!session?.projectId || !session?.id) return
+    if (session.status === "running" || session.status === "planning") return
+
+    const { firstRunId, followUpRunIds } = getRunIdGroups(session.timeline)
+    const allRunIds = [firstRunId, ...followUpRunIds].filter((id): id is string => Boolean(id))
+    const targetIndex = allRunIds.indexOf(targetRunId)
+    if (targetIndex === -1) throw new Error("Checkpoint not found in timeline")
+
+    const runIdsToRemove = new Set(allRunIds.slice(targetIndex + 1))
+
+    const prunedTimeline = session.timeline.filter(
+      (e) => !e.runId || !runIdsToRemove.has(e.runId)
+    )
+    const prunedConversationTurns = (session.conversationTurns ?? []).filter(
+      (turn) => !turn.runId || !runIdsToRemove.has(turn.runId)
+    )
+
+    // Prune local messages immediately for instant UI feedback
+    setLocalMessages((msgs) => msgs.slice(0, targetIndex))
+
+    // Prune session state in Firestore
+    await updateDoc(doc(db, "computerSessions", session.id), {
+      timeline: prunedTimeline,
+      conversationTurns: prunedConversationTurns,
+      status: "idle",
+    })
+
+    // Restore project files via server (requires admin SDK)
+    const auth = await getOptionalAuthHeader()
+    const res = await fetch("/api/computer/restore-checkpoint", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...auth },
+      body: JSON.stringify({ sessionId: session.id, targetRunId }),
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({})) as { error?: string }
+      throw new Error(data.error || "Could not restore checkpoint")
+    }
+
+    // Refresh preview to reflect restored files
+    previewEnsureKeyRef.current = null
+    setPreviewRetryNonce((n) => n + 1)
+    setActiveTab("preview")
+    setMobileView("workspace")
+  }, [getOptionalAuthHeader, session, setLocalMessages, setActiveTab, setMobileView])
+
   const startNetlifyConnection = useCallback(async () => {
     if (!session?.projectId) return
     const auth = await getOptionalAuthHeader()
@@ -1923,6 +1970,7 @@ export default function ComputerPage() {
               onSupabaseDecline={handleSupabaseNo}
               onClarificationAnswer={handleClarificationAnswer}
               onApprovePlan={showPlanApproval ? handleApprovePlan : undefined}
+              onRestoreCheckpoint={handleRestoreCheckpoint}
             />
           </div>
 

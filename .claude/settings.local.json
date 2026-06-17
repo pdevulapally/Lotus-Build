@@ -37,7 +37,9 @@
       "Bash(powershell *)",
       "mcp__ide__getDiagnostics",
       "Bash(npx next *)",
-      "Bash(node -e \"require\\('./node_modules/next/dist/bin/next'\\)\" build)"
+      "Bash(node -e \"require\\('./node_modules/next/dist/bin/next'\\)\" build)",
+      "PowerShell(cd \"C:\\\\Users\\\\Preet\\\\Desktop\\\\Lotus-Build\"; npx tsc --noEmit 2>&1 | Where-Object { $_ -match \"agent-feed|restore-checkpoint|agentic-generation|terminal\" })",
+      "PowerShell(cd \"C:\\\\Users\\\\Preet\\\\Desktop\\\\Lotus-Build\"; npx tsc --noEmit 2>&1 | Where-Object { $_ -match \"agent-feed|restore\" })"
     ]
   }
 }

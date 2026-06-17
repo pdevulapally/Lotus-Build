@@ -3,6 +3,14 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
   Check,
   ChevronRight,
   ChevronsDown,
@@ -12,6 +20,7 @@ import {
   FileCode2,
   Loader2,
   Pencil,
+  RotateCcw,
 } from "lucide-react"
 import { TextShimmer } from "@/components/prompt-kit/text-shimmer"
 import { lineDiff, countDiffStats, type DiffOp } from "@/components/project/edit-tool"
@@ -544,11 +553,20 @@ function FeedItem({
   )
 }
 
+type CheckpointRestoreState = "idle" | "confirming" | "restoring"
+
 function UserMessageBubble({
   content, index, isEditing, editText,
+  runId, isLastCheckpoint, onRestoreCheckpoint,
   onEditStart, onEditChange, onEditSubmit, onEditCancel,
 }: {
-  content: string; index: number; isEditing: boolean; editText: string
+  content: string
+  index: number
+  isEditing: boolean
+  editText: string
+  runId?: string
+  isLastCheckpoint?: boolean
+  onRestoreCheckpoint?: (runId: string) => Promise<void>
   onEditStart: (i: number, c: string) => void
   onEditChange: (t: string) => void
   onEditSubmit: (i: number) => void
@@ -556,6 +574,10 @@ function UserMessageBubble({
 }) {
   const ref = useRef<HTMLTextAreaElement | null>(null)
   const [copied, setCopied] = useState(false)
+  const [restoreState, setRestoreState] = useState<CheckpointRestoreState>("idle")
+  const [restoreError, setRestoreError] = useState<string | null>(null)
+
+  const showRestoreButton = Boolean(runId && onRestoreCheckpoint && !isLastCheckpoint)
 
   useEffect(() => {
     if (isEditing && ref.current) {
@@ -564,6 +586,18 @@ function UserMessageBubble({
       ref.current.setSelectionRange(len, len)
     }
   }, [isEditing])
+
+  const handleConfirmRestore = async () => {
+    if (!runId || !onRestoreCheckpoint) return
+    setRestoreError(null)
+    setRestoreState("restoring")
+    try {
+      await onRestoreCheckpoint(runId)
+    } catch (err) {
+      setRestoreError(err instanceof Error ? err.message : "Restore failed")
+      setRestoreState("confirming")
+    }
+  }
 
   if (isEditing) {
     return (
@@ -590,11 +624,14 @@ function UserMessageBubble({
   }
 
   return (
+    <>
     <div className="group flex w-full justify-end pb-4">
       <div className="flex w-fit max-w-[min(84%,42rem)] min-w-0 flex-col items-end">
         <div className="max-w-full rounded-[14px] bg-primary px-3.5 py-2.5 text-right shadow-[0_1px_2px_var(--primary)]">
           <p className="whitespace-pre-wrap break-words text-left text-[14px] font-medium leading-relaxed text-primary-foreground [overflow-wrap:anywhere]">{content}</p>
         </div>
+
+        {/* Action row — copy, edit, restore */}
         <div className="mt-1.5 flex items-center gap-1 pr-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
           <button type="button" onClick={async () => {
             await navigator.clipboard?.writeText(content).catch(() => undefined)
@@ -606,9 +643,69 @@ function UserMessageBubble({
           <button type="button" onClick={() => onEditStart(index, content)} aria-label="Edit message" className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground">
             <Pencil className="h-3.5 w-3.5" />
           </button>
+          {showRestoreButton && restoreState !== "restoring" && (
+            <button
+              type="button"
+              onClick={() => { setRestoreError(null); setRestoreState("confirming") }}
+              aria-label="Restore project to this checkpoint"
+              className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {showRestoreButton && restoreState === "restoring" && (
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+          )}
         </div>
+
       </div>
     </div>
+
+    {/* Restore confirmation — rendered as a portal modal, not inside the feed */}
+    <Dialog
+      open={restoreState === "confirming" || restoreState === "restoring"}
+      onOpenChange={(open) => {
+        if (!open && restoreState !== "restoring") {
+          setRestoreState("idle")
+          setRestoreError(null)
+        }
+      }}
+    >
+      <DialogContent showCloseButton={restoreState !== "restoring"} className="max-w-sm">
+        <DialogHeader>
+          <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+            <RotateCcw className="h-4 w-4 text-foreground" />
+          </div>
+          <DialogTitle>Restore to this point?</DialogTitle>
+          <DialogDescription>
+            Changes made after this message will be undone. You can always rebuild from here.
+          </DialogDescription>
+        </DialogHeader>
+        {restoreError && (
+          <p className="rounded-lg bg-destructive/10 px-3 py-2 text-[12px] text-destructive">{restoreError}</p>
+        )}
+        <DialogFooter>
+          <button
+            type="button"
+            disabled={restoreState === "restoring"}
+            onClick={() => { setRestoreState("idle"); setRestoreError(null) }}
+            className="inline-flex h-9 items-center justify-center rounded-lg border border-border bg-background px-4 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={restoreState === "restoring"}
+            onClick={handleConfirmRestore}
+            className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-70"
+          >
+            {restoreState === "restoring" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            {restoreState === "restoring" ? "Restoring…" : "Restore"}
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   )
 }
 
@@ -617,6 +714,7 @@ export function AgentFeed({
   progress,
   editingIndex, editText, onEditStart, onEditChange, onEditSubmit, onEditCancel,
   onSupabaseSetup, onSupabaseDecline, onClarificationAnswer, onApprovePlan,
+  onRestoreCheckpoint,
 }: {
   prompt?: string
   events: ComputerTimelineEvent[]
@@ -634,6 +732,7 @@ export function AgentFeed({
   onSupabaseDecline?: () => void
   onClarificationAnswer?: (answer: string) => void
   onApprovePlan?: () => void
+  onRestoreCheckpoint?: (runId: string) => Promise<void>
 }) {
   const endRef = useRef<HTMLDivElement | null>(null)
   const isRunning = status === "running" || status === "planning"
@@ -647,8 +746,15 @@ export function AgentFeed({
     runEvents.push(event)
     runEventsById.set(event.runId, runEvents)
   }
-  const localUserCount = localMessages.filter((msg) => msg.role === "user").length
+  const localUserMessages = localMessages.filter((msg) => msg.role === "user")
+  const localUserCount = localUserMessages.length
   const unpairedRunIds = followUpRunIds.slice(localUserCount)
+  // A checkpoint is "last" when there's nothing to undo after it.
+  // Initial prompt is last if no follow-up runs exist; follow-up[i] is last if it's the final one.
+  const totalCheckpoints = (firstRunId ? 1 : 0) + localUserCount
+  const isInitialPromptLastCheckpoint = totalCheckpoints <= 1
+  const getFollowUpRunId = (msgIndex: number) =>
+    localUserMessages[msgIndex]?.runId ?? followUpRunIds[msgIndex] ?? undefined
   const isStarting = optimisticStart && visible.length === 0
   const isEmpty = !prompt && visible.length === 0 && localMessages.length === 0 && !isStarting
   const hasActiveFeedStep = visible.some((event) => event.status === "running")
@@ -690,6 +796,9 @@ export function AgentFeed({
           <UserMessageBubble
             content={prompt} index={-1} isEditing={editingIndex === -1}
             editText={editingIndex === -1 ? editText : ""}
+            runId={firstRunId ?? undefined}
+            isLastCheckpoint={isInitialPromptLastCheckpoint}
+            onRestoreCheckpoint={onRestoreCheckpoint}
             onEditStart={onEditStart} onEditChange={onEditChange}
             onEditSubmit={onEditSubmit} onEditCancel={onEditCancel}
           />
@@ -718,6 +827,9 @@ export function AgentFeed({
                 <UserMessageBubble
                   content={msg.content} index={i} isEditing={editingIndex === i}
                   editText={editingIndex === i ? editText : ""}
+                  runId={getFollowUpRunId(i)}
+                  isLastCheckpoint={i === localUserCount - 1}
+                  onRestoreCheckpoint={onRestoreCheckpoint}
                   onEditStart={onEditStart} onEditChange={onEditChange}
                   onEditSubmit={onEditSubmit} onEditCancel={onEditCancel}
                 />
