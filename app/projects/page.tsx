@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
+import { LotusLogo } from "@/components/ui/lotus-logo"
 import { MeshGradient } from "@paper-design/shaders-react"
 import { deleteDoc, doc } from "firebase/firestore"
 import {
@@ -327,11 +328,7 @@ function Sidebar({
       {/* ── Logo row ── */}
       <div className="flex h-16 shrink-0 items-center justify-between px-4">
         <Link href="/" onClick={onClose} className="flex items-center gap-2">
-          <img
-            src="/Images/lotus-official-logo.png"
-            alt="lotus.build"
-            className="h-7 w-7 object-contain"
-          />
+          <LotusLogo size={28} />
           <span className="font-display text-[16px] font-semibold tracking-tight text-foreground">
             Lotus.build
           </span>
@@ -958,7 +955,7 @@ export default function ProjectsPage() {
               <PanelLeft className="h-4 w-4" />
             </button>
             <Link href="/" className="flex items-center gap-2">
-              <img src="/Images/lotus-official-logo.png" alt="lotus.build" className="h-6 w-6 object-contain" />
+              <LotusLogo size={24} />
               <span className="font-display text-[15px] font-semibold text-foreground">Lotus.build</span>
             </Link>
           </header>

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
+import { LotusLogo } from "@/components/ui/lotus-logo"
 import { motion } from "framer-motion"
 import { MeshGradient } from "@paper-design/shaders-react"
 import { useAuth } from "@/contexts/auth-context"
@@ -120,13 +121,7 @@ export default function SignupPage() {
 
         {/* Logo */}
         <Link href="/" className="flex w-fit items-center gap-2">
-          <Image
-            src="/Images/lotus-official-logo.png"
-            alt="Lotus"
-            width={30}
-            height={30}
-            className="object-contain"
-          />
+          <LotusLogo size={30} />
           <span className="text-[15px] font-semibold tracking-tight text-foreground">Lotus.build</span>
         </Link>
 

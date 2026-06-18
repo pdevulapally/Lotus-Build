@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { LotusLogo } from "@/components/ui/lotus-logo"
 
 const footerGroups = [
   {
@@ -37,11 +38,7 @@ export function FooterSection() {
           <div className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
             <div>
               <Link href="/" className="inline-flex items-center gap-3">
-                <img
-                  src="/Images/lotus-official-logo.png"
-                  alt="lotus.build"
-                  className="h-9 w-9 object-contain"
-                />
+                <LotusLogo size={36} />
                 <span className="text-2xl font-semibold tracking-tight text-foreground">
                   Lotus.build
                 </span>

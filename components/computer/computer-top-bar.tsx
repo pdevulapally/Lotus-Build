@@ -147,13 +147,6 @@ export function ComputerTopBar({
             >
               <ArrowLeft className="h-4 w-4" />
             </Link>
-            <Image
-              src="/Images/lotus-official-logo.png"
-              alt="Lotus"
-              width={28}
-              height={28}
-              className="shrink-0 object-contain"
-            />
             {onToggleChatPanel ? (
               <button
                 type="button"
