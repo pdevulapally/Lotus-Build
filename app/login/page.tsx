@@ -3,8 +3,8 @@
 import React, { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import Image from "next/image"
 import { LotusLogo } from "@/components/ui/lotus-logo"
+import { AuthWorkspaceDemo } from "@/components/auth/auth-workspace-demo"
 import { motion } from "framer-motion"
 import { MeshGradient } from "@paper-design/shaders-react"
 import { useAuth } from "@/contexts/auth-context"
@@ -286,38 +286,11 @@ export default function LoginPage() {
               </p>
             </div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.55, delay: 0.12, ease: "easeOut" }}
-              className="max-w-xl rounded-[1.75rem] bg-background/15 p-3 shadow-[0_30px_120px_-70px_var(--accent)] backdrop-blur-xl"
-            >
-              <div className="rounded-[1.35rem] border border-primary-foreground/15 bg-primary-foreground/10 p-4 backdrop-blur-xl">
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-primary-foreground/50">
-                    Resume
-                  </span>
-                  <span className="rounded-full bg-primary-foreground/12 px-3 py-1 text-xs text-primary-foreground/70">
-                    Live preview saved
-                  </span>
-                </div>
-
-                <p className="mt-8 max-w-md text-2xl font-medium leading-[1.08] tracking-[-0.045em] text-primary-foreground">
-                  “Tighten the hero, keep the structure, make the page feel more premium.”
-                </p>
-
-                <div className="mt-8 flex flex-wrap gap-2">
-                  {["Prompt thread", "Preview URL", "Project files"].map((item) => (
-                    <span
-                      key={item}
-                      className="rounded-full bg-primary-foreground/12 px-3 py-1.5 text-xs text-primary-foreground/70"
-                    >
-                      {item}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
+            <AuthWorkspaceDemo
+              userMessage="Tighten the hero, keep the structure, make the page feel more premium."
+              agentMessage="I'll adjust the hero typography and spacing while preserving your layout. Preview updates as each section lands."
+              workingLabel="Refining hero typography and spacing…"
+            />
 
             <p className="max-w-sm text-xs leading-6 text-primary-foreground/55">
               Built to feel closer to a creative canvas than an admin panel.

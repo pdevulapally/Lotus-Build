@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import { LotusLogo } from "@/components/ui/lotus-logo"
+import { AuthWorkspaceDemo } from "@/components/auth/auth-workspace-demo"
 import { motion } from "framer-motion"
 import { MeshGradient } from "@paper-design/shaders-react"
 import { useAuth } from "@/contexts/auth-context"
@@ -287,38 +288,13 @@ export default function SignupPage() {
               </p>
             </div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.55, delay: 0.12, ease: "easeOut" }}
-              className="ml-auto max-w-xl rounded-[1.75rem] bg-background/15 p-3 shadow-[0_30px_120px_-70px_var(--accent)] backdrop-blur-xl"
-            >
-              <div className="rounded-[1.35rem] border border-primary-foreground/15 bg-primary-foreground/10 p-4 backdrop-blur-xl">
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-primary-foreground/50">
-                    First build
-                  </span>
-                  <span className="rounded-full bg-primary-foreground/12 px-3 py-1 text-xs text-primary-foreground/70">
-                    Guided setup
-                  </span>
-                </div>
-
-                <p className="mt-8 max-w-md text-2xl font-medium leading-[1.08] tracking-[-0.045em] text-primary-foreground">
-                  “Build a premium launch page for an AI design studio.”
-                </p>
-
-                <div className="mt-8 flex flex-wrap gap-2">
-                  {["Clarify", "Generate", "Preview", "Refine"].map((item) => (
-                    <span
-                      key={item}
-                      className="rounded-full bg-primary-foreground/12 px-3 py-1.5 text-xs text-primary-foreground/70"
-                    >
-                      {item}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
+            <div className="ml-auto w-full max-w-xl">
+              <AuthWorkspaceDemo
+                userMessage="Build a premium launch page for an AI design studio."
+                agentMessage="I'll start with a clear hero, section rhythm, and a preview you can refine in chat — same flow as the live builder."
+                workingLabel="Generating layout and first sections…"
+              />
+            </div>
 
             <p className="max-w-sm text-xs leading-6 text-primary-foreground/55">
               A build surface for founders who want taste and speed in the same place.
