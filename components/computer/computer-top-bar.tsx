@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { AnimatePresence, motion } from "framer-motion"
 import {
   ArrowLeft,
+  ArrowUpRight,
   Check,
   ChevronDown,
   Copy,
@@ -21,7 +22,6 @@ import {
   PanelLeft,
   Pencil,
   Plus,
-  Rocket,
   Zap,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -166,7 +166,87 @@ export function ComputerTopBar({
   return (
     <>
       <header className="relative z-30 shrink-0 bg-background">
-        <div className="flex h-[52px] w-full items-center">
+        <div className="relative flex h-[52px] w-full items-center">
+
+          {/* ── Mobile: title absolutely centered so it's always mid-screen ── */}
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center sm:hidden">
+            <div className="pointer-events-auto flex max-w-[55vw] min-w-0 items-center">
+              {isEditingTitle ? (
+                <input
+                  value={titleDraft}
+                  onChange={(e) => onTitleDraftChange(e.target.value)}
+                  className="w-[44vw] rounded-lg border border-border bg-muted/50 px-2.5 py-1 text-[13px] font-medium text-foreground outline-none focus:border-ring"
+                  placeholder="Session title"
+                  aria-label="Edit session title"
+                  autoFocus
+                />
+              ) : (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="group flex min-w-0 items-center gap-1.5 rounded-lg px-1 py-1.5 transition-colors hover:bg-muted/60 focus-visible:outline-none"
+                      aria-label="Session menu"
+                    >
+                      <span className="min-w-0 truncate text-[13px] font-medium tracking-[-0.01em] text-foreground">
+                        {sessionTitle}
+                      </span>
+                      <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground/35 transition-transform duration-150 group-data-[state=open]:rotate-180" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="center"
+                    sideOffset={10}
+                    className="w-[calc(100vw-1.5rem)] max-w-[22rem] overflow-hidden rounded-xl border border-border/60 bg-background p-0 shadow-xl shadow-black/8"
+                  >
+                    {/* User profile */}
+                    <div className="flex items-center gap-3 border-b border-border/40 px-3.5 py-3">
+                      <Avatar className="h-9 w-9 shrink-0 rounded-xl">
+                        <AvatarImage src={userData?.photoURL ?? undefined} className="rounded-xl object-cover" />
+                        <AvatarFallback className="rounded-xl bg-primary/10 text-[13px] font-bold text-primary">
+                          {userInitials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13px] font-semibold text-foreground">
+                          {userData?.displayName || userData?.email?.split("@")[0] || "User"}
+                        </p>
+                        <p className="truncate text-[11px] text-muted-foreground">{userData?.email}</p>
+                      </div>
+                    </div>
+                    <div className="space-y-px p-2">
+                      <DropdownMenuItem className="h-9 gap-2.5 rounded-xl px-2.5 text-[13px] focus:bg-muted/60" onSelect={onEditTitleStart}>
+                        <ItemIcon><Pencil className="h-3.5 w-3.5" /></ItemIcon>
+                        Rename session
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="h-9 gap-2.5 rounded-xl px-2.5 text-[13px] focus:bg-muted/60" onSelect={onOpenDeploy} disabled={!session.projectId}>
+                        <ItemIcon><ArrowUpRight className="h-3.5 w-3.5" /></ItemIcon>
+                        Deploy
+                      </DropdownMenuItem>
+                      {onOpenHistory && (
+                        <DropdownMenuItem className="h-9 gap-2.5 rounded-xl px-2.5 text-[13px] focus:bg-muted/60" onSelect={onOpenHistory} disabled={!session.projectId}>
+                          <ItemIcon><History className="h-3.5 w-3.5" /></ItemIcon>
+                          Version history
+                        </DropdownMenuItem>
+                      )}
+                    </div>
+                    <DropdownMenuSeparator className="mx-2 bg-border/40" />
+                    <div className="space-y-px p-2">
+                      <DropdownMenuItem
+                        className="h-9 gap-2.5 rounded-xl px-2.5 text-[13px] text-destructive focus:bg-destructive/8 focus:text-destructive"
+                        onSelect={() => void signOut()}
+                      >
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-destructive/10 text-destructive">
+                          <LogOut className="h-3.5 w-3.5" />
+                        </span>
+                        Sign out
+                      </DropdownMenuItem>
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
+          </div>
 
           {/* ── Left: nav + title + panel toggle (mirrors chat panel width) ── */}
           <div
@@ -185,8 +265,8 @@ export function ComputerTopBar({
               <ArrowLeft className="h-[15px] w-[15px]" />
             </Link>
 
-            {/* Session title — takes up remaining space in left section */}
-            <div className="min-w-0 flex-1 overflow-hidden">
+            {/* Session title — desktop only (mobile version is absolutely centered above) */}
+            <div className="hidden min-w-0 flex-1 overflow-hidden sm:block">
               {isEditingTitle ? (
                 <div className="flex items-center gap-1.5">
                   <input
@@ -353,7 +433,7 @@ export function ComputerTopBar({
                         Connectors
                       </DropdownMenuItem>
                       <DropdownMenuItem className="h-9 gap-2.5 rounded-xl px-2.5 text-[13px] focus:bg-muted/60" onSelect={onOpenDeploy} disabled={!session.projectId}>
-                        <ItemIcon><Rocket className="h-3.5 w-3.5" /></ItemIcon>
+                        <ItemIcon><ArrowUpRight className="h-3.5 w-3.5" /></ItemIcon>
                         Deploy
                       </DropdownMenuItem>
                       {onOpenHistory && (
@@ -456,9 +536,11 @@ export function ComputerTopBar({
           </div>
 
           {/* ── Right: workspace toolbar ── */}
-          <div className="flex h-full min-w-0 flex-1 items-center justify-between border-b border-border/40 px-4">
-            {/* Status badge — live state of the session */}
-            <StatusBadge status={session.status} />
+          <div className="flex h-full min-w-0 flex-1 items-center justify-end border-b border-border/40 px-3 sm:justify-between sm:px-4">
+            {/* Status badge — desktop only */}
+            <div className="hidden sm:block">
+              <StatusBadge status={session.status} />
+            </div>
 
             {/* Actions */}
             <div className="flex items-center gap-1.5">
@@ -478,19 +560,18 @@ export function ComputerTopBar({
                 onClick={onOpenHistory}
                 disabled={!session.projectId || !onOpenHistory}
                 aria-label="Version history"
-                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border/50 px-2.5 text-muted-foreground transition-all hover:border-border/80 hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30 sm:px-3"
+                className="hidden h-8 items-center gap-1.5 rounded-lg border border-border/50 px-3 text-muted-foreground transition-all hover:border-border/80 hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30 sm:inline-flex"
               >
                 <History className="h-3.5 w-3.5" />
-                <span className="hidden text-[12px] font-medium sm:inline">History</span>
+                <span className="text-[12px] font-medium">History</span>
               </button>
 
               <button
                 type="button"
                 onClick={onOpenDeploy}
                 disabled={!session.projectId}
-                className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-foreground px-4 text-[12px] font-semibold text-background transition-all hover:bg-foreground/85 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-30"
+                className="inline-flex h-8 items-center rounded-lg bg-foreground px-4 text-[12px] font-semibold text-background transition-all hover:bg-foreground/85 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-30"
               >
-                <Rocket className="h-3 w-3" />
                 Deploy
               </button>
             </div>
