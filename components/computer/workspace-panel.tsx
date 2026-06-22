@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { AnimatePresence, motion } from "framer-motion"
-import { BookOpen, ExternalLink, Globe2, Laptop, Monitor, ShieldAlert, Wrench } from "lucide-react"
+import { BookOpen, ExternalLink, Globe2, Home, Laptop, Monitor, RotateCcw, ShieldAlert, Wrench } from "lucide-react"
 import { MobilePreview } from "@/components/computer/mobile-preview"
 import { TextShimmer } from "@/components/prompt-kit/text-shimmer"
 import { normalizePlatform } from "@/lib/projects/platform"
@@ -173,55 +173,101 @@ function SessionProgressSurface({ progress }: { progress: ComputerSessionProgres
 
 export function WorkspaceTabBar({
   activeTab,
-  hasPreview,
-  hasBrowser,
-  hasResearch,
-  onTabChange,
-  showCompleteBadge,
+  previewUrl,
+  onRefreshPreview,
+  onNavigatePreview,
 }: {
   activeTab: WorkspaceTab
-  hasPreview: boolean
-  hasBrowser: boolean
-  hasResearch: boolean
-  onTabChange: (tab: WorkspaceTab) => void
-  showCompleteBadge?: boolean
+  previewUrl?: string | null
+  onRefreshPreview?: () => void
+  onNavigatePreview?: (url: string) => void
 }) {
-  const tabs: Array<{ id: WorkspaceTab; label: string; show: boolean; dot?: boolean }> = [
-    { id: "preview", label: "Preview", show: true, dot: hasPreview && activeTab !== "preview" },
-    { id: "browser", label: "Browser", show: hasBrowser, dot: hasBrowser && activeTab !== "browser" },
-    { id: "research", label: "Research", show: hasResearch, dot: hasResearch && activeTab !== "research" },
-  ]
+  const [urlPath, setUrlPath] = useState("/")
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!previewUrl) { setUrlPath("/"); return }
+    try {
+      const u = new URL(previewUrl)
+      setUrlPath(u.pathname || "/")
+    } catch {
+      setUrlPath("/")
+    }
+  }, [previewUrl])
+
+  const previewOrigin = previewUrl ? (() => {
+    try { return new URL(previewUrl).origin } catch { return "" }
+  })() : ""
+
+  const commitNav = (path: string) => {
+    const normalized = path.startsWith("/") ? path : `/${path}`
+    setUrlPath(normalized)
+    if (previewOrigin) onNavigatePreview?.(previewOrigin + normalized)
+  }
+
+  if (activeTab !== "preview" || !previewUrl) return null
 
   return (
-    <div className="hidden h-11 shrink-0 items-center justify-between gap-3 border-b border-border/60 bg-muted/35 px-3 sm:flex lg:px-4">
-      <div className="flex min-w-0 items-center gap-2">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground">
-          <Monitor className="h-3.5 w-3.5" />
-        </span>
-        <p className="text-[12px] font-semibold tracking-[-0.01em] text-foreground">Computer</p>
-      </div>
-      <div className="flex items-center gap-2">
-      <div className="flex items-center rounded-lg bg-background/80 p-0.5 ring-1 ring-border/60">
-        {tabs.filter((tab) => tab.show || tab.id === "preview").map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => onTabChange(tab.id)}
-            className={cn(
-              "inline-flex h-6 items-center gap-1.5 rounded-md px-2.5 text-[12px] font-semibold transition-all duration-150",
-              activeTab === tab.id
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {tab.label}
-            {tab.dot && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
-          </button>
-        ))}
-      </div>
-      {showCompleteBadge && (
-        <span className="rounded-full bg-success-soft px-2 py-0.5 text-[11px] font-semibold text-success-soft-foreground">Done</span>
-      )}
+    <div className="hidden h-10 shrink-0 items-center justify-center border-b border-border/50 bg-muted/20 px-4 sm:flex">
+      {/* Centered constrained URL pill */}
+      <div className="group flex w-full max-w-sm items-center gap-0.5 overflow-hidden rounded-full border border-border/50 bg-background/60 px-1 transition-colors focus-within:border-border/80 focus-within:bg-background hover:border-border/70 hover:bg-background/90">
+
+        {/* Home */}
+        <button
+          type="button"
+          aria-label="Go to root"
+          onClick={() => commitNav("/")}
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground/40 transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <Home className="h-3.5 w-3.5" />
+        </button>
+
+        {/* Host (dimmed) */}
+        {previewOrigin && (
+          <span className="shrink-0 select-none text-[11px] text-muted-foreground/35">
+            {previewOrigin.replace(/^https?:\/\//, "")}
+          </span>
+        )}
+
+        {/* Slash + path */}
+        <div className="flex min-w-0 flex-1 items-center">
+          <span className="shrink-0 select-none text-[12px] text-muted-foreground/35">/</span>
+          <input
+            ref={inputRef}
+            value={urlPath.replace(/^\//, "")}
+            onChange={(e) => setUrlPath("/" + e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitNav(urlPath)
+              if (e.key === "Escape") inputRef.current?.blur()
+            }}
+            onClick={() => inputRef.current?.select()}
+            className="min-w-0 flex-1 bg-transparent py-0.5 text-[12px] text-foreground/70 outline-none"
+            spellCheck={false}
+            autoCorrect="off"
+            autoCapitalize="off"
+          />
+        </div>
+
+        {/* External link */}
+        <a
+          href={previewUrl}
+          target="_blank"
+          rel="noreferrer"
+          aria-label="Open in new tab"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground/40 transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+        </a>
+
+        {/* Refresh */}
+        <button
+          type="button"
+          aria-label="Refresh preview"
+          onClick={onRefreshPreview}
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground/40 transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+        </button>
       </div>
     </div>
   )
@@ -245,6 +291,7 @@ export function WorkspaceContent({
   onRetryPreview,
   getAuthHeader,
   previewSyncNonce = 0,
+  previewSrc,
 }: {
   session: ComputerSessionResponse
   status: ComputerSessionStatus
@@ -263,6 +310,7 @@ export function WorkspaceContent({
   onRetryPreview: () => void
   getAuthHeader: () => Promise<Record<string, string>>
   previewSyncNonce?: number
+  previewSrc?: string | null
 }) {
   const sessionPlatform = normalizePlatform(session.platform)
   const workspaceProgress = progress ?? {
@@ -338,11 +386,12 @@ export function WorkspaceContent({
   }
 
   if (activeTab === "preview" && session.previewUrl) {
+    const effectivePreviewSrc = previewSrc || session.previewUrl
     return (
       <motion.div key="preview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}
         className="flex h-full min-h-0 flex-col">
         <div className="relative min-h-0 flex-1 overflow-hidden">
-          <iframe src={session.previewUrl} className="h-full w-full" sandbox="allow-scripts allow-same-origin allow-forms" title="Live preview" />
+          <iframe key={effectivePreviewSrc} src={effectivePreviewSrc} className="h-full w-full" sandbox="allow-scripts allow-same-origin allow-forms" title="Live preview" />
           {isEnsuringPreview && (
             <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-end justify-center pb-4">
               <div className="rounded-full border border-border bg-card/90 px-3 py-1.5 text-[11px] font-medium text-muted-foreground shadow-sm backdrop-blur-sm">

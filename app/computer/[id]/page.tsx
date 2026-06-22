@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { doc, onSnapshot, updateDoc } from "firebase/firestore"
@@ -14,11 +14,13 @@ import {
   ExternalLink,
   Globe,
   Github,
+  Info,
   KeyRound,
   Loader2,
   MessageSquare,
   Monitor,
   Rocket,
+  X,
 } from "lucide-react"
 import { AnimatedAIInput } from "@/components/ui/animated-ai-input"
 import { TokenLimitDialog } from "@/components/project/token-limit-dialog"
@@ -453,6 +455,64 @@ function DeployButton({
   )
 }
 
+function IntegrationCard({
+  icon,
+  iconBg,
+  name,
+  category,
+  description,
+  actionLabel,
+  actionBusy,
+  connected,
+  onClick,
+  disabled,
+}: {
+  icon: React.ReactNode
+  iconBg?: string
+  name: string
+  category: string
+  description?: string
+  actionLabel: string
+  actionBusy?: boolean
+  connected?: boolean
+  onClick: () => void
+  disabled?: boolean
+}) {
+  return (
+    <div className="flex flex-col rounded-xl border border-border/60 bg-card p-4">
+      <div className="flex items-start justify-between">
+        <div className={cn(
+          "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+          iconBg ?? "bg-foreground/8 dark:bg-foreground/10",
+        )}>
+          {icon}
+        </div>
+        {connected && (
+          <span className="rounded-full bg-emerald-500/12 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+            Connected
+          </span>
+        )}
+      </div>
+      <p className="mt-3 text-[13px] font-semibold text-foreground">{name}</p>
+      <span className="mt-1 text-[11px] text-muted-foreground">{category}</span>
+      {description && <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground/80">{description}</p>}
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        className="mt-3.5 w-full rounded-lg border border-border/60 bg-background py-2 text-[12px] font-semibold text-foreground transition-all hover:border-foreground/30 hover:bg-muted active:scale-[0.98] disabled:opacity-50"
+      >
+        {actionBusy ? (
+          <span className="flex items-center justify-center gap-1.5">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            {actionLabel}
+          </span>
+        ) : actionLabel}
+      </button>
+    </div>
+  )
+}
+
 function IntegrationsButton({
   projectId,
   project,
@@ -484,6 +544,7 @@ function IntegrationsButton({
 }) {
   const [newEnvKey, setNewEnvKey] = useState("")
   const [newEnvValue, setNewEnvValue] = useState("")
+  const [activeSection, setActiveSection] = useState<"integrations" | "env">("integrations")
   if (!projectId) return null
 
   const envNames = project?.envVarNames || []
@@ -491,150 +552,267 @@ function IntegrationsButton({
   const hasSupabase = Boolean(project?.supabaseUrl || project?.supabaseProjectRef)
   const syncedAt = formatSyncedAt(project?.githubSyncedAt)
 
+  const connectedIntegrations = [
+    hasGitHub && {
+      key: "github",
+      icon: <Github className="h-5 w-5 text-white" />,
+      iconBg: "bg-[#24292e] dark:bg-[#1a1a1a]",
+      name: "GitHub",
+      category: "Version Control",
+      description: project?.githubRepoFullName || project?.githubRepoUrl,
+      actionLabel: busy === "github" ? "Syncing…" : "Sync",
+      actionBusy: busy === "github",
+      onClick: onGithubSync,
+    },
+    hasSupabase && {
+      key: "supabase",
+      icon: <Database className="h-5 w-5 text-white" />,
+      iconBg: "bg-[#3ecf8e] dark:bg-[#2ea87a]",
+      name: "Supabase",
+      category: "Database",
+      description: project?.supabaseProjectRef || project?.supabaseUrl,
+      actionLabel: busy === "supabase" ? "Running…" : "Re-run setup",
+      actionBusy: busy === "supabase",
+      onClick: onSupabaseSetup,
+    },
+  ].filter(Boolean) as Array<{ key: string; icon: React.ReactNode; iconBg: string; name: string; category: string; description?: string; actionLabel: string; actionBusy: boolean; onClick: () => void }>
+
+  const availableIntegrations = [
+    !hasGitHub && {
+      key: "github",
+      icon: <Github className="h-5 w-5 text-white" />,
+      iconBg: "bg-[#24292e] dark:bg-[#1a1a1a]",
+      name: "GitHub",
+      category: "Version Control",
+      description: "Publish your code to a GitHub repository",
+      actionLabel: busy === "github" ? "Publishing…" : "Publish",
+      actionBusy: busy === "github",
+      onClick: onGithubSync,
+    },
+    !hasSupabase && {
+      key: "supabase",
+      icon: <Database className="h-5 w-5 text-white" />,
+      iconBg: "bg-[#3ecf8e] dark:bg-[#2ea87a]",
+      name: "Supabase",
+      category: "Database",
+      description: "Add auth and persistent storage to your app",
+      actionLabel: busy === "supabase" ? "Setting up…" : "Set up",
+      actionBusy: busy === "supabase",
+      onClick: onSupabaseSetup,
+    },
+  ].filter(Boolean) as Array<{ key: string; icon: React.ReactNode; iconBg: string; name: string; category: string; description?: string; actionLabel: string; actionBusy: boolean; onClick: () => void }>
+
   return (
     <div className={cn("relative", headless && !open && "hidden")}>
       {!headless && (
-      <button
-        type="button"
-        onClick={() => onOpenChange(!open)}
-        aria-label="Project integrations"
-        aria-expanded={open}
-        className={cn(
-          "group hidden h-9 items-center justify-center gap-1.5 rounded-full border text-[13px] font-medium transition-all duration-200 active:scale-[0.98] sm:inline-flex sm:w-auto sm:px-3",
-          open
-            ? "bg-card text-foreground shadow-sm sm:border-border-strong sm:bg-muted"
-            : "text-muted-foreground hover:bg-card hover:text-foreground sm:border-border sm:bg-card sm:hover:border-border-strong sm:hover:bg-muted"
-        )}
-      >
-        <KeyRound className="h-3.5 w-3.5" />
-        <span className="hidden sm:inline">Integrations</span>
-        <ChevronDown className={cn("hidden h-3.5 w-3.5 opacity-50 transition-transform duration-200 sm:block", open && "rotate-180")} />
-      </button>
+        <button
+          type="button"
+          onClick={() => onOpenChange(!open)}
+          aria-label="Project integrations"
+          aria-expanded={open}
+          className={cn(
+            "group hidden h-9 items-center justify-center gap-1.5 rounded-full border text-[13px] font-medium transition-all duration-200 active:scale-[0.98] sm:inline-flex sm:w-auto sm:px-3",
+            open
+              ? "border-border bg-muted text-foreground"
+              : "border-border bg-card text-muted-foreground hover:border-border/80 hover:bg-muted hover:text-foreground"
+          )}
+        >
+          <KeyRound className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Integrations</span>
+          <ChevronDown className={cn("hidden h-3.5 w-3.5 opacity-50 transition-transform duration-200 sm:block", open && "rotate-180")} />
+        </button>
       )}
 
       {open && (
-        <div className={cn(
-          "z-30 hidden w-[340px] overflow-hidden rounded-2xl border border-border/50 bg-background shadow-[0_16px_48px_-12px_rgba(0,0,0,0.18)] sm:block",
-          headless ? "fixed right-6 top-16" : "absolute right-0 top-11",
-        )}>
-          {/* Header */}
-          <div className="border-b border-border/50 px-4 py-3">
-            <p className="text-[13px] font-semibold text-foreground">Integrations</p>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">Connect services to your project.</p>
-          </div>
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]"
+            onClick={() => onOpenChange(false)}
+          />
 
-          <div className="divide-y divide-border/40">
-            {/* GitHub */}
-            <div className="flex items-center justify-between gap-3 px-4 py-3">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border/50 bg-muted/50">
-                  <Github className="h-3.5 w-3.5 text-foreground/70" />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-[12px] font-semibold text-foreground">GitHub</p>
-                  <p className="truncate text-[11px] text-muted-foreground">
-                    {hasGitHub ? project?.githubRepoFullName || project?.githubRepoUrl : "Create or update a repository"}
-                  </p>
-                  {syncedAt ? <p className="text-[10px] text-muted-foreground/60">Last synced {syncedAt}</p> : null}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={onGithubSync}
-                disabled={busy !== null}
-                className="shrink-0 rounded-lg border border-border/50 bg-muted/50 px-2.5 py-1 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-60"
-              >
-                {busy === "github" ? "Syncing..." : hasGitHub ? "Sync" : "Publish"}
-              </button>
-            </div>
+          {/* Centered modal — two-panel layout */}
+          <div className="fixed left-1/2 top-1/2 z-50 flex max-h-[85vh] w-[680px] max-w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-border/60 bg-background shadow-2xl shadow-black/20">
 
-            {/* Supabase */}
-            <div className="flex items-center justify-between gap-3 px-4 py-3">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border/50 bg-muted/50">
-                  <Database className="h-3.5 w-3.5 text-foreground/70" />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-[12px] font-semibold text-foreground">Supabase</p>
-                  <p className="truncate text-[11px] text-muted-foreground">
-                    {hasSupabase ? project?.supabaseProjectRef || project?.supabaseUrl : "Provision database and credentials"}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={onSupabaseSetup}
-                disabled={busy !== null}
-                className="shrink-0 rounded-lg bg-accent px-2.5 py-1 text-[11px] font-semibold text-accent-foreground transition-colors hover:bg-accent/90 disabled:opacity-60"
-              >
-                {busy === "supabase" ? "Setting up..." : hasSupabase ? "Re-run" : "Set up"}
-              </button>
-            </div>
-
-            {/* Env vars */}
-            <div className="px-4 py-3">
-              <div className="mb-2.5 flex items-center gap-2">
-                <KeyRound className="h-3.5 w-3.5 text-muted-foreground" />
-                <p className="text-[12px] font-semibold text-foreground">Environment variables</p>
-              </div>
-              <div className="space-y-2">
-                {envNames.map((name) => (
-                  <label key={name} className="block">
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{name}</span>
-                    <input
-                      value={envValues[name] || ""}
-                      onChange={(event) => onEnvChange(name, event.target.value)}
-                      placeholder="Value"
-                      className="mt-1 h-8 w-full rounded-lg border border-border/50 bg-muted/30 px-2.5 text-[12px] text-foreground outline-none placeholder:text-muted-foreground/50 focus:border-border focus:ring-0"
-                    />
-                  </label>
-                ))}
-                <div className="grid grid-cols-[1fr_1fr_auto] gap-1.5">
-                  <input
-                    value={newEnvKey}
-                    onChange={(event) => setNewEnvKey(event.target.value)}
-                    placeholder="KEY"
-                    className="h-8 min-w-0 rounded-lg border border-border/50 bg-muted/30 px-2.5 text-[12px] text-foreground outline-none placeholder:text-muted-foreground/50 focus:border-border"
-                  />
-                  <input
-                    value={newEnvValue}
-                    onChange={(event) => setNewEnvValue(event.target.value)}
-                    placeholder="Value"
-                    className="h-8 min-w-0 rounded-lg border border-border/50 bg-muted/30 px-2.5 text-[12px] text-foreground outline-none placeholder:text-muted-foreground/50 focus:border-border"
-                  />
+            {/* ── Left nav ── */}
+            <div className="flex w-[200px] shrink-0 flex-col border-r border-border/50 bg-muted/20 p-4">
+              <p className="mb-3 px-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/50">
+                Settings
+              </p>
+              <nav className="space-y-0.5">
+                {([
+                  { id: "integrations" as const, label: "Integrations", icon: <Database className="h-3.5 w-3.5" /> },
+                  { id: "env" as const, label: "Environment Variables", icon: <KeyRound className="h-3.5 w-3.5" /> },
+                ] as Array<{ id: "integrations" | "env"; label: string; icon: React.ReactNode }>).map((item) => (
                   <button
+                    key={item.id}
                     type="button"
-                    onClick={() => {
-                      const key = newEnvKey.trim()
-                      if (!key) return
-                      onEnvAdd(key, newEnvValue)
-                      setNewEnvKey("")
-                      setNewEnvValue("")
-                    }}
-                    disabled={busy !== null || !newEnvKey.trim()}
-                    className="rounded-lg border border-border/50 bg-muted/50 px-2.5 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                    onClick={() => setActiveSection(item.id)}
+                    className={cn(
+                      "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium transition-colors",
+                      activeSection === item.id
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:bg-background/60 hover:text-foreground",
+                    )}
                   >
-                    Add
+                    <span className="shrink-0 opacity-60">{item.icon}</span>
+                    {item.label}
                   </button>
-                </div>
+                ))}
+              </nav>
+            </div>
+
+            {/* ── Right content ── */}
+            <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+              {/* Header */}
+              <div className="flex shrink-0 items-center justify-between border-b border-border/50 px-6 py-4">
+                <p className="text-[15px] font-semibold text-foreground">
+                  {activeSection === "integrations" ? "Integrations" : "Environment Variables"}
+                </p>
                 <button
                   type="button"
-                  onClick={onEnvSave}
-                  disabled={busy !== null}
-                  className="w-full rounded-lg border border-border/50 bg-muted/50 px-2.5 py-1.5 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-60"
+                  onClick={() => onOpenChange(false)}
+                  className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground/50 transition-colors hover:bg-muted hover:text-foreground"
                 >
-                  {busy === "env" ? "Saving..." : "Save and update preview"}
+                  <X className="h-4 w-4" />
                 </button>
+              </div>
+
+              {/* Scrollable content */}
+              <div className="min-h-0 flex-1 overflow-y-auto p-6 [scrollbar-width:thin]">
+
+                {/* ── Integrations panel ── */}
+                {activeSection === "integrations" && (
+                  <div className="space-y-6">
+                    {connectedIntegrations.length > 0 && (
+                      <div>
+                        <div className="mb-3 flex items-center gap-1.5">
+                          <p className="text-[12px] font-semibold text-foreground">Connected</p>
+                          <Info className="h-3 w-3 text-muted-foreground/40" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          {connectedIntegrations.map((item) => (
+                            <IntegrationCard
+                              key={item.key}
+                              icon={item.icon}
+                              iconBg={item.iconBg}
+                              name={item.name}
+                              category={item.category}
+                              description={item.description}
+                              actionLabel={item.actionLabel}
+                              actionBusy={item.actionBusy}
+                              connected
+                              onClick={item.onClick}
+                              disabled={busy !== null}
+                            />
+                          ))}
+                        </div>
+                        {syncedAt && hasGitHub && (
+                          <p className="mt-2 text-[10.5px] text-muted-foreground/50">Last synced to GitHub {syncedAt}</p>
+                        )}
+                      </div>
+                    )}
+                    {availableIntegrations.length > 0 && (
+                      <div>
+                        <div className="mb-3 flex items-center gap-1.5">
+                          <p className="text-[12px] font-semibold text-foreground">
+                            {connectedIntegrations.length > 0 ? "Available" : "All integrations"}
+                          </p>
+                          <Info className="h-3 w-3 text-muted-foreground/40" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          {availableIntegrations.map((item) => (
+                            <IntegrationCard
+                              key={item.key}
+                              icon={item.icon}
+                              iconBg={item.iconBg}
+                              name={item.name}
+                              category={item.category}
+                              description={item.description}
+                              actionLabel={item.actionLabel}
+                              actionBusy={item.actionBusy}
+                              onClick={item.onClick}
+                              disabled={busy !== null}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Environment variables panel ── */}
+                {activeSection === "env" && (
+                  <div>
+                    <p className="mb-4 text-[12px] leading-relaxed text-muted-foreground">
+                      Secret keys and tokens injected into your preview environment at runtime.
+                    </p>
+                    <div className="space-y-3">
+                      {envNames.map((name) => (
+                        <label key={name} className="block">
+                          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/60">{name}</span>
+                          <input
+                            value={envValues[name] || ""}
+                            onChange={(event) => onEnvChange(name, event.target.value)}
+                            placeholder="Value"
+                            className="mt-1 h-9 w-full rounded-lg border border-border/50 bg-muted/30 px-3 text-[12px] text-foreground outline-none placeholder:text-muted-foreground/40 focus:border-border/80 focus:bg-background"
+                          />
+                        </label>
+                      ))}
+
+                      <div className="pt-1">
+                        <p className="mb-2 text-[11px] font-semibold text-foreground">Add variable</p>
+                        <div className="grid grid-cols-[1fr_1fr_auto] gap-1.5">
+                          <input
+                            value={newEnvKey}
+                            onChange={(event) => setNewEnvKey(event.target.value)}
+                            placeholder="KEY"
+                            className="h-9 min-w-0 rounded-lg border border-border/50 bg-muted/30 px-3 text-[12px] text-foreground outline-none placeholder:text-muted-foreground/40 focus:border-border/80 focus:bg-background"
+                          />
+                          <input
+                            value={newEnvValue}
+                            onChange={(event) => setNewEnvValue(event.target.value)}
+                            placeholder="Value"
+                            className="h-9 min-w-0 rounded-lg border border-border/50 bg-muted/30 px-3 text-[12px] text-foreground outline-none placeholder:text-muted-foreground/40 focus:border-border/80 focus:bg-background"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const key = newEnvKey.trim()
+                              if (!key) return
+                              onEnvAdd(key, newEnvValue)
+                              setNewEnvKey("")
+                              setNewEnvValue("")
+                            }}
+                            disabled={busy !== null || !newEnvKey.trim()}
+                            className="h-9 rounded-lg border border-border/60 bg-background px-3 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                          >
+                            Add
+                          </button>
+                        </div>
+                      </div>
+
+                      {(envNames.length > 0 || Object.keys(envValues).length > 0) && (
+                        <button
+                          type="button"
+                          onClick={onEnvSave}
+                          disabled={busy !== null}
+                          className="w-full rounded-lg bg-foreground px-3 py-2.5 text-[12px] font-semibold text-background transition-all hover:bg-foreground/85 active:scale-[0.98] disabled:opacity-50"
+                        >
+                          {busy === "env" ? "Saving…" : "Save and update preview"}
+                        </button>
+                      )}
+
+                      {message && (
+                        <p className="rounded-lg bg-muted/50 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">{message}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
-
-          {message ? (
-            <div className="border-t border-border/50 px-4 py-3">
-              <p className="text-[11px] leading-relaxed text-muted-foreground">{message}</p>
-            </div>
-          ) : null}
-        </div>
+        </>
       )}
     </div>
   )
@@ -879,6 +1057,7 @@ export default function ComputerPage() {
   const [isEnsuringPreview, setIsEnsuringPreview] = useState(false)
   const [previewEnsureError, setPreviewEnsureError] = useState<string | null>(null)
   const [previewRetryNonce, setPreviewRetryNonce] = useState(0)
+  const [previewNavSrc, setPreviewNavSrc] = useState<string | null>(null)
   const [runtimeError,      setRuntimeError]      = useState<{ message: string; stack: string } | null>(null)
   const [fixingError,       setFixingError]       = useState(false)
   const [stoppedSessionIds, setStoppedSessionIds] = useState<Set<string>>(() => new Set(readStoppedComputerSessions()))
@@ -1082,6 +1261,7 @@ export default function ComputerPage() {
   }, [firstPrompt])
 
   useEffect(() => { if (visibleCount > 0) setOptimisticStart(false) }, [visibleCount, setOptimisticStart])
+  useEffect(() => { setPreviewNavSrc(null) }, [session?.previewUrl])
   useEffect(() => { if (browserInspection && !session?.previewUrl) setActiveTab("browser") }, [browserInspection, session?.previewUrl, setActiveTab])
   useEffect(() => {
     if (!session) return
@@ -1882,16 +2062,20 @@ export default function ComputerPage() {
         }}
         chatPanelCollapsed={desktopChatCollapsed}
         onToggleChatPanel={() => setDesktopChatCollapsed((collapsed) => !collapsed)}
+        activeTab={activeTab}
+        hasPreview={hasPreview}
+        hasBrowser={hasBrowser}
+        hasResearch={hasResearch}
+        onTabChange={setActiveTab}
       />
 
-      {(deployOpen || integrationsOpen || historyOpen) && (
+      {(deployOpen || historyOpen) && (
         <button
           type="button"
           aria-label="Close panel"
           className="fixed inset-0 z-30 hidden bg-transparent sm:block"
           onClick={() => {
             setDeployOpen(false)
-            setIntegrationsOpen(false)
             setHistoryOpen(false)
           }}
         />
@@ -2020,11 +2204,13 @@ export default function ComputerPage() {
         )}>
           <WorkspaceTabBar
             activeTab={activeTab}
-            hasPreview={hasPreview}
-            hasBrowser={hasBrowser}
-            hasResearch={hasResearch}
-            onTabChange={setActiveTab}
-            showCompleteBadge={effectiveStatus === "complete"}
+            previewUrl={session.previewUrl}
+            onRefreshPreview={() => {
+              previewEnsureKeyRef.current = null
+              setPreviewEnsureError(null)
+              setPreviewRetryNonce((n) => n + 1)
+            }}
+            onNavigatePreview={(url) => setPreviewNavSrc(url)}
           />
 
           {/* Workspace content — inset floating frame */}
@@ -2066,6 +2252,7 @@ export default function ComputerPage() {
                     setPreviewRetryNonce((n) => n + 1)
                   }}
                   previewSyncNonce={previewRetryNonce}
+                  previewSrc={previewNavSrc}
                 />
               </motion.div>
             </AnimatePresence>

@@ -205,7 +205,7 @@ function SupabaseQuestionCard({ onSetup, onDecline }: { onSetup: () => void; onD
                 try { await onSetup() } finally { setSetting(false) }
               }}
               disabled={setting}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-foreground px-3 py-1.5 text-[12px] font-semibold text-background transition-all hover:bg-foreground/85 active:scale-[0.97] disabled:opacity-50"
             >
               {setting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Database className="h-3 w-3" />}
               {setting ? "Setting up..." : "Set up Supabase"}

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { AnimatePresence, motion } from "framer-motion"
 import {
   ArrowLeft,
-  ArrowUpFromLine,
+  Globe,
   Check,
   ChevronDown,
   Copy,
@@ -36,7 +36,7 @@ import {
 import { useAuth } from "@/contexts/auth-context"
 import { CreateWorkspaceModal } from "@/components/workspaces/create-workspace-modal"
 import { cn } from "@/lib/utils"
-import type { ComputerSessionResponse } from "@/components/computer/session-types"
+import type { ComputerSessionResponse, WorkspaceTab } from "@/components/computer/session-types"
 
 export type ComputerProjectIntegration = {
   name?: string
@@ -79,14 +79,7 @@ function StatusBadge({ status }: { status: ComputerSessionResponse["status"] }) 
       </div>
     )
   }
-  if (status === "complete") {
-    return (
-      <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-        <Check className="h-3 w-3" />
-        Ready
-      </div>
-    )
-  }
+  if (status === "complete") return null
   if (status === "error") {
     return (
       <div className="flex items-center gap-1.5 rounded-full bg-destructive/10 px-2.5 py-1 text-[11px] font-semibold text-destructive">
@@ -121,10 +114,15 @@ export function ComputerTopBar({
   onOpenHistory,
   chatPanelCollapsed = false,
   onToggleChatPanel,
+  activeTab,
+  hasPreview,
+  hasBrowser,
+  hasResearch,
+  onTabChange,
 }: {
   session: ComputerSessionResponse
   sessionTitle: string
-  firstPrompt: string
+  firstPrompt: string | undefined
   projectIntegration: ComputerProjectIntegration | null
   projectFileCount: number
   remainingTokens: number
@@ -144,6 +142,11 @@ export function ComputerTopBar({
   onOpenHistory?: () => void
   chatPanelCollapsed?: boolean
   onToggleChatPanel?: () => void
+  activeTab?: WorkspaceTab
+  hasPreview?: boolean
+  hasBrowser?: boolean
+  hasResearch?: boolean
+  onTabChange?: (tab: WorkspaceTab) => void
 }) {
   const router = useRouter()
   const { user, userData, workspaces, currentWorkspace, switchWorkspace, signOut } = useAuth()
@@ -220,7 +223,7 @@ export function ComputerTopBar({
                         Rename session
                       </DropdownMenuItem>
                       <DropdownMenuItem className="h-9 gap-2.5 rounded-xl px-2.5 text-[13px] focus:bg-muted/60" onSelect={onOpenDeploy} disabled={!session.projectId}>
-                        <ItemIcon><ArrowUpFromLine className="h-3.5 w-3.5" /></ItemIcon>
+                        <ItemIcon><Globe className="h-3.5 w-3.5" /></ItemIcon>
                         Deploy
                       </DropdownMenuItem>
                       {onOpenHistory && (
@@ -433,7 +436,7 @@ export function ComputerTopBar({
                         Connectors
                       </DropdownMenuItem>
                       <DropdownMenuItem className="h-9 gap-2.5 rounded-xl px-2.5 text-[13px] focus:bg-muted/60" onSelect={onOpenDeploy} disabled={!session.projectId}>
-                        <ItemIcon><ArrowUpFromLine className="h-3.5 w-3.5" /></ItemIcon>
+                        <ItemIcon><Globe className="h-3.5 w-3.5" /></ItemIcon>
                         Deploy
                       </DropdownMenuItem>
                       {onOpenHistory && (
@@ -537,9 +540,37 @@ export function ComputerTopBar({
 
           {/* ── Right: workspace toolbar ── */}
           <div className="flex h-full min-w-0 flex-1 items-center justify-end border-b border-border/40 px-3 sm:justify-between sm:px-4">
-            {/* Status badge — desktop only */}
+            {/* Tab toggle or status badge — desktop only */}
             <div className="hidden sm:block">
-              <StatusBadge status={session.status} />
+              {isActive ? (
+                <StatusBadge status={session.status} />
+              ) : onTabChange ? (
+                <div className="flex items-center rounded-lg bg-muted/60 p-0.5 ring-1 ring-border/60">
+                  {([
+                    { id: "preview" as WorkspaceTab, label: "Preview", show: true },
+                    { id: "browser" as WorkspaceTab, label: "Browser", show: !!hasBrowser },
+                    { id: "research" as WorkspaceTab, label: "Research", show: !!hasResearch },
+                  ] as Array<{ id: WorkspaceTab; label: string; show: boolean }>)
+                    .filter((t) => t.show || t.id === "preview")
+                    .map((tab) => (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => onTabChange(tab.id)}
+                        className={cn(
+                          "inline-flex h-6 items-center rounded-md px-2.5 text-[12px] font-semibold transition-all duration-150",
+                          activeTab === tab.id
+                            ? "bg-background text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                </div>
+              ) : (
+                <StatusBadge status={session.status} />
+              )}
             </div>
 
             {/* Actions */}
@@ -572,7 +603,7 @@ export function ComputerTopBar({
                 disabled={!session.projectId}
                 className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-foreground px-3.5 text-[12px] font-semibold text-background transition-all hover:bg-foreground/85 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-30"
               >
-                <ArrowUpFromLine className="h-3.5 w-3.5" />
+                <Globe className="h-3.5 w-3.5" />
                 Deploy
               </button>
             </div>
