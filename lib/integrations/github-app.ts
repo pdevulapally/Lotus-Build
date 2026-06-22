@@ -1,4 +1,4 @@
-import crypto from "crypto"
+import jwt from "jsonwebtoken"
 
 const GITHUB_API = "https://api.github.com"
 
@@ -36,7 +36,21 @@ function getRequiredEnv(name: string): string {
 
 function getGithubAppPrivateKey(): string {
   const raw = getRequiredEnv("GITHUB_APP_PRIVATE_KEY")
-  return raw.includes("\\n") ? raw.replace(/\\n/g, "\n") : raw
+  let pem = raw
+    .replace(/\\n/g, "\n")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .trim()
+  if (pem.split("\n").length < 3) {
+    const m = pem.match(/-----BEGIN ([^-]+)-----\s*([A-Za-z0-9+/=\s]+?)\s*-----END ([^-]+)-----/)
+    if (m) {
+      const type = m[1].trim()
+      const body = m[2].replace(/\s+/g, "")
+      const lines = body.match(/.{1,64}/g) ?? []
+      pem = `-----BEGIN ${type}-----\n${lines.join("\n")}\n-----END ${type}-----`
+    }
+  }
+  return pem
 }
 
 async function githubRequest<T = any>(path: string, init: GithubRequestInit = {}): Promise<{ ok: boolean; status: number; json: T; text: string }> {
@@ -64,27 +78,18 @@ export function createGitHubAppJwt(): string {
   const appId = getRequiredEnv("GITHUB_APP_ID")
   const pem = getGithubAppPrivateKey()
   const now = Math.floor(Date.now() / 1000)
-  const header = Buffer.from(JSON.stringify({ alg: "RS256", typ: "JWT" })).toString("base64url")
-  const payload = Buffer.from(
-    JSON.stringify({
-      iat: now - 60,
-      exp: now + 9 * 60,
-      iss: appId,
-    })
-  ).toString("base64url")
-  const unsigned = `${header}.${payload}`
-  const signer = crypto.createSign("RSA-SHA256")
-  signer.update(unsigned)
-  signer.end()
-  const signature = signer.sign(pem).toString("base64url")
-  return `${unsigned}.${signature}`
+  return jwt.sign(
+    { iat: now - 60, exp: now + 9 * 60, iss: appId },
+    pem,
+    { algorithm: "RS256" }
+  )
 }
 
 export async function getInstallationToken(installationId: number): Promise<string> {
-  const jwt = createGitHubAppJwt()
+  const appJwt = createGitHubAppJwt()
   const res = await githubRequest<{ token?: string; message?: string }>(
     `/app/installations/${installationId}/access_tokens`,
-    { method: "POST", token: jwt }
+    { method: "POST", token: appJwt }
   )
   if (!res.ok || !res.json?.token) {
     throw new Error(res.json?.message || `Failed to create installation token (${res.status})`)
@@ -119,9 +124,9 @@ export async function getAuthenticatedGitHubUser(userAccessToken: string): Promi
 }
 
 export async function getAppInstallations(): Promise<GitHubInstallation[]> {
-  const jwt = createGitHubAppJwt()
+  const appJwt = createGitHubAppJwt()
   const res = await githubRequest<GitHubInstallation[] | { message?: string }>("/app/installations", {
-    token: jwt,
+    token: appJwt,
   })
   if (!res.ok) {
     const message = !Array.isArray(res.json) && typeof res.json?.message === "string"
