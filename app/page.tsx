@@ -46,18 +46,18 @@ export default function Home() {
               aria-hidden
             />
 
-            <div className="relative z-10 flex h-full items-center justify-center p-4 pb-10 sm:p-6 sm:pb-12 md:p-8 md:pb-14">
-              <div className="w-full max-w-3xl translate-y-2 sm:translate-y-4 md:translate-y-6">
-                <div className="-translate-y-4 sm:-translate-y-5 md:-translate-y-6">
-                  <Navbar variant="hero" />
-                </div>
+            <div className="relative z-10 flex h-full min-h-0 flex-col p-4 sm:p-6 md:p-8">
+              <div className="mx-auto w-full max-w-3xl shrink-0 lg:max-w-4xl">
+                <Navbar variant="hero" />
+              </div>
 
-                <div className="mt-8 translate-y-3 text-center sm:mt-10 sm:translate-y-4 md:translate-y-5">
+              <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden py-4 sm:py-5 md:py-6 lg:py-8">
+                <div className="w-full max-w-3xl text-center lg:max-w-4xl">
                   <h1
                     className="mx-auto max-w-4xl text-white drop-shadow-[0_2px_16px_rgba(0,0,0,0.45)]"
                     style={{
-                      fontSize: "clamp(32px, 7vw, 72px)",
-                      lineHeight: 1.05,
+                      fontSize: "clamp(28px, 5.5vw, 72px)",
+                      lineHeight: 1.08,
                       fontWeight: 500,
                       letterSpacing: "-0.02em",
                     }}
@@ -75,14 +75,16 @@ export default function Home() {
                   </h1>
 
                   <p
-                    className="mx-auto mt-4 max-w-xl px-2 text-white/90 drop-shadow-[0_1px_8px_rgba(0,0,0,0.45)] sm:mt-5 sm:max-w-2xl"
-                    style={{ fontSize: "clamp(13px, 3vw, 16px)" }}
+                    className="mx-auto mt-4 max-w-xl px-2 text-white/90 drop-shadow-[0_1px_8px_rgba(0,0,0,0.45)] sm:mt-5 sm:max-w-2xl md:mt-6"
+                    style={{ fontSize: "clamp(13px, 2.5vw, 16px)" }}
                   >
                     Describe what you want to build. Lotus turns it into a live preview, production-ready code, and a workspace you can keep shaping.
                   </p>
 
-                  <div className="mx-auto mt-6 mb-2 w-full sm:mt-8 sm:mb-4">
-                    <AnimatedAIInput />
+                  <div className="mx-auto mt-6 w-full sm:mt-8 md:mt-9 lg:mt-10">
+                    <AnimatedAIInput
+                      footerHintsClassName="text-white/65 [&_kbd]:border-white/25 [&_kbd]:bg-white/10 [&_kbd]:text-white/85"
+                    />
                   </div>
                 </div>
               </div>

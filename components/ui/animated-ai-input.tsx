@@ -83,6 +83,7 @@ interface AnimatedAIInputProps {
   contextBadge?: { label: string; value: string; onClear?: () => void } | null;
   submitLabel?: string;
   wrapperClassName?: string;
+  footerHintsClassName?: string;
 }
 
 type SpeechRecognitionResultLike = {
@@ -265,6 +266,7 @@ export function AnimatedAIInput({
   contextBadge,
   submitLabel,
   wrapperClassName,
+  footerHintsClassName,
 }: AnimatedAIInputProps) {
   const router = useRouter();
   const { user, userData } = useAuth();
@@ -732,7 +734,7 @@ export function AnimatedAIInput({
       </div>
 
       {!compact && mode === "create" && (
-        <p className="mt-2.5 text-center text-[11px] text-muted-foreground/70">
+        <p className={cn("mt-2.5 text-center text-[11px] text-muted-foreground/70", footerHintsClassName)}>
           <kbd className="rounded-md border border-border bg-muted/60 px-1.5 py-0.5 font-mono text-[10px]">Enter</kbd>
           {" "}to send ·{" "}
           <kbd className="rounded-md border border-border bg-muted/60 px-1.5 py-0.5 font-mono text-[10px]">Shift+Enter</kbd>

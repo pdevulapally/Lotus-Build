@@ -982,14 +982,14 @@ export default function ProjectsPage() {
           <div className="relative z-10 flex min-h-0 flex-1 pt-3 sm:pt-4">
             <div className="relative min-h-0 w-full flex-1 overflow-hidden rounded-t-[1.125rem] shadow-[0_28px_100px_-86px_var(--primary)] sm:rounded-t-[1.25rem]">
               <div className="h-full overflow-y-auto [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
-                <div className="relative isolate flex min-h-[calc(100dvh+12rem)] w-full flex-col items-center justify-start overflow-hidden rounded-t-[1.125rem] px-5 pb-24 pt-14 sm:rounded-t-[1.25rem] sm:px-8 sm:pb-28 sm:pt-16 lg:pt-20">
+                <div className="relative isolate flex min-h-[calc(100dvh+12rem)] w-full flex-col items-center justify-start overflow-hidden rounded-t-[1.125rem] px-5 pb-24 sm:rounded-t-[1.25rem] sm:px-8 sm:pb-28">
                   <ShaderGradientBackground
                     className="z-0 rounded-t-[inherit]"
                     opacity={0.82}
                   />
 
                   <div className="relative z-10 w-full max-w-[60rem]">
-                    <div className="mx-auto w-full max-w-[44rem]">
+                    <div className="mx-auto flex min-h-[calc(100dvh-10rem)] w-full max-w-[44rem] flex-col justify-center py-10 sm:min-h-[calc(100dvh-9rem)] sm:py-12 md:py-14 lg:py-16">
                       <Suspense fallback={null}>
                         <OnboardingBanner />
                       </Suspense>
@@ -1004,12 +1004,12 @@ export default function ProjectsPage() {
                         </div>
                       </div>
 
-                      <div className="mb-8 text-center">
+                      <div className="mb-8 text-center md:mb-10">
                         <h1 className="text-[2rem] font-medium tracking-[-0.055em] text-white sm:text-[2.6rem]">
                           <span className="font-semibold">{greeting}</span>
                           {firstName ? `, ${firstName}` : ""}
                         </h1>
-                        <p className="mx-auto mt-4 max-w-[30rem] text-[14px] leading-7 text-white">
+                        <p className="mx-auto mt-4 max-w-[30rem] text-[14px] leading-7 text-white sm:mt-5">
                           Describe what you want to build. Lotus turns the brief into a focused workspace.
                         </p>
                       </div>
@@ -1017,6 +1017,7 @@ export default function ProjectsPage() {
                       <AnimatedAIInput
                         placeholder="Describe the app, website, or flow you want to create..."
                         wrapperClassName="border-background/70 bg-background/82 shadow-[0_26px_90px_-68px_var(--primary)] backdrop-blur-xl"
+                        footerHintsClassName="text-white/65 [&_kbd]:border-white/25 [&_kbd]:bg-white/10 [&_kbd]:text-white/85"
                       />
                     </div>
 
