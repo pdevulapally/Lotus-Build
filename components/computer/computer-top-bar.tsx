@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { AnimatePresence, motion } from "framer-motion"
 import {
   ArrowLeft,
-  ArrowUpRight,
+  ArrowUpFromLine,
   Check,
   ChevronDown,
   Copy,
@@ -220,7 +220,7 @@ export function ComputerTopBar({
                         Rename session
                       </DropdownMenuItem>
                       <DropdownMenuItem className="h-9 gap-2.5 rounded-xl px-2.5 text-[13px] focus:bg-muted/60" onSelect={onOpenDeploy} disabled={!session.projectId}>
-                        <ItemIcon><ArrowUpRight className="h-3.5 w-3.5" /></ItemIcon>
+                        <ItemIcon><ArrowUpFromLine className="h-3.5 w-3.5" /></ItemIcon>
                         Deploy
                       </DropdownMenuItem>
                       {onOpenHistory && (
@@ -433,7 +433,7 @@ export function ComputerTopBar({
                         Connectors
                       </DropdownMenuItem>
                       <DropdownMenuItem className="h-9 gap-2.5 rounded-xl px-2.5 text-[13px] focus:bg-muted/60" onSelect={onOpenDeploy} disabled={!session.projectId}>
-                        <ItemIcon><ArrowUpRight className="h-3.5 w-3.5" /></ItemIcon>
+                        <ItemIcon><ArrowUpFromLine className="h-3.5 w-3.5" /></ItemIcon>
                         Deploy
                       </DropdownMenuItem>
                       {onOpenHistory && (
@@ -570,8 +570,9 @@ export function ComputerTopBar({
                 type="button"
                 onClick={onOpenDeploy}
                 disabled={!session.projectId}
-                className="inline-flex h-8 items-center rounded-lg bg-foreground px-4 text-[12px] font-semibold text-background transition-all hover:bg-foreground/85 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-30"
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-foreground px-3.5 text-[12px] font-semibold text-background transition-all hover:bg-foreground/85 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-30"
               >
+                <ArrowUpFromLine className="h-3.5 w-3.5" />
                 Deploy
               </button>
             </div>
