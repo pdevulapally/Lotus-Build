@@ -43,7 +43,13 @@
       "Bash(node -e \"const p = require\\('/workspaces/Lotus-Build/node_modules/three/package.json'\\); console.log\\(JSON.stringify\\({types: p.types, typings: p.typings, exports_dot: p.exports?.['.']?.types ?? p.exports?.['.']?.import}, null, 2\\)\\)\")",
       "Bash(python3 -c \"import sys,json; p=json.load\\(sys.stdin\\); print\\('version:', p.get\\('version'\\)\\); print\\('types:', p.get\\('types'\\)\\); [print\\(k,':', v\\) for k,v in p.get\\('exports',{}\\).items\\(\\) if k in ['.', './tsl']]\")",
       "Bash(python3 -c \"import sys,json; c=json.load\\(sys.stdin\\); print\\(json.dumps\\(c.get\\('compilerOptions',{}\\), indent=2\\)\\)\")",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(node -e \"const p = require\\('./node_modules/firebase-admin/package.json'\\); console.log\\('firebase-admin:', p.version\\)\")",
+      "Bash(node -e \"const p = require\\('./node_modules/ai/package.json'\\); console.log\\('ai:', p.version\\); const p2 = require\\('./node_modules/@ai-sdk/react/package.json'\\); console.log\\('@ai-sdk/react:', p2.version\\)\")",
+      "Bash(node -e \"const p = require\\('./node_modules/google-auth-library/package.json'\\); console.log\\('google-auth-library:', p.version\\)\")",
+      "Bash(node -e \"const p = require\\('./node_modules/jsonwebtoken/package.json'\\); console.log\\('jsonwebtoken:', p.version\\)\")",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }
