@@ -222,6 +222,10 @@ export function ComputerTopBar({
                         <ItemIcon><Pencil className="h-3.5 w-3.5" /></ItemIcon>
                         Rename session
                       </DropdownMenuItem>
+                      <DropdownMenuItem className="h-9 gap-2.5 rounded-xl px-2.5 text-[13px] focus:bg-muted/60" onSelect={onOpenIntegrations} disabled={!session.projectId}>
+                        <ItemIcon><KeyRound className="h-3.5 w-3.5" /></ItemIcon>
+                        Connectors
+                      </DropdownMenuItem>
                       <DropdownMenuItem className="h-9 gap-2.5 rounded-xl px-2.5 text-[13px] focus:bg-muted/60" onSelect={onOpenDeploy} disabled={!session.projectId}>
                         <ItemIcon><Globe className="h-3.5 w-3.5" /></ItemIcon>
                         Deploy

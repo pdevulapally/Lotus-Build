@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { AnimatePresence, motion } from "framer-motion"
-import { BookOpen, ExternalLink, Globe2, Home, Laptop, Monitor, RotateCcw, ShieldAlert, Wrench } from "lucide-react"
+import { BookOpen, ExternalLink, Globe2, Home, Laptop, Loader2, Monitor, RotateCcw, ShieldAlert, Wrench } from "lucide-react"
 import { MobilePreview } from "@/components/computer/mobile-preview"
 import { TextShimmer } from "@/components/prompt-kit/text-shimmer"
 import { normalizePlatform } from "@/lib/projects/platform"
@@ -208,30 +208,30 @@ export function WorkspaceTabBar({
   if (activeTab !== "preview" || !previewUrl) return null
 
   return (
-    <div className="hidden h-10 shrink-0 items-center justify-center border-b border-border/50 bg-muted/20 px-4 sm:flex">
+    <div className="hidden h-10 shrink-0 items-center justify-center border-b border-border/50 bg-muted/40 px-4 sm:flex">
       {/* Centered constrained URL pill */}
-      <div className="group flex w-full max-w-sm items-center gap-0.5 overflow-hidden rounded-full border border-border/50 bg-background/60 px-1 transition-colors focus-within:border-border/80 focus-within:bg-background hover:border-border/70 hover:bg-background/90">
+      <div className="group flex w-full max-w-sm items-center gap-0.5 overflow-hidden rounded-full border border-foreground/25 bg-muted px-1 shadow-sm transition-colors focus-within:border-foreground/40 focus-within:bg-muted/80 hover:border-foreground/35 hover:bg-muted/80">
 
         {/* Home */}
         <button
           type="button"
           aria-label="Go to root"
           onClick={() => commitNav("/")}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground/40 transition-colors hover:bg-accent hover:text-foreground"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-foreground/70 transition-colors hover:bg-background/60 hover:text-foreground"
         >
           <Home className="h-3.5 w-3.5" />
         </button>
 
-        {/* Host (dimmed) */}
+        {/* Host (dimmed, truncated) */}
         {previewOrigin && (
-          <span className="shrink-0 select-none text-[11px] text-muted-foreground/35">
+          <span className="max-w-[130px] shrink truncate select-none text-[11px] text-foreground/50">
             {previewOrigin.replace(/^https?:\/\//, "")}
           </span>
         )}
 
         {/* Slash + path */}
-        <div className="flex min-w-0 flex-1 items-center">
-          <span className="shrink-0 select-none text-[12px] text-muted-foreground/35">/</span>
+        <div className="flex min-w-[40px] flex-1 items-center">
+          <span className="shrink-0 select-none text-[12px] text-foreground/40">/</span>
           <input
             ref={inputRef}
             value={urlPath.replace(/^\//, "")}
@@ -241,7 +241,7 @@ export function WorkspaceTabBar({
               if (e.key === "Escape") inputRef.current?.blur()
             }}
             onClick={() => inputRef.current?.select()}
-            className="min-w-0 flex-1 bg-transparent py-0.5 text-[12px] text-foreground/70 outline-none"
+            className="min-w-0 flex-1 bg-transparent py-0.5 text-[12px] text-foreground outline-none placeholder:text-foreground/30"
             spellCheck={false}
             autoCorrect="off"
             autoCapitalize="off"
@@ -254,7 +254,7 @@ export function WorkspaceTabBar({
           target="_blank"
           rel="noreferrer"
           aria-label="Open in new tab"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground/40 transition-colors hover:bg-accent hover:text-foreground"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-foreground/80 transition-colors hover:bg-background/60 hover:text-foreground"
         >
           <ExternalLink className="h-3.5 w-3.5" />
         </a>
@@ -264,7 +264,7 @@ export function WorkspaceTabBar({
           type="button"
           aria-label="Refresh preview"
           onClick={onRefreshPreview}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground/40 transition-colors hover:bg-accent hover:text-foreground"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-foreground/70 transition-colors hover:bg-background/60 hover:text-foreground"
         >
           <RotateCcw className="h-3.5 w-3.5" />
         </button>
@@ -292,6 +292,7 @@ export function WorkspaceContent({
   getAuthHeader,
   previewSyncNonce = 0,
   previewSrc,
+  iframeReloadNonce = 0,
 }: {
   session: ComputerSessionResponse
   status: ComputerSessionStatus
@@ -311,6 +312,7 @@ export function WorkspaceContent({
   getAuthHeader: () => Promise<Record<string, string>>
   previewSyncNonce?: number
   previewSrc?: string | null
+  iframeReloadNonce?: number
 }) {
   const sessionPlatform = normalizePlatform(session.platform)
   const workspaceProgress = progress ?? {
@@ -387,19 +389,80 @@ export function WorkspaceContent({
 
   if (activeTab === "preview" && session.previewUrl) {
     const effectivePreviewSrc = previewSrc || session.previewUrl
-    return (
-      <motion.div key="preview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}
-        className="flex h-full min-h-0 flex-col">
-        <div className="relative min-h-0 flex-1 overflow-hidden">
-          <iframe key={effectivePreviewSrc} src={effectivePreviewSrc} className="h-full w-full" sandbox="allow-scripts allow-same-origin allow-forms" title="Live preview" />
-          {isEnsuringPreview && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-end justify-center pb-4">
-              <div className="rounded-full border border-border bg-card/90 px-3 py-1.5 text-[11px] font-medium text-muted-foreground shadow-sm backdrop-blur-sm">
-                Refreshing preview…
-              </div>
+    const iframeKey = `${effectivePreviewSrc}__${iframeReloadNonce}`
+    return <PreviewPane
+      iframeKey={iframeKey}
+      src={effectivePreviewSrc}
+      isEnsuringPreview={isEnsuringPreview}
+      previewEnsureError={previewEnsureError}
+      onRetryPreview={onRetryPreview}
+      browserInspection={browserInspection}
+      onSwitchView={onSwitchView}
+      runtimeError={runtimeError}
+      fixingError={fixingError}
+      onFixError={onFixError}
+      onDismissError={onDismissError}
+    />
+  }
+
+  return <SessionProgressSurface progress={workspaceProgress} />
+}
+
+function PreviewPane({
+  iframeKey,
+  src,
+  isEnsuringPreview,
+  previewEnsureError,
+  onRetryPreview,
+  browserInspection,
+  onSwitchView,
+  runtimeError,
+  fixingError,
+  onFixError,
+  onDismissError,
+}: {
+  iframeKey: string
+  src: string
+  isEnsuringPreview: boolean
+  previewEnsureError: string | null
+  onRetryPreview: () => void
+  browserInspection: BrowserInspection | null
+  onSwitchView: (v: WorkspaceTab) => void
+  runtimeError: { message: string; stack: string } | null
+  fixingError: boolean
+  onFixError: () => void
+  onDismissError: () => void
+}) {
+  const [isIframeLoading, setIsIframeLoading] = useState(true)
+
+  useEffect(() => {
+    setIsIframeLoading(true)
+  }, [iframeKey])
+
+  return (
+    <motion.div key="preview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}
+      className="flex h-full min-h-0 flex-col">
+      <div className="relative min-h-0 flex-1 overflow-hidden">
+        <iframe
+          key={iframeKey}
+          src={src}
+          className="h-full w-full"
+          sandbox="allow-scripts allow-same-origin allow-forms"
+          title="Live preview"
+          onLoad={() => setIsIframeLoading(false)}
+        />
+
+        {/* Loading banner — only while iframe is actually loading */}
+        {isIframeLoading && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-end justify-center pb-4">
+            <div className="flex items-center gap-2 rounded-full border border-border bg-card/90 px-3 py-1.5 text-[11px] font-medium text-muted-foreground shadow-sm backdrop-blur-sm">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Loading preview…
             </div>
-          )}
-          {previewEnsureError && !isEnsuringPreview && (
+          </div>
+        )}
+
+        {previewEnsureError && !isEnsuringPreview && (
             <div className="absolute inset-x-0 bottom-0 z-10 flex items-end justify-center p-4">
               <div className="flex max-w-[360px] items-center gap-2 rounded-xl border border-border bg-card/95 px-3 py-2 text-[12px] text-muted-foreground shadow-sm backdrop-blur-sm">
                 <span className="min-w-0 flex-1">{previewEnsureError}</span>
@@ -419,9 +482,6 @@ export function WorkspaceContent({
         </div>
       </motion.div>
     )
-  }
-
-  return <SessionProgressSurface progress={workspaceProgress} />
 }
 
 export function LoadingShell() {

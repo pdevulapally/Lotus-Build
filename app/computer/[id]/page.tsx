@@ -627,45 +627,69 @@ function IntegrationsButton({
         <>
           {/* Backdrop */}
           <div
-            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]"
+            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px]"
             onClick={() => onOpenChange(false)}
           />
 
           {/* Centered modal — two-panel layout */}
-          <div className="fixed left-1/2 top-1/2 z-50 flex max-h-[85vh] w-[680px] max-w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-border/60 bg-background shadow-2xl shadow-black/20">
+          <div className="fixed inset-x-0 bottom-0 z-50 flex max-h-[92dvh] flex-col overflow-hidden rounded-t-2xl border border-border/60 bg-background shadow-2xl shadow-black/20 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:max-h-[85vh] sm:w-[680px] sm:max-w-[calc(100vw-2rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:flex-row sm:rounded-2xl">
 
-            {/* ── Left nav ── */}
-            <div className="flex w-[200px] shrink-0 flex-col border-r border-border/50 bg-muted/20 p-4">
-              <p className="mb-3 px-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/50">
-                Settings
-              </p>
-              <nav className="space-y-0.5">
+            {/* ── Left nav (desktop) / Top tabs (mobile) ── */}
+            <div className="shrink-0 border-b border-border/50 bg-muted/20 sm:flex sm:w-[200px] sm:flex-col sm:border-b-0 sm:border-r sm:p-4">
+              {/* Mobile: horizontal tab strip */}
+              <div className="flex sm:hidden">
                 {([
-                  { id: "integrations" as const, label: "Integrations", icon: <Database className="h-3.5 w-3.5" /> },
-                  { id: "env" as const, label: "Environment Variables", icon: <KeyRound className="h-3.5 w-3.5" /> },
-                ] as Array<{ id: "integrations" | "env"; label: string; icon: React.ReactNode }>).map((item) => (
+                  { id: "integrations" as const, label: "Integrations" },
+                  { id: "env" as const, label: "Env Variables" },
+                ] as Array<{ id: "integrations" | "env"; label: string }>).map((item) => (
                   <button
                     key={item.id}
                     type="button"
                     onClick={() => setActiveSection(item.id)}
                     className={cn(
-                      "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium transition-colors",
+                      "flex-1 border-b-2 py-3 text-[13px] font-medium transition-colors",
                       activeSection === item.id
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:bg-background/60 hover:text-foreground",
+                        ? "border-foreground text-foreground"
+                        : "border-transparent text-muted-foreground",
                     )}
                   >
-                    <span className="shrink-0 opacity-60">{item.icon}</span>
                     {item.label}
                   </button>
                 ))}
-              </nav>
+              </div>
+              {/* Desktop: vertical nav */}
+              <div className="hidden sm:block">
+                <p className="mb-3 px-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/50">
+                  Settings
+                </p>
+                <nav className="space-y-0.5">
+                  {([
+                    { id: "integrations" as const, label: "Integrations", icon: <Database className="h-3.5 w-3.5" /> },
+                    { id: "env" as const, label: "Environment Variables", icon: <KeyRound className="h-3.5 w-3.5" /> },
+                  ] as Array<{ id: "integrations" | "env"; label: string; icon: React.ReactNode }>).map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setActiveSection(item.id)}
+                      className={cn(
+                        "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium transition-colors",
+                        activeSection === item.id
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground hover:bg-background/60 hover:text-foreground",
+                      )}
+                    >
+                      <span className="shrink-0 opacity-60">{item.icon}</span>
+                      {item.label}
+                    </button>
+                  ))}
+                </nav>
+              </div>
             </div>
 
             {/* ── Right content ── */}
             <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
               {/* Header */}
-              <div className="flex shrink-0 items-center justify-between border-b border-border/50 px-6 py-4">
+              <div className="flex shrink-0 items-center justify-between border-b border-border/50 px-5 py-4 sm:px-6">
                 <p className="text-[15px] font-semibold text-foreground">
                   {activeSection === "integrations" ? "Integrations" : "Environment Variables"}
                 </p>
@@ -679,7 +703,7 @@ function IntegrationsButton({
               </div>
 
               {/* Scrollable content */}
-              <div className="min-h-0 flex-1 overflow-y-auto p-6 [scrollbar-width:thin]">
+              <div className="min-h-0 flex-1 overflow-y-auto p-5 [scrollbar-width:thin] sm:p-6">
 
                 {/* ── Integrations panel ── */}
                 {activeSection === "integrations" && (
@@ -690,7 +714,7 @@ function IntegrationsButton({
                           <p className="text-[12px] font-semibold text-foreground">Connected</p>
                           <Info className="h-3 w-3 text-muted-foreground/40" />
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                           {connectedIntegrations.map((item) => (
                             <IntegrationCard
                               key={item.key}
@@ -720,7 +744,7 @@ function IntegrationsButton({
                           </p>
                           <Info className="h-3 w-3 text-muted-foreground/40" />
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                           {availableIntegrations.map((item) => (
                             <IntegrationCard
                               key={item.key}
@@ -956,71 +980,6 @@ function MobileDeploySheet({
   )
 }
 
-function MobileIntegrationsSheet({
-  open,
-  project,
-  busy,
-  message,
-  onClose,
-  onGithubSync,
-  onSupabaseSetup,
-}: {
-  open: boolean
-  project: ComputerProjectIntegration | null
-  busy: IntegrationAction | null
-  message: string
-  onClose: () => void
-  onGithubSync: () => void
-  onSupabaseSetup: () => void
-}) {
-  if (!open) return null
-  const hasGitHub = Boolean(project?.githubRepoUrl || project?.githubRepoFullName)
-  const hasSupabase = Boolean(project?.supabaseUrl || project?.supabaseProjectRef)
-  return (
-    <div className="fixed inset-x-3 bottom-[5.6rem] z-50 max-h-[min(72dvh,32rem)] overflow-y-auto rounded-[1.45rem] border border-border bg-card p-3 shadow-[0_24px_80px_-32px_var(--primary)] [scrollbar-width:thin] sm:hidden">
-      <div className="mb-3 flex items-start justify-between gap-3 px-1">
-        <div>
-          <p className="text-[13px] font-semibold text-foreground">Integrations</p>
-          <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">Connect services to this website.</p>
-        </div>
-        <button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
-          <span className="text-base leading-none">×</span>
-        </button>
-      </div>
-      <div className="space-y-2">
-        <button
-          type="button"
-          onClick={onGithubSync}
-          disabled={busy !== null}
-          className="flex w-full items-center justify-between rounded-2xl border border-border bg-background px-3.5 py-3 text-left transition-colors hover:border-border-strong hover:bg-muted disabled:opacity-60"
-        >
-          <span>
-            <span className="block text-[13px] font-semibold text-foreground">GitHub</span>
-            <span className="mt-0.5 block text-[11px] text-muted-foreground">{hasGitHub ? project?.githubRepoFullName || "Repository connected" : "Publish repository"}</span>
-          </span>
-          <Github className="h-4 w-4 text-muted-foreground" />
-        </button>
-        <button
-          type="button"
-          onClick={onSupabaseSetup}
-          disabled={busy !== null}
-          className="flex w-full items-center justify-between rounded-2xl border border-border bg-background px-3.5 py-3 text-left transition-colors hover:border-border-strong hover:bg-muted disabled:opacity-60"
-        >
-          <span>
-            <span className="block text-[13px] font-semibold text-foreground">Supabase</span>
-            <span className="mt-0.5 block text-[11px] text-muted-foreground">{hasSupabase ? project?.supabaseProjectRef || "Database connected" : "Provision database"}</span>
-          </span>
-          <Database className="h-4 w-4 text-muted-foreground" />
-        </button>
-      </div>
-      {message ? (
-        <p className="mt-3 rounded-2xl border border-border bg-secondary px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
-          {message}
-        </p>
-      ) : null}
-    </div>
-  )
-}
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -1058,6 +1017,7 @@ export default function ComputerPage() {
   const [previewEnsureError, setPreviewEnsureError] = useState<string | null>(null)
   const [previewRetryNonce, setPreviewRetryNonce] = useState(0)
   const [previewNavSrc, setPreviewNavSrc] = useState<string | null>(null)
+  const [previewReloadNonce, setPreviewReloadNonce] = useState(0)
   const [runtimeError,      setRuntimeError]      = useState<{ message: string; stack: string } | null>(null)
   const [fixingError,       setFixingError]       = useState(false)
   const [stoppedSessionIds, setStoppedSessionIds] = useState<Set<string>>(() => new Set(readStoppedComputerSessions()))
@@ -2205,11 +2165,7 @@ export default function ComputerPage() {
           <WorkspaceTabBar
             activeTab={activeTab}
             previewUrl={session.previewUrl}
-            onRefreshPreview={() => {
-              previewEnsureKeyRef.current = null
-              setPreviewEnsureError(null)
-              setPreviewRetryNonce((n) => n + 1)
-            }}
+            onRefreshPreview={() => setPreviewReloadNonce((n) => n + 1)}
             onNavigatePreview={(url) => setPreviewNavSrc(url)}
           />
 
@@ -2253,6 +2209,7 @@ export default function ComputerPage() {
                   }}
                   previewSyncNonce={previewRetryNonce}
                   previewSrc={previewNavSrc}
+                  iframeReloadNonce={previewReloadNonce}
                 />
               </motion.div>
             </AnimatePresence>
@@ -2300,15 +2257,6 @@ export default function ComputerPage() {
         open={tokenLimitModalOpen}
         onOpenChange={setTokenLimitModalOpen}
         description="This workspace has no credits left in the current cycle. Upgrade to continue running the computer agent."
-      />
-      <MobileIntegrationsSheet
-        open={integrationsOpen}
-        project={projectIntegration}
-        busy={integrationBusy}
-        message={integrationMessage}
-        onClose={() => setIntegrationsOpen(false)}
-        onGithubSync={handleGithubSync}
-        onSupabaseSetup={handleSupabaseSetup}
       />
       <MobileDeploySheet
         open={deployOpen}
