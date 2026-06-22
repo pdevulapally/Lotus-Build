@@ -1950,32 +1950,36 @@ export default function ComputerPage() {
 
         {/* ── Chat panel (left) ── */}
         <div className={cn(
-          "flex w-full shrink-0 flex-col overflow-hidden bg-background transition-[width] duration-200 ease-in-out sm:border-r sm:border-border/80",
+          "flex w-full shrink-0 flex-col overflow-hidden bg-background transition-[width] duration-200 ease-in-out sm:border-r sm:border-border/40",
           desktopChatCollapsed
             ? "sm:w-0 sm:overflow-hidden sm:border-r-0"
             : "sm:w-[38%] md:w-[37%] lg:w-[380px] xl:w-[420px] 2xl:w-[460px]",
           mobileView !== "feed" && "hidden sm:flex"
         )}>
           {/* Feed scroll area */}
-          <div className="chat-scrollbar min-h-0 flex-1 overflow-y-auto px-4 py-5 lg:px-5">
-            <AgentFeed
-              prompt={firstPrompt} events={session.timeline}
-              localMessages={localMessages} status={effectiveStatus}
-              progress={sessionProgress}
-              optimisticStart={optimisticStart}
-              editingIndex={editingMsgIndex} editText={editText}
-              onEditStart={handleEditStart} onEditChange={setEditText}
-              onEditSubmit={handleEditSubmit} onEditCancel={handleEditCancel}
-              onSupabaseSetup={handleSupabaseYes}
-              onSupabaseDecline={handleSupabaseNo}
-              onClarificationAnswer={handleClarificationAnswer}
-              onApprovePlan={showPlanApproval ? handleApprovePlan : undefined}
-              onRestoreCheckpoint={handleRestoreCheckpoint}
-            />
+          <div className="relative min-h-0 flex-1 overflow-hidden">
+            {/* Gradient fade — content appears to emerge below the header */}
+            <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-8 bg-gradient-to-b from-background to-transparent" />
+            <div className="chat-scrollbar h-full overflow-y-auto px-4 py-6 lg:px-5">
+              <AgentFeed
+                prompt={firstPrompt} events={session.timeline}
+                localMessages={localMessages} status={effectiveStatus}
+                progress={sessionProgress}
+                optimisticStart={optimisticStart}
+                editingIndex={editingMsgIndex} editText={editText}
+                onEditStart={handleEditStart} onEditChange={setEditText}
+                onEditSubmit={handleEditSubmit} onEditCancel={handleEditCancel}
+                onSupabaseSetup={handleSupabaseYes}
+                onSupabaseDecline={handleSupabaseNo}
+                onClarificationAnswer={handleClarificationAnswer}
+                onApprovePlan={showPlanApproval ? handleApprovePlan : undefined}
+                onRestoreCheckpoint={handleRestoreCheckpoint}
+              />
+            </div>
           </div>
 
           {/* Composer */}
-          <div className="shrink-0 bg-background px-3 pt-3 pb-[5.25rem] sm:pb-3 lg:px-4">
+          <div className="shrink-0 bg-background px-3 pt-2 pb-[5.25rem] sm:pb-3 lg:px-4">
 
 
             {isBuildTokenBlocked && (
@@ -2011,7 +2015,7 @@ export default function ComputerPage() {
 
         {/* ── Workspace panel (right) ── */}
         <div className={cn(
-          "flex min-w-0 flex-1 flex-col overflow-hidden bg-muted/35",
+          "flex min-w-0 flex-1 flex-col overflow-hidden bg-muted/25",
           mobileView !== "workspace" && "hidden sm:flex"
         )}>
           <WorkspaceTabBar
@@ -2023,16 +2027,16 @@ export default function ComputerPage() {
             showCompleteBadge={effectiveStatus === "complete"}
           />
 
-          {/* Workspace content — inset frame like Manus computer view */}
-          <div className="relative min-h-0 flex-1 p-2 sm:p-2.5 lg:p-3">
+          {/* Workspace content — inset floating frame */}
+          <div className="relative min-h-0 flex-1 p-2 sm:p-2 lg:p-3">
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={activeTab}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.16 }}
-                className="h-full min-h-0 overflow-hidden rounded-lg border border-border/70 bg-background shadow-sm"
+                transition={{ duration: 0.14 }}
+                className="h-full min-h-0 overflow-hidden rounded-xl border border-border/50 bg-background shadow-md shadow-black/5"
               >
                 <WorkspaceContent
                   session={session} status={effectiveStatus} activeTab={activeTab}
