@@ -1975,7 +1975,7 @@ export default function ComputerPage() {
           </div>
 
           {/* Composer */}
-          <div className="shrink-0 border-t border-border/60 bg-background px-3 pt-3 pb-[5.25rem] sm:pb-3 lg:px-4">
+          <div className="shrink-0 bg-background px-3 pt-3 pb-[5.25rem] sm:pb-3 lg:px-4">
 
 
             {isBuildTokenBlocked && (
