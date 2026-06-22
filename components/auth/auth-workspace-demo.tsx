@@ -20,9 +20,9 @@ export function AuthWorkspaceDemo({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.55, delay: 0.12, ease: "easeOut" }}
-      className="max-w-xl rounded-[1.75rem] bg-background/15 p-3 shadow-[0_30px_120px_-70px_var(--accent)] backdrop-blur-xl"
+      className="max-w-xl rounded-lg bg-background/15 p-3 shadow-[0_24px_80px_-48px_rgba(0,0,0,0.35)] backdrop-blur-md"
     >
-      <div className="overflow-hidden rounded-[1.35rem] border border-primary-foreground/15 bg-card/95 text-foreground shadow-sm backdrop-blur-xl">
+      <div className="overflow-hidden rounded-md border border-primary-foreground/15 bg-card/95 text-foreground shadow-sm backdrop-blur-sm">
         <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-2.5">
           <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
             Builder

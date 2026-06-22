@@ -47,7 +47,7 @@ import { runAgenticGeneration } from "@/lib/computer-agent/agentic-generation"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
-export const maxDuration = 300
+export const maxDuration = 1800 // Vercel Pro extended max (30 min, Fluid Compute)
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,

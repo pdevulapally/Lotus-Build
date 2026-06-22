@@ -25,7 +25,7 @@ const cards: BentoCard[] = [
     eyebrow: "Edit what you see",
     title: "Refine live",
     description: "Change copy, layout, and details while the preview stays connected to the project.",
-    className: "bg-slate-soft text-foreground",
+    className: "bg-muted text-foreground",
     preview: "browser",
   },
   {
@@ -54,7 +54,7 @@ const launchPreviewItems = ["Preview checked", "Code packaged", "Ready to publis
 function CardPreview({ type }: { type: BentoCard["preview"] }) {
   if (type === "timeline") {
     return (
-      <div className="mt-12 grid gap-px overflow-hidden rounded-3xl bg-primary-foreground/15 sm:grid-cols-4">
+      <div className="mt-12 grid divide-x divide-primary-foreground/10 overflow-hidden rounded-3xl border border-primary-foreground/10 sm:grid-cols-4">
         {workflowSteps.map((step, index) => (
           <div key={step} className="bg-primary px-4 py-4">
             <span className="text-[11px] tabular-nums text-primary-foreground/45">
@@ -69,7 +69,7 @@ function CardPreview({ type }: { type: BentoCard["preview"] }) {
 
   if (type === "code") {
     return (
-      <div className="mt-auto w-full rounded-2xl border border-border/70 bg-background/75 p-3 text-left">
+      <div className="mt-auto w-full rounded-2xl border border-border bg-background p-3 text-left">
         {codePreviewLines.map((line, index) => (
           <div key={line} className="grid grid-cols-[44px_1fr] border-b border-border/60 py-2 last:border-0">
             <span className="text-[11px] tabular-nums text-muted-foreground/60">
@@ -84,7 +84,7 @@ function CardPreview({ type }: { type: BentoCard["preview"] }) {
 
   if (type === "browser") {
     return (
-      <div className="mt-auto w-full rounded-2xl bg-card/85 p-3 text-left shadow-[0_18px_50px_-42px_var(--primary)]">
+      <div className="mt-auto w-full rounded-2xl border border-border bg-card p-3 text-left">
         <div className="rounded-xl bg-primary px-4 py-3 text-primary-foreground">
           <div className="flex items-center justify-between gap-3">
             <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-primary-foreground/55">
@@ -101,7 +101,7 @@ function CardPreview({ type }: { type: BentoCard["preview"] }) {
           {editPreviewResults.map((result, index) => (
             <div
               key={result}
-              className="flex items-center justify-between rounded-xl bg-background/80 px-3 py-2 text-xs"
+              className="flex items-center justify-between rounded-xl border border-border/60 bg-background px-3 py-2 text-xs"
             >
               <span className="font-medium text-foreground">{result}</span>
               <span className="tabular-nums text-muted-foreground">
@@ -115,7 +115,7 @@ function CardPreview({ type }: { type: BentoCard["preview"] }) {
   }
 
   return (
-    <div className="mt-auto w-full rounded-2xl bg-secondary/70 p-3 text-left">
+    <div className="mt-auto w-full rounded-2xl border border-border bg-secondary p-3 text-left">
       <div className="flex items-center justify-between rounded-xl bg-card px-3 py-2 text-sm font-medium text-foreground">
         <span>Launch-ready</span>
         <span className="text-xs tabular-nums text-muted-foreground">04</span>
@@ -149,7 +149,7 @@ export function ColorfulBentoGrid() {
         </p>
       </div>
 
-      <div className="mb-5 flex flex-wrap gap-x-6 gap-y-2 text-sm font-medium text-accent-soft-foreground">
+      <div className="mb-5 flex flex-wrap gap-x-6 gap-y-2 text-sm font-medium text-primary">
         <p>Live sandbox preview</p>
         <p>Production React code</p>
         <p>Guided refinements</p>

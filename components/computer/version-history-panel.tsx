@@ -107,8 +107,8 @@ export function VersionHistoryPanel({
   if (!open) return null
 
   const shellClass = variant === "sheet"
-    ? "fixed inset-x-3 bottom-[5.6rem] z-50 flex max-h-[min(72dvh,36rem)] flex-col overflow-hidden rounded-[1.45rem] border border-border bg-card shadow-[0_24px_80px_-32px_var(--primary)] sm:hidden"
-    : "z-30 hidden w-[min(100vw-2rem,24rem)] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[0_24px_70px_-32px_var(--primary)] sm:flex fixed right-6 top-16 max-h-[min(72dvh,36rem)]"
+    ? "fixed inset-x-3 bottom-[5.6rem] z-50 flex max-h-[min(72dvh,36rem)] flex-col overflow-hidden rounded-lg border border-border bg-background shadow-lg sm:hidden"
+    : "z-30 hidden w-[min(100vw-2rem,24rem)] flex-col overflow-hidden rounded-lg border border-border bg-background shadow-lg sm:flex fixed right-6 top-16 max-h-[min(72dvh,36rem)]"
 
   return (
     <>
@@ -174,7 +174,7 @@ export function VersionHistoryPanel({
                     <div
                       className={cn(
                         "overflow-hidden rounded-xl border transition-colors",
-                        isCurrent ? "border-accent/30 bg-accent-soft/40" : "border-border bg-background"
+                        isCurrent ? "border-primary/30 bg-accent-soft/40" : "border-border bg-background"
                       )}
                     >
                       <button
@@ -220,7 +220,7 @@ export function VersionHistoryPanel({
                               type="button"
                               disabled={Boolean(restoringId)}
                               onClick={() => setConfirmVersion(version)}
-                              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-3 py-2.5 text-[12px] font-semibold text-accent-foreground transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-60"
+                              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-[12px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               {isRestoring ? (
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />

@@ -18,6 +18,14 @@ import {
 } from "@/components/computer/session-types"
 import { cn } from "@/lib/utils"
 
+function formatBrowserHost(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "")
+  } catch {
+    return "Browser"
+  }
+}
+
 function ResearchPanel({ events }: { events: ComputerTimelineEvent[] }) {
   const evidence = events.filter(
     (e) => (e.kind === "research" || e.kind === "browser") && Boolean(e.description?.trim())
@@ -109,7 +117,7 @@ function RuntimeErrorCard({
           type="button"
           onClick={onFix}
           disabled={fixing}
-          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-[12px] font-semibold text-accent-foreground hover:bg-accent/90 disabled:opacity-60"
+          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-[12px] font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
         >
           <Wrench className="h-3.5 w-3.5" />
           {fixing ? "Fixing..." : "Fix with AI"}
@@ -185,8 +193,15 @@ export function WorkspaceTabBar({
   ]
 
   return (
-    <div className="hidden h-11 shrink-0 items-center justify-between gap-2 border-b border-border/50 bg-card px-3 sm:flex lg:px-4">
-      <div className="flex items-center rounded-lg bg-muted/60 p-0.5">
+    <div className="hidden h-11 shrink-0 items-center justify-between gap-3 border-b border-border/60 bg-muted/35 px-3 sm:flex lg:px-4">
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-background text-muted-foreground">
+          <Monitor className="h-3.5 w-3.5" />
+        </span>
+        <p className="text-[12px] font-semibold tracking-[-0.01em] text-foreground">Computer</p>
+      </div>
+      <div className="flex items-center gap-2">
+      <div className="flex items-center rounded-lg bg-background/80 p-0.5 ring-1 ring-border/60">
         {tabs.filter((tab) => tab.show || tab.id === "preview").map((tab) => (
           <button
             key={tab.id}
@@ -195,18 +210,19 @@ export function WorkspaceTabBar({
             className={cn(
               "inline-flex h-6 items-center gap-1.5 rounded-md px-2.5 text-[12px] font-semibold transition-all duration-150",
               activeTab === tab.id
-                ? "bg-background text-foreground shadow-sm"
+                ? "bg-primary text-primary-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
             {tab.label}
-            {tab.dot && <span className="h-1.5 w-1.5 rounded-full bg-accent" />}
+            {tab.dot && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
           </button>
         ))}
       </div>
       {showCompleteBadge && (
-        <span className="rounded-full bg-muted/60 px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">Done</span>
+        <span className="rounded-full bg-success-soft px-2 py-0.5 text-[11px] font-semibold text-success-soft-foreground">Done</span>
       )}
+      </div>
     </div>
   )
 }
@@ -265,7 +281,14 @@ export function WorkspaceContent({
       <motion.div key="browser" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}
         className="flex h-full min-h-0 flex-col p-3 lg:p-4">
         <div className="mb-2 flex min-w-0 items-center justify-between gap-3">
-          <p className="truncate text-[12px] font-medium text-foreground">{browserInspection.title}</p>
+          <div className="min-w-0">
+            <p className="truncate text-[12px] font-medium text-foreground">
+              {formatBrowserHost(browserInspection.url)}
+            </p>
+            {browserInspection.title && browserInspection.title !== browserInspection.url && (
+              <p className="truncate text-[10.5px] text-muted-foreground">{browserInspection.title}</p>
+            )}
+          </div>
           <WorkspaceHeaderLink href={browserInspection.url} />
         </div>
         <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-border bg-card">
@@ -282,7 +305,7 @@ export function WorkspaceContent({
               <p className="text-sm text-muted-foreground">
                 {browserInspection.isExpired ? "Live view has expired." : "Live view unavailable."}
               </p>
-              <a href={browserInspection.url} target="_blank" rel="noopener noreferrer" className="text-xs text-accent underline underline-offset-2">
+              <a href={browserInspection.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline underline-offset-2">
                 Open page in new tab
               </a>
             </div>
@@ -331,14 +354,14 @@ export function WorkspaceContent({
             <div className="absolute inset-x-0 bottom-0 z-10 flex items-end justify-center p-4">
               <div className="flex max-w-[360px] items-center gap-2 rounded-xl border border-border bg-card/95 px-3 py-2 text-[12px] text-muted-foreground shadow-sm backdrop-blur-sm">
                 <span className="min-w-0 flex-1">{previewEnsureError}</span>
-                <button type="button" onClick={onRetryPreview} className="shrink-0 text-[12px] font-medium text-accent hover:text-accent/80">
+                <button type="button" onClick={onRetryPreview} className="shrink-0 text-[12px] font-medium text-primary hover:text-primary/80">
                   Retry
                 </button>
               </div>
             </div>
           )}
           {browserInspection && !browserInspection.isExpired && (
-            <LaptopSwitcher label="Browser" title={browserInspection.title}
+            <LaptopSwitcher label="Browser" title={formatBrowserHost(browserInspection.url)}
               icon={<Globe2 className="h-3.5 w-3.5" />} onClick={() => onSwitchView("browser")} />
           )}
           {runtimeError && (
@@ -355,15 +378,17 @@ export function WorkspaceContent({
 export function LoadingShell() {
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden bg-background">
-      <header className="shrink-0 border-b border-border px-4 py-3">
+      <header className="shrink-0 border-b border-border/80 bg-background px-4 py-3">
         <div className="flex h-10 items-center gap-3">
           <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
           <div className="h-3 w-36 animate-pulse rounded bg-muted" />
         </div>
       </header>
-      <div className="flex flex-1 gap-3 overflow-hidden p-3">
-        <div className="hidden w-80 shrink-0 animate-pulse rounded-xl bg-muted sm:block" />
-        <div className="flex-1 animate-pulse rounded-xl bg-muted" />
+      <div className="flex flex-1 gap-0 overflow-hidden">
+        <div className="hidden w-[380px] shrink-0 animate-pulse border-r border-border/80 bg-background sm:block" />
+        <div className="flex-1 animate-pulse bg-muted/35 p-3">
+          <div className="h-full rounded-lg border border-border/70 bg-background" />
+        </div>
       </div>
     </div>
   )
@@ -376,7 +401,7 @@ export function ErrorState({ message }: { message: string }) {
         <ShieldAlert className="mx-auto mb-4 h-8 w-8 text-muted-foreground" />
         <h1 className="text-[15px] font-semibold text-foreground">Session not found</h1>
         <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">{message}</p>
-        <Link href="/" className="mt-6 inline-flex items-center gap-1.5 text-[13px] font-medium text-accent hover:text-accent/80">
+        <Link href="/" className="mt-6 inline-flex items-center gap-1.5 text-[13px] font-medium text-primary hover:text-primary/80">
           Back home
         </Link>
       </div>

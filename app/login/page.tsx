@@ -20,6 +20,8 @@ import {
 } from "@/components/ui/dialog"
 import { Loader2, Mail } from "lucide-react"
 
+const LOGIN_MESH_COLORS = ["#F2542C", "#F0EBE3", "#F9F7F3"]
+
 function GoogleIcon() {
   return (
     <svg className="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" aria-hidden>
@@ -136,41 +138,43 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-3 md:grid md:grid-cols-2 md:gap-3">
-
-      {/* ── Form column ── */}
-      <div className="flex min-h-[calc(100vh-24px)] flex-col rounded-[2rem] bg-card px-5 py-6 sm:px-8 md:min-h-0 md:px-10 lg:px-14 xl:px-16">
-        <Link href="/" className="flex w-fit items-center gap-2">
-          <LotusLogo size={30} />
+    <div className="min-h-screen bg-background md:grid md:grid-cols-2">
+      {/* Form column */}
+      <div className="flex min-h-screen flex-col border-border px-6 py-8 sm:px-10 md:border-r lg:px-16">
+        <Link href="/" className="flex w-fit items-center gap-2.5">
+          <LotusLogo size={28} />
           <span className="text-[15px] font-semibold tracking-tight text-foreground">Lotus.build</span>
         </Link>
 
-        <div className="flex flex-1 flex-col justify-center py-10">
+        <div className="flex flex-1 flex-col justify-center py-12 md:py-16">
           <motion.div
-            initial={{ opacity: 0, y: 14 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
-            className="mx-auto w-full max-w-[420px]"
+            transition={{ duration: 0.35, ease: "easeOut" }}
+            className="mx-auto w-full max-w-[400px]"
           >
-            <h1 className="text-4xl font-medium leading-[1.02] tracking-[-0.055em] text-foreground sm:text-5xl">
+            <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+              Sign in
+            </p>
+            <h1 className="mt-3 text-3xl font-medium tracking-[-0.04em] text-foreground sm:text-[2rem]">
               Welcome back
             </h1>
-            <p className="mt-4 max-w-sm text-sm leading-7 text-muted-foreground">
-              Continue shaping your projects, previews, and launches in one calm workspace.
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+              Pick up where you left off — projects, previews, and edits in one workspace.
             </p>
 
             {error && (
-              <div className="mt-6 rounded-2xl bg-destructive/10 px-4 py-3 text-[13px] text-destructive">
+              <div className="mt-6 rounded-lg border border-destructive/20 bg-destructive/8 px-4 py-3 text-sm text-destructive">
                 {error}
               </div>
             )}
 
-            <div className="mt-8 grid gap-2.5 sm:grid-cols-2">
+            <div className="mt-8 grid gap-3 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={handleGoogleSignIn}
                 disabled={isLoading}
-                className="flex h-11 w-full items-center justify-center gap-2.5 rounded-2xl bg-secondary text-[13.5px] font-medium text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-11 w-full items-center justify-center gap-2.5 rounded-lg border border-border bg-card text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <GoogleIcon />
                 Google
@@ -179,40 +183,44 @@ export default function LoginPage() {
                 type="button"
                 onClick={handleGithubSignIn}
                 disabled={isLoading}
-                className="flex h-11 w-full items-center justify-center gap-2.5 rounded-2xl bg-secondary text-[13.5px] font-medium text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-11 w-full items-center justify-center gap-2.5 rounded-lg border border-border bg-card text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <GithubIcon />
                 GitHub
               </button>
             </div>
 
-            <div className="my-7 flex justify-center">
-              <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground/60">
-                or continue with email
-              </span>
+            <div className="my-7 flex items-center gap-3">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-xs text-muted-foreground">or email</span>
+              <div className="h-px flex-1 bg-border" />
             </div>
 
             <form onSubmit={handleEmailSignIn} className="space-y-4">
               <div className="space-y-1.5">
-                <Label htmlFor="email" className="text-[13px] font-medium text-foreground">Email</Label>
+                <Label htmlFor="email" className="text-sm font-medium text-foreground">
+                  Email
+                </Label>
                 <Input
                   id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="h-12 rounded-2xl border-transparent bg-secondary/70 px-4 text-[14px] placeholder:text-muted-foreground/50 focus-visible:ring-1 focus-visible:ring-border-strong"
+                  className="h-11 rounded-lg border-border bg-background px-3.5 text-sm"
                   required
                 />
               </div>
 
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="text-[13px] font-medium text-foreground">Password</Label>
+                  <Label htmlFor="password" className="text-sm font-medium text-foreground">
+                    Password
+                  </Label>
                   <button
                     type="button"
                     onClick={handleForgotOpen}
-                    className="text-[12px] text-muted-foreground transition hover:text-foreground"
+                    className="text-xs text-muted-foreground transition-colors hover:text-foreground"
                   >
                     Forgot password?
                   </button>
@@ -223,7 +231,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Your password"
-                  className="h-12 rounded-2xl border-transparent bg-secondary/70 px-4 text-[14px] placeholder:text-muted-foreground/50 focus-visible:ring-1 focus-visible:ring-border-strong"
+                  className="h-11 rounded-lg border-border bg-background px-3.5 text-sm"
                   required
                 />
               </div>
@@ -231,17 +239,17 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="h-12 w-full rounded-2xl bg-primary text-[14px] font-semibold text-primary-foreground hover:bg-primary/90"
+                className="h-11 w-full rounded-lg text-sm font-semibold"
               >
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Sign in"}
               </Button>
             </form>
 
-            <p className="mt-6 text-center text-[13px] text-muted-foreground">
+            <p className="mt-6 text-center text-sm text-muted-foreground">
               Don&apos;t have an account?{" "}
               <Link
                 href={`/signup?redirect=${encodeURIComponent(redirect)}`}
-                className="font-semibold text-foreground underline underline-offset-2"
+                className="font-medium text-foreground underline-offset-2 hover:underline"
               >
                 Create one
               </Link>
@@ -249,97 +257,96 @@ export default function LoginPage() {
           </motion.div>
         </div>
 
-        <p className="text-[11px] text-muted-foreground/60">
-          <Link href="/terms" className="underline underline-offset-2 hover:text-foreground">Terms</Link>
+        <p className="text-xs text-muted-foreground">
+          <Link href="/terms" className="underline-offset-2 hover:text-foreground hover:underline">
+            Terms
+          </Link>
           {" · "}
-          <Link href="/privacy" className="underline underline-offset-2 hover:text-foreground">Privacy</Link>
+          <Link href="/privacy" className="underline-offset-2 hover:text-foreground hover:underline">
+            Privacy
+          </Link>
         </p>
       </div>
 
-      {/* ── Right content ── */}
-      <div className="hidden md:flex md:items-stretch">
-        <div className="relative flex w-full overflow-hidden rounded-[2rem] text-primary-foreground">
-          <MeshGradient
-            className="absolute inset-0 h-full w-full"
-            colors={["#A34300", "#dbba95", "#d0bce1"]}
-            distortion={0.35}
-            fit="cover"
-            grainMixer={0.08}
-            grainOverlay={0.04}
-            maxPixelCount={1200000}
-            rotation={50}
-            scale={1.15}
-            speed={0.12}
-            swirl={0.18}
-          />
+      {/* Visual column */}
+      <div className="relative hidden overflow-hidden md:flex">
+        <MeshGradient
+          className="absolute inset-0 h-full w-full"
+          colors={LOGIN_MESH_COLORS}
+          distortion={0.28}
+          fit="cover"
+          grainMixer={0.06}
+          grainOverlay={0.03}
+          maxPixelCount={1200000}
+          rotation={42}
+          scale={1.12}
+          speed={0.1}
+          swirl={0.14}
+        />
 
-          <div className="relative flex w-full flex-col justify-between p-8 lg:p-10">
-            <div>
-              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-primary-foreground/50">
-                Your workspace is ready
-              </p>
-              <h2 className="mt-6 max-w-xl text-5xl font-medium leading-[0.98] tracking-[-0.07em] lg:text-6xl">
-                Return to the surface that is already in motion.
-              </h2>
-              <p className="mt-6 max-w-md text-sm leading-7 text-primary-foreground/62">
-                Sign in and the same prompt thread, preview, and project state are waiting without the dashboard noise.
-              </p>
-            </div>
-
-            <AuthWorkspaceDemo
-              userMessage="Tighten the hero, keep the structure, make the page feel more premium."
-              agentMessage="I'll adjust the hero typography and spacing while preserving your layout. Preview updates as each section lands."
-              workingLabel="Refining hero typography and spacing…"
-            />
-
-            <p className="max-w-sm text-xs leading-6 text-primary-foreground/55">
-              Built to feel closer to a creative canvas than an admin panel.
+        <div className="relative flex w-full flex-col justify-between p-8 text-primary-foreground lg:p-10">
+          <div>
+            <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-primary-foreground/60">
+              Your workspace
+            </p>
+            <h2 className="mt-5 max-w-md text-3xl font-medium leading-tight tracking-[-0.04em] lg:text-4xl">
+              Return to the build that is already in motion.
+            </h2>
+            <p className="mt-4 max-w-sm text-sm leading-6 text-primary-foreground/75">
+              Sign in and your prompt thread, preview, and project state are waiting — without dashboard noise.
             </p>
           </div>
+
+          <AuthWorkspaceDemo
+            userMessage="Tighten the hero, keep the structure, make the page feel more premium."
+            agentMessage="I'll adjust the hero typography and spacing while preserving your layout. Preview updates as each section lands."
+            workingLabel="Refining hero typography and spacing…"
+          />
+
+          <p className="max-w-sm text-xs leading-5 text-primary-foreground/60">
+            Built to feel closer to a creative canvas than an admin panel.
+          </p>
         </div>
       </div>
 
-      {/* Forgot password dialog */}
       <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
-        <DialogContent className="rounded-2xl border-border bg-card text-foreground sm:max-w-md">
+        <DialogContent className="rounded-lg border-border bg-card sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-foreground">
               <Mail className="h-4 w-4 text-muted-foreground" />
               Reset your password
             </DialogTitle>
-            <DialogDescription className="text-[13px] text-muted-foreground">
+            <DialogDescription className="text-sm text-muted-foreground">
               Enter your email and we&apos;ll send you a reset link.
             </DialogDescription>
           </DialogHeader>
 
           {resetSent ? (
-            <div className="rounded-xl border border-border/50 bg-muted px-4 py-3 text-[13px] text-foreground">
+            <div className="rounded-lg border border-border bg-muted/50 px-4 py-3 text-sm text-foreground">
               Check your inbox for the reset link. Don&apos;t see it? Check your spam folder.
             </div>
           ) : (
             <form onSubmit={handleSendResetLink} className="mt-1 space-y-4">
               {resetError && (
-                <div className="rounded-xl border border-destructive/20 bg-destructive/8 px-4 py-3 text-[13px] text-destructive">
+                <div className="rounded-lg border border-destructive/20 bg-destructive/8 px-4 py-3 text-sm text-destructive">
                   {resetError}
                 </div>
               )}
               <div className="space-y-1.5">
-                <Label htmlFor="reset-email" className="text-[13px] font-medium text-foreground">Email</Label>
+                <Label htmlFor="reset-email" className="text-sm font-medium text-foreground">
+                  Email
+                </Label>
                 <Input
                   id="reset-email"
                   type="email"
                   value={resetEmail}
                   onChange={(e) => setResetEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="h-11 rounded-xl border-border/60 bg-background text-[14px]"
+                  className="h-11 rounded-lg"
                   required
                 />
               </div>
-              <Button
-                type="submit"
-                disabled={resetLoading}
-                className="h-11 w-full rounded-xl bg-primary text-[14px] font-semibold text-primary-foreground"
-              >
+              <Button type="submit" disabled={resetLoading} className="h-11 w-full rounded-lg text-sm font-semibold">
                 {resetLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send reset link"}
               </Button>
             </form>

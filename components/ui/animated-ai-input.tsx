@@ -193,13 +193,34 @@ function getModelMeta(model: string) {
 
 function Badge({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center rounded-md border border-border/60 bg-muted/50 px-1.5 py-px text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70">
+    <span className="inline-flex items-center rounded-md bg-muted px-1.5 py-px text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
       {children}
     </span>
   );
 }
 
-/* ─── icon button ─────────────────────────────────────────────────────────── */
+function ToolbarPill({
+  children,
+  className,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5",
+        "text-xs font-medium text-muted-foreground transition-colors",
+        "hover:bg-background hover:text-foreground",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25",
+        "disabled:pointer-events-none disabled:opacity-40",
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
 
 interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   active?: boolean;
@@ -213,13 +234,13 @@ function IconButton({ children, active, label, className, ...props }: IconButton
       aria-label={label}
       title={label}
       className={cn(
-        "relative flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground",
-        "transition-all duration-150",
-        "hover:bg-muted hover:text-foreground",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
+        "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground",
+        "transition-colors duration-150",
+        "hover:bg-background hover:text-foreground",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25",
         "disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground",
-        active && "bg-muted text-foreground",
-        className
+        active && "bg-background text-primary",
+        className,
       )}
       {...props}
     >
@@ -250,7 +271,6 @@ export function AnimatedAIInput({
 
   const [value, setValue] = useState("");
   const [isCreating, setIsCreating] = useState(false);
-  const [isFocused, setIsFocused] = useState(false);
   const [sessionMode, setSessionMode] = useState<ComputerSessionMode>("auto");
   const [autoMode, setAutoMode] = useState(true);
   const [wasLoading, setWasLoading] = useState(false);
@@ -436,19 +456,16 @@ export function AnimatedAIInput({
 
   return (
     <div className={cn("w-full", mode === "create" ? "mx-auto max-w-2xl" : "max-w-none")}>
-      {/* outer shell */}
       <div
         className={cn(
-          "relative rounded-2xl border transition-all duration-200",
-          "shadow-[0_2px_12px_rgba(0,0,0,0.06)]",
-          disabled && "opacity-55 pointer-events-none",
-          isFocused
-            ? "border-border shadow-[0_2px_20px_rgba(0,0,0,0.09)]"
-            : "border-border/70 hover:border-border",
-          wrapperClassName ?? "bg-card"
+          "group/composer relative overflow-hidden rounded-xl border transition-[border-color,box-shadow] duration-200",
+          "border-border/80 bg-card shadow-sm",
+          "hover:border-border",
+          "focus-within:border-border-strong focus-within:ring-2 focus-within:ring-ring/15",
+          disabled && "pointer-events-none opacity-55",
+          wrapperClassName,
         )}
       >
-        {/* context badge row */}
         <AnimatePresence>
           {contextBadge && (
             <motion.div
@@ -456,17 +473,17 @@ export function AnimatedAIInput({
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.15 }}
-              className="overflow-hidden px-4 pt-3"
+              className="overflow-hidden border-b border-border/50 bg-muted/30 px-3 py-2.5 sm:px-4"
             >
-              <div className="flex items-center gap-1.5 rounded-lg border border-border/50 bg-muted/60 px-2.5 py-1.5 text-xs w-fit">
+              <div className="flex w-fit max-w-full items-center gap-2 rounded-lg bg-background px-2.5 py-1.5 text-xs ring-1 ring-border/60">
                 <span className="text-muted-foreground">{contextBadge.label}</span>
-                <span className="font-medium text-foreground">{contextBadge.value}</span>
+                <span className="truncate font-medium text-foreground">{contextBadge.value}</span>
                 {contextBadge.onClear && (
                   <button
                     type="button"
                     onClick={contextBadge.onClear}
                     aria-label="Clear context"
-                    className="ml-0.5 rounded p-px text-muted-foreground/60 transition-colors hover:text-foreground"
+                    className="rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -476,59 +493,54 @@ export function AnimatedAIInput({
           )}
         </AnimatePresence>
 
-        {/* textarea */}
-        <div className={cn("px-3 sm:px-4 pt-3.5", contextBadge ? "pt-2.5" : "")}>
+        <div className={cn("px-3 pt-3 sm:px-4 sm:pt-4", compact && "pt-2.5 sm:pt-3")}>
           <textarea
             ref={textareaRef}
             value={value}
             placeholder={placeholder}
             disabled={disabled}
             onKeyDown={handleKeyDown}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
             onChange={(e) => { setValue(e.target.value); adjustHeight(); }}
             className={cn(
               "w-full resize-none appearance-none border-0 bg-transparent p-0",
-              "text-[15px] leading-relaxed text-foreground",
-              "placeholder:text-muted-foreground/50",
+              "text-[15px] leading-[1.65] tracking-[-0.01em] text-foreground",
+              "placeholder:text-muted-foreground/55",
               "outline-none focus:outline-none focus:ring-0",
-              "scrollbar-thin scrollbar-track-transparent scrollbar-thumb-border/50",
+              "[scrollbar-width:thin]",
               compact
                 ? isSlimCompact ? "min-h-[60px]" : "min-h-[76px]"
-                : "min-h-[96px]"
+                : "min-h-[96px]",
             )}
           />
         </div>
 
-        {/* toolbar */}
-        <div className={cn(
-          "flex items-center justify-between gap-2 px-3 pb-3",
-          isSlimCompact ? "pb-2.5" : ""
-        )}>
-          {/* left side — single row, scrolls horizontally on mobile */}
-          <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [&::-webkit-scrollbar]:hidden">
-            {/* platform selector (create mode, non-compact only) */}
+        <div
+          className={cn(
+            "flex items-center justify-between gap-2 px-2.5 pb-2 pt-1 sm:px-3 sm:pb-2.5",
+            isSlimCompact && "py-1.5",
+          )}
+        >
+          <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {mode === "create" && !compact && (
-              <div className="flex shrink-0 items-center rounded-lg border border-border/60 bg-muted/40 p-0.5 text-xs font-medium">
+              <div className="inline-flex shrink-0 items-center rounded-lg bg-background p-0.5 ring-1 ring-border/60">
                 {PLATFORM_OPTIONS.map((option) => (
-                  <motion.button
+                  <button
                     key={option.id}
                     type="button"
-                    layout
                     onClick={() => {
                       setPlatformTouched(true);
                       setSelectedPlatform(option.id);
                     }}
                     className={cn(
-                      "rounded-md px-2 py-1 transition-all duration-150",
+                      "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
                       selectedPlatform === option.id
-                        ? "bg-amber-100 text-[#1c1c1c] shadow-sm"
+                        ? "bg-primary text-primary-foreground"
                         : "text-muted-foreground hover:text-foreground",
                     )}
                   >
                     <span className="hidden sm:inline">{option.label}</span>
                     <span className="sm:hidden">{option.id === "web" ? "Web" : "Mobile"}</span>
-                  </motion.button>
+                  </button>
                 ))}
               </div>
             )}
@@ -536,31 +548,19 @@ export function AnimatedAIInput({
             {mode === "create" && !compact && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className={cn(
-                      "hidden sm:flex shrink-0 h-7 items-center gap-1 rounded-lg border border-border/60 bg-muted/40",
-                      "px-2.5 text-xs font-medium text-muted-foreground",
-                      "transition-all duration-150 hover:bg-muted hover:text-foreground",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
-                    )}
-                    aria-label="Choose session mode"
-                  >
+                  <ToolbarPill className="hidden sm:inline-flex max-w-[9rem]" aria-label="Choose session mode">
                     <span className="truncate text-foreground">{selectedSessionMode.label}</span>
-                    <ChevronUp className="h-3 w-3 shrink-0 opacity-50" />
-                  </button>
+                    <ChevronUp className="h-3 w-3 shrink-0 opacity-45" />
+                  </ToolbarPill>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="start"
                   side="top"
                   sideOffset={8}
                   avoidCollisions={false}
-                  className={cn(
-                    "w-[18rem] rounded-xl border border-border/70 bg-popover p-1.5 shadow-xl",
-                    "backdrop-blur-sm"
-                  )}
+                  className="w-[18rem] rounded-lg border border-border bg-popover p-1.5 shadow-lg"
                 >
-                  <DropdownMenuLabel className="px-2 pb-1.5 pt-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">
+                  <DropdownMenuLabel className="px-2 pb-1 pt-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                     Mode
                   </DropdownMenuLabel>
                   {COMPUTER_SESSION_MODES.map((option) => {
@@ -569,7 +569,7 @@ export function AnimatedAIInput({
                       <DropdownMenuItem
                         key={option.id}
                         onSelect={() => setSessionMode(option.id)}
-                        className="rounded-lg px-3 py-2.5 focus:bg-muted"
+                        className="rounded-md px-3 py-2.5 focus:bg-muted"
                       >
                         <div className="flex w-full items-start justify-between gap-3">
                           <div className="min-w-0">
@@ -578,7 +578,7 @@ export function AnimatedAIInput({
                               {option.description}
                             </p>
                           </div>
-                          {isSelected && <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-foreground" />}
+                          {isSelected && <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />}
                         </div>
                       </DropdownMenuItem>
                     );
@@ -587,70 +587,50 @@ export function AnimatedAIInput({
               </DropdownMenu>
             )}
 
-            {/* visual edit toggle (chat mode) */}
             {mode === "chat" && visualEditToggle && (
-              <button
-                type="button"
+              <ToolbarPill
                 onClick={visualEditToggle.onToggle}
                 className={cn(
-                  "h-7 rounded-lg border px-2.5 text-xs font-medium transition-all duration-150",
-                  visualEditToggle.active
-                    ? "border-foreground/20 bg-foreground text-background"
-                    : "border-border/60 bg-muted/40 text-muted-foreground hover:text-foreground"
+                  visualEditToggle.active && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground",
                 )}
               >
                 {visualEditToggle.active ? "Visual edit on" : "Visual edit"}
-              </button>
+              </ToolbarPill>
             )}
 
-            {/* model picker */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className={cn(
-                    "flex shrink-0 h-7 items-center gap-1 rounded-lg border border-border/60 bg-muted/40",
-                    "px-2.5 text-xs font-medium text-muted-foreground",
-                    "transition-all duration-150 hover:bg-muted hover:text-foreground",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
-                    "max-w-[90px] sm:max-w-[140px]"
-                  )}
-                >
-                  <span className="truncate">{displayModelLabel}</span>
-                  <ChevronUp className="h-3 w-3 shrink-0 opacity-50" />
-                </button>
+                <ToolbarPill className="max-w-[6.5rem] sm:max-w-[9rem]" aria-label="Choose model">
+                  <span className="truncate text-foreground">{displayModelLabel}</span>
+                  <ChevronUp className="h-3 w-3 shrink-0 opacity-45" />
+                </ToolbarPill>
               </DropdownMenuTrigger>
 
               <DropdownMenuContent
                 align="start"
                 side="top"
                 sideOffset={8}
-                className={cn(
-                  "w-[calc(100vw-2rem)] max-w-[22rem] max-h-[60vw] sm:max-h-[26rem] overflow-y-auto overscroll-contain",
-                  "rounded-xl border border-border/70 bg-popover p-1.5 shadow-xl",
-                  "backdrop-blur-sm"
-                )}
+                className="max-h-[60vw] w-[calc(100vw-2rem)] max-w-[22rem] overflow-y-auto overscroll-contain rounded-lg border border-border bg-popover p-1.5 shadow-lg sm:max-h-[26rem]"
               >
-                <DropdownMenuLabel className="px-2 pb-1.5 pt-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">
+                <DropdownMenuLabel className="px-2 pb-1 pt-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                   Model
                 </DropdownMenuLabel>
 
-                {/* Best model option */}
                 <DropdownMenuItem
                   onSelect={() => setAutoMode(true)}
-                  className="rounded-lg px-3 py-2.5 focus:bg-muted"
+                  className="rounded-md px-3 py-2.5 focus:bg-muted"
                 >
                   <div className="flex w-full items-center justify-between gap-2">
                     <div className="flex items-center gap-2.5">
                       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted">
-                        <Leaf className="h-3.5 w-3.5 text-foreground/60" />
+                        <Leaf className="h-3.5 w-3.5 text-primary" />
                       </div>
                       <div>
                         <p className="text-sm font-medium text-foreground">Best model</p>
-                        <p className="text-xs text-muted-foreground">Automatically choose the best model for the task</p>
+                        <p className="text-xs text-muted-foreground">Picks the best model for the task</p>
                       </div>
                     </div>
-                    {autoMode && <Check className="h-3.5 w-3.5 text-foreground" />}
+                    {autoMode && <Check className="h-3.5 w-3.5 text-primary" />}
                   </div>
                 </DropdownMenuItem>
 
@@ -664,7 +644,7 @@ export function AnimatedAIInput({
                       <DropdownMenuItem
                         key={model}
                         onSelect={() => { setAutoMode(false); setSelectedModel(model); }}
-                        className="rounded-lg px-3 py-2.5 focus:bg-muted"
+                        className="rounded-md px-3 py-2.5 focus:bg-muted"
                       >
                         <div className="flex w-full items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
@@ -678,7 +658,7 @@ export function AnimatedAIInput({
                               {meta.description}
                             </p>
                           </div>
-                          {isSelected && <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-foreground" />}
+                          {isSelected && <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />}
                         </div>
                       </DropdownMenuItem>
                     );
@@ -688,8 +668,8 @@ export function AnimatedAIInput({
                     <p className="text-xs text-muted-foreground">
                       Custom models are available on paid plans.
                     </p>
-                    <Link href="/pricing" className="mt-1.5 inline-flex text-xs font-medium text-foreground underline underline-offset-2">
-                      Upgrade →
+                    <Link href="/pricing" className="mt-1.5 inline-flex text-xs font-medium text-primary underline-offset-2 hover:underline">
+                      Upgrade
                     </Link>
                   </div>
                 )}
@@ -697,9 +677,7 @@ export function AnimatedAIInput({
             </DropdownMenu>
           </div>
 
-          {/* right side — mic + submit */}
-          <div className="flex items-center gap-1">
-            {/* mic button (hidden when stopping) */}
+          <div className="flex shrink-0 items-center gap-1">
             {!canStop && (
               <IconButton
                 label={isListening ? "Stop voice input" : "Start voice input"}
@@ -714,26 +692,23 @@ export function AnimatedAIInput({
               </IconButton>
             )}
 
-            {/* submit / stop button */}
             <motion.button
               type="button"
               aria-label={canStop ? "Stop generating" : (submitLabel?.trim() || "Start computer session")}
               disabled={!canSubmit && !canStop}
               onClick={canStop ? onStop : handleSubmit}
-              whileTap={canSubmit || canStop ? { scale: 0.92 } : {}}
+              whileTap={canSubmit || canStop ? { scale: 0.94 } : {}}
               className={cn(
-                "flex items-center justify-center rounded-lg font-medium transition-all duration-150",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
-                // sizing
+                "flex shrink-0 items-center justify-center rounded-full font-semibold transition-all duration-150",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25",
                 hasSubmitLabel && (canSubmit || canStop)
-                  ? "h-8 gap-1.5 px-3 text-xs"
-                  : "h-8 w-8",
-                // colour states
+                  ? "h-9 gap-1.5 px-3.5 text-xs"
+                  : "h-9 w-9",
                 canStop
                   ? "bg-foreground text-background hover:bg-foreground/90"
                   : canSubmit
-                  ? "bg-foreground text-background hover:bg-foreground/90"
-                  : "bg-muted text-muted-foreground cursor-not-allowed"
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                    : "bg-muted text-muted-foreground",
               )}
             >
               {canStop ? (
@@ -756,11 +731,12 @@ export function AnimatedAIInput({
         </div>
       </div>
 
-      {/* hint text below the box */}
       {!compact && mode === "create" && (
-        <p className="mt-2 text-center text-[11px] text-muted-foreground/40">
-          Press <kbd className="rounded border border-border/50 bg-muted/50 px-1 py-px font-mono text-[10px]">Enter</kbd> to send,{" "}
-          <kbd className="rounded border border-border/50 bg-muted/50 px-1 py-px font-mono text-[10px]">Shift+Enter</kbd> for new line
+        <p className="mt-2.5 text-center text-[11px] text-muted-foreground/70">
+          <kbd className="rounded-md border border-border bg-muted/60 px-1.5 py-0.5 font-mono text-[10px]">Enter</kbd>
+          {" "}to send ·{" "}
+          <kbd className="rounded-md border border-border bg-muted/60 px-1.5 py-0.5 font-mono text-[10px]">Shift+Enter</kbd>
+          {" "}for new line
         </p>
       )}
     </div>

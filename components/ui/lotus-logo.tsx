@@ -1,10 +1,7 @@
 "use client"
 
-import { useRef, useEffect, useState } from "react"
+import { useRef, useEffect } from "react"
 import * as THREE from "three"
-
-// Brand petal color — muted oxblood from the Lotus Editorial palette
-const BRAND_PETAL = "#B84232"
 
 /* ---------- petal silhouette builders ---------- */
 function leafShape(L: number, W: number) {
@@ -72,14 +69,22 @@ type Props = {
   style?: React.CSSProperties
 }
 
-export function LotusLogo({ petalColor = BRAND_PETAL, size = 32, className, style }: Props) {
+function readPetalColor(override?: string): THREE.Color {
+  if (override) return new THREE.Color(override)
+
+  const rgb = getComputedStyle(document.documentElement).getPropertyValue("--primary-rgb").trim()
+  const [r, g, b] = rgb.split(/\s+/).map(Number)
+  return new THREE.Color(r / 255, g / 255, b / 255)
+}
+
+export function LotusLogo({ petalColor, size = 32, className, style }: Props) {
   const mountRef = useRef<HTMLDivElement>(null)
-  const [fallback, setFallback] = useState(false)
 
   useEffect(() => {
-    if (fallback) return
     const mount = mountRef.current
     if (!mount) return
+
+    const petal = readPetalColor(petalColor)
 
     const reduceMotion =
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false
@@ -89,7 +94,6 @@ export function LotusLogo({ petalColor = BRAND_PETAL, size = 32, className, styl
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true })
       if (!renderer.getContext()) throw new Error("no webgl")
     } catch {
-      setFallback(true)
       return
     }
 
@@ -141,14 +145,14 @@ export function LotusLogo({ petalColor = BRAND_PETAL, size = 32, className, styl
     scene.add(flower)
 
     const material = new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color(petalColor),
+      color: petal.clone(),
       roughness: 0.52,
       metalness: 0.0,
       clearcoat: 0.55,
       clearcoatRoughness: 0.5,
       sheen: 0.85,
       sheenRoughness: 0.6,
-      sheenColor: new THREE.Color(petalColor).lerp(new THREE.Color(0xffffff), 0.45),
+      sheenColor: petal.clone().lerp(new THREE.Color(0xffffff), 0.45),
     })
 
     const extrude: THREE.ExtrudeGeometryOptions = {
@@ -174,7 +178,7 @@ export function LotusLogo({ petalColor = BRAND_PETAL, size = 32, className, styl
       const geo = new THREE.ExtrudeGeometry(shape, extrude)
       geo.computeVertexNormals()
       geo.center()
-      const mesh = new THREE.Mesh(geo, material) as MeshWithData
+      const mesh = new THREE.Mesh(geo, material) as unknown as MeshWithData
       mesh.castShadow = true
       mesh.receiveShadow = true
       const len = Math.hypot(p.x, p.y) || 1
@@ -283,7 +287,7 @@ export function LotusLogo({ petalColor = BRAND_PETAL, size = 32, className, styl
       if (renderer.domElement.parentNode === mount)
         mount.removeChild(renderer.domElement)
     }
-  }, [petalColor, size, fallback])
+  }, [petalColor, size])
 
   const wrapStyle: React.CSSProperties = {
     width: size,
@@ -292,37 +296,5 @@ export function LotusLogo({ petalColor = BRAND_PETAL, size = 32, className, styl
     ...style,
   }
 
-  if (fallback) {
-    return <LotusFallback petalColor={petalColor} size={size} className={className} style={wrapStyle} />
-  }
-
   return <div ref={mountRef} className={className} style={wrapStyle} />
-}
-
-/* ---------- flat SVG fallback (no WebGL) ---------- */
-function LotusFallback({ petalColor, size, className, style }: Props & { style?: React.CSSProperties }) {
-  const petals = buildPetals()
-  return (
-    <div className={className} style={style}>
-      <svg viewBox="0 0 100 100" width={size} height={size} aria-label="Lotus">
-        {petals.map((p, i) => {
-          const cx = 50 + p.x * 24
-          const cy = 50 - p.y * 24
-          const rx = p.W * 24
-          const ry = (p.L / 2) * 24
-          const rot = (-p.zRot * 180) / Math.PI
-          const opacity = p.ring === 2 ? 0.82 : p.ring === 1 ? 0.92 : 1
-          return (
-            <ellipse
-              key={i}
-              cx={cx} cy={cy} rx={rx} ry={ry}
-              transform={`rotate(${rot} ${cx} ${cy})`}
-              fill={petalColor}
-              opacity={opacity}
-            />
-          )
-        })}
-      </svg>
-    </div>
-  )
 }

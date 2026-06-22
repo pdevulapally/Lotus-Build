@@ -128,7 +128,7 @@ export function ComputerTopBar({
 
   return (
     <>
-      <header className="relative z-30 shrink-0 border-b border-border/60 bg-sidebar/90 backdrop-blur-sm">
+      <header className="relative z-30 shrink-0 border-b border-border/80 bg-background">
         <div className="flex h-12 w-full items-center px-3 sm:px-4">
 
           {/* ── Left: back + logo + chat panel toggle ── */}
@@ -137,7 +137,7 @@ export function ComputerTopBar({
               "flex min-w-0 items-center gap-2 sm:shrink-0 sm:pr-2",
               chatPanelCollapsed
                 ? "sm:border-r-0"
-                : "sm:w-[38%] sm:border-r sm:border-border/60 md:w-[37%] lg:w-[380px] xl:w-[420px] 2xl:w-[460px]",
+                : "sm:w-[38%] sm:border-r sm:border-border/80 md:w-[37%] lg:w-[380px] xl:w-[420px] 2xl:w-[460px]",
             )}
           >
             <Link
@@ -207,13 +207,13 @@ export function ComputerTopBar({
                 <DropdownMenuContent
                   align="center"
                   sideOffset={8}
-                  className="w-[calc(100vw-1.5rem)] max-w-[22rem] overflow-hidden rounded-2xl border border-border/60 bg-sidebar p-0 shadow-xl shadow-black/10"
+                  className="w-[calc(100vw-1.5rem)] max-w-[22rem] overflow-hidden rounded-lg border border-border/70 bg-background p-0 shadow-lg"
                 >
                   {/* ── User profile header ── */}
                   <div className="flex items-center gap-3 border-b border-border/50 px-3.5 py-3">
                     <Avatar className="h-9 w-9 shrink-0 rounded-xl">
                       <AvatarImage src={userData?.photoURL ?? undefined} className="rounded-xl object-cover" />
-                      <AvatarFallback className="rounded-xl bg-accent/12 text-[13px] font-bold text-accent">
+                      <AvatarFallback className="rounded-xl bg-primary/12 text-[13px] font-bold text-primary">
                         {userInitials}
                       </AvatarFallback>
                     </Avatar>
@@ -233,15 +233,15 @@ export function ComputerTopBar({
                     <div className="rounded-xl bg-background px-3 py-2.5">
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
-                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-accent/10">
-                            <Zap className="h-3 w-3 text-accent" />
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                            <Zap className="h-3 w-3 text-primary" />
                           </span>
                           <p className="text-[12px] font-semibold text-foreground">Credits</p>
                         </div>
                         <span className="text-[13px] font-semibold tabular-nums text-foreground">{remainingTokens} left</span>
                       </div>
                       <div className="mt-2.5 h-1 w-full overflow-hidden rounded-full bg-muted">
-                        <div className="h-full rounded-full bg-accent" style={{ width: `${Math.min(100, Math.max(4, (remainingTokens / 1000) * 100))}%` }} />
+                        <div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(100, Math.max(4, (remainingTokens / 1000) * 100))}%` }} />
                       </div>
                     </div>
                   </div>
@@ -254,13 +254,13 @@ export function ComputerTopBar({
 
                     {/* Current workspace */}
                     <div className="flex items-center gap-2.5 rounded-xl bg-muted/50 px-2.5 py-2">
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-[10px] font-bold text-accent">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/12 text-[10px] font-bold text-primary">
                         {(currentWorkspace?.name ?? "P").charAt(0).toUpperCase()}
                       </span>
                       <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-foreground">
                         {currentWorkspace?.name ?? "Personal"}
                       </p>
-                      <Check className="h-3.5 w-3.5 shrink-0 text-accent" />
+                      <Check className="h-3.5 w-3.5 shrink-0 text-primary" />
                     </div>
 
                     {/* Other workspaces — paid only */}
@@ -304,7 +304,7 @@ export function ComputerTopBar({
                           <p className="text-[12px] font-medium text-muted-foreground">Switch workspaces</p>
                           <Link
                             href="/pricing"
-                            className="text-[11px] font-semibold text-accent underline underline-offset-2 hover:text-accent/80"
+                            className="text-[11px] font-semibold text-primary underline underline-offset-2 hover:text-primary/80"
                             onClick={(e) => e.stopPropagation()}
                           >
                             Upgrade to unlock
@@ -377,7 +377,7 @@ export function ComputerTopBar({
                       <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Supabase</p>
                       <p className="mt-1.5 text-[13px] font-semibold text-foreground">
                         {projectIntegration?.supabaseProjectRef
-                          ? <span className="text-accent">Connected</span>
+                          ? <span className="text-primary">Connected</span>
                           : "Not set up"
                         }
                       </p>
@@ -441,7 +441,7 @@ export function ComputerTopBar({
               type="button"
               onClick={onOpenDeploy}
               disabled={!session.projectId}
-              className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-accent px-3 text-[12px] font-semibold text-accent-foreground transition-colors hover:bg-accent/90 disabled:pointer-events-none disabled:opacity-40"
+              className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-primary px-3 text-[12px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-40"
             >
               <Rocket className="h-3 w-3" />
               Deploy

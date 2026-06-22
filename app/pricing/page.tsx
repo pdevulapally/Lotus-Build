@@ -143,32 +143,32 @@ export default function PricingPage() {
         <div className="mb-8 flex items-center justify-between">
           <Link
             href="/"
-            className="group inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3.5 py-2 text-[13px] font-medium text-zinc-600 transition-all hover:border-zinc-300 hover:bg-zinc-50 hover:text-foreground"
+            className="group inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-[13px] font-medium text-muted-foreground transition-all hover:border-border-strong hover:bg-muted hover:text-foreground"
           >
             <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />
             Back
           </Link>
-          <span className="hidden text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-400 sm:block">
+          <span className="hidden text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground sm:block">
             Monthly billing · USD
           </span>
         </div>
 
         {/* ── Hero split ───────────────────────────────────────── */}
-        <div className="mb-2.5 grid overflow-hidden rounded-2xl border border-zinc-200 bg-white lg:grid-cols-2">
+        <div className="mb-2.5 grid overflow-hidden rounded-lg border border-border bg-card lg:grid-cols-2">
           {/* Left: headline */}
-          <div className="flex flex-col justify-between border-b border-zinc-100 px-8 py-8 lg:border-b-0 lg:border-r lg:py-10">
+          <div className="flex flex-col justify-between border-b border-border/60 px-8 py-8 lg:border-b-0 lg:border-r lg:py-10">
             <div>
-              <div className="mb-5 inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1.5">
-                <Leaf className="h-3 w-3 text-zinc-500" />
-                <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-500">
+              <div className="mb-5 inline-flex items-center gap-1.5 rounded-md border border-border bg-muted px-2.5 py-1.5">
+                <Leaf className="h-3 w-3 text-primary" />
+                <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
                   Pricing
                 </span>
               </div>
               <h1 className="text-[30px] font-bold leading-[1.1] tracking-[-0.03em] text-foreground sm:text-[36px]">
                 Build, launch,{" "}
-                <span className="text-zinc-400">ship</span> — pick the plan that fits.
+                <span className="text-muted-foreground">ship</span> — pick the plan that fits.
               </h1>
-              <p className="mt-4 max-w-sm text-[13px] leading-relaxed text-zinc-500">
+              <p className="mt-4 max-w-sm text-[13px] leading-relaxed text-muted-foreground">
                 One platform for every stage of your website journey. Start free, upgrade when you&apos;re ready.
               </p>
             </div>
@@ -176,7 +176,7 @@ export default function PricingPage() {
 
           {/* Right: plan guide */}
           <div className="bg-background px-8 py-8 lg:py-10">
-            <p className="mb-4 text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-400">
+            <p className="mb-4 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
               Which plan is right for you?
             </p>
             <div className="flex flex-col gap-2">
@@ -187,14 +187,14 @@ export default function PricingPage() {
               ].map((item) => (
                 <div
                   key={item.num}
-                  className="group flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3 transition-colors hover:border-zinc-300"
+                  className="group flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 transition-colors hover:border-border-strong"
                 >
-                  <span className="font-mono text-[10px] font-bold text-zinc-300">{item.num}</span>
+                  <span className="font-mono text-[10px] font-bold text-muted-foreground/50">{item.num}</span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[13px] font-semibold text-zinc-800">{item.name}</p>
-                    <p className="text-[11px] text-zinc-400">{item.desc}</p>
+                    <p className="text-[13px] font-semibold text-foreground">{item.name}</p>
+                    <p className="text-[11px] text-muted-foreground">{item.desc}</p>
                   </div>
-                  <span className="text-[12px] text-zinc-200 transition-colors group-hover:text-zinc-400">→</span>
+                  <span className="text-[12px] text-border transition-colors group-hover:text-muted-foreground">→</span>
                 </div>
               ))}
             </div>
@@ -203,16 +203,16 @@ export default function PricingPage() {
 
         {/* ── Current plan usage (logged-in only) ──────────────── */}
         {user && userData && (
-          <div className="mb-2.5 flex flex-col items-start gap-5 rounded-2xl border border-zinc-200 bg-white px-6 py-5 sm:flex-row sm:items-center sm:gap-6">
+          <div className="mb-2.5 flex flex-col items-start gap-5 rounded-lg border border-border bg-card px-6 py-5 sm:flex-row sm:items-center sm:gap-6">
             {/* Plan name */}
             <div className="shrink-0">
-              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-400">
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
                 Current plan
               </p>
               <p className="mt-1 text-xl font-bold tracking-tight text-foreground">{planName}</p>
             </div>
 
-            <div className="hidden h-10 w-px bg-zinc-100 sm:block" />
+            <div className="hidden h-10 w-px bg-border sm:block" />
 
             {/* Usage bar */}
             <div className="min-w-0 flex-1">
@@ -220,11 +220,11 @@ export default function PricingPage() {
                 <span className="text-2xl font-bold tracking-tight text-foreground">
                   {remaining.toLocaleString()}
                 </span>
-                <span className="text-[12px] text-zinc-400">
+                <span className="text-[12px] text-muted-foreground">
                   of {tokensLimit.toLocaleString()} credits remaining
                 </span>
               </div>
-              <div className="h-[3px] w-full overflow-hidden rounded-full bg-zinc-100">
+              <div className="h-[3px] w-full overflow-hidden rounded-full bg-muted">
                 <div
                   className="h-full rounded-full bg-primary transition-all duration-500"
                   style={{
@@ -232,7 +232,7 @@ export default function PricingPage() {
                   }}
                 />
               </div>
-              <p className="mt-2 flex items-center gap-1.5 text-[11px] text-zinc-400">
+              <p className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                 <ShieldCheck className="h-3 w-3 shrink-0" />
                 {userData.tokenUsage?.periodEnd
                   ? `Renews ${new Date(userData.tokenUsage.periodEnd).toLocaleDateString()} · `
@@ -241,14 +241,14 @@ export default function PricingPage() {
               </p>
             </div>
 
-            <div className="hidden h-10 w-px bg-zinc-100 sm:block" />
+            <div className="hidden h-10 w-px bg-border sm:block" />
 
             {/* Manage */}
             <Link href="/settings" className="shrink-0">
               <Button
                 variant="outline"
                 size="sm"
-                className="h-9 rounded-lg border-zinc-200 bg-white px-4 text-[13px] font-semibold text-zinc-700 hover:bg-zinc-50"
+                className="h-9 rounded-lg border-border bg-card px-4 text-[13px] font-semibold text-foreground hover:bg-muted"
               >
                 Manage
               </Button>
@@ -258,22 +258,22 @@ export default function PricingPage() {
 
         {/* ── Plans section header ──────────────────────────────── */}
         <div className="mb-3 flex items-center justify-between px-0.5">
-          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-400">
+          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
             Plans
           </span>
-          <span className="text-[11px] text-zinc-400">Upgrade or downgrade anytime</span>
+          <span className="text-[11px] text-muted-foreground">Upgrade or downgrade anytime</span>
         </div>
 
         {/* ── Plans grid ───────────────────────────────────────── */}
         {loading ? (
           <div className="flex items-center justify-center py-24">
             <div className="flex flex-col items-center gap-3">
-              <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
-              <p className="text-[13px] text-zinc-400">Loading plans…</p>
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <p className="text-[13px] text-muted-foreground">Loading plans…</p>
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 overflow-hidden rounded-2xl border border-zinc-200 md:grid-cols-3">
+          <div className="grid grid-cols-1 overflow-hidden rounded-lg border border-border md:grid-cols-3">
             {displayPlans.map((plan, planIdx) => {
               const planKey = planIdForDisplay(plan.id) as PlanId
               const display = PLAN_DISPLAY[planKey] || PLAN_DISPLAY.pro
@@ -296,29 +296,29 @@ export default function PricingPage() {
                   className={cn(
                     "relative flex flex-col",
                     // dividers between columns
-                    planIdx > 0 && "border-t border-zinc-200 md:border-l md:border-t-0",
-                    recommended ? "bg-accent" : "bg-white"
+                    planIdx > 0 && "border-t border-border md:border-l md:border-t-0",
+                    recommended ? "bg-primary" : "bg-card"
                   )}
                 >
                   {/* Plan header */}
                   <div
                     className={cn(
                       "border-b px-6 pb-5 pt-6",
-                      recommended ? "border-white/10" : "border-zinc-100"
+                      recommended ? "border-primary-foreground/10" : "border-border/60"
                     )}
                   >
                     {recommended && (
-                      <div className="mb-3 inline-block rounded-[4px] bg-white px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-foreground">
+                      <div className="mb-3 inline-block rounded-[4px] bg-primary-foreground px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-primary">
                         Recommended
                       </div>
                     )}
-                    <div className={cn("mb-4", recommended ? "text-accent-foreground" : "text-foreground")}>
+                    <div className={cn("mb-4", recommended ? "text-primary-foreground" : "text-foreground")}>
                       {planKey === "free" ? <img src="/Images/leaf-svgrepo-com.svg" className="h-8 w-8" alt="Starter" /> : planKey === "pro" ? <img src="/Images/lotus-flower-svgrepo-com.svg" className="h-8 w-8" alt="Pro" /> : <img src="/Images/enterprise-svgrepo-com.svg" className="h-8 w-8" alt="Enterprise" />}
                     </div>
                     <h2
                       className={cn(
                         "text-[18px] font-bold tracking-tight",
-                        recommended ? "text-accent-foreground" : "text-foreground"
+                        recommended ? "text-primary-foreground" : "text-foreground"
                       )}
                     >
                       {plan.name}
@@ -326,7 +326,7 @@ export default function PricingPage() {
                     <p
                       className={cn(
                         "mt-1 text-[12px] leading-relaxed",
-                        recommended ? "text-accent-foreground/50" : "text-zinc-400"
+                        recommended ? "text-primary-foreground/60" : "text-muted-foreground"
                       )}
                     >
                       {display.description}
@@ -337,13 +337,13 @@ export default function PricingPage() {
                   <div
                     className={cn(
                       "flex items-baseline gap-1 border-b px-6 py-5",
-                      recommended ? "border-white/10" : "border-zinc-100"
+                      recommended ? "border-primary-foreground/10" : "border-border/60"
                     )}
                   >
                     <span
                       className={cn(
                         "text-[32px] font-bold leading-none tracking-[-0.03em]",
-                        recommended ? "text-accent-foreground" : "text-foreground"
+                        recommended ? "text-primary-foreground" : "text-foreground"
                       )}
                     >
                       {priceStr}
@@ -351,7 +351,7 @@ export default function PricingPage() {
                     <span
                       className={cn(
                         "text-[12px]",
-                        recommended ? "text-accent-foreground/40" : "text-zinc-400"
+                        recommended ? "text-primary-foreground/40" : "text-muted-foreground"
                       )}
                     >
                       {period}
@@ -363,13 +363,13 @@ export default function PricingPage() {
                     className={cn(
                       "border-b px-6 py-3.5",
                       recommended
-                        ? "border-white/10 bg-white/[0.04]"
-                        : "border-zinc-100 bg-zinc-50/60"
+                        ? "border-primary-foreground/10 bg-primary-foreground/[0.06]"
+                        : "border-border/60 bg-muted/50"
                     )}
                   >
                     {isFree ? (
-                      <p className={cn("text-[12px]", recommended ? "text-accent-foreground/50" : "text-zinc-500")}>
-                        <span className={cn("font-semibold", recommended ? "text-accent-foreground" : "text-zinc-800")}>
+                      <p className={cn("text-[12px]", recommended ? "text-primary-foreground/60" : "text-muted-foreground")}>
+                        <span className={cn("font-semibold", recommended ? "text-primary-foreground" : "text-foreground")}>
                           {plan.tokensPerMonth.toLocaleString()}
                         </span>{" "}
                         credits / month
@@ -379,7 +379,7 @@ export default function PricingPage() {
                         <p
                           className={cn(
                             "mb-2 text-[10px] font-bold uppercase tracking-[0.1em]",
-                            recommended ? "text-accent-foreground/40" : "text-zinc-400"
+                            recommended ? "text-primary-foreground/40" : "text-muted-foreground"
                           )}
                         >
                           Monthly credits
@@ -394,8 +394,8 @@ export default function PricingPage() {
                             className={cn(
                               "h-9 w-full rounded-lg border text-[12px] font-semibold",
                               recommended
-                                ? "border-accent-foreground/20 bg-accent-foreground/10 text-accent-foreground focus:ring-accent-foreground/20"
-                                : "border-zinc-200 bg-white text-zinc-800 focus:ring-zinc-200"
+                                ? "border-primary-foreground/20 bg-primary-foreground/10 text-primary-foreground focus:ring-primary-foreground/20"
+                                : "border-border bg-card text-foreground focus:ring-ring/20"
                             )}
                           >
                             <SelectValue>
@@ -405,19 +405,19 @@ export default function PricingPage() {
                                   : effectiveTokens.toLocaleString()}{" "}
                                 credits /mo
                               </span>
-                              <span className={cn("ml-1.5 font-normal", recommended ? "text-accent-foreground/40" : "text-zinc-400")}>
+                              <span className={cn("ml-1.5 font-normal", recommended ? "text-primary-foreground/40" : "text-muted-foreground")}>
                                 · {priceStr}{period}
                               </span>
                             </SelectValue>
                           </SelectTrigger>
-                          <SelectContent className="rounded-xl border-zinc-200 bg-white p-1">
+                          <SelectContent className="rounded-lg border-border bg-card p-1">
                             {tiers.map((tier, i) => {
                               const tierPrice = formatPrice(tier.priceCents, plan.interval)
                               return (
                                 <SelectItem
                                   key={i}
                                   value={String(i)}
-                                  className="rounded-lg py-2.5 pl-3 pr-8 text-zinc-800 focus:bg-zinc-50"
+                                  className="rounded-md py-2.5 pl-3 pr-8 text-foreground focus:bg-muted"
                                 >
                                   <span className="font-semibold">
                                     {tier.tokensPerMonth >= 1000
@@ -425,7 +425,7 @@ export default function PricingPage() {
                                       : tier.tokensPerMonth.toLocaleString()}{" "}
                                     credits /mo
                                   </span>
-                                  <span className="ml-2 text-xs text-zinc-400">
+                                  <span className="ml-2 text-xs text-muted-foreground">
                                     {tierPrice.price}{tierPrice.period}
                                   </span>
                                 </SelectItem>
@@ -435,8 +435,8 @@ export default function PricingPage() {
                         </Select>
                       </div>
                     ) : (
-                      <p className={cn("text-[12px]", recommended ? "text-accent-foreground/50" : "text-zinc-500")}>
-                        <span className={cn("font-semibold", recommended ? "text-accent-foreground" : "text-zinc-800")}>
+                      <p className={cn("text-[12px]", recommended ? "text-primary-foreground/60" : "text-muted-foreground")}>
+                        <span className={cn("font-semibold", recommended ? "text-primary-foreground" : "text-foreground")}>
                           {plan.tokensPerMonth.toLocaleString()}
                         </span>{" "}
                         credits / month
@@ -451,13 +451,13 @@ export default function PricingPage() {
                         <span
                           className={cn(
                             "mt-[1px] flex h-[14px] w-[14px] shrink-0 items-center justify-center rounded-full",
-                            recommended ? "bg-white/15" : "bg-zinc-100"
+                            recommended ? "bg-primary-foreground/15" : "bg-muted"
                           )}
                         >
                           <Check
                             className={cn(
                               "h-[7px] w-[7px]",
-                              recommended ? "text-accent-foreground/80" : "text-zinc-600"
+                              recommended ? "text-primary-foreground/80" : "text-foreground/70"
                             )}
                             strokeWidth={3}
                           />
@@ -465,7 +465,7 @@ export default function PricingPage() {
                         <span
                           className={cn(
                             "text-[12px] leading-snug",
-                            recommended ? "text-accent-foreground/60" : "text-zinc-500"
+                            recommended ? "text-primary-foreground/70" : "text-muted-foreground"
                           )}
                         >
                           {normalizeFeatureCopy(feature)}
@@ -478,14 +478,14 @@ export default function PricingPage() {
                   <div
                     className={cn(
                       "border-t px-6 pb-6 pt-5",
-                      recommended ? "border-white/10" : "border-zinc-100"
+                      recommended ? "border-primary-foreground/10" : "border-border/60"
                     )}
                   >
                     {isFree ? (
                       <Link href="/projects" className="block w-full">
                         <Button
                           variant="outline"
-                          className="h-10 w-full rounded-lg border-zinc-200 bg-white text-[13px] font-semibold text-zinc-700 hover:bg-zinc-50"
+                          className="h-10 w-full rounded-lg border-border bg-card text-[13px] font-semibold text-foreground hover:bg-muted"
                         >
                           Start building free
                         </Button>
@@ -496,8 +496,8 @@ export default function PricingPage() {
                         className={cn(
                           "h-10 w-full rounded-lg border-0 text-[13px] font-semibold transition-all active:scale-[0.99]",
                           recommended
-                            ? "bg-white text-foreground hover:bg-zinc-100"
-                            : "bg-accent text-accent-foreground hover:bg-accent/90"
+                            ? "bg-primary-foreground text-primary hover:bg-primary-foreground/90"
+                            : "bg-primary text-primary-foreground hover:bg-primary/90"
                         )}
                         onClick={() => handleSubscribe(effectivePriceId!, effectiveQuantity)}
                       >
@@ -513,8 +513,8 @@ export default function PricingPage() {
                         className={cn(
                           "h-10 w-full rounded-lg border-0 text-[13px] font-semibold opacity-60",
                           recommended
-                            ? "bg-white text-foreground"
-                            : "bg-accent text-accent-foreground"
+                            ? "bg-primary-foreground text-primary"
+                            : "bg-primary text-primary-foreground"
                         )}
                       >
                         Subscribe to {plan.name}
@@ -529,12 +529,12 @@ export default function PricingPage() {
 
         {/* ── Footer note ──────────────────────────────────────── */}
         <div className="mt-6 flex flex-col items-center justify-between gap-3 sm:flex-row">
-          <p className="text-[11px] text-zinc-400">
+          <p className="text-[11px] text-muted-foreground">
             Prices in USD · Upgrade or downgrade at any time
           </p>
           <Link
             href="/help"
-            className="text-[11px] text-zinc-500 underline underline-offset-4 transition-colors hover:text-zinc-800"
+            className="text-[11px] text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"
           >
             Need help choosing? Visit Help &amp; Support →
           </Link>

@@ -311,7 +311,7 @@ function DeployButton({
 
       {open && (
         <div className={cn(
-          "z-30 hidden w-[460px] max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-card p-4 shadow-[0_24px_70px_-32px_var(--primary)] sm:block",
+          "z-30 hidden w-[460px] max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-card p-4 shadow-lg sm:block",
           headless ? "fixed right-6 top-16" : "absolute right-0 top-11",
         )}>
 
@@ -658,7 +658,7 @@ function MobileDeploySheet({
   const hasStoredDeployments = Boolean(deploymentLinks?.netlify?.siteUrl || deploymentLinks?.vercel?.siteUrl)
 
   return (
-    <div className="fixed inset-x-3 bottom-[5.6rem] z-50 max-h-[min(72dvh,36rem)] overflow-y-auto rounded-[1.45rem] border border-border bg-card p-4 shadow-[0_24px_80px_-32px_var(--primary)] [scrollbar-width:thin] sm:hidden">
+    <div className="fixed inset-x-3 bottom-[5.6rem] z-50 max-h-[min(72dvh,36rem)] overflow-y-auto rounded-[1.45rem] border border-border bg-card p-4 shadow-lg [scrollbar-width:thin] sm:hidden">
       {/* Header */}
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
@@ -1820,10 +1820,10 @@ export default function ComputerPage() {
   const planLabel = userData?.planId && userData.planId !== "free" ? userData.planId : "Free"
 
   return (
-    <div className="relative flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground sm:p-2 lg:p-2.5">
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground">
 
       {/* ── App shell ── */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-card sm:rounded-2xl sm:border sm:border-border/70 sm:shadow-[0_8px_48px_-8px_rgba(0,0,0,0.14)]">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
 
       <ComputerTopBar
         session={session}
@@ -1950,14 +1950,14 @@ export default function ComputerPage() {
 
         {/* ── Chat panel (left) ── */}
         <div className={cn(
-          "flex w-full shrink-0 flex-col overflow-hidden bg-sidebar transition-[width] duration-200 ease-in-out sm:border-r sm:border-border/60",
+          "flex w-full shrink-0 flex-col overflow-hidden bg-background transition-[width] duration-200 ease-in-out sm:border-r sm:border-border/80",
           desktopChatCollapsed
             ? "sm:w-0 sm:overflow-hidden sm:border-r-0"
             : "sm:w-[38%] md:w-[37%] lg:w-[380px] xl:w-[420px] 2xl:w-[460px]",
           mobileView !== "feed" && "hidden sm:flex"
         )}>
           {/* Feed scroll area */}
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 [scrollbar-width:thin] lg:px-5">
+          <div className="chat-scrollbar min-h-0 flex-1 overflow-y-auto px-4 py-5 lg:px-5">
             <AgentFeed
               prompt={firstPrompt} events={session.timeline}
               localMessages={localMessages} status={effectiveStatus}
@@ -1975,7 +1975,7 @@ export default function ComputerPage() {
           </div>
 
           {/* Composer */}
-          <div className="shrink-0 bg-sidebar px-3 pt-3 pb-[5.25rem] sm:pb-3 lg:px-4">
+          <div className="shrink-0 border-t border-border/60 bg-background px-3 pt-3 pb-[5.25rem] sm:pb-3 lg:px-4">
 
 
             {isBuildTokenBlocked && (
@@ -2004,14 +2004,14 @@ export default function ComputerPage() {
               onSubmit={handleRun}
               placeholder="Message the agent..."
               disabled={isBuildTokenBlocked}
-              wrapperClassName="bg-sidebar border-border/40"
+              wrapperClassName="border-border/60 bg-background shadow-sm"
             />
           </div>
         </div>
 
         {/* ── Workspace panel (right) ── */}
         <div className={cn(
-          "flex min-w-0 flex-1 flex-col overflow-hidden bg-card",
+          "flex min-w-0 flex-1 flex-col overflow-hidden bg-muted/35",
           mobileView !== "workspace" && "hidden sm:flex"
         )}>
           <WorkspaceTabBar
@@ -2023,11 +2023,17 @@ export default function ComputerPage() {
             showCompleteBadge={effectiveStatus === "complete"}
           />
 
-          {/* Workspace content */}
-          <div className="relative min-h-0 flex-1 bg-background">
+          {/* Workspace content — inset frame like Manus computer view */}
+          <div className="relative min-h-0 flex-1 p-2 sm:p-2.5 lg:p-3">
             <AnimatePresence mode="wait" initial={false}>
-              <motion.div key={activeTab} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                transition={{ duration: 0.16 }} className="h-full min-h-0">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.16 }}
+                className="h-full min-h-0 overflow-hidden rounded-lg border border-border/70 bg-background shadow-sm"
+              >
                 <WorkspaceContent
                   session={session} status={effectiveStatus} activeTab={activeTab}
                   progress={sessionProgress}
@@ -2066,7 +2072,7 @@ export default function ComputerPage() {
 
       {/* ── Mobile view switcher ── */}
       <nav
-        className="absolute inset-x-3 z-20 mx-auto max-w-xs rounded-2xl border border-border/60 bg-card/95 px-1 py-1 shadow-xl shadow-black/10 backdrop-blur-xl sm:hidden"
+        className="absolute inset-x-3 z-20 mx-auto max-w-xs rounded-lg border border-border/70 bg-background/95 px-1 py-1 shadow-lg backdrop-blur-xl sm:hidden"
         style={{ bottom: "max(0.875rem, env(safe-area-inset-bottom))" }}
       >
         <div className="grid grid-cols-2 gap-1">

@@ -305,7 +305,7 @@ export function MobilePreview({
   }
 
   return (
-    <div className={cn("flex h-full min-h-0 flex-col bg-[#f0ece4] p-3 sm:p-4", className)}>
+    <div className={cn("flex h-full min-h-0 flex-col bg-muted/35 p-3 sm:p-4", className)}>
       {view.kind === "loading" && (
         <PreviewShell title="Starting preview" subtitle="Preparing your mobile sandbox…">
           <PhoneFrame loading />
@@ -318,7 +318,7 @@ export function MobilePreview({
             <p className="text-sm text-[#1c1c1c]">{view.message}</p>
             <Link
               href="/pricing"
-              className="inline-flex h-10 items-center justify-center rounded-xl bg-accent px-4 text-sm font-semibold text-accent-foreground transition hover:opacity-90"
+              className="inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
             >
               View plans
             </Link>
@@ -460,7 +460,7 @@ function PhoneDeviceFrame({
             aria-hidden
             className="pointer-events-none absolute -inset-[3px] z-0 overflow-hidden rounded-[2.35rem]"
           >
-            <div className="absolute left-1/2 top-1/2 h-[280%] w-[280%] -translate-x-1/2 -translate-y-1/2 animate-[spin_2s_linear_infinite] bg-[conic-gradient(from_0deg,transparent_0deg,var(--accent)_40deg,var(--accent-soft)_100deg,transparent_160deg)]" />
+            <div className="absolute left-1/2 top-1/2 h-[280%] w-[280%] -translate-x-1/2 -translate-y-1/2 animate-[spin_2s_linear_infinite] bg-[conic-gradient(from_0deg,transparent_0deg,var(--primary)_40deg,var(--accent-soft)_100deg,transparent_160deg)]" />
           </div>
         ) : null}
         <div

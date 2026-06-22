@@ -90,7 +90,7 @@ function Toggle({
       onClick={() => onChange?.(!checked)}
       className={cn(
         "relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-        checked ? "bg-accent" : "bg-muted",
+        checked ? "bg-primary" : "bg-muted",
         disabled && "cursor-not-allowed opacity-50"
       )}
     >
@@ -122,7 +122,7 @@ function CategoryRow({
     <div className="rounded-xl border border-border bg-card overflow-hidden">
       <div className="flex items-center gap-3 px-4 py-3.5">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
-          <Icon className="h-4 w-4 text-accent" />
+          <Icon className="h-4 w-4 text-primary" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
@@ -209,7 +209,7 @@ function PreferencesModal({
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary">
-              <Cookie className="h-4 w-4 text-accent-foreground" />
+              <Cookie className="h-4 w-4 text-primary-foreground" />
             </div>
             <div>
               <p id="cookie-prefs-title" className="text-sm font-semibold text-foreground">
@@ -265,7 +265,7 @@ function PreferencesModal({
             <button
               type="button"
               onClick={() => onSave(analytics, functional)}
-              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/90"
+              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
             >
               <Check className="h-3.5 w-3.5" />
               Save preferences
@@ -315,15 +315,12 @@ export function CookieBanner() {
         aria-label="Cookie consent"
         className="fixed bottom-4 left-1/2 z-[150] w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 animate-in slide-in-from-bottom-4 duration-500"
       >
-        <div className="overflow-hidden rounded-2xl border border-border/80 bg-card/95 shadow-[0_8px_40px_-8px_var(--primary),0_2px_12px_-4px_var(--primary)] backdrop-blur-xl">
-          {/* Top accent line */}
-          <div className="h-0.5 w-full bg-gradient-to-r from-border via-accent to-border" />
-
+        <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-lg">
           <div className="px-5 py-4">
             <div className="flex items-start gap-3.5">
               {/* Icon */}
               <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary">
-                <Cookie className="h-4.5 w-4.5 text-accent-foreground" style={{ width: 18, height: 18 }} />
+                <Cookie className="h-4.5 w-4.5 text-primary-foreground" style={{ width: 18, height: 18 }} />
               </div>
 
               {/* Text */}
@@ -349,7 +346,7 @@ export function CookieBanner() {
               <button
                 type="button"
                 onClick={handleAcceptAll}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/90 active:scale-[0.98]"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 active:scale-[0.98]"
               >
                 <Check className="h-3.5 w-3.5" />
                 Accept all

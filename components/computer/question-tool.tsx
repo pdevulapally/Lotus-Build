@@ -160,7 +160,7 @@ function QuestionPrompt({
   const optionRowBase = "w-full text-left rounded-md px-2 py-1.5 flex items-center gap-2 -mx-2 hover:bg-muted transition-colors"
   const badgeBase = "h-5 min-w-5 px-1 rounded-[4px] inline-flex items-center justify-center text-xs font-semibold border shrink-0"
   const badgeOff = "bg-transparent text-muted-foreground border-border"
-  const badgeOn = "bg-accent text-accent-foreground border-accent"
+  const badgeOn = "bg-primary text-primary-foreground border-primary"
 
   return (
     <div className={cn("px-3 py-2.5 space-y-2 bg-card", className)}>
@@ -238,7 +238,7 @@ function QuestionPrompt({
           type="button"
           onClick={handleSubmit}
           disabled={!canSubmit}
-          className="h-6 px-2.5 rounded-[4px] text-xs font-semibold bg-accent text-accent-foreground hover:bg-accent/90 active:scale-[0.98] transition-all disabled:opacity-40 disabled:hover:bg-accent disabled:active:scale-100"
+          className="h-6 px-2.5 rounded-[4px] text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-40 disabled:hover:bg-primary disabled:active:scale-100"
         >
           {primaryLabel}
         </button>

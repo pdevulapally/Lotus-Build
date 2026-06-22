@@ -24,6 +24,7 @@ import {
   ChevronDown,
   LayoutDashboard,
 } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 const navLinks = [
   { href: "/#features", label: "Features" },
@@ -34,7 +35,11 @@ const navLinks = [
 const accountMenuItemClass =
   "h-10 cursor-pointer rounded-xl px-3 text-[13px] text-foreground focus:bg-muted focus:text-foreground"
 
-export function Navbar() {
+type NavbarProps = {
+  variant?: "default" | "hero"
+}
+
+export function Navbar({ variant = "default" }: NavbarProps) {
   const router = useRouter()
   const { user, userData, loading, signOut } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
@@ -70,8 +75,21 @@ export function Navbar() {
     : 0
 
   return (
-    <header className="fixed left-0 right-0 top-6 z-40 px-4 sm:top-7">
-      <nav className="relative max-w-5xl w-full mx-auto flex h-12 items-center justify-between px-4 sm:px-6 rounded-full bg-card/90 border border-border shadow-[0_18px_60px_-42px_var(--primary)] backdrop-blur-xl md:grid md:grid-cols-[1fr_auto_1fr]">
+    <header
+      className={cn(
+        variant === "hero"
+          ? "relative z-10 w-full"
+          : "fixed left-0 right-0 top-6 z-40 px-4 sm:top-7"
+      )}
+    >
+      <nav
+        className={cn(
+          "relative mx-auto flex h-12 w-full max-w-5xl items-center justify-between px-4 sm:px-6 md:grid md:grid-cols-[1fr_auto_1fr]",
+          variant === "hero"
+            ? "rounded-2xl border border-white/50 bg-white/70 shadow-sm backdrop-blur-md"
+            : "rounded-full border border-border bg-card/90 shadow-[0_18px_60px_-42px_var(--primary)] backdrop-blur-xl"
+        )}
+      >
         {/* Left: Logo */}
         <Link href="/" className="group flex shrink-0 items-center gap-2 md:justify-self-start">
           <LotusLogo size={28} />
@@ -116,7 +134,7 @@ export function Navbar() {
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
-                className="w-[calc(100vw-2rem)] max-w-[22rem] overflow-hidden rounded-2xl border-border bg-card p-0 text-popover-foreground shadow-[0_24px_80px_-44px_var(--primary)]"
+                className="w-[calc(100vw-2rem)] max-w-[22rem] overflow-hidden rounded-lg border border-border bg-card p-0 text-popover-foreground shadow-lg"
                 sideOffset={10}
               >
                 {/* User Info */}
@@ -156,7 +174,7 @@ export function Navbar() {
                       </div>
                       <Link
                         href="/pricing"
-                        className="shrink-0 rounded-full px-2.5 py-1 text-[12px] font-medium text-accent transition-colors hover:bg-accent-soft hover:text-accent-soft-foreground"
+                        className="shrink-0 rounded-full px-2.5 py-1 text-[12px] font-medium text-primary transition-colors hover:bg-accent-soft hover:text-accent-soft-foreground"
                         onClick={() => setIsOpen(false)}
                       >
                         Upgrade
@@ -174,7 +192,7 @@ export function Navbar() {
                         </span>
                       </div>
                       <div className="h-1.5 overflow-hidden rounded-full bg-border">
-                        <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${Math.min(tokenPercentage, 100)}%` }} />
+                        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${Math.min(tokenPercentage, 100)}%` }} />
                       </div>
                     </div>
                   </div>

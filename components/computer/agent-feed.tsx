@@ -187,7 +187,7 @@ function SupabaseQuestionCard({ onSetup, onDecline }: { onSetup: () => void; onD
   if (dismissed) return null
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border/50 bg-background">
+    <div className="overflow-hidden rounded-lg border border-border/60 bg-card">
       <div className="flex items-start gap-3 px-4 py-3.5">
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border/50 bg-muted/50">
           <Database className="h-4 w-4 text-foreground/70" />
@@ -205,7 +205,7 @@ function SupabaseQuestionCard({ onSetup, onDecline }: { onSetup: () => void; onD
                 try { await onSetup() } finally { setSetting(false) }
               }}
               disabled={setting}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-[12px] font-semibold text-accent-foreground transition-colors hover:bg-accent/90 disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
             >
               {setting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Database className="h-3 w-3" />}
               {setting ? "Setting up..." : "Set up Supabase"}
@@ -237,7 +237,7 @@ function PlanTool({ event, onApprovePlan }: { event: ComputerTimelineEvent; onAp
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border/50 bg-background">
+    <div className="overflow-hidden rounded-lg border border-border/60 bg-card">
       <div className="flex items-center justify-between gap-2 border-b border-border/50 px-3 py-2">
         <span className="text-xs font-medium text-muted-foreground">Plan drafted</span>
         {summary && (
@@ -271,7 +271,7 @@ function PlanTool({ event, onApprovePlan }: { event: ComputerTimelineEvent; onAp
             type="button"
             onClick={handleApprove}
             disabled={isApproving}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-accent-foreground transition-colors hover:bg-accent/90 disabled:opacity-60"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
           >
             <Check className="h-3.5 w-3.5 shrink-0" />
             {isApproving ? "Starting build…" : "Approve and build"}
@@ -318,7 +318,7 @@ function FeedFileItem({
     : `${isWrite ? "Created" : "Edited"} ${fileName}`
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border/50 bg-background">
+    <div className="overflow-hidden rounded-lg border border-border/60 bg-card">
       <button
         type="button"
         disabled={!hasDiff}
@@ -616,7 +616,7 @@ function UserMessageBubble({
           </div>
           <div className="mt-1.5 flex items-center justify-end gap-2">
             <button type="button" onClick={onEditCancel} className="rounded-md px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground">Cancel</button>
-            <button type="button" onClick={() => onEditSubmit(index)} className="rounded-md bg-accent px-2.5 py-1 text-[11px] font-medium text-accent-foreground transition-colors hover:bg-accent/90">Submit</button>
+            <button type="button" onClick={() => onEditSubmit(index)} className="rounded-md bg-primary px-2.5 py-1 text-[11px] font-medium text-primary-foreground transition-colors hover:bg-primary/90">Submit</button>
           </div>
         </div>
       </div>
