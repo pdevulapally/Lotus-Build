@@ -97,6 +97,53 @@ export function formatConversationForOrchestrator(
     .join("\n\n")
 }
 
+// How many recent user-facing turns to pass as proper message pairs to the generation agent.
+// Older turns are already embedded in the design brief / plan text so nothing is lost.
+const AGENT_MESSAGE_TURN_LIMIT = 12
+
+/**
+ * Converts stored conversation turns into alternating Anthropic message pairs for the
+ * generation agent. This gives the agent real conversational context rather than a text blob.
+ *
+ * Rules:
+ * - "agent_decision" turns are internal routing entries — excluded entirely.
+ * - Consecutive same-role turns are merged so the API's strict alternation is satisfied.
+ * - If the sequence ends on "user", a brief assistant bridge is appended so the caller
+ *   can safely append the final generation task as another "user" message.
+ */
+export function buildConversationMessagesForAgent(
+  turns: ComputerConversationTurn[],
+  limit = AGENT_MESSAGE_TURN_LIMIT
+): Array<{ role: "user" | "assistant"; content: string }> {
+  const userFacing = turns
+    .filter((t) => t.source !== "agent_decision")
+    .slice(-limit)
+
+  if (!userFacing.length) return []
+
+  const merged: Array<{ role: "user" | "assistant"; content: string }> = []
+  for (const turn of userFacing) {
+    const last = merged[merged.length - 1]
+    if (last && last.role === turn.role) {
+      last.content += "\n\n" + turn.content
+    } else {
+      merged.push({ role: turn.role, content: turn.content })
+    }
+  }
+
+  // Anthropic requires the first message to be from the user
+  while (merged.length && merged[0].role !== "user") {
+    merged.shift()
+  }
+
+  // Ensure there is room for a final "user" message (the generation task)
+  if (merged.length && merged[merged.length - 1].role === "user") {
+    merged.push({ role: "assistant", content: "Understood. I'll work on this now." })
+  }
+
+  return merged
+}
+
 export function summarizeTimelineForOrchestrator(
   timeline: Array<{ title?: string; description?: string; kind?: string; status?: string }>,
   limit = 8

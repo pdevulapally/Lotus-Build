@@ -11,6 +11,7 @@ import { createComputerAgentMessage } from "@/lib/computer-agent/agent-config"
 import type { MemoryContext } from "@/lib/computer-agent/agent-config"
 import {
   appendConversationTurn,
+  buildConversationMessagesForAgent,
   createConversationTurn,
   formatConversationForOrchestrator,
   persistConversationTurns,
@@ -1733,9 +1734,32 @@ export async function POST(req: Request) {
       await persistConversationTurns(docRef, conversationTurns)
 
       if (decision.action === "respond") {
-        const reply =
-          decision.assistantMessage?.trim() ||
-          "I'm here to help — what would you like to build next?"
+        const orchestratorReply = decision.assistantMessage?.trim()
+
+        let reply: string
+        if (orchestratorReply && orchestratorReply.length > 80) {
+          reply = orchestratorReply
+        } else {
+          // Generate a dedicated conversational response with full conversation context.
+          // The orchestrator runs at low token budget and is designed for routing decisions,
+          // not prose — this gives the reply a proper LLM call of its own.
+          const conversationHistory = formatConversationForOrchestrator(conversationTurns, 20)
+          const responseRes = await callAgent({
+            max_tokens: 500,
+            temperature: 0.6,
+            system: `You are Lotus Build, an AI website builder. Reply conversationally to the user's message in 2-4 sentences, plain text, no markdown. Be specific to what they actually said or asked. If they're asking about the app or changes made, reference them directly. Never open with filler phrases like "I'm here to help", "Certainly!", or "I'd be happy to".`,
+            messages: [{
+              role: "user",
+              content: `Conversation so far:\n${conversationHistory}\n\nUser's latest message: ${incomingPrompt || prompt}`,
+            }],
+          }, { enableMcp: false }).catch(() => null)
+
+          const generatedReply = responseRes
+            ? extractTextFromAnthropicContent(responseRes.content)?.trim()
+            : null
+
+          reply = generatedReply || orchestratorReply || "What would you like to do next?"
+        }
 
         await appendRunEvent({
           id: crypto.randomUUID(),
@@ -2474,11 +2498,18 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
         .catch(() => {})
     }
 
+    // Build real alternating message turns so the generation agent has genuine multi-turn
+    // context awareness. When turns are available the conversation section is removed from
+    // the prompt text to avoid duplication — the history lives in the message array instead.
+    const agentConversationMessages = buildConversationMessagesForAgent(conversationTurns)
+
     const generationPrompt = buildAgentGenerationPrompt({
       prompt,
       planText,
       webEvidence: usableWebEvidence,
-      conversationContext: formatConversationForOrchestrator(conversationTurns, 24),
+      conversationContext: agentConversationMessages.length
+        ? undefined
+        : formatConversationForOrchestrator(conversationTurns, 24),
       runtimeContext,
       intent: webPlan.intent,
       isEdit: projectFiles.length > 0,
@@ -2509,29 +2540,31 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
       })
 
       try {
-        let lastEventId: string | null = null
-
         const { files: generatedPatchFiles, suggestsBackend: genSuggestsBackend } = await runAgenticGeneration({
           prompt: generationPrompt,
           existingFiles: projectFiles,
           platform: projectPlatform,
           isEdit: projectFiles.length > 0,
-          onFileWritten: async (file) => {
-            const newEventId = crypto.randomUUID()
-            lastEventId = newEventId
+          conversationMessages: agentConversationMessages.length ? agentConversationMessages : undefined,
+          // Fired during streaming as soon as the file path is known — creates the "running"
+          // UI event immediately, before the file content finishes generating.
+          onFileStarted: async (path) => {
             await appendRunEvent({
-              id: newEventId,
-              title: `Generating ${file.path}`,
+              id: crypto.randomUUID(),
+              title: `Generating ${path}`,
               description: undefined,
               status: "running",
               kind: "code",
               createdAt: new Date().toISOString(),
               metadata: {
-                filePath: file.path,
+                filePath: path,
                 editVariant: projectFiles.length > 0 ? "edit" : "write",
               },
             })
           },
+          // Fired after full file content is available — used by the post-run transaction
+          // to populate diff metadata. No additional UI event needed here.
+          onFileWritten: async (_file) => {},
           onToolCall: async (title) => {
             await appendRunEvent({
               id: crypto.randomUUID(),

@@ -125,11 +125,24 @@ const TOOLS: Anthropic.Tool[] = [
   },
 ]
 
+// Extracts a quoted string value from a key in partial streaming JSON.
+// Returns null until the full value (closing quote) has been streamed.
+function extractJsonString(partial: string, key: string): string | null {
+  const pattern = new RegExp(`"${key}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"`)
+  const m = pattern.exec(partial)
+  return m ? m[1] : null
+}
+
 export async function runAgenticGeneration(params: {
   prompt: string
   existingFiles: AgenticFile[]
   platform: ProjectPlatform
   isEdit: boolean
+  /** Real alternating conversation turns from the session, built by buildConversationMessagesForAgent.
+   *  When provided, the agent experiences prior exchanges as genuine message history rather than
+   *  a flattened text blob — giving it full context awareness across the conversation. */
+  conversationMessages?: Array<{ role: "user" | "assistant"; content: string }>
+  onFileStarted?: (path: string) => Promise<void>
   onFileWritten?: (file: AgenticFile) => Promise<void>
   onToolCall?: (title: string) => Promise<void>
 }): Promise<{ files: AgenticFile[]; suggestsBackend: boolean }> {
@@ -138,7 +151,10 @@ export async function runAgenticGeneration(params: {
     fileStore.set(f.path, f.content)
   }
 
+  // Seed from real conversation turns when available, then append the generation task.
+  // This gives the model proper multi-turn context rather than a single context-blob message.
   const messages: Array<{ role: "user" | "assistant"; content: unknown }> = [
+    ...(params.conversationMessages ?? []),
     { role: "user", content: params.prompt },
   ]
 
@@ -146,14 +162,72 @@ export async function runAgenticGeneration(params: {
   let finished = false
 
   for (let turn = 0; turn < MAX_TURNS && !finished; turn++) {
-    const response = await client.messages.create({
+    type BlockState = { id: string; name: string; json: string }
+    const streamBlocks = new Map<number, BlockState>()
+    const streamNotified = new Set<string>() // block ids already callback'd during streaming
+
+    const stream = client.messages.stream({
       model: MODEL,
-      max_tokens: 8192,
+      max_tokens: 16000,
       system: SYSTEM_PROMPT,
       tools: TOOLS,
       messages: messages as Anthropic.MessageParam[],
     })
 
+    // Stream events so we can fire UI callbacks as the model generates
+    for await (const event of stream) {
+      if (event.type === "content_block_start" && event.content_block.type === "tool_use") {
+        const { id, name } = event.content_block
+        streamBlocks.set(event.index, { id, name, json: "" })
+
+        // Zero-argument tools — we know everything immediately
+        if (name === "list_files") {
+          streamNotified.add(id)
+          await params.onToolCall?.("Scanning project files")
+        } else if (name === "validate_project") {
+          streamNotified.add(id)
+          await params.onToolCall?.("Validating project")
+        }
+        continue
+      }
+
+      if (event.type === "content_block_delta" && event.delta.type === "input_json_delta") {
+        const block = streamBlocks.get(event.index)
+        if (!block || streamNotified.has(block.id)) continue
+        block.json += event.delta.partial_json
+
+        // Extract path/pattern as soon as enough JSON has streamed in
+        switch (block.name) {
+          case "write_file": {
+            const path = extractJsonString(block.json, "path")
+            if (path) {
+              streamNotified.add(block.id)
+              await params.onFileStarted?.(path)
+            }
+            break
+          }
+          case "read_file": {
+            const path = extractJsonString(block.json, "path")
+            if (path) {
+              streamNotified.add(block.id)
+              await params.onToolCall?.(`Reading ${path}`)
+            }
+            break
+          }
+          case "search_files": {
+            const pattern = extractJsonString(block.json, "pattern")
+            if (pattern) {
+              streamNotified.add(block.id)
+              await params.onToolCall?.(`Searching "${pattern}"`)
+            }
+            break
+          }
+        }
+      }
+    }
+
+    // Stream is exhausted — finalMessage() resolves immediately from the accumulated result
+    const response = await stream.finalMessage()
     messages.push({ role: "assistant", content: response.content })
 
     if (response.stop_reason === "end_turn") break
@@ -169,12 +243,13 @@ export async function runAgenticGeneration(params: {
       if (block.type !== "tool_use") continue
 
       const input = block.input as Record<string, unknown>
+      const alreadyNotified = streamNotified.has(block.id)
       let result: string
 
       switch (block.name) {
         case "read_file": {
           const path = String(input.path ?? "")
-          await params.onToolCall?.(`Reading ${path}`)
+          if (!alreadyNotified) await params.onToolCall?.(`Reading ${path}`)
           result = fileStore.has(path)
             ? fileStore.get(path)!
             : `File not found: ${path}\nAvailable files:\n${[...fileStore.keys()].join("\n")}`
@@ -188,21 +263,19 @@ export async function runAgenticGeneration(params: {
             break
           }
           fileStore.set(path, content)
-          if (params.onFileWritten) {
-            await params.onFileWritten({ path, content })
-          }
+          await params.onFileWritten?.({ path, content })
           result = `Written: ${path}`
           break
         }
         case "list_files": {
-          await params.onToolCall?.("Scanning project files")
+          if (!alreadyNotified) await params.onToolCall?.("Scanning project files")
           const keys = [...fileStore.keys()]
           result = keys.length ? keys.join("\n") : "(no files yet)"
           break
         }
         case "search_files": {
           const pattern = String(input.pattern ?? "")
-          await params.onToolCall?.(`Searching "${pattern}"`)
+          if (!alreadyNotified) await params.onToolCall?.(`Searching "${pattern}"`)
           if (!pattern) {
             result = "Error: pattern is required"
             break
@@ -226,7 +299,7 @@ export async function runAgenticGeneration(params: {
           break
         }
         case "validate_project": {
-          await params.onToolCall?.("Validating project")
+          if (!alreadyNotified) await params.onToolCall?.("Validating project")
           const files = [...fileStore.entries()].map(([path, content]) => ({ path, content }))
           const { issueMessages } = validateGeneratedProjectFiles(files, {
             requireNewAppScaffold: params.existingFiles.length === 0,

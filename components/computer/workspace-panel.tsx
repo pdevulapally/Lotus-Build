@@ -208,7 +208,7 @@ export function WorkspaceTabBar({
   if (activeTab !== "preview" || !previewUrl) return null
 
   return (
-    <div className="hidden h-10 shrink-0 items-center justify-center border-b border-border/50 bg-muted/40 px-4 sm:flex">
+    <div className="hidden h-10 shrink-0 items-center justify-center border-b border-border/40 bg-muted/30 px-4 sm:flex">
       {/* Centered constrained URL pill */}
       <div className="group flex w-full max-w-sm items-center gap-0.5 overflow-hidden rounded-full border border-foreground/25 bg-muted px-1 shadow-sm transition-colors focus-within:border-foreground/40 focus-within:bg-muted/80 hover:border-foreground/35 hover:bg-muted/80">
 

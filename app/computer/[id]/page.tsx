@@ -24,6 +24,18 @@ import {
 } from "lucide-react"
 import { AnimatedAIInput } from "@/components/ui/animated-ai-input"
 import { TokenLimitDialog } from "@/components/project/token-limit-dialog"
+import {
+  Context,
+  ContextCacheUsage,
+  ContextContent,
+  ContextContentBody,
+  ContextContentFooter,
+  ContextContentHeader,
+  ContextInputUsage,
+  ContextOutputUsage,
+  ContextReasoningUsage,
+  ContextTrigger,
+} from "@/components/ai-elements/context"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/contexts/auth-context"
 import { db } from "@/lib/firebase"
@@ -1169,6 +1181,39 @@ export default function ComputerPage() {
     session?.status === "running" || session?.status === "planning"
   )
 
+  // ── Agent context usage (estimated) ──────────────────────────────────────
+  const agentContextUsage = useMemo(() => {
+    const MAX_CONTEXT = 200_000   // Claude Sonnet 4.6 context window
+    const MAX_OUTPUT  = 16_000    // max_tokens in agentic-generation.ts
+    const SYS_OVERHEAD = 1_800   // system prompt token estimate
+
+    const turns = session?.conversationTurns ?? []
+    // Mirror server-side: exclude agent_decision, last 12 turns
+    const userFacing = turns
+      .filter((t) => t.source !== "agent_decision")
+      .slice(-12)
+
+    const conversationTokens = userFacing.reduce(
+      (acc, t) => acc + Math.ceil(t.content.length / 4), 0
+    )
+
+    const inputTokens  = conversationTokens + SYS_OVERHEAD
+    const outputTokens = Math.min(MAX_OUTPUT, generatedFileCount * 350)
+    const totalTokens  = inputTokens + outputTokens
+
+    return {
+      maxTokens: MAX_CONTEXT,
+      usedTokens: totalTokens,
+      usage: {
+        inputTokens,
+        outputTokens,
+        cachedInputTokens: 0,
+        reasoningTokens: 0,
+        totalTokens,
+      },
+    }
+  }, [session?.conversationTurns, generatedFileCount])
+
   const showTokenLimit = useCallback(() => {
     setRunError("You have used all credits for this cycle. Upgrade your plan to continue.")
     setTokenLimitModalOpen(true)
@@ -2021,7 +2066,7 @@ export default function ComputerPage() {
           setIntegrationsOpen(false)
         }}
         chatPanelCollapsed={desktopChatCollapsed}
-        onToggleChatPanel={() => setDesktopChatCollapsed((collapsed) => !collapsed)}
+        onToggleChatPanel={() => setDesktopChatCollapsed((c) => !c)}
         activeTab={activeTab}
         hasPreview={hasPreview}
         hasBrowser={hasBrowser}
@@ -2092,7 +2137,7 @@ export default function ComputerPage() {
       {/* ── Body ── */}
       <div className="relative flex min-h-0 w-full flex-1 overflow-hidden">
 
-        {/* ── Chat panel (left) ── */}
+        {/* ── Chat panel ── */}
         <div className={cn(
           "flex w-full shrink-0 flex-col overflow-hidden bg-background transition-[width] duration-200 ease-in-out sm:border-r sm:border-border/40",
           desktopChatCollapsed
@@ -2100,41 +2145,63 @@ export default function ComputerPage() {
             : "sm:w-[38%] md:w-[37%] lg:w-[380px] xl:w-[420px] 2xl:w-[460px]",
           mobileView !== "feed" && "hidden sm:flex"
         )}>
+          {/* Context indicator bar — desktop only, sits above the feed */}
+          <div className="hidden shrink-0 items-center justify-between border-b border-border/30 px-4 py-1.5 sm:flex">
+            <Context
+              maxTokens={agentContextUsage.maxTokens}
+              modelId="anthropic:claude-sonnet-4-6"
+              usage={agentContextUsage.usage}
+              usedTokens={agentContextUsage.usedTokens}
+            >
+              <ContextTrigger />
+              <ContextContent>
+                <ContextContentHeader />
+                <ContextContentBody>
+                  <ContextInputUsage />
+                  <ContextOutputUsage />
+                  <ContextReasoningUsage />
+                  <ContextCacheUsage />
+                </ContextContentBody>
+                <ContextContentFooter />
+              </ContextContent>
+            </Context>
+          </div>
+
           {/* Feed scroll area */}
           <div className="relative min-h-0 flex-1 overflow-hidden">
-            {/* Gradient fade — content appears to emerge below the header */}
             <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-8 bg-gradient-to-b from-background to-transparent" />
-            <div className="chat-scrollbar h-full overflow-y-auto px-4 py-6 lg:px-5">
-              <AgentFeed
-                prompt={firstPrompt} events={session.timeline}
-                localMessages={localMessages} status={effectiveStatus}
-                progress={sessionProgress}
-                optimisticStart={optimisticStart}
-                editingIndex={editingMsgIndex} editText={editText}
-                onEditStart={handleEditStart} onEditChange={setEditText}
-                onEditSubmit={handleEditSubmit} onEditCancel={handleEditCancel}
-                onSupabaseSetup={handleSupabaseYes}
-                onSupabaseDecline={handleSupabaseNo}
-                onClarificationAnswer={handleClarificationAnswer}
-                onApprovePlan={showPlanApproval ? handleApprovePlan : undefined}
-                onRestoreCheckpoint={handleRestoreCheckpoint}
-              />
+            {/* flex + flex-col on the scroller so the inner flex-1 spacer works */}
+            <div className="chat-scrollbar flex h-full flex-col overflow-y-auto px-4 lg:px-5">
+              {/* Top spacer: pushes content to bottom when feed is short (chat-app behavior) */}
+              <div className="flex-1 pt-4" />
+              <div className="pb-4">
+                <AgentFeed
+                  prompt={firstPrompt} events={session.timeline}
+                  localMessages={localMessages} status={effectiveStatus}
+                  progress={sessionProgress}
+                  optimisticStart={optimisticStart}
+                  editingIndex={editingMsgIndex} editText={editText}
+                  onEditStart={handleEditStart} onEditChange={setEditText}
+                  onEditSubmit={handleEditSubmit} onEditCancel={handleEditCancel}
+                  onSupabaseSetup={handleSupabaseYes}
+                  onSupabaseDecline={handleSupabaseNo}
+                  onClarificationAnswer={handleClarificationAnswer}
+                  onApprovePlan={showPlanApproval ? handleApprovePlan : undefined}
+                  onDenyPlan={showPlanApproval ? handleDenyPlan : undefined}
+                  onRestoreCheckpoint={handleRestoreCheckpoint}
+                />
+              </div>
             </div>
           </div>
 
           {/* Composer */}
-          <div className="shrink-0 bg-background px-3 pt-2 pb-[5.25rem] sm:pb-3 lg:px-4">
-
-
+          <div className="shrink-0 bg-background px-3 pt-2 [padding-bottom:max(4.5rem,calc(env(safe-area-inset-bottom)+3.25rem))] sm:pb-3 lg:px-4">
             {isBuildTokenBlocked && (
               <div className="mb-3 rounded-xl border border-warning/25 bg-warning-soft px-3 py-2.5">
                 <p className="text-sm font-medium text-warning-soft-foreground">You have used all credits for this cycle.</p>
                 <p className="mt-0.5 text-xs text-warning-soft-foreground/85">
-                  Upgrade your plan to continue running the computer agent.
-                  {" "}
-                  <Link href="/pricing" className="font-semibold underline underline-offset-2">
-                    View plans
-                  </Link>
+                  Upgrade your plan to continue running the computer agent.{" "}
+                  <Link href="/pricing" className="font-semibold underline underline-offset-2">View plans</Link>
                 </p>
               </div>
             )}
@@ -2144,12 +2211,8 @@ export default function ComputerPage() {
               </div>
             )}
             <AnimatedAIInput
-              mode="chat"
-              compact
-              compactSize="slim"
-              isLoading={isRunning}
-              onStop={handleStop}
-              onSubmit={handleRun}
+              mode="chat" compact compactSize="slim"
+              isLoading={isRunning} onStop={handleStop} onSubmit={handleRun}
               placeholder="Message the agent..."
               disabled={isBuildTokenBlocked}
               wrapperClassName="border-border/60 bg-background shadow-sm"
@@ -2157,20 +2220,20 @@ export default function ComputerPage() {
           </div>
         </div>
 
-        {/* ── Workspace panel (right) ── */}
+        {/* ── Workspace panel ── */}
         <div className={cn(
-          "flex min-w-0 flex-1 flex-col overflow-hidden bg-muted/25",
+          "m-2 flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border/50 shadow-md shadow-black/5",
           mobileView !== "workspace" && "hidden sm:flex"
         )}>
-          <WorkspaceTabBar
-            activeTab={activeTab}
-            previewUrl={session.previewUrl}
-            onRefreshPreview={() => setPreviewReloadNonce((n) => n + 1)}
-            onNavigatePreview={(url) => setPreviewNavSrc(url)}
-          />
-
-          {/* Workspace content — inset floating frame */}
-          <div className="relative min-h-0 flex-1 p-2 sm:p-2 lg:p-3">
+          {/* Workspace content — fills panel edge to edge */}
+          <div className="relative min-h-0 flex-1">
+            <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
+              <WorkspaceTabBar
+                activeTab={activeTab}
+                previewUrl={session.previewUrl}
+                onRefreshPreview={() => setPreviewReloadNonce((n) => n + 1)}
+                onNavigatePreview={(url) => setPreviewNavSrc(url)}
+              />
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={activeTab}
@@ -2178,7 +2241,7 @@ export default function ComputerPage() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.14 }}
-                className="h-full min-h-0 overflow-hidden rounded-xl border border-border/50 bg-background shadow-md shadow-black/5"
+                className="min-h-0 flex-1 overflow-hidden"
               >
                 <WorkspaceContent
                   session={session} status={effectiveStatus} activeTab={activeTab}
@@ -2213,8 +2276,10 @@ export default function ComputerPage() {
                 />
               </motion.div>
             </AnimatePresence>
+            </div>
           </div>
         </div>
+
       </div>
       </div>
 
