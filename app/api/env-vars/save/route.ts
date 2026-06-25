@@ -6,6 +6,10 @@ import { assertProjectCanEdit } from "@/lib/project-access"
 
 export const runtime = "nodejs"
 
+const ENV_KEY_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/
+const MAX_ENV_VARS = 100
+const MAX_ENV_VALUE_LENGTH = 20_000
+
 export async function POST(req: Request) {
   try {
     const uid = await requireUserUid(req)
@@ -20,9 +24,20 @@ export async function POST(req: Request) {
     }
     const record: Record<string, string> = {}
     for (const [k, v] of Object.entries(envVars)) {
-      if (typeof k === "string" && typeof v === "string" && k.trim()) {
-        record[k.trim()] = v
+      const key = typeof k === "string" ? k.trim() : ""
+      if (!key) continue
+      if (!ENV_KEY_PATTERN.test(key)) {
+        return NextResponse.json({ error: `Invalid environment variable name: ${key}` }, { status: 400 })
       }
+      if (typeof v === "string") {
+        if (v.length > MAX_ENV_VALUE_LENGTH) {
+          return NextResponse.json({ error: `Environment variable value is too large: ${key}` }, { status: 400 })
+        }
+        record[key] = v
+      }
+    }
+    if (Object.keys(record).length > MAX_ENV_VARS) {
+      return NextResponse.json({ error: `Too many environment variables. Maximum is ${MAX_ENV_VARS}.` }, { status: 400 })
     }
     const plain = JSON.stringify(record)
     const { encrypted } = encryptEnvVars(plain)
@@ -39,6 +54,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Request failed"
-    return NextResponse.json({ error: message }, { status: 500 })
+    const status = message.includes("Authorization") ? 401 : message.includes("Forbidden") ? 403 : 500
+    return NextResponse.json({ error: message }, { status })
   }
 }

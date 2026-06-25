@@ -4,6 +4,8 @@ import { Sandbox } from "@e2b/code-interpreter"
 import { adminDb } from "@/lib/firebase-admin"
 import { getUserNetlifyToken, requireUserUid } from "@/lib/server-auth"
 import { normalizeGeneratedCodeFiles } from "@/lib/generated-code-normalization"
+import { assertProjectCanEdit } from "@/lib/project-access"
+import { normalizeRelativeFilePath } from "@/lib/security/files"
 import { Buffer } from "buffer"
 
 export const runtime = "nodejs"
@@ -23,12 +25,17 @@ async function getProjectFiles(projectId: string) {
 async function writeFilesToSandbox(sandbox: Sandbox, files: any[]) {
   await sandbox.files.makeDir("/home/user/project")
   for (const file of files) {
-    const filePath = `/home/user/project/${file.path}`
+    const relativePath = normalizeRelativeFilePath(file?.path)
+    if (!relativePath) {
+      throw new Error("Project contains an unsafe file path")
+    }
+
+    const filePath = `/home/user/project/${relativePath}`
     const dir = filePath.substring(0, filePath.lastIndexOf("/"))
     if (dir) {
       await sandbox.files.makeDir(dir)
     }
-    await sandbox.files.write(filePath, file.content)
+    await sandbox.files.write(filePath, typeof file.content === "string" ? file.content : "")
   }
 }
 
@@ -195,6 +202,8 @@ export async function POST(req: Request) {
           controller.close()
           return
         }
+
+        await assertProjectCanEdit(projectId, uid)
 
         project.files = normalizeSourceImports(normalizeGeneratedCodeFiles(project.files))
 

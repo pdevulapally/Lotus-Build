@@ -1,5 +1,6 @@
 import crypto from "crypto"
 import { adminAuth, adminDb } from "@/lib/firebase-admin"
+import { decryptEnvVars, encryptEnvVars } from "@/lib/encrypt-env"
 
 export async function requireUserUid(req: Request): Promise<string> {
   const header = req.headers.get("authorization") || req.headers.get("Authorization")
@@ -19,6 +20,11 @@ export function randomState(): string {
 export async function getUserNetlifyToken(uid: string): Promise<string | null> {
   const snap = await adminDb.collection("users").doc(uid).get()
   const data = snap.exists ? snap.data() : null
+  const encryptedToken = (data as any)?.netlifyAccessTokenEncrypted
+  if (typeof encryptedToken === "string" && encryptedToken.length > 0) {
+    return decryptEnvVars(encryptedToken)
+  }
+
   const token = (data as any)?.netlifyAccessToken
   return typeof token === "string" && token.length > 0 ? token : null
 }
@@ -26,7 +32,8 @@ export async function getUserNetlifyToken(uid: string): Promise<string | null> {
 export async function setUserNetlifyToken(uid: string, accessToken: string) {
   await adminDb.collection("users").doc(uid).set(
     {
-      netlifyAccessToken: accessToken,
+      netlifyAccessToken: null,
+      netlifyAccessTokenEncrypted: encryptEnvVars(accessToken).encrypted,
       netlifyConnectedAt: new Date(),
     },
     { merge: true }
@@ -54,6 +61,11 @@ export async function getUserNetlifyOauthState(uid: string): Promise<string | nu
 export async function getGitHubToken(uid: string): Promise<string | null> {
   const snap = await adminDb.collection("users").doc(uid).get()
   const data = snap.exists ? snap.data() : null
+  const encryptedToken = (data as any)?.githubAccessTokenEncrypted
+  if (typeof encryptedToken === "string" && encryptedToken.length > 0) {
+    return decryptEnvVars(encryptedToken)
+  }
+
   const token = (data as any)?.githubAccessToken
   return typeof token === "string" && token.length > 0 ? token : null
 }
@@ -61,7 +73,8 @@ export async function getGitHubToken(uid: string): Promise<string | null> {
 export async function setGitHubToken(uid: string, accessToken: string) {
   await adminDb.collection("users").doc(uid).set(
     {
-      githubAccessToken: accessToken,
+      githubAccessToken: null,
+      githubAccessTokenEncrypted: encryptEnvVars(accessToken).encrypted,
       githubConnectedAt: new Date(),
     },
     { merge: true }
@@ -89,6 +102,7 @@ export async function clearGitHubToken(uid: string) {
   await adminDb.collection("users").doc(uid).set(
     {
       githubAccessToken: null,
+      githubAccessTokenEncrypted: null,
       githubConnectedAt: null,
     },
     { merge: true }

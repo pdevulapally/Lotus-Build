@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { randomState, requireUserUid } from "@/lib/server-auth"
 import { adminDb } from "@/lib/firebase-admin"
 import { getAuthorizeUrl } from "@/lib/integrations/supabase/oauth"
+import { assertProjectCanEdit } from "@/lib/project-access"
 
 export const runtime = "nodejs"
 
@@ -10,6 +11,10 @@ export async function GET(req: Request) {
     const uid = await requireUserUid(req)
     const url = new URL(req.url)
     const builderProjectId = url.searchParams.get("builderProjectId") || ""
+    if (builderProjectId) {
+      await assertProjectCanEdit(builderProjectId, uid)
+    }
+
     const state = randomState()
 
     await adminDb.collection("supabaseOauthStates").doc(state).set({

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
-import { adminDb, adminAuth } from "@/lib/firebase-admin"
+import { adminDb } from "@/lib/firebase-admin"
 import { requireUserUid } from "@/lib/server-auth"
+import { assertProjectCanEdit } from "@/lib/project-access"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -28,19 +29,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
 
     const projectRef = adminDb.collection("projects").doc(projectId)
-    const snap = await projectRef.get()
-    if (!snap.exists) {
-      return NextResponse.json({ error: "Project not found" }, { status: 404 })
-    }
-
-    const data = snap.data() as { ownerId?: string; editorIds?: string[] }
-    const ownerId = data.ownerId
-    const editorIds = Array.isArray(data.editorIds) ? data.editorIds : []
-    const canEdit = uid === ownerId || editorIds.includes(uid) || !ownerId
-
-    if (!canEdit) {
-      return NextResponse.json({ error: "Not allowed" }, { status: 403 })
-    }
+    await assertProjectCanEdit(projectId, uid)
 
     await requireWorkspaceMember(workspaceId, uid)
 
@@ -49,7 +38,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ ok: true })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Request failed"
-    const status = message.includes("Authorization") ? 401 : message.includes("Not a workspace member") ? 403 : 500
+    const status = message.includes("Authorization") ? 401 : message.includes("Forbidden") || message.includes("Not a workspace member") ? 403 : 500
     return NextResponse.json({ error: message }, { status })
   }
 }

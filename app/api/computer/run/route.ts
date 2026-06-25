@@ -45,6 +45,9 @@ import {
 } from "@/lib/computer-agent/runtime"
 import { createRunVersion } from "@/lib/project-versions/service"
 import { runAgenticGeneration } from "@/lib/computer-agent/agentic-generation"
+import { assertRateLimit, RateLimitError, rateLimitResponse } from "@/lib/rate-limit"
+import { assertProjectCanEdit } from "@/lib/project-access"
+import { isSensitiveFilePath, normalizeRelativeFilePath } from "@/lib/security/files"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -1503,6 +1506,12 @@ export async function POST(req: Request) {
 
   try {
     const uid = await requireUserUid(req)
+    await assertRateLimit({
+      scope: "computer-run",
+      key: uid,
+      limit: 40,
+      windowMs: 60 * 60 * 1000,
+    })
     const body = await req.json().catch(() => null)
     const parsed = runRequestSchema.safeParse(body)
 
@@ -1524,6 +1533,7 @@ export async function POST(req: Request) {
       model?: unknown
       timeline?: unknown
       projectId?: string
+      platform?: unknown
       sessionMode?: unknown
       agentRuntime?: unknown
       planApproved?: unknown
@@ -1538,9 +1548,19 @@ export async function POST(req: Request) {
       data.projectId ? adminDb.collection("projects").doc(data.projectId).get() : Promise.resolve(null),
       adminDb.collection("users").doc(uid).get(),
     ])
+    if (data.projectId) {
+      await assertProjectCanEdit(data.projectId, uid)
+    }
     if (projectSnap?.exists) {
       const projectData = projectSnap.data()
-      projectFiles = projectData?.files || []
+      projectFiles = Array.isArray(projectData?.files)
+        ? projectData.files.flatMap((file: unknown) => {
+            const record = file && typeof file === "object" ? file as { path?: unknown; content?: unknown } : null
+            const path = normalizeRelativeFilePath(record?.path)
+            if (!path || isSensitiveFilePath(path) || typeof record?.content !== "string") return []
+            return [{ path, content: record.content }]
+          })
+        : []
       projectMemory = (projectData?.projectMemory as string | undefined) || ""
     }
     const globalMemory: string = (userMemSnap.data()?.globalMemory as string | undefined) || ""
@@ -1596,10 +1616,11 @@ export async function POST(req: Request) {
 
       if (transactionData?.status === "running") {
         const lastUpdate = transactionData?.updatedAt
+        const timestampLike = lastUpdate as { toDate?: () => Date } | null | undefined
         const lastUpdateMs = lastUpdate instanceof Date
           ? lastUpdate.getTime()
-          : typeof lastUpdate?.toDate === "function"
-            ? lastUpdate.toDate().getTime()
+          : typeof timestampLike?.toDate === "function"
+            ? timestampLike.toDate().getTime()
             : typeof lastUpdate === "string" || typeof lastUpdate === "number"
               ? new Date(lastUpdate).getTime()
               : 0
@@ -3427,6 +3448,7 @@ Format:
 
     return NextResponse.json({ ok: true })
   } catch (error) {
+    if (error instanceof RateLimitError) return rateLimitResponse(error)
     const message = error instanceof Error ? error.message : "Request failed"
     const status = message === "RUN_ALREADY_IN_PROGRESS"
       ? 409

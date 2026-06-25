@@ -4,6 +4,8 @@ import { assertProjectCanEdit } from "@/lib/project-access"
 import { requireUserUid } from "@/lib/server-auth"
 
 export const runtime = "nodejs"
+const MAX_SQL_CHARS = 200_000
+const MAX_MIGRATION_NAME_CHARS = 120
 
 export async function POST(req: Request) {
   try {
@@ -14,6 +16,12 @@ export async function POST(req: Request) {
     const name = (body?.name ?? "").toString().trim() || `${new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14)}_migration`
     if (!builderProjectId || !sql.trim()) {
       return NextResponse.json({ error: "Missing builderProjectId or sql" }, { status: 400 })
+    }
+    if (sql.length > MAX_SQL_CHARS) {
+      return NextResponse.json({ error: `SQL is too large. Maximum is ${MAX_SQL_CHARS} characters.` }, { status: 400 })
+    }
+    if (name.length > MAX_MIGRATION_NAME_CHARS) {
+      return NextResponse.json({ error: `Migration name is too long. Maximum is ${MAX_MIGRATION_NAME_CHARS} characters.` }, { status: 400 })
     }
 
     await assertProjectCanEdit(builderProjectId, uid)
@@ -59,7 +67,8 @@ export async function GET(req: Request) {
     return NextResponse.json({ migrations })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to list migrations"
-    return NextResponse.json({ error: message }, { status: 500 })
+    const status = message.includes("Authorization") ? 401 : message.includes("Forbidden") ? 403 : 500
+    return NextResponse.json({ error: message }, { status })
   }
 }
 

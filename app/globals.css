@@ -589,3 +589,109 @@ html::-webkit-scrollbar {
   animation: shimmer 6s linear infinite;
 }
 
+@layer utilities {
+  .lotus-glass {
+    background:
+      linear-gradient(
+        180deg,
+        oklch(0.992 0 0 / 0.92),
+        oklch(0.965 0 0 / 0.84)
+      );
+    border-color: oklch(0.84 0 0 / 0.58);
+    box-shadow:
+      inset 0 1px 0 oklch(1 0 0 / 0.7),
+      inset 0 0 0 1px oklch(1 0 0 / 0.3),
+      0 16px 40px -34px color-mix(in oklch, var(--foreground) 32%, transparent);
+    backdrop-filter: blur(20px) saturate(92%);
+    -webkit-backdrop-filter: blur(20px) saturate(92%);
+  }
+
+  .lotus-glass-strong {
+    background:
+      linear-gradient(
+        180deg,
+        oklch(0.996 0 0 / 0.94),
+        oklch(0.972 0 0 / 0.88)
+      );
+    border-color: oklch(0.84 0 0 / 0.62);
+    box-shadow:
+      inset 0 1px 0 oklch(1 0 0 / 0.74),
+      inset 0 0 0 1px oklch(1 0 0 / 0.34),
+      inset 0 -1px 0 oklch(0.78 0 0 / 0.24),
+      0 22px 56px -42px color-mix(in oklch, var(--foreground) 38%, transparent);
+    backdrop-filter: blur(24px) saturate(92%);
+    -webkit-backdrop-filter: blur(24px) saturate(92%);
+  }
+
+  .lotus-glass-panel {
+    background:
+      linear-gradient(
+        180deg,
+        oklch(0.99 0 0 / 0.9),
+        oklch(0.962 0 0 / 0.82)
+      );
+    box-shadow:
+      inset 0 1px 0 oklch(1 0 0 / 0.66),
+      inset 0 0 0 1px oklch(1 0 0 / 0.28),
+      0 14px 36px -32px color-mix(in oklch, var(--foreground) 30%, transparent);
+    backdrop-filter: blur(18px) saturate(90%);
+    -webkit-backdrop-filter: blur(18px) saturate(90%);
+  }
+
+  .lotus-glass-control {
+    background:
+      linear-gradient(
+        180deg,
+        oklch(0.99 0 0 / 0.9),
+        oklch(0.96 0 0 / 0.78)
+      );
+    border-color: oklch(0.82 0 0 / 0.5);
+    box-shadow:
+      inset 0 1px 0 oklch(1 0 0 / 0.58),
+      inset 0 0 0 1px oklch(1 0 0 / 0.22),
+      0 8px 20px -18px color-mix(in oklch, var(--foreground) 28%, transparent);
+    backdrop-filter: blur(14px) saturate(88%);
+    -webkit-backdrop-filter: blur(14px) saturate(88%);
+  }
+
+  .lotus-glass-inset {
+    background:
+      linear-gradient(
+        180deg,
+        oklch(0.972 0 0 / 0.82),
+        oklch(0.94 0 0 / 0.7)
+      );
+    box-shadow:
+      inset 0 1px 1px oklch(1 0 0 / 0.46),
+      inset 0 -1px 0 oklch(0.78 0 0 / 0.28);
+  }
+
+  .dark .lotus-glass {
+    background: linear-gradient(180deg, oklch(0.32 0 0 / 0.86), oklch(0.24 0 0 / 0.78));
+    border-color: oklch(0.6 0 0 / 0.28);
+  }
+
+  .dark .lotus-glass-strong {
+    background: linear-gradient(180deg, oklch(0.34 0 0 / 0.9), oklch(0.25 0 0 / 0.84));
+    border-color: oklch(0.62 0 0 / 0.32);
+  }
+
+  .dark .lotus-glass-panel {
+    background: linear-gradient(180deg, oklch(0.31 0 0 / 0.84), oklch(0.23 0 0 / 0.76));
+  }
+
+  .dark .lotus-glass-control {
+    background: linear-gradient(180deg, oklch(0.34 0 0 / 0.82), oklch(0.26 0 0 / 0.72));
+    border-color: oklch(0.62 0 0 / 0.26);
+  }
+
+  .dark .lotus-glass-inset {
+    background: linear-gradient(180deg, oklch(0.26 0 0 / 0.8), oklch(0.2 0 0 / 0.7));
+  }
+
+  .lotus-glass-divider {
+    border-color: color-mix(in oklch, var(--border) 62%, transparent);
+  }
+}
+
+

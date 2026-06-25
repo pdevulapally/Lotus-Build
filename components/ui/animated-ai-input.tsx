@@ -209,7 +209,7 @@ function ToolbarPill({
     <button
       type="button"
       className={cn(
-        "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5",
+        "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5",
         "text-xs font-medium text-muted-foreground transition-colors",
         "hover:bg-background hover:text-foreground",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25",
@@ -240,7 +240,7 @@ function IconButton({ children, active, label, className, ...props }: IconButton
         "hover:bg-background hover:text-foreground",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25",
         "disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground",
-        active && "bg-background text-primary",
+        active && "bg-background text-foreground",
         className,
       )}
       {...props}
@@ -292,6 +292,7 @@ export function AnimatedAIInput({
 
   const isSlimCompact = compact && compactSize === "slim";
   const minH = compact ? (isSlimCompact ? 60 : 76) : 96;
+  const isSlimChat = mode === "chat" && isSlimCompact;
 
   const { textareaRef, adjustHeight } = useAutoResizeTextarea({
     minHeight: minH,
@@ -464,6 +465,7 @@ export function AnimatedAIInput({
           "border-border/80 bg-card shadow-sm",
           "hover:border-border",
           "focus-within:border-border-strong focus-within:ring-2 focus-within:ring-ring/15",
+          isSlimChat && "rounded-2xl border-border/45 bg-card/70 shadow-sm",
           disabled && "pointer-events-none opacity-55",
           wrapperClassName,
         )}
@@ -495,7 +497,7 @@ export function AnimatedAIInput({
           )}
         </AnimatePresence>
 
-        <div className={cn("px-3 pt-3 sm:px-4 sm:pt-4", compact && "pt-2.5 sm:pt-3")}>
+        <div className={cn("px-3 pt-3 sm:px-4 sm:pt-4", compact && "pt-2.5 sm:pt-3", isSlimChat && "px-5 pt-4")}>
           <textarea
             ref={textareaRef}
             value={value}
@@ -512,6 +514,7 @@ export function AnimatedAIInput({
               compact
                 ? isSlimCompact ? "min-h-[60px]" : "min-h-[76px]"
                 : "min-h-[96px]",
+              isSlimChat && "min-h-[54px] text-[14px] leading-[1.55]",
             )}
           />
         </div>
@@ -520,6 +523,7 @@ export function AnimatedAIInput({
           className={cn(
             "flex items-center justify-between gap-2 px-2.5 pb-2 pt-1 sm:px-3 sm:pb-2.5",
             isSlimCompact && "py-1.5",
+            isSlimChat && "px-3.5 pb-3 pt-0",
           )}
         >
           <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -534,9 +538,9 @@ export function AnimatedAIInput({
                       setSelectedPlatform(option.id);
                     }}
                     className={cn(
-                      "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                      "rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
                       selectedPlatform === option.id
-                        ? "bg-primary text-primary-foreground"
+                        ? "bg-foreground text-background"
                         : "text-muted-foreground hover:text-foreground",
                     )}
                   >
@@ -580,7 +584,7 @@ export function AnimatedAIInput({
                               {option.description}
                             </p>
                           </div>
-                          {isSelected && <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />}
+                          {isSelected && <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-foreground" />}
                         </div>
                       </DropdownMenuItem>
                     );
@@ -593,7 +597,7 @@ export function AnimatedAIInput({
               <ToolbarPill
                 onClick={visualEditToggle.onToggle}
                 className={cn(
-                  visualEditToggle.active && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground",
+                  visualEditToggle.active && "bg-foreground text-background hover:bg-foreground/85 hover:text-background",
                 )}
               >
                 {visualEditToggle.active ? "Visual edit on" : "Visual edit"}
@@ -625,14 +629,14 @@ export function AnimatedAIInput({
                   <div className="flex w-full items-center justify-between gap-2">
                     <div className="flex items-center gap-2.5">
                       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted">
-                        <Leaf className="h-3.5 w-3.5 text-primary" />
+                        <Leaf className="h-3.5 w-3.5 text-muted-foreground" />
                       </div>
                       <div>
                         <p className="text-sm font-medium text-foreground">Best model</p>
                         <p className="text-xs text-muted-foreground">Picks the best model for the task</p>
                       </div>
                     </div>
-                    {autoMode && <Check className="h-3.5 w-3.5 text-primary" />}
+                    {autoMode && <Check className="h-3.5 w-3.5 text-foreground" />}
                   </div>
                 </DropdownMenuItem>
 
@@ -660,7 +664,7 @@ export function AnimatedAIInput({
                               {meta.description}
                             </p>
                           </div>
-                          {isSelected && <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />}
+                          {isSelected && <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-foreground" />}
                         </div>
                       </DropdownMenuItem>
                     );
@@ -670,7 +674,7 @@ export function AnimatedAIInput({
                     <p className="text-xs text-muted-foreground">
                       Custom models are available on paid plans.
                     </p>
-                    <Link href="/pricing" className="mt-1.5 inline-flex text-xs font-medium text-primary underline-offset-2 hover:underline">
+                    <Link href="/pricing" className="mt-1.5 inline-flex text-xs font-medium text-foreground underline-offset-2 hover:underline">
                       Upgrade
                     </Link>
                   </div>
@@ -709,7 +713,9 @@ export function AnimatedAIInput({
                 canStop
                   ? "bg-foreground text-background hover:bg-foreground/90"
                   : canSubmit
-                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                    ? isSlimChat
+                      ? "bg-foreground text-background hover:bg-foreground/90"
+                      : "bg-primary text-primary-foreground hover:bg-primary/90"
                     : "bg-muted text-muted-foreground",
               )}
             >

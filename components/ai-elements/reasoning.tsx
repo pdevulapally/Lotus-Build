@@ -104,12 +104,12 @@ function renderContentBlocks(blocks: ContentBlock[]): React.ReactNode {
       return (
         <pre
           key={i}
-          className="my-1.5 overflow-x-auto rounded-lg bg-zinc-100 px-3 py-2 text-[11.5px] font-mono leading-relaxed [overflow-wrap:normal] dark:bg-zinc-800"
+          className="my-1.5 overflow-x-auto rounded-xl bg-[oklch(0.955_0_0/0.72)] px-3 py-2 text-[11.5px] font-mono leading-relaxed [overflow-wrap:normal] dark:bg-[oklch(0.2_0_0/0.72)]"
         >
           {block.lang ? (
-            <span className="mb-1 block text-[10px] uppercase tracking-wider text-zinc-400">{block.lang}</span>
+            <span className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground/55">{block.lang}</span>
           ) : null}
-          <code className="whitespace-pre text-zinc-700 dark:text-zinc-300">{block.content}</code>
+          <code className="whitespace-pre text-foreground/75">{block.content}</code>
         </pre>
       )
     }
@@ -210,21 +210,21 @@ export function ReasoningTrigger({
   return (
     <CollapsibleTrigger
       className={cn(
-        "flex w-full items-center gap-2 py-1 text-left outline-none transition-colors hover:text-foreground",
+        "flex w-full items-center gap-2 py-1 text-left text-muted-foreground outline-none transition-colors hover:text-foreground",
         className,
       )}
     >
-      <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-data-[state=closed]/reasoning:-rotate-90" />
+      <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70 transition-transform group-data-[state=closed]/reasoning:-rotate-90" />
       {isStreaming ? (
         <motion.div
           animate={{ scale: [1, 1.18, 1], opacity: [0.65, 1, 0.65] }}
           transition={{ repeat: Infinity, duration: 1.8, ease: "easeInOut" }}
           className="shrink-0"
         >
-          <Brain className="h-3.5 w-3.5 text-foreground/80" />
+          <Brain className="h-3.5 w-3.5 text-foreground/70" />
         </motion.div>
       ) : (
-        <Brain className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        <Brain className="h-3.5 w-3.5 shrink-0 text-muted-foreground/75" />
       )}
       {isStreaming ? (
         <TextShimmer className="text-[13px] font-medium">
@@ -258,7 +258,7 @@ export function ReasoningContent({
     <CollapsibleContent>
       <div
         className={cn(
-          "pl-[1.375rem] pt-1.5 text-[13.5px] font-semibold leading-[1.65] text-foreground/65",
+          "pl-[1.375rem] pt-1.5 text-[13.5px] font-medium leading-[1.65] text-muted-foreground",
           className,
         )}
       >
@@ -266,7 +266,7 @@ export function ReasoningContent({
           <>
             {renderContentBlocks(parseContentBlocks(displayText))}
             {isTyping && (
-              <span className="ml-px inline-block h-[0.8em] w-[1.5px] animate-pulse rounded-[1px] bg-muted-foreground/70 align-baseline" />
+              <span className="ml-px inline-block h-[0.8em] w-[1.5px] animate-pulse rounded-[1px] bg-foreground/45 align-baseline" />
             )}
           </>
         ) : children}

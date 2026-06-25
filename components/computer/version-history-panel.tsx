@@ -107,8 +107,8 @@ export function VersionHistoryPanel({
   if (!open) return null
 
   const shellClass = variant === "sheet"
-    ? "fixed inset-x-3 bottom-[5.6rem] z-50 flex max-h-[min(72dvh,36rem)] flex-col overflow-hidden rounded-lg border border-border bg-background shadow-lg sm:hidden"
-    : "z-30 hidden w-[min(100vw-2rem,24rem)] flex-col overflow-hidden rounded-lg border border-border bg-background shadow-lg sm:flex fixed right-6 top-16 max-h-[min(72dvh,36rem)]"
+    ? "lotus-glass-strong fixed inset-x-3 bottom-[5.6rem] z-50 flex max-h-[min(72dvh,36rem)] flex-col overflow-hidden rounded-xl border border-border/50 sm:hidden"
+    : "lotus-glass-strong z-30 hidden w-[min(100vw-2rem,24rem)] flex-col overflow-hidden rounded-xl border border-border/50 sm:flex fixed right-6 top-16 max-h-[min(72dvh,36rem)]"
 
   return (
     <>
@@ -127,7 +127,7 @@ export function VersionHistoryPanel({
             type="button"
             onClick={onClose}
             aria-label="Close version history"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="lotus-glass-control flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
           >
             <span className="text-base leading-none">×</span>
           </button>
@@ -135,7 +135,7 @@ export function VersionHistoryPanel({
 
         <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 [scrollbar-width:thin]">
           {!projectId ? (
-            <div className="rounded-xl bg-muted/50 px-4 py-8 text-center">
+            <div className="lotus-glass-inset rounded-xl px-4 py-8 text-center">
               <p className="text-[13px] text-muted-foreground">Build something first to start saving versions.</p>
             </div>
           ) : loading ? (
@@ -149,13 +149,13 @@ export function VersionHistoryPanel({
               <button
                 type="button"
                 onClick={() => void loadVersions()}
-                className="mt-2 text-[12px] font-semibold text-destructive underline underline-offset-2"
+                className="mt-2 rounded-full px-2 py-1 text-[12px] font-semibold text-destructive underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
               >
                 Try again
               </button>
             </div>
           ) : versions.length === 0 ? (
-            <div className="rounded-xl bg-muted/50 px-4 py-8 text-center">
+            <div className="lotus-glass-inset rounded-xl px-4 py-8 text-center">
               <Clock className="mx-auto mb-2 h-5 w-5 text-muted-foreground" />
               <p className="text-[13px] font-medium text-foreground">No saved versions yet</p>
               <p className="mt-1 text-[12px] text-muted-foreground">
@@ -174,22 +174,22 @@ export function VersionHistoryPanel({
                     <div
                       className={cn(
                         "overflow-hidden rounded-xl border transition-colors",
-                        isCurrent ? "border-primary/30 bg-accent-soft/40" : "border-border bg-background"
+                        isCurrent ? "border-border-strong bg-muted/45" : "lotus-glass-panel border-border"
                       )}
                     >
                       <button
                         type="button"
                         onClick={() => setExpandedId(isExpanded ? null : version.id)}
-                        className="flex w-full min-h-12 items-start gap-3 px-3.5 py-3 text-left"
+                        className="flex min-h-12 w-full items-start gap-3 px-3.5 py-3 text-left transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/35"
                       >
-                        <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                        <div className="lotus-glass-inset mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground">
                           <History className="h-3.5 w-3.5" />
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="text-[13px] font-semibold text-foreground">{version.label}</p>
                             {isCurrent ? (
-                              <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-semibold text-accent-soft-foreground">
+                              <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-foreground">
                                 Current
                               </span>
                             ) : null}
@@ -220,7 +220,7 @@ export function VersionHistoryPanel({
                               type="button"
                               disabled={Boolean(restoringId)}
                               onClick={() => setConfirmVersion(version)}
-                              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-[12px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+                              className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-foreground px-3 py-2.5 text-[12px] font-semibold text-background shadow-sm transition-colors hover:bg-foreground/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               {isRestoring ? (
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />

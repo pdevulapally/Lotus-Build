@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { adminDb } from "@/lib/firebase-admin"
+import { assertProjectCanEdit } from "@/lib/project-access"
 import { getUserNetlifyToken, requireUserUid } from "@/lib/server-auth"
 
 export const runtime = "nodejs"
@@ -25,12 +26,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ deployId: strin
     if (!projectSnap.exists) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 })
     }
-    const projectData = projectSnap.data() as { ownerId?: string; editorIds?: string[]; netlifyDeployId?: string }
-    const isOwner = !projectData.ownerId || projectData.ownerId === uid
-    const isEditor = Array.isArray(projectData.editorIds) && projectData.editorIds.includes(uid)
-    if (!isOwner && !isEditor) {
-      return NextResponse.json({ error: "Access denied" }, { status: 403 })
-    }
+    await assertProjectCanEdit(projectId, uid)
+    const projectData = projectSnap.data() as { netlifyDeployId?: string }
 
     // Verify the deployId actually belongs to this project (prevents probing other deploys)
     const storedDeployId = (projectData.netlifyDeployId ?? "").trim()

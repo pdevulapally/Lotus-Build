@@ -1,5 +1,6 @@
 import { Sandbox } from "@e2b/code-interpreter"
 import { requireUserUid } from "@/lib/server-auth"
+import { assertRateLimit, RateLimitError, rateLimitResponse } from "@/lib/rate-limit"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -45,8 +46,15 @@ export async function POST(req: Request) {
   }
 
   try {
-    await requireUserUid(req)
-  } catch {
+    const uid = await requireUserUid(req)
+    await assertRateLimit({
+      scope: "sandbox-prewarm",
+      key: uid,
+      limit: 10,
+      windowMs: 60 * 60 * 1000,
+    })
+  } catch (error) {
+    if (error instanceof RateLimitError) return rateLimitResponse(error)
     return Response.json({ error: "Unauthorized" }, { status: 401 })
   }
 

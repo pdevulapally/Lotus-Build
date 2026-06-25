@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { adminDb } from "@/lib/firebase-admin"
 import { requireUserUid } from "@/lib/server-auth"
+import { assertProjectCanEdit } from "@/lib/project-access"
 
 export const runtime = "nodejs"
 
@@ -19,13 +20,10 @@ export async function GET(req: Request) {
       return NextResponse.json({ connected: false })
     }
 
+    await assertProjectCanEdit(projectId, uid)
     const data = snap.data() as any
-    const ownerId = data?.ownerId || (data?.userId as string)
-    if (ownerId && ownerId !== uid) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    }
 
-    const connected = !!data?.vercelToken
+    const connected = !!data?.vercelToken || !!data?.vercelTokenEncrypted
     return NextResponse.json({ connected })
   } catch (err: any) {
     return NextResponse.json({ error: err?.message || "Unauthorized" }, { status: 401 })

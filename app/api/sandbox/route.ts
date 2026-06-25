@@ -3,6 +3,9 @@ import { adminDb } from "@/lib/firebase-admin"
 import { requireUserUid } from "@/lib/server-auth"
 import { decryptEnvVars } from "@/lib/encrypt-env"
 import { normalizeGeneratedCodeFiles } from "@/lib/generated-code-normalization"
+import { assertProjectCanEdit } from "@/lib/project-access"
+import { assertRateLimit, RateLimitError, rateLimitResponse } from "@/lib/rate-limit"
+import { normalizeRelativeFilePath } from "@/lib/security/files"
 import crypto from "crypto"
 
 export const runtime = "nodejs"
@@ -1226,6 +1229,20 @@ export async function POST(req: Request) {
     return Response.json({ error: "E2B API key not configured" }, { status: 500 })
   }
 
+  let uid: string
+  try {
+    uid = await requireUserUid(req)
+    await assertRateLimit({
+      scope: "sandbox",
+      key: uid,
+      limit: 60,
+      windowMs: 60 * 60 * 1000,
+    })
+  } catch (error) {
+    if (error instanceof RateLimitError) return rateLimitResponse(error)
+    return Response.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
   let files: InputFile[] = []
   let sandboxId: string | undefined
   let projectId: string | undefined
@@ -1247,6 +1264,16 @@ export async function POST(req: Request) {
 
   if (!files.some((f) => f?.path === "package.json")) {
     return Response.json({ error: "Missing package.json at repository root." }, { status: 400 })
+  }
+
+  if (projectId) {
+    try {
+      await assertProjectCanEdit(projectId, uid)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Access denied"
+      const status = message.includes("Project not found") ? 404 : message.includes("Forbidden") ? 403 : 500
+      return Response.json({ error: status === 500 ? "Server error" : message }, { status })
+    }
   }
 
   const encoder = new TextEncoder()
@@ -1396,10 +1423,21 @@ export async function POST(req: Request) {
         await safeMakeDir(sandbox, PROJECT_DIR)
         await cmd(sandbox, `chmod -R u+rwX "${PROJECT_DIR}"`, 5000).catch(() => {})
 
-        const hasUserEnvFile = files.some(f => f.path === ".env" || f.path === ".env.local")
+        const normalizedInputFiles = files.map((file) => {
+          const path = normalizeRelativeFilePath(file.path)
+          if (!path) {
+            throw new Error("Project contains an unsafe file path")
+          }
+          return {
+            path,
+            content: typeof file.content === "string" ? file.content : "",
+          }
+        })
+
+        const hasUserEnvFile = normalizedInputFiles.some(f => f.path === ".env" || f.path === ".env.local")
         
         // Write all files
-        for (const file of files) {
+        for (const file of normalizedInputFiles) {
           const fullPath = `${PROJECT_DIR}/${file.path}`
           const lastSlash = fullPath.lastIndexOf("/")
           if (lastSlash > 0) {
@@ -1562,7 +1600,6 @@ export async function POST(req: Request) {
         // Create and run the dev server script (under PROJECT_DIR to avoid /tmp permission issues)
         const startScriptPath = `${PROJECT_DIR}/.start-dev.sh`
         const startScript = buildDevStartScript(framework, devPort)
-        console.log("[sandbox] Dev script:\n", startScript)
 
         await sandbox.files.write(startScriptPath, startScript)
         await cmd(sandbox, `chmod +x "${startScriptPath}"`, 5000).catch(() => {})
@@ -1770,6 +1807,12 @@ export async function PATCH(req: Request) {
     return Response.json({ error: "E2B API key not configured" }, { status: 500 })
   }
 
+  try {
+    await requireUserUid(req)
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
   const body = await req.json().catch(() => null) as { sandboxId?: unknown } | null
   const sandboxId = typeof body?.sandboxId === "string" ? body.sandboxId : ""
   if (!sandboxId) return Response.json({ error: "sandboxId required" }, { status: 400 })
@@ -1794,6 +1837,12 @@ export async function PATCH(req: Request) {
 export async function DELETE(req: Request) {
   if (!process.env.E2B_API_KEY) {
     return Response.json({ error: "E2B API key not configured" }, { status: 500 })
+  }
+
+  try {
+    await requireUserUid(req)
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 })
   }
 
   const body = await req.json().catch(() => null) as { sandboxId?: unknown } | null

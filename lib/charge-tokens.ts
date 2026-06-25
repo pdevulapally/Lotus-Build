@@ -49,15 +49,13 @@ export async function chargeTokensForGeneration(params: {
       console.warn(`[tokens] Generation used ${tokensToCharge} tokens; plan=${planId} monthly=${planTokensPerMonth}`)
     }
     if (remaining < tokensToCharge) {
-      console.warn(`[tokens] uid=${uid} has ${remaining} remaining but used ${tokensToCharge}; consuming balance`)
+      console.warn(`[tokens] Generation exceeded remaining balance; consuming available balance`)
     }
 
     const actualCharge = Math.min(tokensToCharge, remaining)
     const currentUsed = data?.tokenUsage?.used ?? data?.tokensUsed ?? 0
     const newUsed = Number(currentUsed) + actualCharge
     const newRemaining = Math.max(0, remaining - actualCharge)
-
-    console.log(`[tokens] uid=${uid} plan=${planId} charged=${actualCharge} used=${newUsed} remaining=${newRemaining}`)
 
     tx.update(userRef, {
       "tokenUsage.used": newUsed,

@@ -714,7 +714,7 @@ function buildOpenQuestions(sections: BlueprintSection[]) {
       ? "Do you need user authentication, payments, a CMS, or a backend?"
       : "",
     itemMap.get("content")?.status === "unknown"
-      ? "Will you provide content and brand assets, or use placeholder copy?"
+      ? "Will you provide content and brand assets, or should Lotus draft the first version?"
       : "",
   ]
 
@@ -1011,7 +1011,7 @@ function answerFromReply(blueprint: ProjectBlueprint, reply: string) {
     sections = updateItem(
       sections,
       "content",
-      "Use placeholder copy, we'll update it later",
+      "Draft the first version of the copy, we'll revise it later",
       "confirmed"
     )
   }

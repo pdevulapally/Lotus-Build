@@ -2,6 +2,9 @@ import { NextResponse } from "next/server"
 import { adminDb } from "@/lib/firebase-admin"
 import { requireUserUid } from "@/lib/server-auth"
 import { normalizeGeneratedCodeFiles } from "@/lib/generated-code-normalization"
+import { assertProjectCanEdit } from "@/lib/project-access"
+import { decryptEnvVars } from "@/lib/encrypt-env"
+import { normalizeRelativeFilePath } from "@/lib/security/files"
 
 export const runtime = "nodejs"
 
@@ -24,7 +27,9 @@ async function getProjectWithVercel(projectId: string) {
   if (!snap.exists) return null
   const data = snap.data() as any
   const files = Array.isArray(data?.files) ? data.files : null
-  const token = typeof data?.vercelToken === "string" ? data.vercelToken : null
+  const token = typeof data?.vercelTokenEncrypted === "string"
+    ? decryptEnvVars(data.vercelTokenEncrypted)
+    : typeof data?.vercelToken === "string" ? data.vercelToken : null
   const teamId = typeof data?.vercelTeamId === "string" ? data.vercelTeamId : null
   const name = typeof data?.vercelProjectName === "string" && data.vercelProjectName.trim()
     ? data.vercelProjectName.trim()
@@ -81,12 +86,7 @@ export async function POST(req: Request) {
           return
         }
 
-        const ownerId = (project.data as any)?.ownerId ?? (project.data as any)?.userId
-        if (ownerId && ownerId !== uid) {
-          send({ type: "error", error: "Forbidden" })
-          controller.close()
-          return
-        }
+        await assertProjectCanEdit(projectId, uid)
 
         if (!project.token) {
           send({ type: "error", error: "Vercel not connected for this project" })
@@ -105,10 +105,16 @@ export async function POST(req: Request) {
 
         const normalizedFiles = normalizeSourceImports(normalizeGeneratedCodeFiles(project.files))
 
-        const files = normalizedFiles.map((f: any) => ({
-          file: f.path,
-          data: typeof f.content === "string" ? f.content : "",
-        }))
+        const files = normalizedFiles.map((f: any) => {
+          const file = normalizeRelativeFilePath(f?.path)
+          if (!file) {
+            throw new Error("Project contains an unsafe file path")
+          }
+          return {
+            file,
+            data: typeof f.content === "string" ? f.content : "",
+          }
+        })
 
         const deployPayload: Record<string, unknown> = {
           name: project.name,

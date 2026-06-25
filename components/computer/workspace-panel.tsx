@@ -91,13 +91,13 @@ function RuntimeErrorCard({
 }) {
   const [expanded, setExpanded] = useState(false)
   return (
-    <div className="absolute bottom-4 right-4 z-20 w-[340px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-destructive/20 bg-card shadow-lg">
+    <div className="lotus-glass-strong absolute bottom-4 right-4 z-20 w-[340px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-destructive/20">
       <div className="flex items-center justify-between gap-2 border-b border-border px-3.5 py-2.5">
         <div className="flex items-center gap-2">
           <ShieldAlert className="h-3.5 w-3.5 text-destructive" />
           <span className="text-[12px] font-semibold text-foreground">Something went wrong</span>
         </div>
-        <button type="button" onClick={onDismiss} className="text-muted-foreground hover:text-foreground">×</button>
+        <button type="button" onClick={onDismiss} aria-label="Dismiss error" className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">×</button>
       </div>
       <div className="px-3.5 py-3">
         <p className="line-clamp-2 text-[12px] leading-relaxed text-muted-foreground">{error.message}</p>
@@ -107,7 +107,7 @@ function RuntimeErrorCard({
           </button>
         )}
         {expanded && error.stack && (
-          <pre className="mt-1.5 max-h-[120px] overflow-y-auto rounded-lg bg-muted p-2 text-[10px] leading-relaxed text-muted-foreground [scrollbar-width:thin]">
+          <pre className="lotus-glass-inset mt-1.5 max-h-[120px] overflow-y-auto rounded-lg p-2 text-[10px] leading-relaxed text-muted-foreground [scrollbar-width:thin]">
             {error.stack}
           </pre>
         )}
@@ -117,7 +117,7 @@ function RuntimeErrorCard({
           type="button"
           onClick={onFix}
           disabled={fixing}
-          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-[12px] font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-foreground px-3 py-2 text-[12px] font-semibold text-background shadow-sm transition-colors hover:bg-foreground/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-60"
         >
           <Wrench className="h-3.5 w-3.5" />
           {fixing ? "Fixing..." : "Fix with AI"}
@@ -134,7 +134,7 @@ function LaptopSwitcher({ label, title, onClick, icon }: {
     <button
       type="button"
       onClick={onClick}
-      className="absolute bottom-4 right-4 z-10 flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-left shadow-sm transition hover:bg-muted"
+      className="lotus-glass-control absolute bottom-4 right-4 z-10 flex items-center gap-2 rounded-lg border px-3 py-2 text-left transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
     >
       <span className="flex h-5 w-5 items-center justify-center text-muted-foreground">{icon}</span>
       <span>
@@ -150,7 +150,7 @@ function SessionProgressSurface({ progress }: { progress: ComputerSessionProgres
     <motion.div key={`progress-${progress.state}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}
       className="flex h-full items-center justify-center p-8 text-center">
       <div className="max-w-sm">
-        <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+        <div className="lotus-glass-inset mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground">
           <Monitor className="h-4 w-4" />
         </div>
         {progress.active ? (
@@ -162,7 +162,7 @@ function SessionProgressSurface({ progress }: { progress: ComputerSessionProgres
           {progress.description}
         </p>
         {progress.detail && progress.detail !== progress.description && (
-          <p className="mt-2 text-[11.5px] leading-relaxed text-muted-foreground/80">
+          <p className="mt-2 text-[11.5px] leading-relaxed text-muted-foreground">
             {progress.detail}
           </p>
         )}
@@ -208,16 +208,16 @@ export function WorkspaceTabBar({
   if (activeTab !== "preview" || !previewUrl) return null
 
   return (
-    <div className="hidden h-10 shrink-0 items-center justify-center border-b border-border/40 bg-muted/30 px-4 sm:flex">
+    <div className="lotus-glass-inset hidden h-10 shrink-0 items-center justify-center border-b border-border/40 px-4 sm:flex">
       {/* Centered constrained URL pill */}
-      <div className="group flex w-full max-w-sm items-center gap-0.5 overflow-hidden rounded-full border border-foreground/25 bg-muted px-1 shadow-sm transition-colors focus-within:border-foreground/40 focus-within:bg-muted/80 hover:border-foreground/35 hover:bg-muted/80">
+      <div className="lotus-glass-control group flex w-full max-w-sm items-center gap-0.5 overflow-hidden rounded-full border border-foreground/25 px-1 transition-colors focus-within:border-foreground/40 hover:border-foreground/35">
 
         {/* Home */}
         <button
           type="button"
           aria-label="Go to root"
           onClick={() => commitNav("/")}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-foreground/70 transition-colors hover:bg-background/60 hover:text-foreground"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-foreground/70 transition-colors hover:bg-background/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
         >
           <Home className="h-3.5 w-3.5" />
         </button>
@@ -254,7 +254,7 @@ export function WorkspaceTabBar({
           target="_blank"
           rel="noreferrer"
           aria-label="Open in new tab"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-foreground/80 transition-colors hover:bg-background/60 hover:text-foreground"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-foreground/80 transition-colors hover:bg-background/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
         >
           <ExternalLink className="h-3.5 w-3.5" />
         </a>
@@ -264,7 +264,7 @@ export function WorkspaceTabBar({
           type="button"
           aria-label="Refresh preview"
           onClick={onRefreshPreview}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-foreground/70 transition-colors hover:bg-background/60 hover:text-foreground"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-foreground/70 transition-colors hover:bg-background/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
         >
           <RotateCcw className="h-3.5 w-3.5" />
         </button>
@@ -329,7 +329,7 @@ export function WorkspaceContent({
   if (activeTab === "browser" && browserInspection) {
     return (
       <motion.div key="browser" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}
-        className="flex h-full min-h-0 flex-col p-3 lg:p-4">
+        className="flex h-full min-h-0 flex-col bg-[oklch(0.955_0_0)] p-3 dark:bg-[oklch(0.18_0_0)] lg:p-4">
         <div className="mb-2 flex min-w-0 items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="truncate text-[12px] font-medium text-foreground">
@@ -341,11 +341,11 @@ export function WorkspaceContent({
           </div>
           <WorkspaceHeaderLink href={browserInspection.url} />
         </div>
-        <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-border bg-card">
+        <div className="lotus-glass-panel relative min-h-0 flex-1 overflow-hidden rounded-xl border border-border">
           {browserInspection.liveUrl && !browserInspection.isExpired ? (
             <iframe
               src={browserInspection.liveUrl}
-              className="h-full w-full bg-background"
+              className="h-full w-full bg-[oklch(0.985_0_0)] dark:bg-[oklch(0.18_0_0)]"
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
               referrerPolicy="no-referrer"
               title="Remote browser"
@@ -355,7 +355,7 @@ export function WorkspaceContent({
               <p className="text-sm text-muted-foreground">
                 {browserInspection.isExpired ? "Live view has expired." : "Live view unavailable."}
               </p>
-              <a href={browserInspection.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline underline-offset-2">
+              <a href={browserInspection.url} target="_blank" rel="noopener noreferrer" className="text-xs text-foreground underline underline-offset-2 hover:text-foreground/80">
                 Open page in new tab
               </a>
             </div>
@@ -441,12 +441,12 @@ function PreviewPane({
 
   return (
     <motion.div key="preview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}
-      className="flex h-full min-h-0 flex-col">
+      className="flex h-full min-h-0 flex-col bg-[oklch(0.955_0_0)] dark:bg-[oklch(0.18_0_0)]">
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <iframe
           key={iframeKey}
           src={src}
-          className="h-full w-full"
+          className="h-full w-full bg-[oklch(0.985_0_0)] dark:bg-[oklch(0.18_0_0)]"
           sandbox="allow-scripts allow-same-origin allow-forms"
           title="Live preview"
           onLoad={() => setIsIframeLoading(false)}
@@ -455,7 +455,7 @@ function PreviewPane({
         {/* Loading banner — only while iframe is actually loading */}
         {isIframeLoading && (
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-end justify-center pb-4">
-            <div className="flex items-center gap-2 rounded-full border border-border bg-card/90 px-3 py-1.5 text-[11px] font-medium text-muted-foreground shadow-sm backdrop-blur-sm">
+            <div className="lotus-glass-control flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-medium text-muted-foreground">
               <Loader2 className="h-3 w-3 animate-spin" />
               Loading preview…
             </div>
@@ -464,9 +464,9 @@ function PreviewPane({
 
         {previewEnsureError && !isEnsuringPreview && (
             <div className="absolute inset-x-0 bottom-0 z-10 flex items-end justify-center p-4">
-              <div className="flex max-w-[360px] items-center gap-2 rounded-xl border border-border bg-card/95 px-3 py-2 text-[12px] text-muted-foreground shadow-sm backdrop-blur-sm">
+              <div className="lotus-glass-strong flex max-w-[360px] items-center gap-2 rounded-xl border border-border px-3 py-2 text-[12px] text-muted-foreground">
                 <span className="min-w-0 flex-1">{previewEnsureError}</span>
-                <button type="button" onClick={onRetryPreview} className="shrink-0 text-[12px] font-medium text-primary hover:text-primary/80">
+                <button type="button" onClick={onRetryPreview} className="shrink-0 rounded-full px-2 py-1 text-[12px] font-medium text-foreground hover:text-foreground/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35">
                   Retry
                 </button>
               </div>
@@ -487,7 +487,7 @@ function PreviewPane({
 export function LoadingShell() {
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden bg-background">
-      <header className="shrink-0 border-b border-border/80 bg-background px-4 py-3">
+      <header className="lotus-glass shrink-0 px-4 py-3">
         <div className="flex h-10 items-center gap-3">
           <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
           <div className="h-3 w-36 animate-pulse rounded bg-muted" />
@@ -496,7 +496,7 @@ export function LoadingShell() {
       <div className="flex flex-1 gap-0 overflow-hidden">
         <div className="hidden w-[380px] shrink-0 animate-pulse border-r border-border/80 bg-background sm:block" />
         <div className="flex-1 animate-pulse bg-muted/35 p-3">
-          <div className="h-full rounded-lg border border-border/70 bg-background" />
+          <div className="lotus-glass-panel h-full rounded-lg border border-border/70" />
         </div>
       </div>
     </div>
@@ -510,7 +510,7 @@ export function ErrorState({ message }: { message: string }) {
         <ShieldAlert className="mx-auto mb-4 h-8 w-8 text-muted-foreground" />
         <h1 className="text-[15px] font-semibold text-foreground">Session not found</h1>
         <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">{message}</p>
-        <Link href="/" className="mt-6 inline-flex items-center gap-1.5 text-[13px] font-medium text-primary hover:text-primary/80">
+        <Link href="/" className="mt-6 inline-flex items-center gap-1.5 text-[13px] font-medium text-foreground hover:text-foreground/80">
           Back home
         </Link>
       </div>

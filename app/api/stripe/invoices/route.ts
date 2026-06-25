@@ -2,10 +2,14 @@ import { NextRequest } from "next/server"
 import Stripe from "stripe"
 import { adminAuth, adminDb } from "@/lib/firebase-admin"
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
+function getStripeClient() {
+  const secretKey = process.env.STRIPE_SECRET_KEY
+  return secretKey ? new Stripe(secretKey) : null
+}
 
 export async function GET(req: NextRequest) {
-  if (!process.env.STRIPE_SECRET_KEY) {
+  const stripe = getStripeClient()
+  if (!stripe) {
     return Response.json({ error: "Stripe is not configured" }, { status: 500 })
   }
 

@@ -13,7 +13,7 @@ import {
   Database,
   ExternalLink,
   Globe,
-  Github,
+  GitBranch,
   Info,
   KeyRound,
   Loader2,
@@ -24,18 +24,6 @@ import {
 } from "lucide-react"
 import { AnimatedAIInput } from "@/components/ui/animated-ai-input"
 import { TokenLimitDialog } from "@/components/project/token-limit-dialog"
-import {
-  Context,
-  ContextCacheUsage,
-  ContextContent,
-  ContextContentBody,
-  ContextContentFooter,
-  ContextContentHeader,
-  ContextInputUsage,
-  ContextOutputUsage,
-  ContextReasoningUsage,
-  ContextTrigger,
-} from "@/components/ai-elements/context"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/contexts/auth-context"
 import { db } from "@/lib/firebase"
@@ -312,8 +300,8 @@ function DeployButton({
         className={cn(
           "group inline-flex h-8 items-center justify-center gap-1.5 rounded-full px-3 text-[12px] font-semibold transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:h-9 sm:px-3 sm:text-[13px]",
           open
-            ? "bg-primary text-primary-foreground shadow-sm"
-            : "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 sm:hover:shadow-md"
+            ? "bg-foreground text-background shadow-sm"
+            : "bg-foreground text-background shadow-sm hover:bg-foreground/85 sm:hover:shadow-md"
         )}
       >
         {state.busy
@@ -325,7 +313,7 @@ function DeployButton({
 
       {open && (
         <div className={cn(
-          "z-30 hidden w-[460px] max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-card p-4 shadow-lg sm:block",
+          "lotus-glass-strong z-30 hidden w-[460px] max-w-[calc(100vw-2rem)] rounded-2xl border p-4 sm:block",
           headless ? "fixed right-6 top-16" : "absolute right-0 top-11",
         )}>
 
@@ -340,7 +328,7 @@ function DeployButton({
                 href={visibleStateSiteUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-success py-3 text-[13px] font-bold text-success-foreground transition-all hover:bg-success/90 active:scale-[0.98]"
+                className="flex w-full items-center justify-center gap-2 rounded-full bg-success py-3 text-[13px] font-bold text-success-foreground transition-all hover:bg-success/90 active:scale-[0.98]"
               >
                 <Globe className="h-4 w-4" />
                 <span>Visit your website</span>
@@ -360,7 +348,7 @@ function DeployButton({
                   {(["netlify", "vercel"] as DeployProvider[]).map((provider) => (
                     <button key={provider} type="button" onClick={() => onDeploy(provider)}
                       disabled={state.busy}
-                      className="rounded-xl border border-border bg-background px-3 py-2 text-left text-[11px] font-semibold text-muted-foreground transition-colors hover:border-border-strong hover:bg-muted hover:text-foreground disabled:opacity-40">
+                      className="lotus-glass-control rounded-full border px-3 py-2 text-left text-[11px] font-semibold text-muted-foreground transition-colors hover:border-border-strong hover:bg-muted hover:text-foreground disabled:opacity-40">
                       {getDeployProviderLabel(provider)}
                     </button>
                   ))}
@@ -373,7 +361,7 @@ function DeployButton({
           {state.busy && (
             <div className="space-y-3">
               <div className="flex items-center gap-2.5">
-                <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin text-foreground" />
                 <div className="min-w-0">
                   <p className="text-[13px] font-semibold text-foreground">
                     Publishing to {state.provider ? getDeployProviderLabel(state.provider) : "your host"}…
@@ -419,7 +407,7 @@ function DeployButton({
                     if (!link?.siteUrl) return null
                     return (
                       <a key={provider} href={link.siteUrl} target="_blank" rel="noreferrer"
-                        className="flex items-center justify-between gap-2 rounded-xl border border-success/30 bg-success/5 px-3 py-2.5 text-[11px] font-semibold text-foreground transition-colors hover:bg-success/10">
+                        className="flex items-center justify-between gap-2 rounded-full border border-success/30 bg-success/5 px-3 py-2.5 text-[11px] font-semibold text-foreground transition-colors hover:bg-success/10">
                         <div className="flex items-center gap-2">
                           <Globe className="h-3 w-3 text-success" />
                           <span>{getDeployProviderLabel(provider)} site</span>
@@ -437,7 +425,7 @@ function DeployButton({
 
               <div className="grid grid-cols-2 gap-2">
                 <button type="button" onClick={() => onDeploy("netlify")} disabled={state.busy}
-                  className="group relative rounded-xl border border-border bg-background px-3 py-3 text-left transition-all hover:border-primary/30 hover:bg-muted disabled:opacity-40">
+              className="lotus-glass-control group relative rounded-[1.65rem] border px-3 py-3 text-left transition-all hover:border-border-strong hover:bg-muted disabled:opacity-40">
                   <div className="flex items-start justify-between gap-1">
                     <p className="text-[12px] font-semibold text-foreground">Netlify</p>
                     <span className="rounded-full bg-success/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-success">Free</span>
@@ -445,7 +433,7 @@ function DeployButton({
                   <p className="mt-1 text-[11px] leading-snug text-muted-foreground">No credit card needed. Best for most websites.</p>
                 </button>
                 <button type="button" onClick={() => onDeploy("vercel")} disabled={state.busy}
-                  className="rounded-xl border border-border bg-background px-3 py-3 text-left transition-all hover:border-primary/30 hover:bg-muted disabled:opacity-40">
+                  className="lotus-glass-control rounded-[1.65rem] border px-3 py-3 text-left transition-all hover:border-border-strong hover:bg-muted disabled:opacity-40">
                   <p className="text-[12px] font-semibold text-foreground">Vercel</p>
                   <p className="mt-1 text-[11px] leading-snug text-muted-foreground">Fast and reliable. Great for React & Next.js apps.</p>
                 </button>
@@ -456,7 +444,7 @@ function DeployButton({
           {/* ── Retry button (error state) ────────────────────────── */}
           {!state.busy && state.error && state.provider && (
             <button type="button" onClick={() => onDeploy(state.provider!)}
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background py-2.5 text-[12px] font-semibold text-foreground transition-colors hover:bg-muted">
+              className="lotus-glass-control mt-3 flex w-full items-center justify-center gap-2 rounded-full border py-2.5 text-[12px] font-semibold text-foreground transition-colors hover:bg-muted">
               <Rocket className="h-3.5 w-3.5" />
               Try again
             </button>
@@ -491,7 +479,7 @@ function IntegrationCard({
   disabled?: boolean
 }) {
   return (
-    <div className="flex flex-col rounded-xl border border-border/60 bg-card p-4">
+    <div className="lotus-glass-panel flex flex-col rounded-xl border border-border/60 p-4">
       <div className="flex items-start justify-between">
         <div className={cn(
           "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
@@ -512,7 +500,7 @@ function IntegrationCard({
         type="button"
         onClick={onClick}
         disabled={disabled}
-        className="mt-3.5 w-full rounded-lg border border-border/60 bg-background py-2 text-[12px] font-semibold text-foreground transition-all hover:border-foreground/30 hover:bg-muted active:scale-[0.98] disabled:opacity-50"
+        className="lotus-glass-control mt-3.5 w-full rounded-full border py-2 text-[12px] font-semibold text-foreground transition-all hover:border-foreground/30 hover:bg-muted active:scale-[0.98] disabled:opacity-50"
       >
         {actionBusy ? (
           <span className="flex items-center justify-center gap-1.5">
@@ -567,8 +555,8 @@ function IntegrationsButton({
   const connectedIntegrations = [
     hasGitHub && {
       key: "github",
-      icon: <Github className="h-5 w-5 text-white" />,
-      iconBg: "bg-[#24292e] dark:bg-[#1a1a1a]",
+      icon: <GitBranch className="h-5 w-5 text-primary-foreground" />,
+      iconBg: "bg-foreground",
       name: "GitHub",
       category: "Version Control",
       description: project?.githubRepoFullName || project?.githubRepoUrl,
@@ -578,8 +566,8 @@ function IntegrationsButton({
     },
     hasSupabase && {
       key: "supabase",
-      icon: <Database className="h-5 w-5 text-white" />,
-      iconBg: "bg-[#3ecf8e] dark:bg-[#2ea87a]",
+      icon: <Database className="h-5 w-5 text-success-foreground" />,
+      iconBg: "bg-success",
       name: "Supabase",
       category: "Database",
       description: project?.supabaseProjectRef || project?.supabaseUrl,
@@ -592,8 +580,8 @@ function IntegrationsButton({
   const availableIntegrations = [
     !hasGitHub && {
       key: "github",
-      icon: <Github className="h-5 w-5 text-white" />,
-      iconBg: "bg-[#24292e] dark:bg-[#1a1a1a]",
+      icon: <GitBranch className="h-5 w-5 text-primary-foreground" />,
+      iconBg: "bg-foreground",
       name: "GitHub",
       category: "Version Control",
       description: "Publish your code to a GitHub repository",
@@ -603,8 +591,8 @@ function IntegrationsButton({
     },
     !hasSupabase && {
       key: "supabase",
-      icon: <Database className="h-5 w-5 text-white" />,
-      iconBg: "bg-[#3ecf8e] dark:bg-[#2ea87a]",
+      icon: <Database className="h-5 w-5 text-success-foreground" />,
+      iconBg: "bg-success",
       name: "Supabase",
       category: "Database",
       description: "Add auth and persistent storage to your app",
@@ -639,15 +627,15 @@ function IntegrationsButton({
         <>
           {/* Backdrop */}
           <div
-            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px]"
+            className="fixed inset-0 z-40 bg-foreground/35 backdrop-blur-[2px]"
             onClick={() => onOpenChange(false)}
           />
 
           {/* Centered modal — two-panel layout */}
-          <div className="fixed inset-x-0 bottom-0 z-50 flex max-h-[92dvh] flex-col overflow-hidden rounded-t-2xl border border-border/60 bg-background shadow-2xl shadow-black/20 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:max-h-[85vh] sm:w-[680px] sm:max-w-[calc(100vw-2rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:flex-row sm:rounded-2xl">
+          <div className="lotus-glass-strong fixed inset-x-0 bottom-0 z-50 flex max-h-[92dvh] flex-col overflow-hidden rounded-t-2xl border border-border/60 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:max-h-[85vh] sm:w-[680px] sm:max-w-[calc(100vw-2rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:flex-row sm:rounded-2xl">
 
             {/* ── Left nav (desktop) / Top tabs (mobile) ── */}
-            <div className="shrink-0 border-b border-border/50 bg-muted/20 sm:flex sm:w-[200px] sm:flex-col sm:border-b-0 sm:border-r sm:p-4">
+            <div className="lotus-glass-inset shrink-0 border-b border-border/50 sm:flex sm:w-[200px] sm:flex-col sm:border-b-0 sm:border-r sm:p-4">
               {/* Mobile: horizontal tab strip */}
               <div className="flex sm:hidden">
                 {([
@@ -686,7 +674,7 @@ function IntegrationsButton({
                       className={cn(
                         "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium transition-colors",
                         activeSection === item.id
-                          ? "bg-background text-foreground shadow-sm"
+                          ? "lotus-glass-control text-foreground"
                           : "text-muted-foreground hover:bg-background/60 hover:text-foreground",
                       )}
                     >
@@ -791,7 +779,7 @@ function IntegrationsButton({
                             value={envValues[name] || ""}
                             onChange={(event) => onEnvChange(name, event.target.value)}
                             placeholder="Value"
-                            className="mt-1 h-9 w-full rounded-lg border border-border/50 bg-muted/30 px-3 text-[12px] text-foreground outline-none placeholder:text-muted-foreground/40 focus:border-border/80 focus:bg-background"
+                            className="lotus-glass-control mt-1 h-9 w-full rounded-lg border px-3 text-[12px] text-foreground outline-none placeholder:text-muted-foreground/40 focus:border-border/80 focus:bg-background"
                           />
                         </label>
                       ))}
@@ -803,13 +791,13 @@ function IntegrationsButton({
                             value={newEnvKey}
                             onChange={(event) => setNewEnvKey(event.target.value)}
                             placeholder="KEY"
-                            className="h-9 min-w-0 rounded-lg border border-border/50 bg-muted/30 px-3 text-[12px] text-foreground outline-none placeholder:text-muted-foreground/40 focus:border-border/80 focus:bg-background"
+                            className="lotus-glass-control h-9 min-w-0 rounded-lg border px-3 text-[12px] text-foreground outline-none placeholder:text-muted-foreground/40 focus:border-border/80 focus:bg-background"
                           />
                           <input
                             value={newEnvValue}
                             onChange={(event) => setNewEnvValue(event.target.value)}
                             placeholder="Value"
-                            className="h-9 min-w-0 rounded-lg border border-border/50 bg-muted/30 px-3 text-[12px] text-foreground outline-none placeholder:text-muted-foreground/40 focus:border-border/80 focus:bg-background"
+                            className="lotus-glass-control h-9 min-w-0 rounded-lg border px-3 text-[12px] text-foreground outline-none placeholder:text-muted-foreground/40 focus:border-border/80 focus:bg-background"
                           />
                           <button
                             type="button"
@@ -821,7 +809,7 @@ function IntegrationsButton({
                               setNewEnvValue("")
                             }}
                             disabled={busy !== null || !newEnvKey.trim()}
-                            className="h-9 rounded-lg border border-border/60 bg-background px-3 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                            className="lotus-glass-control h-9 rounded-full border px-3 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-50"
                           >
                             Add
                           </button>
@@ -833,14 +821,14 @@ function IntegrationsButton({
                           type="button"
                           onClick={onEnvSave}
                           disabled={busy !== null}
-                          className="w-full rounded-lg bg-foreground px-3 py-2.5 text-[12px] font-semibold text-background transition-all hover:bg-foreground/85 active:scale-[0.98] disabled:opacity-50"
+                          className="w-full rounded-full bg-foreground px-3 py-2.5 text-[12px] font-semibold text-background transition-all hover:bg-foreground/85 active:scale-[0.98] disabled:opacity-50"
                         >
                           {busy === "env" ? "Saving…" : "Save and update preview"}
                         </button>
                       )}
 
                       {message && (
-                        <p className="rounded-lg bg-muted/50 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">{message}</p>
+                        <p className="lotus-glass-inset rounded-lg px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">{message}</p>
                       )}
                     </div>
                   </div>
@@ -872,7 +860,7 @@ function MobileDeploySheet({
   const hasStoredDeployments = Boolean(deploymentLinks?.netlify?.siteUrl || deploymentLinks?.vercel?.siteUrl)
 
   return (
-    <div className="fixed inset-x-3 bottom-[5.6rem] z-50 max-h-[min(72dvh,36rem)] overflow-y-auto rounded-[1.45rem] border border-border bg-card p-4 shadow-lg [scrollbar-width:thin] sm:hidden">
+    <div className="lotus-glass-strong fixed inset-x-3 bottom-[5.6rem] z-50 max-h-[min(72dvh,36rem)] overflow-y-auto rounded-[1.45rem] border border-border p-4 [scrollbar-width:thin] sm:hidden">
       {/* Header */}
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
@@ -880,7 +868,7 @@ function MobileDeploySheet({
           <p className="mt-0.5 text-[12px] leading-relaxed text-muted-foreground">Your site goes live in seconds.</p>
         </div>
         <button type="button" onClick={onClose}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+          className="lotus-glass-control flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
           <span className="text-base leading-none">×</span>
         </button>
       </div>
@@ -893,7 +881,7 @@ function MobileDeploySheet({
             <p className="text-[13px] font-semibold text-foreground">Your website is live!</p>
           </div>
           <a href={visibleStateSiteUrl} target="_blank" rel="noreferrer"
-            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-success py-3.5 text-[13px] font-bold text-success-foreground transition-colors hover:bg-success/90">
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-success py-3.5 text-[13px] font-bold text-success-foreground transition-colors hover:bg-success/90">
             <Globe className="h-4 w-4" />
             Visit your website
             <ExternalLink className="h-3.5 w-3.5 opacity-70" />
@@ -906,7 +894,7 @@ function MobileDeploySheet({
       {state.busy && (
         <div className="space-y-3">
           <div className="flex items-center gap-3">
-            <Loader2 className="h-5 w-5 shrink-0 animate-spin text-primary" />
+                <Loader2 className="h-5 w-5 shrink-0 animate-spin text-foreground" />
             <div>
               <p className="text-[13px] font-semibold text-foreground">
                 Publishing to {state.provider ? getDeployProviderLabel(state.provider) : "your host"}…
@@ -931,7 +919,7 @@ function MobileDeploySheet({
           <DeployTerminal logs={state.logs} currentStep={state.step} />
           {state.provider && (
             <button type="button" onClick={() => onDeploy(state.provider!)}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-background py-3 text-[12px] font-semibold text-foreground transition-colors hover:bg-muted">
+              className="lotus-glass-control flex w-full items-center justify-center gap-2 rounded-full border py-3 text-[12px] font-semibold text-foreground transition-colors hover:bg-muted">
               <Rocket className="h-4 w-4" />
               Try again
             </button>
@@ -950,7 +938,7 @@ function MobileDeploySheet({
                 if (!link?.siteUrl) return null
                 return (
                   <a key={provider} href={link.siteUrl} target="_blank" rel="noreferrer"
-                    className="flex items-center justify-between gap-2 rounded-2xl border border-success/30 bg-success/5 px-4 py-3 text-[12px] font-semibold text-foreground transition-colors hover:bg-success/10">
+                    className="flex items-center justify-between gap-2 rounded-full border border-success/30 bg-success/5 px-4 py-3 text-[12px] font-semibold text-foreground transition-colors hover:bg-success/10">
                     <div className="flex items-center gap-2">
                       <Globe className="h-3.5 w-3.5 text-success" />
                       <span>{getDeployProviderLabel(provider)} site</span>
@@ -967,7 +955,7 @@ function MobileDeploySheet({
           )}
           <div className="space-y-2">
             <button type="button" onClick={() => onDeploy("netlify")} disabled={state.busy}
-              className="flex w-full items-center justify-between rounded-2xl border border-border bg-background px-4 py-3.5 text-left transition-all hover:border-primary/30 hover:bg-muted disabled:opacity-40">
+              className="lotus-glass-control flex w-full items-center justify-between rounded-[1.75rem] border px-4 py-3.5 text-left transition-all hover:border-border-strong hover:bg-muted disabled:opacity-40">
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-[13px] font-semibold text-foreground">Netlify</span>
@@ -978,7 +966,7 @@ function MobileDeploySheet({
               <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
             </button>
             <button type="button" onClick={() => onDeploy("vercel")} disabled={state.busy}
-              className="flex w-full items-center justify-between rounded-2xl border border-border bg-background px-4 py-3.5 text-left transition-all hover:border-primary/30 hover:bg-muted disabled:opacity-40">
+              className="lotus-glass-control flex w-full items-center justify-between rounded-[1.75rem] border px-4 py-3.5 text-left transition-all hover:border-border-strong hover:bg-muted disabled:opacity-40">
               <div>
                 <p className="text-[13px] font-semibold text-foreground">Vercel</p>
                 <p className="mt-0.5 text-[12px] text-muted-foreground">Fast and reliable. Great for React apps.</p>
@@ -2005,7 +1993,7 @@ export default function ComputerPage() {
   const planLabel = userData?.planId && userData.planId !== "free" ? userData.planId : "Free"
 
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground">
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-[oklch(0.955_0_0)] text-foreground dark:bg-[oklch(0.18_0_0)]">
 
       {/* ── App shell ── */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -2072,6 +2060,7 @@ export default function ComputerPage() {
         hasBrowser={hasBrowser}
         hasResearch={hasResearch}
         onTabChange={setActiveTab}
+        contextUsage={agentContextUsage}
       />
 
       {(deployOpen || historyOpen) && (
@@ -2139,37 +2128,14 @@ export default function ComputerPage() {
 
         {/* ── Chat panel ── */}
         <div className={cn(
-          "flex w-full shrink-0 flex-col overflow-hidden bg-background transition-[width] duration-200 ease-in-out sm:border-r sm:border-border/40",
+          "flex w-full shrink-0 flex-col overflow-hidden bg-[oklch(0.955_0_0)] transition-[width] duration-200 ease-in-out dark:bg-[oklch(0.18_0_0)]",
           desktopChatCollapsed
-            ? "sm:w-0 sm:overflow-hidden sm:border-r-0"
-            : "sm:w-[38%] md:w-[37%] lg:w-[380px] xl:w-[420px] 2xl:w-[460px]",
+            ? "sm:w-0 sm:overflow-hidden"
+            : "sm:w-[32%] md:w-[31%] lg:w-[340px] xl:w-[370px] 2xl:w-[400px]",
           mobileView !== "feed" && "hidden sm:flex"
         )}>
-          {/* Context indicator bar — desktop only, sits above the feed */}
-          <div className="hidden shrink-0 items-center justify-between border-b border-border/30 px-4 py-1.5 sm:flex">
-            <Context
-              maxTokens={agentContextUsage.maxTokens}
-              modelId="anthropic:claude-sonnet-4-6"
-              usage={agentContextUsage.usage}
-              usedTokens={agentContextUsage.usedTokens}
-            >
-              <ContextTrigger />
-              <ContextContent>
-                <ContextContentHeader />
-                <ContextContentBody>
-                  <ContextInputUsage />
-                  <ContextOutputUsage />
-                  <ContextReasoningUsage />
-                  <ContextCacheUsage />
-                </ContextContentBody>
-                <ContextContentFooter />
-              </ContextContent>
-            </Context>
-          </div>
-
           {/* Feed scroll area */}
           <div className="relative min-h-0 flex-1 overflow-hidden">
-            <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-8 bg-gradient-to-b from-background to-transparent" />
             {/* flex + flex-col on the scroller so the inner flex-1 spacer works */}
             <div className="chat-scrollbar flex h-full flex-col overflow-y-auto px-4 lg:px-5">
               {/* Top spacer: pushes content to bottom when feed is short (chat-app behavior) */}
@@ -2187,7 +2153,6 @@ export default function ComputerPage() {
                   onSupabaseDecline={handleSupabaseNo}
                   onClarificationAnswer={handleClarificationAnswer}
                   onApprovePlan={showPlanApproval ? handleApprovePlan : undefined}
-                  onDenyPlan={showPlanApproval ? handleDenyPlan : undefined}
                   onRestoreCheckpoint={handleRestoreCheckpoint}
                 />
               </div>
@@ -2195,18 +2160,18 @@ export default function ComputerPage() {
           </div>
 
           {/* Composer */}
-          <div className="shrink-0 bg-background px-3 pt-2 [padding-bottom:max(4.5rem,calc(env(safe-area-inset-bottom)+3.25rem))] sm:pb-3 lg:px-4">
+          <div className="shrink-0 px-3 pt-2 [padding-bottom:max(4.5rem,calc(env(safe-area-inset-bottom)+3.25rem))] sm:pb-3 lg:px-4">
             {isBuildTokenBlocked && (
-              <div className="mb-3 rounded-xl border border-warning/25 bg-warning-soft px-3 py-2.5">
-                <p className="text-sm font-medium text-warning-soft-foreground">You have used all credits for this cycle.</p>
-                <p className="mt-0.5 text-xs text-warning-soft-foreground/85">
+              <div className="mb-3 rounded-xl border border-border bg-muted px-3 py-2.5 shadow-sm">
+                <p className="text-sm font-medium text-foreground">You have used all credits for this cycle.</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
                   Upgrade your plan to continue running the computer agent.{" "}
                   <Link href="/pricing" className="font-semibold underline underline-offset-2">View plans</Link>
                 </p>
               </div>
             )}
             {runError && !isBuildTokenBlocked && (
-              <div className="mb-3 rounded-xl border border-destructive/20 bg-destructive/10 px-3 py-2.5">
+              <div className="mb-3 rounded-xl border border-destructive/20 bg-destructive/10 px-3 py-2.5 shadow-sm">
                 <p className="text-[11.5px] text-destructive">{getRunErrorMessage(runError)}</p>
               </div>
             )}
@@ -2215,19 +2180,19 @@ export default function ComputerPage() {
               isLoading={isRunning} onStop={handleStop} onSubmit={handleRun}
               placeholder="Message the agent..."
               disabled={isBuildTokenBlocked}
-              wrapperClassName="border-border/60 bg-background shadow-sm"
+              wrapperClassName="lotus-glass-control border-border/60"
             />
           </div>
         </div>
 
         {/* ── Workspace panel ── */}
         <div className={cn(
-          "m-2 flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border/50 shadow-md shadow-black/5",
+          "lotus-glass-strong m-2 flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border/50",
           mobileView !== "workspace" && "hidden sm:flex"
         )}>
           {/* Workspace content — fills panel edge to edge */}
           <div className="relative min-h-0 flex-1">
-            <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
+            <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[oklch(0.955_0_0)] dark:bg-[oklch(0.18_0_0)]">
               <WorkspaceTabBar
                 activeTab={activeTab}
                 previewUrl={session.previewUrl}
@@ -2285,34 +2250,37 @@ export default function ComputerPage() {
 
       {/* ── Mobile view switcher ── */}
       <nav
-        className="absolute inset-x-3 z-20 mx-auto max-w-xs rounded-lg border border-border/70 bg-background/95 px-1 py-1 shadow-lg backdrop-blur-xl sm:hidden"
+        aria-label="Switch between chat and preview"
+        className="lotus-glass-strong absolute inset-x-3 z-20 mx-auto max-w-xs rounded-xl border border-border/50 px-1 py-1 sm:hidden"
         style={{ bottom: "max(0.875rem, env(safe-area-inset-bottom))" }}
       >
         <div className="grid grid-cols-2 gap-1">
           <button
             type="button"
+            aria-current={mobileView === "feed" ? "page" : undefined}
             onClick={() => setMobileView("feed")}
             className={cn(
-              "flex h-10 items-center justify-center gap-1.5 rounded-xl text-[12.5px] font-medium transition-all",
+              "flex h-10 items-center justify-center gap-1.5 rounded-full text-[12.5px] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               mobileView === "feed"
-                ? "bg-primary text-primary-foreground shadow-sm"
+                ? "bg-foreground text-background shadow-sm"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
           >
-            <MessageSquare className="h-3.5 w-3.5" />
+            <MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />
             Chat
           </button>
           <button
             type="button"
+            aria-current={mobileView === "workspace" ? "page" : undefined}
             onClick={() => { setMobileView("workspace"); setActiveTab("preview") }}
             className={cn(
-              "flex h-10 items-center justify-center gap-1.5 rounded-xl text-[12.5px] font-medium transition-all",
+              "flex h-10 items-center justify-center gap-1.5 rounded-full text-[12.5px] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               mobileView === "workspace"
-                ? "bg-primary text-primary-foreground shadow-sm"
+                ? "bg-foreground text-background shadow-sm"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
           >
-            <Monitor className="h-3.5 w-3.5" />
+            <Monitor className="h-3.5 w-3.5" aria-hidden="true" />
             Preview
           </button>
         </div>

@@ -5,13 +5,14 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { AnimatePresence, motion } from "framer-motion"
 import {
-  ArrowLeft,
   Globe,
   Check,
   ChevronDown,
+  ChevronRight,
   Copy,
+  CreditCard,
   ExternalLink,
-  Github,
+  GitBranch,
   Globe2,
   History,
   KeyRound,
@@ -22,8 +23,26 @@ import {
   PanelLeft,
   Pencil,
   Plus,
+  Search,
+  Settings,
+  Share2,
   Zap,
 } from "lucide-react"
+import {
+  Sheet,
+  SheetPortal,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet"
+import * as SheetPrimitive from "@radix-ui/react-dialog"
+import { useProjectList } from "@/hooks/use-project-list"
+
+function buildTitle(prompt: string, max = 34): string {
+  const t = (prompt || "").trim()
+  if (!t) return "Untitled build"
+  return t.length > max ? `${t.slice(0, max)}…` : t
+}
+import { LotusLogo } from "@/components/ui/lotus-logo"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -37,6 +56,19 @@ import { useAuth } from "@/contexts/auth-context"
 import { CreateWorkspaceModal } from "@/components/workspaces/create-workspace-modal"
 import { cn } from "@/lib/utils"
 import type { ComputerSessionResponse, WorkspaceTab } from "@/components/computer/session-types"
+import {
+  Context,
+  ContextCacheUsage,
+  ContextContent,
+  ContextContentBody,
+  ContextContentFooter,
+  ContextContentHeader,
+  ContextInputUsage,
+  ContextOutputUsage,
+  ContextReasoningUsage,
+  ContextTrigger,
+  type ContextUsage,
+} from "@/components/ai-elements/context"
 
 export type ComputerProjectIntegration = {
   name?: string
@@ -73,8 +105,8 @@ function StatusBadge({ status }: { status: ComputerSessionResponse["status"] }) 
   }
   if (status === "planning") {
     return (
-      <div className="flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
-        <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-primary" />
+      <div className="flex items-center gap-1.5 rounded-full bg-foreground/10 px-2.5 py-1 text-[11px] font-semibold text-foreground">
+        <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-foreground" />
         Planning
       </div>
     )
@@ -119,6 +151,7 @@ export function ComputerTopBar({
   hasBrowser,
   hasResearch,
   onTabChange,
+  contextUsage,
 }: {
   session: ComputerSessionResponse
   sessionTitle: string
@@ -147,10 +180,21 @@ export function ComputerTopBar({
   hasBrowser?: boolean
   hasResearch?: boolean
   onTabChange?: (tab: WorkspaceTab) => void
+  contextUsage?: { maxTokens: number; usedTokens: number; usage: ContextUsage }
 }) {
   const router = useRouter()
   const { user, userData, workspaces, currentWorkspace, switchWorkspace, signOut } = useAuth()
   const [createModalOpen, setCreateModalOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  const { projects: sidebarProjects, loading: sidebarProjectsLoading } = useProjectList({
+    scope: "user",
+    uid: user?.uid ?? null,
+  })
+  const sidebarRecentBuilds = sidebarProjects.slice(0, 6)
+
+  const selectedWorkspaceName = currentWorkspace?.name ?? "Personal workspace"
+  const selectedWorkspaceInitial = selectedWorkspaceName.charAt(0).toUpperCase()
 
   const isPaidUser = !!userData?.planId && userData.planId !== "free"
   const userInitials = userData?.displayName
@@ -168,8 +212,23 @@ export function ComputerTopBar({
 
   return (
     <>
-      <header className="relative z-30 shrink-0 bg-background">
+      <header className="lotus-glass relative z-30 shrink-0">
         <div className="relative flex h-[52px] w-full items-center">
+          {onToggleChatPanel && (
+            <button
+              type="button"
+              onClick={onToggleChatPanel}
+              aria-label={chatPanelCollapsed ? "Show chat panel" : "Collapse chat panel"}
+              className={cn(
+                "absolute top-1/2 z-20 hidden h-8 w-8 -translate-y-1/2 shrink-0 items-center justify-center rounded-lg text-muted-foreground/55 transition-all duration-150 hover:bg-muted hover:text-foreground active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35 sm:flex",
+                chatPanelCollapsed
+                  ? "left-3"
+                  : "left-[calc(32%-1.75rem)] md:left-[calc(31%-1.75rem)] lg:left-[316px] xl:left-[346px] 2xl:left-[376px]",
+              )}
+            >
+              <PanelLeft className="h-[15px] w-[15px]" />
+            </button>
+          )}
 
           {/* ── Mobile: title absolutely centered so it's always mid-screen ── */}
           <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center sm:hidden">
@@ -178,7 +237,7 @@ export function ComputerTopBar({
                 <input
                   value={titleDraft}
                   onChange={(e) => onTitleDraftChange(e.target.value)}
-                  className="w-[44vw] rounded-lg border border-border bg-muted/50 px-2.5 py-1 text-[13px] font-medium text-foreground outline-none focus:border-ring"
+                  className="lotus-glass-control w-[44vw] rounded-lg border px-2.5 py-1 text-[13px] font-medium text-foreground outline-none focus:border-ring"
                   placeholder="Session title"
                   aria-label="Edit session title"
                   autoFocus
@@ -200,13 +259,13 @@ export function ComputerTopBar({
                   <DropdownMenuContent
                     align="center"
                     sideOffset={10}
-                    className="w-[calc(100vw-1.5rem)] max-w-[22rem] overflow-hidden rounded-xl border border-border/60 bg-background p-0 shadow-xl shadow-black/8"
+                    className="lotus-glass-strong w-[calc(100vw-1.5rem)] max-w-[22rem] overflow-hidden rounded-xl border border-border/60 p-0"
                   >
                     {/* User profile */}
                     <div className="flex items-center gap-3 border-b border-border/40 px-3.5 py-3">
                       <Avatar className="h-9 w-9 shrink-0 rounded-xl">
                         <AvatarImage src={userData?.photoURL ?? undefined} className="rounded-xl object-cover" />
-                        <AvatarFallback className="rounded-xl bg-primary/10 text-[13px] font-bold text-primary">
+                        <AvatarFallback className="rounded-xl bg-muted text-[13px] font-bold text-foreground">
                           {userInitials}
                         </AvatarFallback>
                       </Avatar>
@@ -217,6 +276,28 @@ export function ComputerTopBar({
                         <p className="truncate text-[11px] text-muted-foreground">{userData?.email}</p>
                       </div>
                     </div>
+                    {contextUsage && (
+                      <div className="px-3.5 py-2.5 border-b border-border/40">
+                        <Context
+                          maxTokens={contextUsage.maxTokens}
+                          modelId="anthropic:claude-sonnet-4-6"
+                          usage={contextUsage.usage}
+                          usedTokens={contextUsage.usedTokens}
+                        >
+                          <ContextTrigger />
+                          <ContextContent>
+                            <ContextContentHeader />
+                            <ContextContentBody>
+                              <ContextInputUsage />
+                              <ContextOutputUsage />
+                              <ContextReasoningUsage />
+                              <ContextCacheUsage />
+                            </ContextContentBody>
+                            <ContextContentFooter />
+                          </ContextContent>
+                        </Context>
+                      </div>
+                    )}
                     <div className="space-y-px p-2">
                       <DropdownMenuItem className="h-9 gap-2.5 rounded-xl px-2.5 text-[13px] focus:bg-muted/60" onSelect={onEditTitleStart}>
                         <ItemIcon><Pencil className="h-3.5 w-3.5" /></ItemIcon>
@@ -258,19 +339,22 @@ export function ComputerTopBar({
           {/* ── Left: nav + title + panel toggle (mirrors chat panel width) ── */}
           <div
             className={cn(
-              "flex h-full shrink-0 items-center gap-1 border-b border-border/40 px-3",
+              "flex h-full shrink-0 items-center gap-1 px-3",
               chatPanelCollapsed
-                ? "min-w-0 border-r-0"
-                : "min-w-0 sm:w-[38%] sm:border-r sm:border-border/40 md:w-[37%] lg:w-[380px] xl:w-[420px] 2xl:w-[460px]",
+                ? "min-w-0"
+                : "min-w-0 sm:w-[32%] md:w-[31%] lg:w-[340px] xl:w-[370px] 2xl:w-[400px]",
             )}
           >
-            <Link
-              href="/"
-              aria-label="Back to projects"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground/50 transition-all hover:bg-muted hover:text-foreground"
+            {/* Sidebar toggle — opens the nav sidebar */}
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open sidebar"
+              aria-expanded={sidebarOpen}
+              className="mr-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground/55 transition-all duration-150 hover:bg-muted hover:text-foreground active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
             >
-              <ArrowLeft className="h-[15px] w-[15px]" />
-            </Link>
+              <PanelLeft className="h-[15px] w-[15px]" />
+            </button>
 
             {/* Session title — desktop only (mobile version is absolutely centered above) */}
             <div className="hidden min-w-0 flex-1 overflow-hidden sm:block">
@@ -279,7 +363,7 @@ export function ComputerTopBar({
                   <input
                     value={titleDraft}
                     onChange={(e) => onTitleDraftChange(e.target.value)}
-                    className="min-w-0 flex-1 rounded-lg border border-border bg-muted/50 px-2.5 py-1 text-[13px] font-medium text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                    className="lotus-glass-control min-w-0 flex-1 rounded-lg border px-2.5 py-1 text-[13px] font-medium text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
                     placeholder="Session title"
                     aria-label="Edit session title"
                     autoFocus
@@ -323,13 +407,13 @@ export function ComputerTopBar({
                   <DropdownMenuContent
                     align="start"
                     sideOffset={10}
-                    className="w-[calc(100vw-1.5rem)] max-w-[22rem] overflow-hidden rounded-xl border border-border/60 bg-background p-0 shadow-xl shadow-black/8"
+                    className="lotus-glass-strong w-[calc(100vw-1.5rem)] max-w-[22rem] overflow-hidden rounded-xl border border-border/60 p-0"
                   >
                     {/* User profile */}
                     <div className="flex items-center gap-3 border-b border-border/40 px-3.5 py-3">
                       <Avatar className="h-9 w-9 shrink-0 rounded-xl">
                         <AvatarImage src={userData?.photoURL ?? undefined} className="rounded-xl object-cover" />
-                        <AvatarFallback className="rounded-xl bg-primary/10 text-[13px] font-bold text-primary">
+                        <AvatarFallback className="rounded-xl bg-muted text-[13px] font-bold text-foreground">
                           {userInitials}
                         </AvatarFallback>
                       </Avatar>
@@ -346,24 +430,50 @@ export function ComputerTopBar({
 
                     {/* Credits */}
                     <div className="px-2 pt-2">
-                      <div className="rounded-xl bg-muted/30 px-3 py-2.5">
+                      <div className="lotus-glass-inset rounded-xl px-3 py-2.5">
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex items-center gap-2">
-                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-primary/10">
-                              <Zap className="h-3 w-3 text-primary" />
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted">
+                              <Zap className="h-3 w-3 text-muted-foreground" />
                             </span>
                             <p className="text-[12px] font-semibold text-foreground">Credits</p>
                           </div>
                           <span className="text-[13px] font-semibold tabular-nums text-foreground">{remainingTokens} left</span>
                         </div>
-                        <div className="mt-2.5 h-1 w-full overflow-hidden rounded-full bg-muted">
+                        <div className="mt-2.5 h-1 w-full overflow-hidden rounded-full bg-muted/70">
                           <div
-                            className="h-full rounded-full bg-primary transition-all duration-500"
+                            className="h-full rounded-full bg-foreground transition-all duration-500"
                             style={{ width: `${Math.min(100, Math.max(4, (remainingTokens / 1000) * 100))}%` }}
                           />
                         </div>
                       </div>
                     </div>
+
+                    {/* Context usage */}
+                    {contextUsage && (
+                      <div className="px-2 pt-2">
+                        <div className="lotus-glass-inset rounded-xl px-3 py-2.5">
+                          <Context
+                            maxTokens={contextUsage.maxTokens}
+                            modelId="anthropic:claude-sonnet-4-6"
+                            usage={contextUsage.usage}
+                            usedTokens={contextUsage.usedTokens}
+                          >
+                            <ContextTrigger />
+                            <ContextContent>
+                              <ContextContentHeader />
+                              <ContextContentBody>
+                                <ContextInputUsage />
+                                <ContextOutputUsage />
+                                <ContextReasoningUsage />
+                                <ContextCacheUsage />
+                              </ContextContentBody>
+                              <ContextContentFooter />
+                            </ContextContent>
+                          </Context>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Workspace switcher */}
                     <div className="px-2 pt-3">
@@ -371,13 +481,13 @@ export function ComputerTopBar({
                         Workspace
                       </p>
                       <div className="flex items-center gap-2.5 rounded-xl bg-muted/40 px-2.5 py-2">
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-[10px] font-bold text-primary">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted text-[10px] font-bold text-foreground">
                           {(currentWorkspace?.name ?? "P").charAt(0).toUpperCase()}
                         </span>
                         <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-foreground">
                           {currentWorkspace?.name ?? "Personal"}
                         </p>
-                        <Check className="h-3.5 w-3.5 shrink-0 text-primary" />
+                        <Check className="h-3.5 w-3.5 shrink-0 text-foreground" />
                       </div>
 
                       {isPaidUser ? (
@@ -409,7 +519,7 @@ export function ComputerTopBar({
                           </button>
                         </>
                       ) : (
-                        <div className="mt-1 flex items-center gap-2.5 rounded-xl border border-border/40 bg-muted/20 px-2.5 py-2">
+                          <div className="lotus-glass-inset mt-1 flex items-center gap-2.5 rounded-xl border border-border/40 px-2.5 py-2">
                           <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted">
                             <Lock className="h-3 w-3 text-muted-foreground/60" />
                           </span>
@@ -417,7 +527,7 @@ export function ComputerTopBar({
                             <p className="text-[12px] font-medium text-muted-foreground">Multiple workspaces</p>
                             <Link
                               href="/pricing"
-                              className="text-[11px] font-semibold text-primary underline underline-offset-2 hover:text-primary/80"
+                              className="text-[11px] font-semibold text-foreground underline underline-offset-2 hover:text-foreground/80"
                               onClick={(e) => e.stopPropagation()}
                             >
                               Upgrade to unlock
@@ -471,7 +581,7 @@ export function ComputerTopBar({
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild disabled={!projectIntegration?.githubRepoUrl} className="h-9 gap-2.5 rounded-xl px-2.5 text-[13px] focus:bg-muted/60">
                         <a href={projectIntegration?.githubRepoUrl || "#"} target="_blank" rel="noreferrer">
-                          <ItemIcon><Github className="h-3.5 w-3.5" /></ItemIcon>
+                          <ItemIcon><GitBranch className="h-3.5 w-3.5" /></ItemIcon>
                           <span className="truncate">{projectIntegration?.githubRepoFullName || "GitHub repository"}</span>
                           <ExternalLink className="ml-auto h-3 w-3 shrink-0 text-muted-foreground/40" />
                         </a>
@@ -482,11 +592,11 @@ export function ComputerTopBar({
 
                     {/* Stats */}
                     <div className="grid grid-cols-2 gap-2 px-2 pb-2">
-                      <div className="rounded-xl border border-border/40 bg-muted/20 px-3 py-2.5">
+                      <div className="lotus-glass-inset rounded-xl border border-border/40 px-3 py-2.5">
                         <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/60">Files</p>
                         <p className="mt-1.5 text-[16px] font-semibold text-foreground">{projectFileCount}</p>
                       </div>
-                      <div className="rounded-xl border border-border/40 bg-muted/20 px-3 py-2.5">
+                      <div className="lotus-glass-inset rounded-xl border border-border/40 px-3 py-2.5">
                         <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/60">Supabase</p>
                         <p className="mt-1.5 text-[13px] font-semibold">
                           {projectIntegration?.supabaseProjectRef
@@ -530,26 +640,14 @@ export function ComputerTopBar({
             </div>
 
             {/* Panel toggle — right edge of left section */}
-            {onToggleChatPanel && (
-              <button
-                type="button"
-                onClick={onToggleChatPanel}
-                aria-label={chatPanelCollapsed ? "Show chat panel" : "Collapse chat panel"}
-                className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground/40 transition-all hover:bg-muted hover:text-foreground sm:flex"
-              >
-                <PanelLeft className="h-4 w-4" />
-              </button>
-            )}
           </div>
 
           {/* ── Right: workspace toolbar ── */}
-          <div className="flex h-full min-w-0 flex-1 items-center justify-end border-b border-border/40 px-3 sm:justify-between sm:px-4">
-            {/* Tab toggle or status badge — desktop only */}
-            <div className="hidden sm:block">
-              {isActive ? (
-                <StatusBadge status={session.status} />
-              ) : onTabChange ? (
-                <div className="flex items-center rounded-lg bg-muted/60 p-0.5 ring-1 ring-border/60">
+          <div className="flex h-full min-w-0 flex-1 items-center justify-end px-3 sm:justify-between sm:px-4">
+            {/* Tab group — always visible on desktop */}
+            <div className="hidden items-center gap-2.5 sm:flex">
+              {onTabChange && (
+                <div className="lotus-glass-control flex items-center rounded-full border p-0.5">
                   {([
                     { id: "preview" as WorkspaceTab, label: "Preview", show: true },
                     { id: "browser" as WorkspaceTab, label: "Browser", show: !!hasBrowser },
@@ -562,9 +660,9 @@ export function ComputerTopBar({
                         type="button"
                         onClick={() => onTabChange(tab.id)}
                         className={cn(
-                          "inline-flex h-6 items-center rounded-md px-2.5 text-[12px] font-semibold transition-all duration-150",
+                          "inline-flex h-6 items-center rounded-full px-2.5 text-[12px] font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35",
                           activeTab === tab.id
-                            ? "bg-background text-foreground shadow-sm"
+                            ? "bg-card/90 text-foreground shadow-sm"
                             : "text-muted-foreground hover:text-foreground",
                         )}
                       >
@@ -572,40 +670,44 @@ export function ComputerTopBar({
                       </button>
                     ))}
                 </div>
-              ) : (
-                <StatusBadge status={session.status} />
               )}
+              {isActive && <StatusBadge status={session.status} />}
             </div>
 
             {/* Actions */}
             <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={onOpenIntegrations}
-                disabled={!session.projectId}
-                aria-label="Integrations"
-                className="hidden h-8 items-center gap-1.5 rounded-lg border border-border/50 px-3 text-[12px] font-medium text-muted-foreground transition-all hover:border-border/80 hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30 sm:inline-flex"
-              >
-                <KeyRound className="h-3.5 w-3.5" />
-                Connect
-              </button>
+              {onOpenHistory && (
+                <button
+                  type="button"
+                  onClick={onOpenHistory}
+                  disabled={!session.projectId}
+                  aria-label="Version history"
+                  className="lotus-glass-control hidden h-8 items-center gap-1.5 rounded-full border px-3 text-[12px] font-medium text-muted-foreground transition-all hover:border-border/80 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35 disabled:pointer-events-none disabled:opacity-30 sm:inline-flex"
+                >
+                  <History className="h-3.5 w-3.5" />
+                  History
+                </button>
+              )}
 
               <button
                 type="button"
-                onClick={onOpenHistory}
-                disabled={!session.projectId || !onOpenHistory}
-                aria-label="Version history"
-                className="hidden h-8 items-center gap-1.5 rounded-lg border border-border/50 px-3 text-muted-foreground transition-all hover:border-border/80 hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30 sm:inline-flex"
+                onClick={() => {
+                  const url = session.previewUrl || window.location.href
+                  void navigator.clipboard?.writeText(url)
+                }}
+                disabled={!session.projectId}
+                aria-label="Share"
+                className="lotus-glass-control hidden h-8 items-center gap-1.5 rounded-full border px-3 text-[12px] font-medium text-muted-foreground transition-all hover:border-border/80 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35 disabled:pointer-events-none disabled:opacity-30 sm:inline-flex"
               >
-                <History className="h-3.5 w-3.5" />
-                <span className="text-[12px] font-medium">History</span>
+                <Share2 className="h-3.5 w-3.5" />
+                Share
               </button>
 
               <button
                 type="button"
                 onClick={onOpenDeploy}
                 disabled={!session.projectId}
-                className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-foreground px-3.5 text-[12px] font-semibold text-background transition-all hover:bg-foreground/85 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-30"
+                className="inline-flex h-8 items-center gap-1.5 rounded-full bg-foreground px-3.5 text-[12px] font-semibold text-background shadow-sm transition-all hover:bg-foreground/85 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-30"
               >
                 <Globe className="h-3.5 w-3.5" />
                 Deploy
@@ -625,7 +727,7 @@ export function ComputerTopBar({
               className="absolute bottom-0 left-0 right-0 h-[1.5px] overflow-hidden"
             >
               <motion.div
-                className="h-full w-1/2 bg-gradient-to-r from-transparent via-primary to-transparent"
+                className="h-full w-1/2 bg-gradient-to-r from-transparent via-foreground to-transparent opacity-35"
                 animate={{ x: ["-100%", "300%"] }}
                 transition={{ duration: 2.2, ease: "easeInOut", repeat: Infinity }}
               />
@@ -642,6 +744,199 @@ export function ComputerTopBar({
         open={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
       />
+
+      {/* ── Nav sidebar ── */}
+      <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen} modal={false}>
+        <SheetPortal>
+          <SheetPrimitive.Content
+            className="lotus-glass-strong data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left fixed bottom-2 left-2 top-2 z-50 flex w-[260px] flex-col overflow-hidden rounded-[1.35rem] border border-border/50 shadow-2xl shadow-foreground/10 transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500"
+          >
+            <SheetTitle className="sr-only">Navigation sidebar</SheetTitle>
+            <SheetDescription className="sr-only">App navigation and workspace switcher</SheetDescription>
+
+            {/* Sidebar top bar — matches main header height */}
+            <div className="lotus-glass-inset flex h-[52px] shrink-0 items-center justify-between border-b border-border/35 px-3">
+              <LotusLogo size={22} />
+              <div className="flex items-center gap-0.5">
+                <button
+                  type="button"
+                  className="lotus-glass-control flex h-7 w-7 items-center justify-center rounded-full border border-border/45 text-muted-foreground transition-all duration-150 hover:border-border-strong hover:bg-muted hover:text-foreground active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
+                  aria-label="Search"
+                >
+                  <Search className="h-[15px] w-[15px]" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSidebarOpen(false)}
+                  className="lotus-glass-control flex h-7 w-7 items-center justify-center rounded-full border border-border/45 text-muted-foreground transition-all duration-150 hover:border-border-strong hover:bg-muted hover:text-foreground active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
+                  aria-label="Close sidebar"
+                >
+                  <PanelLeft className="h-[15px] w-[15px]" />
+                </button>
+              </div>
+            </div>
+
+            {/* Workspace dropdown */}
+            <div className="px-2 pb-2 pt-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="lotus-glass-control group flex h-11 w-full items-center gap-2.5 rounded-2xl border px-3 text-left shadow-sm transition-all hover:border-border-strong hover:bg-muted"
+                    aria-label="Switch workspace"
+                  >
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-foreground text-[11px] font-semibold text-background shadow-sm">
+                      {selectedWorkspaceInitial}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] font-semibold text-foreground">
+                        {selectedWorkspaceName}
+                      </span>
+                      <span className="block text-[11px] text-muted-foreground">Workspace</span>
+                    </span>
+                    <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" sideOffset={8} className="lotus-glass-strong w-[220px] overflow-hidden rounded-2xl border-border p-1.5">
+                  <div className="px-2 pb-1.5 pt-1 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground/65">
+                    Workspaces
+                  </div>
+                  <DropdownMenuItem disabled className="flex cursor-default items-center gap-2.5 rounded-xl px-2.5 py-2.5 opacity-100 focus:bg-muted">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-foreground text-[11px] font-semibold text-background">
+                      {selectedWorkspaceInitial}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
+                      {selectedWorkspaceName}
+                    </span>
+                    <Check className="h-3.5 w-3.5 shrink-0 text-foreground" />
+                  </DropdownMenuItem>
+                  {isPaidUser ? (
+                    <>
+                      {otherWorkspaces.map((ws) => (
+                        <DropdownMenuItem
+                          key={ws.id}
+                          onSelect={() => void (async () => { await switchWorkspace(ws.id); setSidebarOpen(false); router.push("/projects") })()}
+                          className="flex cursor-pointer items-center gap-2.5 rounded-xl px-2.5 py-2.5 focus:bg-muted"
+                        >
+                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground">
+                            {ws.name.charAt(0).toUpperCase()}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground/80">{ws.name}</span>
+                        </DropdownMenuItem>
+                      ))}
+                      <DropdownMenuItem
+                        onSelect={() => setCreateModalOpen(true)}
+                        className="flex cursor-pointer items-center gap-2.5 rounded-xl px-2.5 py-2.5 focus:bg-muted"
+                      >
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-dashed border-border text-muted-foreground">
+                          <Plus className="h-3.5 w-3.5" />
+                        </span>
+                        <span className="text-[13px] font-medium text-muted-foreground">Add workspace</span>
+                      </DropdownMenuItem>
+                    </>
+                  ) : (
+                    <div className="lotus-glass-inset mx-1 mt-1 flex items-center gap-2.5 rounded-2xl border border-border/50 px-2.5 py-2">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted">
+                        <Lock className="h-3.5 w-3.5 text-muted-foreground/60" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[12px] font-medium text-muted-foreground">Switch workspaces</p>
+                        <Link href="/pricing" className="text-[11px] font-semibold text-foreground underline underline-offset-2 hover:text-foreground/80" onClick={(e) => e.stopPropagation()}>
+                          Upgrade to unlock
+                        </Link>
+                      </div>
+                    </div>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {/* Divider */}
+            <div className="lotus-glass-divider mx-3 mb-2 border-t" />
+
+            {/* Recent builds header */}
+            <div className="mb-1.5 flex items-center justify-between px-4">
+              <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Recent builds</span>
+              <span className="rounded-full bg-muted/70 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">{sidebarRecentBuilds.length}</span>
+            </div>
+
+            {/* Recent builds list */}
+            <div className="flex-1 overflow-y-auto pb-2 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
+              {sidebarProjectsLoading ? (
+                <div className="space-y-2 px-3 pt-1">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="lotus-glass-inset h-10 animate-pulse rounded-2xl" style={{ opacity: 1 - i * 0.15 }} />
+                  ))}
+                </div>
+              ) : sidebarRecentBuilds.length === 0 ? (
+                <div className="lotus-glass-inset mx-3 rounded-2xl border border-border/50 px-4 py-6 text-center">
+                  <p className="text-[13px] font-medium text-foreground">No builds yet</p>
+                  <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">Start with a prompt to see your builds here.</p>
+                </div>
+              ) : (
+                <div className="space-y-1 px-2">
+                  {sidebarRecentBuilds.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => { setSidebarOpen(false); router.push(p.kind === "computer" ? `/computer/${p.id}` : `/project/${p.id}`) }}
+                      className="group/row flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-muted"
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[13px] font-medium leading-snug text-foreground/85 group-hover/row:text-foreground">
+                          {buildTitle(p.prompt)}
+                        </span>
+                        <span className="block text-[11px] leading-snug text-muted-foreground">
+                          {p.kind === "computer" ? "Computer agent" : "Website build"}
+                        </span>
+                      </span>
+                      <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/40 transition-transform group-hover/row:translate-x-0.5" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* User row */}
+            <div className="lotus-glass-inset shrink-0 border-t border-border/35 px-3 py-3">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button type="button" className="lotus-glass-control flex w-full items-center gap-2.5 rounded-2xl border border-transparent px-2 py-2 transition-all hover:border-border/60 hover:bg-muted">
+                    <Avatar className="h-8 w-8 shrink-0 rounded-full">
+                      <AvatarImage src={userData?.photoURL ?? undefined} className="rounded-full object-cover" />
+                      <AvatarFallback className="rounded-full bg-foreground text-[10px] font-semibold text-background">
+                        {userInitials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1 text-left">
+                      <p className="truncate text-[13px] font-medium leading-tight text-foreground">
+                        {userData?.displayName || userData?.email?.split("@")[0] || "User"}
+                      </p>
+                      <p className="text-[11px] leading-tight text-muted-foreground">{planLabel} plan</p>
+                    </div>
+                    <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent side="top" align="start" sideOffset={6} className="lotus-glass-strong w-[200px] rounded-2xl border-border p-2">
+                  <DropdownMenuItem className="h-10 cursor-pointer rounded-xl px-3 text-[13px] text-foreground focus:bg-muted" onSelect={() => router.push("/pricing")}>
+                    <CreditCard className="mr-2 h-3.5 w-3.5" />
+                    Billing &amp; Plans
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="h-10 cursor-pointer rounded-xl px-3 text-[13px] text-foreground focus:bg-muted" onSelect={() => router.push("/settings")}>
+                    <Settings className="mr-2 h-3.5 w-3.5" />
+                    Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="my-1 bg-border/50" />
+                  <DropdownMenuItem className="h-10 cursor-pointer rounded-xl px-3 text-[13px] text-destructive focus:bg-destructive/10 focus:text-destructive" onSelect={() => void signOut()}>
+                    <LogOut className="mr-2 h-3.5 w-3.5" />
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </SheetPrimitive.Content>
+        </SheetPortal>
+      </Sheet>
     </>
   )
 }

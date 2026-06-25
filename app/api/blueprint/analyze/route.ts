@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
+import { requireUserUid } from "@/lib/server-auth"
+import { assertRateLimit, RateLimitError, rateLimitResponse } from "@/lib/rate-limit"
 
 interface AnalyzeRequest {
   prompt: string
@@ -14,6 +17,24 @@ interface AnalyzeRequest {
     }>
   }
 }
+
+const blueprintItemSchema = z.object({
+  id: z.string().max(120).optional(),
+  key: z.string().max(120),
+  label: z.string().max(240),
+  value: z.string().max(1200),
+  status: z.string().max(32),
+})
+
+const analyzeRequestSchema = z.object({
+  prompt: z.string().trim().min(1).max(6000),
+  existingBlueprint: z.object({
+    sections: z.array(z.object({
+      id: z.string().max(120),
+      items: z.array(blueprintItemSchema).max(24),
+    })).max(12),
+  }).optional(),
+})
 
 interface DetectionResult {
   key: string
@@ -71,15 +92,28 @@ Project brief:
 
 export async function POST(request: NextRequest) {
   try {
-    const body: AnalyzeRequest = await request.json()
-    const { prompt, existingBlueprint } = body
+    const uid = await requireUserUid(request)
+    await assertRateLimit({
+      scope: "blueprint-analyze",
+      key: uid,
+      limit: 80,
+      windowMs: 60 * 60 * 1000,
+    })
 
-    if (!prompt) {
+    if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json(
-        { error: "prompt is required" },
-        { status: 400 }
+        { error: "AI analysis is not configured" },
+        { status: 500 }
       )
     }
+
+    const body = await request.json().catch(() => null)
+    const parsedBody = analyzeRequestSchema.safeParse(body)
+    if (!parsedBody.success) {
+      return NextResponse.json({ error: "Invalid analysis request" }, { status: 400 })
+    }
+
+    const { prompt, existingBlueprint } = parsedBody.data as AnalyzeRequest
 
     const contextAddendum =
       existingBlueprint && existingBlueprint.sections.length > 0
@@ -136,10 +170,15 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(parsed)
   } catch (error) {
-    console.error("Blueprint analysis error:", error)
+    if (error instanceof RateLimitError) return rateLimitResponse(error)
+    const message = error instanceof Error ? error.message : "Failed to analyze blueprint"
+    const status = message.includes("Authorization") ? 401 : message.includes("Forbidden") ? 403 : 500
+    if (status === 500) {
+      console.error("Blueprint analysis error:", error)
+    }
     return NextResponse.json(
-      { error: "Failed to analyze blueprint" },
-      { status: 500 }
+      { error: status === 500 ? "Failed to analyze blueprint" : message },
+      { status }
     )
   }
 }

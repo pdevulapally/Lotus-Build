@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { adminDb } from "@/lib/firebase-admin"
 import { requireUserUid } from "@/lib/server-auth"
+import { assertProjectCanEdit } from "@/lib/project-access"
+import { normalizeRelativeFilePath } from "@/lib/security/files"
 
 export const runtime = "nodejs"
 
@@ -13,8 +15,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 `
 
 const ENV_EXAMPLE = `# Supabase (add these to .env.local or your env)
-VITE_SUPABASE_URL=your-project-url
-VITE_SUPABASE_ANON_KEY=your-anon-key
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
 `
 
 const MIGRATION_SQL = `-- Initial schema (run this in Supabase SQL Editor: Dashboard -> SQL Editor)
@@ -37,7 +39,7 @@ CREATE TABLE IF NOT EXISTS public.app_data (
 
 export async function POST(req: Request) {
   try {
-    await requireUserUid(req)
+    const uid = await requireUserUid(req)
     const body = await req.json().catch(() => ({}))
     const projectId = body?.projectId
     if (!projectId) {
@@ -49,12 +51,18 @@ export async function POST(req: Request) {
     if (!snap.exists) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 })
     }
+    await assertProjectCanEdit(projectId, uid)
     const data = snap.data() as { files?: { path: string; content: string }[]; supabaseUrl?: string; supabaseAnonKey?: string }
     if (!data?.supabaseUrl || !data?.supabaseAnonKey) {
       return NextResponse.json({ error: "Supabase not connected for this project" }, { status: 400 })
     }
 
-    const files = Array.isArray(data.files) ? [...data.files] : []
+    const files = Array.isArray(data.files)
+      ? data.files.flatMap((file) => {
+          const path = normalizeRelativeFilePath(file.path)
+          return path ? [{ path, content: file.content }] : []
+        })
+      : []
     const pathSet = new Set(files.map((f) => f.path))
 
     if (!pathSet.has("src/lib/supabase.ts")) {
@@ -89,6 +97,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Request failed"
-    return NextResponse.json({ error: message }, { status: 500 })
+    const status = message.includes("Authorization") ? 401 : message.includes("Forbidden") ? 403 : 500
+    return NextResponse.json({ error: message }, { status })
   }
 }

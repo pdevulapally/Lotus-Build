@@ -5,6 +5,7 @@ import { requireUserUid } from "@/lib/server-auth"
 import { supabaseManagementFetch } from "@/lib/supabase-management"
 
 export const runtime = "nodejs"
+const MAX_SQL_CHARS = 200_000
 
 export async function POST(req: Request) {
   try {
@@ -14,6 +15,9 @@ export async function POST(req: Request) {
     const sql = (body?.sql ?? "").toString().trim()
     if (!projectId || !sql) {
       return NextResponse.json({ error: "Missing projectId or sql" }, { status: 400 })
+    }
+    if (sql.length > MAX_SQL_CHARS) {
+      return NextResponse.json({ error: `SQL is too large. Maximum is ${MAX_SQL_CHARS} characters.` }, { status: 400 })
     }
 
     await assertProjectCanEdit(projectId, uid)

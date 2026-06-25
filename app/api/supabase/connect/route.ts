@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server"
 import { adminDb } from "@/lib/firebase-admin"
 import { requireUserUid } from "@/lib/server-auth"
+import { assertProjectCanEdit } from "@/lib/project-access"
+import { encryptEnvVars } from "@/lib/encrypt-env"
 
 export const runtime = "nodejs"
 
 export async function POST(req: Request) {
   try {
-    await requireUserUid(req)
+    const uid = await requireUserUid(req)
     const body = await req.json().catch(() => ({}))
     const projectId = body?.projectId
     const url = (body?.url ?? "").toString().trim().replace(/\/$/, "")
@@ -19,7 +21,13 @@ export async function POST(req: Request) {
         { status: 400 }
       )
     }
-    if (!url.startsWith("https://") || !url.includes(".supabase.co")) {
+    let parsedUrl: URL
+    try {
+      parsedUrl = new URL(url)
+    } catch {
+      return NextResponse.json({ error: "Invalid Supabase project URL" }, { status: 400 })
+    }
+    if (parsedUrl.protocol !== "https:" || !parsedUrl.hostname.endsWith(".supabase.co")) {
       return NextResponse.json({ error: "Invalid Supabase project URL" }, { status: 400 })
     }
 
@@ -28,12 +36,14 @@ export async function POST(req: Request) {
     if (!snap.exists) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 })
     }
+    await assertProjectCanEdit(projectId, uid)
 
     await projectRef.set(
       {
-        supabaseUrl: url,
+        supabaseUrl: parsedUrl.toString().replace(/\/$/, ""),
         supabaseAnonKey: anonKey,
-        ...(serviceRoleKey ? { supabaseServiceRoleKey: serviceRoleKey } : {}),
+        supabaseServiceRoleKey: null,
+        ...(serviceRoleKey ? { supabaseServiceRoleKeyEncrypted: encryptEnvVars(serviceRoleKey).encrypted } : {}),
         supabaseConnectedAt: new Date(),
       },
       { merge: true }
@@ -42,6 +52,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, connected: true })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Request failed"
-    return NextResponse.json({ error: message }, { status: 500 })
+    const status = message.includes("Authorization") ? 401 : message.includes("Forbidden") ? 403 : 500
+    return NextResponse.json({ error: message }, { status })
   }
 }

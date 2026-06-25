@@ -305,7 +305,7 @@ export function MobilePreview({
   }
 
   return (
-    <div className={cn("flex h-full min-h-0 flex-col bg-muted/35 p-3 sm:p-4", className)}>
+    <div className={cn("flex h-full min-h-0 flex-col bg-[oklch(0.955_0_0)] p-3 dark:bg-[oklch(0.18_0_0)] sm:p-4", className)}>
       {view.kind === "loading" && (
         <PreviewShell title="Starting preview" subtitle="Preparing your mobile sandbox…">
           <PhoneFrame loading />
@@ -314,11 +314,11 @@ export function MobilePreview({
 
       {view.kind === "queue_full" && (
         <PreviewShell title="Preview queue is full" subtitle={view.message}>
-          <div className="mx-auto flex max-w-sm flex-col items-center gap-4 rounded-2xl border border-border bg-card p-6 text-center shadow-sm">
-            <p className="text-sm text-[#1c1c1c]">{view.message}</p>
+          <div className="lotus-glass-panel mx-auto flex max-w-sm flex-col items-center gap-4 rounded-2xl border border-border p-6 text-center">
+            <p className="text-sm text-foreground">{view.message}</p>
             <Link
               href="/pricing"
-              className="inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+              className="inline-flex h-10 items-center justify-center rounded-full bg-foreground px-4 text-sm font-semibold text-background shadow-sm transition hover:bg-foreground/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             >
               View plans
             </Link>
@@ -333,8 +333,8 @@ export function MobilePreview({
         >
           <div className="flex flex-col items-center gap-3">
             {view.sandbox.queuePosition != null && (
-              <span className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-900">
-                <span className="h-2 w-2 rounded-full bg-amber-500" />
+              <span className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-xs font-medium text-foreground">
+                <span className="h-2 w-2 rounded-full bg-muted-foreground" />
                 In queue — position {view.sandbox.queuePosition}
               </span>
             )}
@@ -357,15 +357,15 @@ export function MobilePreview({
             title={willAutoRetry ? "Preview timed out — retrying…" : "Preview failed"}
             subtitle={willAutoRetry ? "Attempting to restart the preview automatically." : friendlyMessage}
           >
-            <div className="mx-auto flex max-w-md flex-col items-center gap-4 rounded-2xl border border-border bg-card p-6 text-center">
-              <p className="text-sm text-[#1c1c1c]">{friendlyMessage}</p>
+            <div className="lotus-glass-panel mx-auto flex max-w-md flex-col items-center gap-4 rounded-2xl border border-border p-6 text-center">
+              <p className="text-sm text-foreground">{friendlyMessage}</p>
               {willAutoRetry ? (
                 <p className="text-xs text-muted-foreground">Retrying automatically in a moment…</p>
               ) : (
                 <button
                   type="button"
                   onClick={handleRetry}
-                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-white px-4 text-sm font-semibold text-[#1c1c1c] transition hover:bg-muted"
+                  className="lotus-glass-control inline-flex h-10 items-center gap-2 rounded-full border px-4 text-sm font-semibold text-foreground transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
                 >
                   <RefreshCw className="h-4 w-4" />
                   Try again
@@ -381,7 +381,7 @@ export function MobilePreview({
           <button
             type="button"
             onClick={handleRetry}
-            className="mx-auto inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-white px-4 text-sm font-semibold text-[#1c1c1c] transition hover:bg-muted"
+            className="lotus-glass-control mx-auto inline-flex h-10 items-center gap-2 rounded-full border px-4 text-sm font-semibold text-foreground transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
           >
             <RefreshCw className="h-4 w-4" />
             Retry
@@ -402,20 +402,20 @@ export function MobilePreview({
                 key={previewGeneration}
                 src={view.sandbox.urls.web}
                 title="Mobile web preview"
-                className="h-full w-full bg-white"
+                className="h-full w-full bg-primary-foreground"
                 sandbox="allow-scripts allow-same-origin allow-forms"
               />
             </PhoneDeviceFrame>
           </div>
 
-          <div className="flex shrink-0 flex-col justify-center rounded-2xl border border-border bg-card p-5 shadow-sm lg:w-[min(100%,320px)]">
-            <div className="mx-auto rounded-xl bg-white p-4">
+          <div className="lotus-glass-panel flex shrink-0 flex-col justify-center rounded-2xl border border-border p-5 lg:w-[min(100%,320px)]">
+            <div className="mx-auto rounded-xl bg-primary-foreground p-4">
               <QRCode value={view.sandbox.urls.expoGo} size={180} />
             </div>
-            <p className="mt-4 text-center text-sm font-medium text-[#1c1c1c]">
+            <p className="mt-4 text-center text-sm font-medium text-foreground">
               Scan with Expo Go to preview on your phone
             </p>
-            <p className="mt-2 break-all rounded-lg bg-muted px-3 py-2 text-center text-xs text-muted-foreground select-all">
+            <p className="lotus-glass-inset mt-2 break-all rounded-lg px-3 py-2 text-center text-xs text-muted-foreground select-all">
               {view.sandbox.urls.expoGo}
             </p>
           </div>
@@ -437,8 +437,8 @@ function PreviewShell({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="mb-3">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">{title}</p>
-        <p className="mt-1 text-sm text-zinc-600">{subtitle}</p>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{title}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
       </div>
       <div className="flex min-h-0 flex-1 items-center justify-center">{children}</div>
     </div>
@@ -460,20 +460,20 @@ function PhoneDeviceFrame({
             aria-hidden
             className="pointer-events-none absolute -inset-[3px] z-0 overflow-hidden rounded-[2.35rem]"
           >
-            <div className="absolute left-1/2 top-1/2 h-[280%] w-[280%] -translate-x-1/2 -translate-y-1/2 animate-[spin_2s_linear_infinite] bg-[conic-gradient(from_0deg,transparent_0deg,var(--primary)_40deg,var(--accent-soft)_100deg,transparent_160deg)]" />
+            <div className="absolute left-1/2 top-1/2 h-[280%] w-[280%] -translate-x-1/2 -translate-y-1/2 animate-[spin_2s_linear_infinite] bg-[conic-gradient(from_0deg,transparent_0deg,var(--foreground)_42deg,var(--border)_110deg,transparent_170deg)] opacity-55" />
           </div>
         ) : null}
         <div
-          className="relative z-10 overflow-hidden rounded-[2.25rem] border-8 border-[#1a1a1a] bg-black shadow-2xl"
+          className="relative z-10 overflow-hidden rounded-[2.25rem] border-8 border-foreground bg-foreground shadow-2xl"
           style={PHONE_FRAME_STYLE}
         >
-          <div className="absolute left-1/2 top-3 z-10 h-[22px] w-[72px] -translate-x-1/2 rounded-full bg-[#1a1a1a]" />
+          <div className="absolute left-1/2 top-3 z-10 h-[22px] w-[72px] -translate-x-1/2 rounded-full bg-foreground" />
           {children ?? (
-            <div className="flex h-full flex-col items-center justify-center gap-3 bg-zinc-100 px-8 text-center">
-              <Smartphone className="h-8 w-8 text-zinc-400" />
-              <div className="h-3 w-2/3 animate-pulse rounded bg-zinc-200" />
-              <div className="h-3 w-1/2 animate-pulse rounded bg-zinc-200" />
-              <div className="mt-2 h-28 w-full animate-pulse rounded-2xl bg-zinc-200" />
+            <div className="flex h-full flex-col items-center justify-center gap-3 bg-muted px-8 text-center">
+              <Smartphone className="h-8 w-8 text-muted-foreground" />
+              <div className="h-3 w-2/3 animate-pulse rounded bg-border" />
+              <div className="h-3 w-1/2 animate-pulse rounded bg-border" />
+              <div className="mt-2 h-28 w-full animate-pulse rounded-2xl bg-border" />
             </div>
           )}
         </div>

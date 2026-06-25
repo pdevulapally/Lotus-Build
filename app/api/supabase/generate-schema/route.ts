@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { adminDb } from "@/lib/firebase-admin"
 import { assertProjectCanEdit } from "@/lib/project-access"
+import { assertRateLimit, RateLimitError, rateLimitResponse } from "@/lib/rate-limit"
 import { requireUserUid } from "@/lib/server-auth"
 import { generatePostgresSchema } from "@/lib/integrations/supabase/schema"
 
@@ -9,6 +10,12 @@ export const runtime = "nodejs"
 export async function POST(req: Request) {
   try {
     const uid = await requireUserUid(req)
+    await assertRateLimit({
+      scope: "supabase-generate-schema",
+      key: uid,
+      limit: 20,
+      windowMs: 60 * 60 * 1000,
+    })
     const body = await req.json().catch(() => ({}))
     const projectId = (body?.projectId ?? "").toString().trim()
     if (!projectId) {
@@ -53,6 +60,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true, sql, tables })
   } catch (err: unknown) {
+    if (err instanceof RateLimitError) return rateLimitResponse(err)
     const message = err instanceof Error ? err.message : "Failed to generate schema"
     const status = message.includes("Forbidden") ? 403 : message.includes("Authorization") ? 401 : 500
     return NextResponse.json({ error: message }, { status })

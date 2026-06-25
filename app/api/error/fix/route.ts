@@ -3,6 +3,8 @@ import { NextResponse } from "next/server"
 import { adminDb } from "@/lib/firebase-admin"
 import { assertProjectCanEdit } from "@/lib/project-access"
 import { createProjectVersion } from "@/lib/project-versions/service"
+import { assertRateLimit, RateLimitError, rateLimitResponse } from "@/lib/rate-limit"
+import { isSensitiveFilePath, normalizeRelativeFilePath } from "@/lib/security/files"
 import { requireUserUid } from "@/lib/server-auth"
 
 export const runtime = "nodejs"
@@ -10,6 +12,11 @@ export const runtime = "nodejs"
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
 type ProjectFile = { path: string; content: string }
+
+const MAX_REPAIR_FILES = 200
+const MAX_REPAIR_FILE_CHARS = 200_000
+const MAX_ERROR_CONTEXT_CHARS = 20_000
+const MAX_LOG_CONTEXT_CHARS = 40_000
 
 type FixAttemptResult = {
   explanation: string
@@ -69,13 +76,13 @@ function parseStreamingFiles(content: string): ProjectFile[] {
   let match: RegExpExecArray | null
 
   while ((match = fileRegex.exec(content)) !== null) {
-    const path = match[1].trim()
+    const path = normalizeRelativeFilePath(match[1].trim())
     const fileContent = match[2]
       .replace(/^```[a-zA-Z0-9_-]*\n?/, "")
       .replace(/\n?```$/, "")
       .trim()
 
-    if (path) files.push({ path, content: fileContent })
+    if (path && !isSensitiveFilePath(path)) files.push({ path, content: fileContent })
   }
 
   return files
@@ -236,6 +243,12 @@ async function runFixAttempt(params: {
 export async function POST(req: Request) {
   try {
     const uid = await requireUserUid(req)
+    await assertRateLimit({
+      scope: "error-fix",
+      key: uid,
+      limit: 30,
+      windowMs: 60 * 60 * 1000,
+    })
     const body = (await req.json().catch(() => ({}))) as {
       projectId?: string
       files?: ProjectFile[]
@@ -250,12 +263,12 @@ export async function POST(req: Request) {
 
     let originalFiles: ProjectFile[] = []
     if (Array.isArray(body.files) && body.files.length > 0) {
-      originalFiles = body.files
+      originalFiles = sanitizeProjectFilesForRepair(body.files)
     } else {
       if (!projectId) return NextResponse.json({ error: "Missing projectId" }, { status: 400 })
       const { snap } = await assertProjectCanEdit(projectId, uid)
       const projectData = snap.data() as { files?: ProjectFile[] }
-      originalFiles = Array.isArray(projectData?.files) ? projectData.files : []
+      originalFiles = sanitizeProjectFilesForRepair(projectData?.files)
     }
 
     if (!originalFiles.length) {
@@ -271,8 +284,8 @@ export async function POST(req: Request) {
     for (let attempt = 1; attempt <= 3; attempt++) {
       const result = await runFixAttempt({
         projectFiles: latestFiles,
-        errorMessage: String(body.error),
-        logsTail: body.logsTail || "",
+        errorMessage: String(body.error).slice(0, MAX_ERROR_CONTEXT_CHARS),
+        logsTail: String(body.logsTail || "").slice(0, MAX_LOG_CONTEXT_CHARS),
         failureCategory: body.failureCategory,
         failureReason: body.failureReason,
         previousAttemptFeedback,
@@ -355,6 +368,21 @@ export async function POST(req: Request) {
       { status: 422 }
     )
   } catch (error: any) {
-    return NextResponse.json({ error: error?.message || "Failed to run automatic fix" }, { status: 500 })
+    if (error instanceof RateLimitError) return rateLimitResponse(error)
+    const message = error?.message || "Failed to run automatic fix"
+    const status = message.includes("Authorization") ? 401 : message.includes("Forbidden") ? 403 : 500
+    return NextResponse.json({ error: status === 500 ? "Failed to run automatic fix" : message }, { status })
   }
+}
+
+function sanitizeProjectFilesForRepair(files: unknown): ProjectFile[] {
+  if (!Array.isArray(files)) return []
+  const seen = new Set<string>()
+  return files.flatMap((file) => {
+    const record = file && typeof file === "object" ? file as { path?: unknown; content?: unknown } : null
+    const path = normalizeRelativeFilePath(record?.path)
+    if (!path || seen.has(path) || isSensitiveFilePath(path) || typeof record?.content !== "string") return []
+    seen.add(path)
+    return [{ path, content: record.content.slice(0, MAX_REPAIR_FILE_CHARS) }]
+  }).slice(0, MAX_REPAIR_FILES)
 }

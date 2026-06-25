@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { adminAuth, adminDb } from "@/lib/firebase-admin"
 import { requireUserUid } from "@/lib/server-auth"
+import { assertProjectCanEdit } from "@/lib/project-access"
 import { serializeProjectForApi } from "@/lib/project-shape"
 
 export const runtime = "nodejs"
@@ -39,11 +40,12 @@ export async function GET(
     const data = snap.data() as {
       visibility?: "public" | "private" | "link-only"
       ownerId?: string
+      userId?: string
       editorIds?: string[]
       [key: string]: unknown
     }
     const visibility = data.visibility ?? "private"
-    const ownerId = data.ownerId
+    const ownerId = data.ownerId || data.userId
     const editorIds = Array.isArray(data.editorIds) ? data.editorIds : []
 
     const isOwner = !!uid && uid === ownerId
@@ -76,12 +78,9 @@ export async function PATCH(
       return NextResponse.json({ error: "Missing project id" }, { status: 400 })
     }
 
-    const snap = await adminDb.collection("projects").doc(projectId).get()
-    if (!snap.exists) {
-      return NextResponse.json({ error: "Project not found" }, { status: 404 })
-    }
-    const data = snap.data() as { ownerId?: string }
-    if (data.ownerId && data.ownerId !== uid) {
+    const { data } = await assertProjectCanEdit(projectId, uid)
+    const ownerId = data.ownerId || data.userId
+    if (ownerId !== uid) {
       return NextResponse.json({ error: "Only the owner can update share settings" }, { status: 403 })
     }
 
@@ -94,7 +93,11 @@ export async function PATCH(
       updates.visibility = visibility
     }
     if (Array.isArray(editorIds)) {
-      updates.editorIds = editorIds
+      const normalizedEditorIds = editorIds
+        .filter((id): id is string => typeof id === "string")
+        .map((id) => id.trim())
+        .filter((id) => id && id !== uid)
+      updates.editorIds = Array.from(new Set(normalizedEditorIds)).slice(0, 100)
     }
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ ok: true })
@@ -104,6 +107,7 @@ export async function PATCH(
     return NextResponse.json({ ok: true })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Request failed"
-    return NextResponse.json({ error: message }, { status: err instanceof Error && message.includes("Authorization") ? 401 : 500 })
+    const status = message.includes("Authorization") ? 401 : message.includes("Forbidden") ? 403 : 500
+    return NextResponse.json({ error: message }, { status })
   }
 }

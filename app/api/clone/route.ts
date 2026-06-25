@@ -1,19 +1,45 @@
 import { adminAuth } from "@/lib/firebase-admin"
+import { assertRateLimit, RateLimitError, rateLimitResponse } from "@/lib/rate-limit"
+import { parsePublicHttpUrl } from "@/lib/security/url"
 import { NextResponse } from "next/server"
 
 export async function POST(req: Request) {
-  const body = await req.json().catch(() => null) as { url: string; idToken: string } | null
-  if (!body || !body.url || !body.idToken) {
+  const body = await req.json().catch(() => null) as { url?: unknown; idToken?: unknown } | null
+  if (!body || typeof body.idToken !== "string") {
     return NextResponse.json({ error: "Missing url or idToken" }, { status: 400 })
   }
 
-  const { url, idToken } = body
+  const parsedUrl = parsePublicHttpUrl(body.url)
+  if (!parsedUrl) {
+    return NextResponse.json({ error: "Enter a public http(s) URL." }, { status: 400 })
+  }
+
+  const firecrawlApiKey = process.env.FIRECRAWL_API_KEY
+  if (!firecrawlApiKey) {
+    return NextResponse.json({ error: "Clone service is not configured" }, { status: 500 })
+  }
+
+  const idToken = body.idToken
 
   // Verify Firebase ID token
+  let uid = ""
   try {
-    await adminAuth.verifyIdToken(idToken)
+    const decoded = await adminAuth.verifyIdToken(idToken)
+    uid = decoded.uid
   } catch {
     return NextResponse.json({ error: "Invalid idToken" }, { status: 401 })
+  }
+
+  try {
+    await assertRateLimit({
+      scope: "clone",
+      key: uid,
+      limit: 30,
+      windowMs: 60 * 60 * 1000,
+    })
+  } catch (error) {
+    if (error instanceof RateLimitError) return rateLimitResponse(error)
+    throw error
   }
 
   // Scrape via Firecrawl
@@ -22,10 +48,10 @@ export async function POST(req: Request) {
     firecrawlRes = await fetch("https://api.firecrawl.dev/v1/scrape", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.FIRECRAWL_API_KEY}`,
+        Authorization: `Bearer ${firecrawlApiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ url, formats: ["markdown"], onlyMainContent: true }),
+      body: JSON.stringify({ url: parsedUrl.toString(), formats: ["markdown"], onlyMainContent: true }),
     })
   } catch {
     return NextResponse.json({ error: "Failed to fetch URL" }, { status: 400 })
@@ -45,6 +71,6 @@ export async function POST(req: Request) {
     title,
     description,
     markdown: markdown.slice(0, 6000),
-    sourceUrl: url,
+    sourceUrl: parsedUrl.toString(),
   })
 }

@@ -147,20 +147,20 @@ export const SearchTool = React.memo(function SearchTool({
       </button>
 
       {expandable && isOpen && (
-        <div className="overflow-hidden rounded-[10px] border border-border/50 bg-background shadow-sm">
-          <div className="flex items-center px-2.5 h-7 border-b border-border/50 text-xs gap-1">
+        <div className="overflow-hidden rounded-2xl border border-border/30 bg-[oklch(0.985_0_0/0.66)] shadow-sm dark:bg-[oklch(0.28_0_0/0.62)]">
+          <div className="flex h-8 items-center gap-1 border-b border-border/30 px-3 text-xs">
             <span className="text-foreground font-medium">Searched for</span>
             {" "}
             <span className="text-muted-foreground truncate">
               &ldquo;{query}&rdquo;
             </span>
           </div>
-          <div className="max-h-[200px] overflow-y-auto overflow-x-hidden bg-background [scrollbar-width:thin]">
-            <div className="flex flex-col gap-0.5 p-1">
+          <div className="max-h-[200px] overflow-y-auto overflow-x-hidden bg-[oklch(0.97_0_0/0.62)] [scrollbar-width:thin] dark:bg-[oklch(0.2_0_0/0.62)]">
+            <div className="flex flex-col gap-0.5 p-1.5">
               {results.map((result, i) => (
                 <div
                   key={i}
-                  className="flex items-center gap-2 px-2 py-1 rounded-[6px] cursor-default hover:bg-secondary transition-colors min-w-0"
+                  className="flex min-w-0 cursor-default items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-muted/55"
                 >
                   <div className="flex items-center justify-center w-4 h-4 shrink-0 text-muted-foreground">
                     <FileText className="w-3.5 h-3.5" />

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { adminDb } from "@/lib/firebase-admin"
 import { requireUserUid } from "@/lib/server-auth"
+import { assertProjectCanEdit } from "@/lib/project-access"
+import { encryptEnvVars } from "@/lib/encrypt-env"
 
 export const runtime = "nodejs"
 
@@ -23,14 +25,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 })
     }
 
-    const data = snap.data() as any
-    const ownerId = data?.ownerId ?? data?.userId
-    if (ownerId && ownerId !== uid) {
+    const { data } = await assertProjectCanEdit(projectId, uid)
+    const ownerId = data.ownerId || data.userId
+    if (ownerId !== uid) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     await adminDb.collection("projects").doc(projectId).update({
-      vercelToken: token,
+      vercelToken: null,
+      vercelTokenEncrypted: encryptEnvVars(token).encrypted,
       vercelConnectedAt: new Date(),
     })
 

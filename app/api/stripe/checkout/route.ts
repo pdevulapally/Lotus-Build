@@ -1,11 +1,17 @@
 import { NextRequest } from "next/server"
 import Stripe from "stripe"
 import { adminAuth } from "@/lib/firebase-admin"
+import { assertRateLimit, RateLimitError, rateLimitResponse } from "@/lib/rate-limit"
+import { getAppBaseUrl, getSameOriginUrl } from "@/lib/security/url"
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
+function getStripeClient() {
+  const secretKey = process.env.STRIPE_SECRET_KEY
+  return secretKey ? new Stripe(secretKey) : null
+}
 
 export async function POST(req: NextRequest) {
-  if (!process.env.STRIPE_SECRET_KEY) {
+  const stripe = getStripeClient()
+  if (!stripe) {
     return Response.json({ error: "Stripe is not configured" }, { status: 500 })
   }
 
@@ -28,9 +34,19 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Invalid idToken" }, { status: 401 })
   }
 
-  const priceId = typeof body.priceId === "string" ? body.priceId : null
-  const successUrl = body.successUrl as string
-  const cancelUrl = body.cancelUrl as string
+  try {
+    await assertRateLimit({
+      scope: "stripe-checkout",
+      key: uid,
+      limit: 20,
+      windowMs: 60 * 60 * 1000,
+    })
+  } catch (error) {
+    if (error instanceof RateLimitError) return rateLimitResponse(error)
+    throw error
+  }
+
+  const priceId = typeof body.priceId === "string" && /^price_[A-Za-z0-9]+$/.test(body.priceId) ? body.priceId : null
   const quantity =
     typeof body.quantity === "number" && Number.isFinite(body.quantity) && body.quantity > 0
       ? Math.floor(body.quantity)
@@ -40,9 +56,9 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Missing priceId (get it from /api/stripe/plans)" }, { status: 400 })
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000"
-  const success = successUrl || `${baseUrl}/projects?checkout=success`
-  const cancel = cancelUrl || `${baseUrl}/pricing?checkout=cancelled`
+  const baseUrl = getAppBaseUrl(new URL(req.url).origin)
+  const success = getSameOriginUrl(body.successUrl, baseUrl) || `${baseUrl}/projects?checkout=success`
+  const cancel = getSameOriginUrl(body.cancelUrl, baseUrl) || `${baseUrl}/pricing?checkout=cancelled`
 
   try {
     const session = await stripe.checkout.sessions.create({

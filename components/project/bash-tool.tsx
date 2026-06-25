@@ -51,9 +51,9 @@ function ApprovalFooter({ isRunning, approval }: { isRunning: boolean; approval:
         : null
 
   return (
-    <div className="flex items-center justify-between border-t border-border bg-muted py-1.5 pl-3 pr-2">
+    <div className="flex items-center justify-between border-t border-border/30 bg-[oklch(0.94_0_0/0.55)] py-1.5 pl-3 pr-2 dark:bg-[oklch(0.22_0_0/0.62)]">
       {status ? (
-        <span className="text-xs text-zinc-500">
+        <span className="text-xs text-muted-foreground">
           {status.label}
           {status.dots && <LoadingDots />}
         </span>
@@ -69,7 +69,7 @@ function ApprovalFooter({ isRunning, approval }: { isRunning: boolean; approval:
             approval.onSkip?.()
           }}
           disabled={Boolean(decision)}
-          className="inline-flex h-6 items-center gap-1 rounded-[4px] px-1.5 text-xs text-zinc-500 transition-colors hover:bg-white hover:text-foreground disabled:opacity-60"
+          className="inline-flex h-6 items-center gap-1 rounded-md px-1.5 text-xs text-muted-foreground transition-colors hover:bg-background/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35 disabled:opacity-60"
         >
           <X className="h-3 w-3" />
           {decision === "rejected" ? "Skipped" : approval.skipLabel ?? "Skip"}
@@ -82,7 +82,7 @@ function ApprovalFooter({ isRunning, approval }: { isRunning: boolean; approval:
             approval.onRun?.()
           }}
           disabled={Boolean(decision)}
-          className="inline-flex h-6 items-center gap-1 rounded-[4px] bg-primary px-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-60"
+          className="inline-flex h-6 items-center gap-1 rounded-full bg-foreground px-1.5 text-xs font-medium text-background transition-colors hover:bg-foreground/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-60"
         >
           <Check className="h-3 w-3" />
           {decision === "approved" ? "Approved" : approval.runLabel ?? "Run"}
@@ -103,28 +103,28 @@ export const BashTool = React.memo(function BashTool({
   const summary = extractCommandSummary(command)
 
   return (
-    <div className={cn("overflow-hidden rounded-xl border border-border/50 bg-background", className)}>
-      <div className="flex h-8 items-center justify-between gap-3 pl-2.5 pr-2">
+    <div className={cn("overflow-hidden rounded-2xl border border-border/30 bg-[oklch(0.985_0_0/0.66)] shadow-sm dark:bg-[oklch(0.28_0_0/0.62)]", className)}>
+      <div className="flex h-9 items-center justify-between gap-3 pl-3 pr-2.5">
         <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
-          <Terminal className="h-3.5 w-3.5 shrink-0 text-foreground/30" />
+          <Terminal className="h-3.5 w-3.5 shrink-0 text-muted-foreground/55" />
           {isRunning ? (
             <TextShimmer className="truncate text-xs font-semibold">
               Running command: {summary}
             </TextShimmer>
           ) : (
-            <span className="truncate text-xs font-semibold text-foreground/70">Ran command: {summary}</span>
+            <span className="truncate text-xs font-semibold text-muted-foreground">Ran command: {summary}</span>
           )}
         </div>
         {isRunning && <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />}
       </div>
 
-      <div className="border-t border-border/50 bg-background px-2.5 py-1.5 font-mono text-[12px] leading-4">
+      <div className="border-t border-border/30 bg-[oklch(0.97_0_0/0.68)] px-3 py-2 font-mono text-[12px] leading-5 dark:bg-[oklch(0.2_0_0/0.68)]">
         <div className="break-all">
-          <span className="select-none text-amber-600">$ </span>
+          <span className="select-none text-muted-foreground">$ </span>
           <span className="text-foreground">{command}</span>
         </div>
         {!isRunning && output && (
-          <div className="mt-1 max-h-24 overflow-hidden whitespace-pre-line text-zinc-500">
+          <div className="mt-1.5 max-h-24 overflow-hidden whitespace-pre-line text-muted-foreground">
             {output}
           </div>
         )}

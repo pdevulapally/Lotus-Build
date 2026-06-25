@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server"
 import { adminDb } from "@/lib/firebase-admin"
 import { exchangeCode, storeConnection } from "@/lib/integrations/supabase/oauth"
+import { getAppBaseUrl } from "@/lib/security/url"
 
 export const runtime = "nodejs"
 
-function callbackHtml(ok: boolean, message: string, builderProjectId?: string) {
+function callbackHtml(ok: boolean, message: string, targetOrigin: string, builderProjectId?: string) {
   const payload = JSON.stringify({
     type: "supabase-oauth",
     ok,
@@ -14,21 +15,16 @@ function callbackHtml(ok: boolean, message: string, builderProjectId?: string) {
   return `<!doctype html><html><body><script>
 (function () {
   var payload = ${payload};
-  console.log("[supabase-callback] running, opener:", typeof window.opener, "closed:", window.opener ? window.opener.closed : "n/a");
   try {
     var stored = JSON.stringify(payload);
     localStorage.setItem("supabase-oauth-result", stored);
-    console.log("[supabase-callback] stored in localStorage:", stored);
   } catch(e) {
-    console.error("[supabase-callback] localStorage failed:", e);
   }
   try {
     if (window.opener && !window.opener.closed) {
-      window.opener.postMessage(payload, "*");
-      console.log("[supabase-callback] postMessage sent");
+      window.opener.postMessage(payload, ${JSON.stringify(targetOrigin)});
     }
   } catch(e) {
-    console.error("[supabase-callback] postMessage failed:", e);
   }
   setTimeout(function() { window.close(); }, 800);
 })();
@@ -37,12 +33,13 @@ function callbackHtml(ok: boolean, message: string, builderProjectId?: string) {
 
 export async function GET(req: Request) {
   const url = new URL(req.url)
+  const targetOrigin = new URL(getAppBaseUrl(url.origin)).origin
   const code = url.searchParams.get("code")
   const state = url.searchParams.get("state")
   const error = url.searchParams.get("error")
 
   if (error) {
-    return new NextResponse(callbackHtml(false, error), { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } })
+    return new NextResponse(callbackHtml(false, error, targetOrigin), { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } })
   }
   if (!code || !state) {
     return new NextResponse("Missing code or state", { status: 400 })
@@ -66,15 +63,13 @@ export async function GET(req: Request) {
       expiresIn: token.expires_in,
     })
     await adminDb.collection("supabaseOauthStates").doc(state).delete().catch(() => {})
-    const ok = true
-    console.log("[supabase-callback] html payload:", JSON.stringify({ ok, builderProjectId }))
-    return new NextResponse(callbackHtml(true, "connected", builderProjectId), {
+    return new NextResponse(callbackHtml(true, "connected", targetOrigin, builderProjectId), {
       status: 200,
       headers: { "Content-Type": "text/html; charset=utf-8" },
     })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "OAuth callback failed"
-    return new NextResponse(callbackHtml(false, message, builderProjectId), {
+    return new NextResponse(callbackHtml(false, message, targetOrigin, builderProjectId), {
       status: 200,
       headers: { "Content-Type": "text/html; charset=utf-8" },
     })

@@ -2,6 +2,7 @@ import { adminDb } from "@/lib/firebase-admin"
 
 type ProjectAuthData = {
   ownerId?: string
+  userId?: string
   editorIds?: string[]
   visibility?: string
 }
@@ -13,13 +14,13 @@ export async function assertProjectCanEdit(projectId: string, uid: string) {
   }
   const data = snap.data() as ProjectAuthData
 
-  // If ownerId is not set this is a legacy unclaimed project — allow access but log it
-  if (!data.ownerId) {
-    console.warn(`[security] assertProjectCanEdit: project ${projectId} has no ownerId — accessed by ${uid}`)
-    return { snap, data }
+  const canonicalOwnerId = data.ownerId || data.userId
+  if (!canonicalOwnerId) {
+    console.warn(`[security] assertProjectCanEdit: project ${projectId} has no ownerId/userId — denied for ${uid}`)
+    throw new Error("Forbidden")
   }
 
-  const isOwner = data.ownerId === uid
+  const isOwner = canonicalOwnerId === uid
   const isEditor = Array.isArray(data.editorIds) && data.editorIds.includes(uid)
   if (!isOwner && !isEditor) {
     throw new Error("Forbidden")

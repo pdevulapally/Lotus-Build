@@ -1,7 +1,7 @@
 import OpenAI from "openai"
+import { z } from "zod"
 import { adminAuth } from "@/lib/firebase-admin"
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+import { assertRateLimit, RateLimitError, rateLimitResponse } from "@/lib/rate-limit"
 
 const ITEM_GUIDANCE: Record<string, string> = {
   audience: "Suggest realistic audience segments or buyer types only if the brief implies a few plausible directions.",
@@ -13,13 +13,24 @@ const ITEM_GUIDANCE: Record<string, string> = {
   scope: "Suggest scope directions only when the product could clearly be narrowed by choosing between a few levels of ambition.",
 }
 
+const requestSchema = z.object({
+  itemKey: z.string().trim().min(1).max(64),
+  blueprint: z.unknown(),
+  prompt: z.string().trim().min(1).max(6000),
+})
+
+function getOpenAIClient() {
+  const apiKey = process.env.OPENAI_API_KEY
+  return apiKey ? new OpenAI({ apiKey }) : null
+}
+
 export async function POST(req: Request) {
-  const body = await req.json() as {
-    itemKey: string
-    blueprint: any
-    prompt: string
+  const body = await req.json().catch(() => null)
+  const parsed = requestSchema.safeParse(body)
+  if (!parsed.success) {
+    return Response.json({ error: "Invalid request body" }, { status: 400 })
   }
-  const { itemKey, blueprint, prompt } = body
+  const { itemKey, blueprint, prompt } = parsed.data
 
   // Authenticate
   const authHeader = req.headers.get("authorization") || req.headers.get("Authorization")
@@ -28,16 +39,31 @@ export async function POST(req: Request) {
     return new Response(JSON.stringify({ error: 'Missing auth token' }), { status: 401 })
   }
 
+  let uid = ""
   try {
-    await adminAuth.verifyIdToken(bearerToken)
-  } catch (err) {
+    const decoded = await adminAuth.verifyIdToken(bearerToken)
+    uid = decoded.uid
+  } catch {
     return new Response(JSON.stringify({ error: 'Invalid token' }), { status: 401 })
   }
 
   try {
-    const itemKey = body.itemKey
-    const blueprint = body.blueprint
-    const prompt = body.prompt
+    await assertRateLimit({
+      scope: "generate-options",
+      key: uid,
+      limit: 120,
+      windowMs: 60 * 60 * 1000,
+    })
+  } catch (err) {
+    if (err instanceof RateLimitError) return rateLimitResponse(err)
+    return Response.json({ error: "Failed to check request limits" }, { status: 500 })
+  }
+
+  try {
+    const openai = getOpenAIClient()
+    if (!openai) {
+      return Response.json({ error: "AI options service is not configured" }, { status: 500 })
+    }
 
     const systemPrompt = `You are helping generate clarification options for a website/app planning process.
 

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { adminDb } from "@/lib/firebase-admin"
 import { requireUserUid } from "@/lib/server-auth"
+import { assertProjectCanEdit } from "@/lib/project-access"
+import { decryptEnvVars } from "@/lib/encrypt-env"
 
 export const runtime = "nodejs"
 
@@ -23,12 +25,11 @@ export async function GET(
       return NextResponse.json({ error: "Project not found" }, { status: 404 })
     }
 
+    await assertProjectCanEdit(projectId, uid)
     const data = snap.data() as any
-    const token = data?.vercelToken
-    const ownerId = data?.ownerId || data?.userId
-    if (ownerId && ownerId !== uid) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    }
+    const token = typeof data?.vercelTokenEncrypted === "string"
+      ? decryptEnvVars(data.vercelTokenEncrypted)
+      : data?.vercelToken
 
     if (!token) {
       return NextResponse.json({ error: "Vercel not connected" }, { status: 401 })

@@ -1,6 +1,16 @@
+import Anthropic from "@anthropic-ai/sdk"
+import type {
+  CacheControlEphemeral,
+  MessageParam,
+  RawMessageStreamEvent,
+  TextBlockParam,
+  Usage as AnthropicUsage,
+} from "@anthropic-ai/sdk/resources/messages/messages"
+import crypto from "crypto"
 import OpenAI from "openai"
 import { adminAuth, adminDb } from "@/lib/firebase-admin"
-import { Timestamp } from "firebase-admin/firestore"
+import { FieldValue, Timestamp, type DocumentReference } from "firebase-admin/firestore"
+import { z } from "zod"
 import { DEFAULT_PLANS } from "@/lib/firebase"
 import { normalizeGeneratedCodeFiles } from "@/lib/generated-code-normalization"
 import {
@@ -11,6 +21,9 @@ import {
   type GeneratedProjectFile,
 } from "@/lib/generated-project-validation"
 import { chargeTokensForGeneration } from "@/lib/charge-tokens"
+import { assertProjectCanEdit } from "@/lib/project-access"
+import { assertRateLimit, RateLimitError, rateLimitResponse } from "@/lib/rate-limit"
+import { isSensitiveFilePath, normalizeRelativeFilePath } from "@/lib/security/files"
 import {
   buildMobileGenerationSystemPrompt,
   MOBILE_MODEL_RELIABILITY_PROMPT,
@@ -22,6 +35,14 @@ const nvidia = new OpenAI({
   apiKey: process.env.NVIDIA_API_KEY || process.env.NGC_API_KEY,
   baseURL: "https://integrate.api.nvidia.com/v1",
 })
+let anthropicClient: Anthropic | null = null
+
+function getAnthropicClient() {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) return null
+  anthropicClient ??= new Anthropic({ apiKey })
+  return anthropicClient
+}
 
 const DEFAULT_MODEL = "GPT-5.5"  // Full model (not mini) - more capable for better library knowledge and code quality
 const OPENAI_MODEL_MAP: Record<string, string> = {
@@ -35,6 +56,10 @@ const OPENAI_MODEL_MAP: Record<string, string> = {
   "GPT-5 Mini": "gpt-5-mini",
   "GPT-5 Nano": "gpt-5-nano",
   "GPT-4-1": "gpt-4.1",
+}
+
+const ANTHROPIC_MODEL_MAP: Record<string, string> = {
+  "Claude Sonnet 4.6": "claude-sonnet-4-6",
 }
 
 const CURATED_NVIDIA_MODELS = [
@@ -70,12 +95,36 @@ type ProjectFileInput = {
   content: string
 }
 
-type Provider = "openai" | "nvidia"
+type Provider = "openai" | "nvidia" | "anthropic"
+type GenerationType = "new" | "follow-up" | "inspiration"
+type PromptCacheRetention = "in_memory" | "24h"
+type ClaudePromptCacheTtl = "5m" | "1h"
+
+type PromptCachePlan = {
+  enabled: boolean
+  key: string
+  openaiRetention?: PromptCacheRetention
+  claudeCacheControl?: CacheControlEphemeral
+  cacheClaudeSystemPrompt: boolean
+}
+
+type ResolvedModel =
+  | { client: OpenAI; provider: "openai" | "nvidia"; selectedModel: string }
+  | { client: Anthropic; provider: "anthropic"; selectedModel: string }
 
 type StreamState = {
   usageInfo: any
   streamedLength: number
   closed: boolean
+}
+
+const PROVIDER_CAPABILITIES: Record<Provider, {
+  streaming: boolean
+  promptCaching: "openai-automatic" | "claude-cache-control" | "none"
+}> = {
+  openai: { streaming: true, promptCaching: "openai-automatic" },
+  anthropic: { streaming: true, promptCaching: "claude-cache-control" },
+  nvidia: { streaming: false, promptCaching: "none" },
 }
 
 const FILE_SELECTION_LIMIT = 8
@@ -88,7 +137,13 @@ const GENERATION_MAX_OUTPUT_TOKENS = (() => {
 })()
 const MAX_CONTINUATION_ROUNDS = 2
 const MAX_PROMPT_CHARS = 12000
+const MAX_REQUEST_BODY_CHARS = 1_500_000
 const MAX_FOLLOWUP_FILE_CONTEXT_CHARS = 200000
+const MAX_EXISTING_FILES = 200
+const MAX_EXISTING_FILE_CHARS = 200_000
+const MAX_METADATA_KEYS = 20
+const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000
+const IDEMPOTENCY_IN_PROGRESS_TTL_MS = 15 * 60 * 1000
 const STRICT_FILE_FORMAT_RETRY_PROMPT = `Your previous response did not follow the required file format.
 
 You MUST output ONLY file blocks using:
@@ -123,14 +178,281 @@ const PROMPT_KEYWORD_STOPWORDS = new Set([
   "with",
 ])
 
+class GenerateHttpError extends Error {
+  status: number
+  code: string
+
+  constructor(status: number, code: string, message: string) {
+    super(message)
+    this.name = "GenerateHttpError"
+    this.status = status
+    this.code = code
+  }
+}
+
+class IdempotencyConflictError extends GenerateHttpError {
+  constructor(status: "processing" | "completed") {
+    super(
+      409,
+      `generation_${status}`,
+      status === "processing"
+        ? "A generation with this idempotency key is already running."
+        : "This idempotency key has already completed."
+    )
+  }
+}
+
+const metadataValueSchema = z.union([
+  z.string().trim().max(500),
+  z.number().finite(),
+  z.boolean(),
+  z.null(),
+])
+
+const requestMetadataSchema = z.record(z.string(), metadataValueSchema).superRefine((value, ctx) => {
+  const keys = Object.keys(value)
+  if (keys.length > MAX_METADATA_KEYS) {
+    ctx.addIssue({
+      code: "custom",
+      message: `metadata cannot contain more than ${MAX_METADATA_KEYS} keys`,
+    })
+  }
+
+  for (const key of keys) {
+    if (key.length > 64 || !/^[a-zA-Z0-9_.:-]+$/.test(key)) {
+      ctx.addIssue({
+        code: "custom",
+        path: [key],
+        message: "metadata keys must be 64 characters or fewer and use only letters, numbers, dot, underscore, colon, or dash",
+      })
+    }
+  }
+})
+
+const projectIdSchema = z.string().trim().min(1).max(160).refine(
+  (value) => !value.includes("/") && !value.includes("\\"),
+  "projectId must be a Firestore document id, not a path"
+)
+
+const generateRequestSchema = z.object({
+  prompt: z.string().trim().min(1).max(MAX_PROMPT_CHARS),
+  model: z.string().trim().min(1).max(120).optional(),
+  provider: z.enum(["openai", "nvidia", "anthropic"]).optional(),
+  idToken: z.string().trim().min(1).max(12000).optional(),
+  projectId: projectIdSchema.optional(),
+  existingFiles: z.array(z.object({
+    path: z.string().trim().min(1).max(512),
+    content: z.string().max(MAX_EXISTING_FILE_CHARS),
+  }).strict()).max(MAX_EXISTING_FILES).optional(),
+  intent: z.string().trim().max(80).optional(),
+  generationType: z.enum(["new", "follow-up", "inspiration"]).optional(),
+  maxTokens: z.number().int().min(512).max(GENERATION_MAX_OUTPUT_TOKENS).optional(),
+  temperature: z.number().min(0).max(2).optional(),
+  metadata: requestMetadataSchema.optional(),
+  promptCaching: z.boolean().optional(),
+  idempotencyKey: z.string().trim().min(8).max(128).regex(/^[a-zA-Z0-9_.:-]+$/).optional(),
+  skipDesignBrief: z.boolean().optional(),
+  inspirationContext: z.object({
+    title: z.string().trim().max(500).default(""),
+    description: z.string().trim().max(1000).default(""),
+    markdown: z.string().max(8000).default(""),
+    sourceUrl: z.string().trim().max(2048).default(""),
+  }).strict().optional(),
+}).strict()
+
+type GenerateRequestBody = z.infer<typeof generateRequestSchema>
+
+function jsonError(status: number, code: string, message: string, headers?: HeadersInit) {
+  return Response.json({ error: message, code }, { status, headers })
+}
+
+function validationErrorResponse(error: z.ZodError) {
+  const firstIssue = error.issues[0]
+  const path = firstIssue?.path?.length ? `${firstIssue.path.join(".")}: ` : ""
+  return jsonError(400, "invalid_request", `${path}${firstIssue?.message || "Invalid request body"}`)
+}
+
+function getBearerToken(req: Request, body: GenerateRequestBody) {
+  const authHeader = req.headers.get("authorization") || req.headers.get("Authorization")
+  const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : null
+  return body.idToken?.trim() || bearerToken
+}
+
+function parsePromptCachingEnabled(requested?: boolean) {
+  if (process.env.GENERATE_PROMPT_CACHING_ENABLED === "false") return false
+  return requested !== false
+}
+
+function getClaudePromptCacheTtl(): ClaudePromptCacheTtl {
+  return process.env.CLAUDE_PROMPT_CACHE_TTL === "1h" ? "1h" : "5m"
+}
+
+function getOpenAIPromptCacheRetention(model: string): PromptCacheRetention | undefined {
+  const configured = process.env.OPENAI_PROMPT_CACHE_RETENTION
+  if (configured === "24h") return "24h"
+  if (configured === "in_memory" && !model.startsWith("gpt-5.5")) return "in_memory"
+  return undefined
+}
+
+function buildPromptCachePlan(params: {
+  provider: Provider
+  selectedModel: string
+  platform: ProjectPlatform
+  generationType: GenerationType
+  promptCaching?: boolean
+  cacheClaudeSystemPrompt: boolean
+}): PromptCachePlan {
+  const enabled = parsePromptCachingEnabled(params.promptCaching)
+  const key = [
+    "lotus-generate-v1",
+    params.provider,
+    params.selectedModel,
+    params.platform,
+    params.generationType,
+  ].join(":").replace(/[^a-zA-Z0-9_.:-]/g, "_")
+
+  if (!enabled) {
+    return { enabled: false, key, cacheClaudeSystemPrompt: false }
+  }
+
+  if (params.provider === "anthropic") {
+    const ttl = getClaudePromptCacheTtl()
+    return {
+      enabled,
+      key,
+      cacheClaudeSystemPrompt: params.cacheClaudeSystemPrompt,
+      claudeCacheControl: ttl === "1h" ? { type: "ephemeral", ttl } : { type: "ephemeral" },
+    }
+  }
+
+  if (params.provider === "openai") {
+    return {
+      enabled,
+      key,
+      cacheClaudeSystemPrompt: false,
+      openaiRetention: getOpenAIPromptCacheRetention(params.selectedModel),
+    }
+  }
+
+  return { enabled, key, cacheClaudeSystemPrompt: false }
+}
+
+function normalizeAnthropicUsage(usage: AnthropicUsage | null | undefined) {
+  if (!usage) return null
+  const promptTokens =
+    usage.input_tokens +
+    (usage.cache_creation_input_tokens ?? 0) +
+    (usage.cache_read_input_tokens ?? 0)
+  return {
+    prompt_tokens: promptTokens,
+    completion_tokens: usage.output_tokens,
+    total_tokens: promptTokens + usage.output_tokens,
+    cache_creation_input_tokens: usage.cache_creation_input_tokens ?? 0,
+    cache_read_input_tokens: usage.cache_read_input_tokens ?? 0,
+  }
+}
+
+function getProviderErrorInfo(error: unknown) {
+  const err = error as { status?: unknown; code?: unknown; type?: unknown; name?: unknown; message?: unknown }
+  return {
+    status: typeof err?.status === "number" ? err.status : undefined,
+    code: typeof err?.code === "string" ? err.code : undefined,
+    type: typeof err?.type === "string" ? err.type : undefined,
+    name: typeof err?.name === "string" ? err.name : undefined,
+    message: typeof err?.message === "string" ? err.message : undefined,
+  }
+}
+
+function publicGenerationError(error: unknown) {
+  if (error instanceof GenerateHttpError) {
+    return { status: error.status, code: error.code, message: error.message }
+  }
+
+  const info = getProviderErrorInfo(error)
+  if (info.message === "MODEL_TIMEOUT" || info.name === "AbortError") {
+    return { status: 504, code: "model_timeout", message: "Generation timed out. Please try again." }
+  }
+  if (info.status === 401 || info.status === 403) {
+    return { status: 502, code: "provider_auth_failed", message: "The model provider is not configured correctly." }
+  }
+  if (info.status === 429) {
+    return { status: 429, code: "provider_rate_limited", message: "The model provider is busy. Please try again shortly." }
+  }
+  if (info.status && info.status >= 400 && info.status < 500) {
+    return { status: 502, code: "provider_rejected_request", message: "The model provider rejected this generation request." }
+  }
+  return { status: 500, code: "generation_failed", message: "Generation failed. Please try again." }
+}
+
+function logGenerationError(context: Record<string, string | number | boolean | undefined>, error: unknown) {
+  const info = getProviderErrorInfo(error)
+  console.error("[generate]", {
+    ...context,
+    errorName: info.name,
+    providerStatus: info.status,
+    providerCode: info.code,
+    providerType: info.type,
+    message: info.message?.slice(0, 240),
+  })
+}
+
+async function reserveIdempotencyKey(uid: string, key?: string) {
+  if (!key) return null
+
+  const now = Date.now()
+  const id = crypto.createHash("sha256").update(`generate:${uid}:${key}`).digest("hex")
+  const ref = adminDb.collection("generationIdempotency").doc(id)
+
+  await adminDb.runTransaction(async (transaction) => {
+    const snap = await transaction.get(ref)
+    const data = snap.exists ? snap.data() as {
+      status?: string
+      createdAtMs?: number
+      updatedAtMs?: number
+    } : null
+    const ageMs = now - (data?.updatedAtMs || data?.createdAtMs || 0)
+
+    if (data?.status === "processing" && ageMs < IDEMPOTENCY_IN_PROGRESS_TTL_MS) {
+      throw new IdempotencyConflictError("processing")
+    }
+    if (data?.status === "completed" && ageMs < IDEMPOTENCY_TTL_MS) {
+      throw new IdempotencyConflictError("completed")
+    }
+
+    transaction.set(ref, {
+      uid,
+      keyHash: id,
+      status: "processing",
+      createdAtMs: now,
+      updatedAtMs: now,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    })
+  })
+
+  return ref
+}
+
+async function completeIdempotencyKey(ref: DocumentReference | null, status: "completed" | "failed") {
+  if (!ref) return
+  await ref.set({
+    status,
+    updatedAtMs: Date.now(),
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true }).catch((error) => {
+    logGenerationError({ phase: "idempotency_update", status }, error)
+  })
+}
+
 function dedupeFilesByPath(files: ProjectFileInput[]) {
   const seen = new Set<string>()
-  return files.filter((file) => {
-    const path = typeof file.path === "string" ? file.path : ""
-    if (!path || seen.has(path) || typeof file.content !== "string") return false
+  return files.flatMap((file) => {
+    const path = normalizeRelativeFilePath(file.path)
+    if (!path || seen.has(path) || typeof file.content !== "string") return []
+    if (isSensitiveFilePath(path)) return []
     seen.add(path)
-    return true
-  })
+    return [{ path, content: file.content.slice(0, MAX_EXISTING_FILE_CHARS) }]
+  }).slice(0, MAX_EXISTING_FILES)
 }
 
 function isCoreContextFile(path: string) {
@@ -374,12 +696,62 @@ async function getNvidiaModels(): Promise<string[]> {
   }
 }
 
-async function resolveModel(model: string) {
+async function resolveModel(model: string, requestedProvider?: Provider): Promise<ResolvedModel> {
+  if (requestedProvider === "openai") {
+    if (!OPENAI_MODEL_MAP[model]) {
+      throw new GenerateHttpError(400, "unsupported_model", "The requested OpenAI model is not supported.")
+    }
+    return {
+      client: openai,
+      selectedModel: OPENAI_MODEL_MAP[model],
+      provider: "openai" as const,
+    }
+  }
+
+  if (requestedProvider === "anthropic") {
+    if (!ANTHROPIC_MODEL_MAP[model]) {
+      throw new GenerateHttpError(400, "unsupported_model", "The requested Claude model is not supported.")
+    }
+    const client = getAnthropicClient()
+    if (!client) {
+      throw new GenerateHttpError(503, "provider_not_configured", "Claude generation is not configured.")
+    }
+    return {
+      client,
+      selectedModel: ANTHROPIC_MODEL_MAP[model],
+      provider: "anthropic" as const,
+    }
+  }
+
+  if (requestedProvider === "nvidia") {
+    const nvidiaModels = await getNvidiaModels()
+    if (!nvidiaModels.includes(model)) {
+      throw new GenerateHttpError(400, "unsupported_model", "The requested NVIDIA model is not supported.")
+    }
+    return {
+      client: nvidia,
+      selectedModel: model,
+      provider: "nvidia" as const,
+    }
+  }
+
   if (OPENAI_MODEL_MAP[model]) {
     return {
       client: openai,
       selectedModel: OPENAI_MODEL_MAP[model],
       provider: "openai" as const,
+    }
+  }
+
+  if (ANTHROPIC_MODEL_MAP[model]) {
+    const client = getAnthropicClient()
+    if (!client) {
+      throw new GenerateHttpError(503, "provider_not_configured", "Claude generation is not configured.")
+    }
+    return {
+      client,
+      selectedModel: ANTHROPIC_MODEL_MAP[model],
+      provider: "anthropic" as const,
     }
   }
 
@@ -392,11 +764,7 @@ async function resolveModel(model: string) {
     }
   }
 
-  return {
-    client: openai,
-    selectedModel: OPENAI_MODEL_MAP[DEFAULT_MODEL],
-    provider: "openai" as const,
-  }
+  throw new GenerateHttpError(400, "unsupported_model", "The requested model is not supported.")
 }
 
 function getFirstDayOfNextMonth(date: Date): Date {
@@ -420,13 +788,13 @@ function parseFileBlocks(content: string): ParsedFileBlock[] {
   let match: RegExpExecArray | null
 
   while ((match = fileRegex.exec(content)) !== null) {
-    const path = match[1].trim()
+    const path = normalizeRelativeFilePath(match[1].trim())
     const fileContent = match[2]
       .replace(/^```[a-zA-Z0-9_-]*\n?/, "")
       .replace(/\n?```$/, "")
       .trim()
 
-    if (path) {
+    if (path && !isSensitiveFilePath(path)) {
       files.push({ path, content: fileContent })
     }
   }
@@ -573,6 +941,8 @@ async function generateWithNvidiaValidation(params: {
   userMessageContent: string
   existingFiles?: { path: string; content: string }[]
   platform: ProjectPlatform
+  maxOutputTokens: number
+  temperature?: number
 }) {
   const initial = await params.client.chat.completions.create({
     model: params.selectedModel,
@@ -580,7 +950,8 @@ async function generateWithNvidiaValidation(params: {
       { role: "system", content: params.systemPrompt },
       { role: "user", content: params.userMessageContent },
     ],
-    max_tokens: GENERATION_MAX_OUTPUT_TOKENS,
+    max_tokens: params.maxOutputTokens,
+    ...(params.temperature !== undefined ? { temperature: params.temperature } : {}),
   })
 
   let finalContent = initial.choices[0]?.message?.content || ""
@@ -603,7 +974,8 @@ async function generateWithNvidiaValidation(params: {
           { role: "assistant", content: finalContent },
           { role: "user", content: buildContinuationInstruction(cutOffPath) },
         ],
-        max_tokens: GENERATION_MAX_OUTPUT_TOKENS,
+        max_tokens: params.maxOutputTokens,
+        ...(params.temperature !== undefined ? { temperature: params.temperature } : {}),
       })
 
       finalContent += continued.choices[0]?.message?.content || ""
@@ -624,7 +996,8 @@ async function generateWithNvidiaValidation(params: {
         { role: "assistant", content: finalContent },
         { role: "user", content: STRICT_FILE_FORMAT_RETRY_PROMPT },
       ],
-      max_tokens: GENERATION_MAX_OUTPUT_TOKENS,
+      max_tokens: params.maxOutputTokens,
+      ...(params.temperature !== undefined ? { temperature: params.temperature } : {}),
     })
 
     finalContent = retried.choices[0]?.message?.content || ""
@@ -645,7 +1018,8 @@ async function generateWithNvidiaValidation(params: {
         { role: "assistant", content: finalContent },
         { role: "user", content: repairPrompt },
       ],
-      max_tokens: GENERATION_MAX_OUTPUT_TOKENS,
+      max_tokens: params.maxOutputTokens,
+      ...(params.temperature !== undefined ? { temperature: params.temperature } : {}),
     })
 
     finalContent = repaired.choices[0]?.message?.content || finalContent
@@ -760,6 +1134,7 @@ async function salvageWithOpenAI(params: {
   brokenContent: string
   issues: string[]
   platform: ProjectPlatform
+  maxOutputTokens: number
 }) {
   const salvagePrompt = buildGenerationRepairPrompt(params.issues, params.brokenContent, params.platform)
 
@@ -770,7 +1145,7 @@ async function salvageWithOpenAI(params: {
       { role: "user", content: params.userMessageContent },
       { role: "user", content: salvagePrompt },
     ],
-    max_completion_tokens: GENERATION_MAX_OUTPUT_TOKENS,
+    max_completion_tokens: params.maxOutputTokens,
   })
 
   let content = repaired.choices[0]?.message?.content || params.brokenContent
@@ -790,6 +1165,7 @@ async function repairInvalidFileFormatWithOpenAI(params: {
   systemPrompt: string
   userMessageContent: string
   brokenContent: string
+  maxOutputTokens: number
 }) {
   const repaired = await openai.chat.completions.create({
     model: OPENAI_MODEL_MAP[DEFAULT_MODEL],
@@ -799,7 +1175,7 @@ async function repairInvalidFileFormatWithOpenAI(params: {
       { role: "assistant", content: params.brokenContent },
       { role: "user", content: STRICT_FILE_FORMAT_RETRY_PROMPT },
     ],
-    max_completion_tokens: GENERATION_MAX_OUTPUT_TOKENS,
+    max_completion_tokens: params.maxOutputTokens,
   })
 
   const content = repaired.choices[0]?.message?.content || ""
@@ -811,8 +1187,123 @@ async function repairInvalidFileFormatWithOpenAI(params: {
   }
 }
 
+async function streamAnthropicCompletion(params: {
+  client: Anthropic
+  selectedModel: string
+  systemPrompt: string
+  userMessageContent: string
+  existingFiles?: { path: string; content: string }[]
+  controller: ReadableStreamDefaultController<Uint8Array>
+  encoder: TextEncoder
+  state: StreamState
+  platform: ProjectPlatform
+  maxOutputTokens: number
+  temperature?: number
+  promptCachePlan: PromptCachePlan
+}) {
+  const emitIncremental = params.platform !== "mobile"
+
+  // Only the static system prompt is eligible for cache_control — never per-user content.
+  const systemContent: TextBlockParam[] =
+    params.promptCachePlan.cacheClaudeSystemPrompt && params.promptCachePlan.claudeCacheControl
+      ? [{ type: "text" as const, text: params.systemPrompt, cache_control: params.promptCachePlan.claudeCacheControl }]
+      : [{ type: "text" as const, text: params.systemPrompt }]
+
+  const buildMessages = (priorAssistant?: string, continuationInstruction?: string): MessageParam[] => {
+    const messages: MessageParam[] = [{ role: "user", content: params.userMessageContent }]
+    if (priorAssistant) {
+      messages.push({ role: "assistant", content: priorAssistant })
+      if (continuationInstruction) {
+        messages.push({ role: "user", content: continuationInstruction })
+      }
+    }
+    return messages
+  }
+
+  const runAnthropicStream = async (messages: MessageParam[]) => {
+    const stream = await params.client.messages.create({
+      model: params.selectedModel,
+      max_tokens: params.maxOutputTokens,
+      system: systemContent,
+      messages,
+      stream: true as const,
+      ...(params.temperature !== undefined ? { temperature: params.temperature } : {}),
+    })
+
+    let buffered = ""
+    let stopReason: string | null = null
+    let partialUsage: AnthropicUsage | null = null
+
+    for await (const event of stream as AsyncIterable<RawMessageStreamEvent>) {
+      if (event.type === "message_start") {
+        partialUsage = event.message.usage as AnthropicUsage
+      } else if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+        buffered += event.delta.text
+        if (emitIncremental && !params.state.closed) {
+          try { params.controller.enqueue(params.encoder.encode(event.delta.text)) }
+          catch { params.state.closed = true }
+        }
+      } else if (event.type === "message_delta") {
+        stopReason = event.delta.stop_reason ?? null
+        if (partialUsage != null && event.usage?.output_tokens != null) {
+          partialUsage = Object.assign({}, partialUsage, { output_tokens: event.usage.output_tokens }) as AnthropicUsage
+        }
+      }
+    }
+
+    return { buffered, stopReason, partialUsage }
+  }
+
+  let firstResult = await runAnthropicStream(buildMessages())
+  let output = firstResult.buffered
+  let stopReason = firstResult.stopReason
+  let lastUsage: AnthropicUsage | null = firstResult.partialUsage
+  let continuationRounds = 0
+
+  while (stopReason === "max_tokens" && continuationRounds < MAX_CONTINUATION_ROUNDS) {
+    continuationRounds++
+    try {
+      const { content: cleanOutput, cutOffPath } = splitTruncatedFileTail(output)
+      output = cleanOutput
+      const continued = await runAnthropicStream(buildMessages(output, buildContinuationInstruction(cutOffPath)))
+      output += continued.buffered
+      stopReason = continued.stopReason
+      if (continued.partialUsage) lastUsage = continued.partialUsage
+    } catch (err) {
+      logGenerationError({ phase: "anthropic_continuation", provider: "anthropic" }, err)
+      break
+    }
+  }
+
+  params.state.usageInfo = normalizeAnthropicUsage(lastUsage)
+  params.state.streamedLength += output.length
+
+  const parsedBlocks = filterFilesForPlatform(parseFileBlocks(output), params.platform)
+  const beforeScaffold = mergeFilesByPath(params.existingFiles ?? [], parsedBlocks)
+  const afterScaffold = injectMissingCssFiles(beforeScaffold, params.platform)
+  const scaffoldChanges = normalizeGeneratedCodeFiles(getChangedFiles(beforeScaffold, afterScaffold))
+  let finalBlocks = mergeFilesByPath(parsedBlocks, scaffoldChanges)
+
+  if (emitIncremental && scaffoldChanges.length && !params.state.closed) {
+    const scaffoldPayload = serializeFileBlocks(scaffoldChanges)
+    try {
+      params.controller.enqueue(params.encoder.encode(scaffoldPayload))
+      params.state.streamedLength += scaffoldPayload.length
+    } catch {
+      params.state.closed = true
+    }
+  }
+
+  if (!emitIncremental && !params.state.closed) {
+    const agentMessage = getAgentMessageBlock(output)
+    const finalContent = serializeGeneratorOutput(agentMessage, finalBlocks)
+    params.controller.enqueue(params.encoder.encode(finalContent))
+    params.state.streamedLength = finalContent.length
+  }
+}
+
 async function streamWithResolvedProvider(params: {
-  client: OpenAI
+  client: OpenAI | Anthropic
   provider: Provider
   selectedModel: string
   systemPrompt: string
@@ -822,15 +1313,20 @@ async function streamWithResolvedProvider(params: {
   encoder: TextEncoder
   state: StreamState
   platform: ProjectPlatform
+  maxOutputTokens: number
+  temperature?: number
+  promptCachePlan: PromptCachePlan
 }) {
   if (params.provider === "nvidia") {
     const validated = await generateWithNvidiaValidation({
-      client: params.client,
+      client: params.client as OpenAI,
       selectedModel: params.selectedModel,
       systemPrompt: params.systemPrompt,
       userMessageContent: params.userMessageContent,
       existingFiles: params.existingFiles,
       platform: params.platform,
+      maxOutputTokens: params.maxOutputTokens,
+      temperature: params.temperature,
     })
     params.state.usageInfo = validated.usageInfo
     params.state.streamedLength = validated.streamedLength
@@ -841,6 +1337,7 @@ async function streamWithResolvedProvider(params: {
         systemPrompt: params.systemPrompt,
         userMessageContent: params.userMessageContent,
         brokenContent: validated.finalContent,
+        maxOutputTokens: params.maxOutputTokens,
       })
       params.state.usageInfo = repaired.usage || params.state.usageInfo
       params.state.streamedLength = repaired.content.length
@@ -856,6 +1353,7 @@ async function streamWithResolvedProvider(params: {
         brokenContent: validated.finalContent,
         issues: validated.remainingIssues,
         platform: params.platform,
+        maxOutputTokens: params.maxOutputTokens,
       })
       assertValidFileBlockOutput(salvaged.content)
       params.state.usageInfo = salvaged.usage || params.state.usageInfo
@@ -867,6 +1365,24 @@ async function streamWithResolvedProvider(params: {
     return
   }
 
+  if (params.provider === "anthropic") {
+    await streamAnthropicCompletion({
+      client: params.client as Anthropic,
+      selectedModel: params.selectedModel,
+      systemPrompt: params.systemPrompt,
+      userMessageContent: params.userMessageContent,
+      existingFiles: params.existingFiles,
+      controller: params.controller,
+      encoder: params.encoder,
+      state: params.state,
+      platform: params.platform,
+      maxOutputTokens: params.maxOutputTokens,
+      temperature: params.temperature,
+      promptCachePlan: params.promptCachePlan,
+    })
+    return
+  }
+
   const createOpenAICompletion = async (messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[]) => {
     const controllerAbort = new AbortController()
     const timeoutId = setTimeout(() => {
@@ -874,13 +1390,18 @@ async function streamWithResolvedProvider(params: {
     }, OPENAI_TIMEOUT_MS)
 
     try {
-      const completion = await params.client.chat.completions.create({
+      // OpenAI prompt caching is automatic for supported models (GPT-4o, GPT-4.1, o-series).
+      // The cache is keyed on the longest common message prefix — keeping a stable system prompt
+      // at position 0 is the correct and only required practice. No explicit cache params exist.
+      const requestParams: OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming = {
         model: params.selectedModel,
         stream: true,
         messages,
-        max_completion_tokens: GENERATION_MAX_OUTPUT_TOKENS,
+        max_completion_tokens: params.maxOutputTokens,
         stream_options: { include_usage: true } as any,
-      }, { signal: controllerAbort.signal })
+        ...(params.temperature !== undefined ? { temperature: params.temperature } : {}),
+      }
+      const completion = await (params.client as OpenAI).chat.completions.create(requestParams, { signal: controllerAbort.signal })
       clearTimeout(timeoutId)
       return completion
     } catch (err: any) {
@@ -999,6 +1520,7 @@ async function streamWithResolvedProvider(params: {
       brokenContent: serializeFileBlocks(finalBlocks),
       issues: validation.issues,
       platform: params.platform,
+      maxOutputTokens: params.maxOutputTokens,
     })
     const salvagedBlocks = normalizeGeneratedCodeFiles(filterFilesForPlatform(parseFileBlocks(salvaged.content), params.platform))
     if (salvagedBlocks.length) {
@@ -1032,7 +1554,7 @@ async function streamWithResolvedProvider(params: {
 }
 
 async function runBuilderRuntime(params: {
-  client: OpenAI
+  client: OpenAI | Anthropic
   provider: Provider
   selectedModel: string
   systemPrompt: string
@@ -1042,77 +1564,102 @@ async function runBuilderRuntime(params: {
   encoder: TextEncoder
   state: StreamState
   platform: ProjectPlatform
+  maxOutputTokens: number
+  temperature?: number
+  promptCachePlan: PromptCachePlan
 }) {
   await streamWithResolvedProvider(params)
 }
 
 export async function GET() {
   const nvidiaModels = await getNvidiaModels()
+  const anthropicModels = getAnthropicClient() ? Object.keys(ANTHROPIC_MODEL_MAP) : []
   return Response.json({
     defaultModel: DEFAULT_MODEL,
-    models: [...Object.keys(OPENAI_MODEL_MAP), ...nvidiaModels],
+    models: [...Object.keys(OPENAI_MODEL_MAP), ...anthropicModels, ...nvidiaModels],
+    providers: PROVIDER_CAPABILITIES,
   })
 }
 
 export async function POST(req: Request) {
-  const body = await req.json().catch(() => null) as {
-    prompt: string
-    model?: string
-    idToken?: string
-    projectId?: string
-    existingFiles?: { path: string; content: string }[]
-    intent?: string
-    skipDesignBrief?: boolean
-    inspirationContext?: { title: string; description: string; markdown: string; sourceUrl: string }
-  } | null
-  if (!body || typeof body !== "object") {
-    return Response.json({ error: "Invalid JSON body" }, { status: 400 })
+  // Reject oversized payloads before JSON parsing to avoid memory exhaustion.
+  const rawBody = await req.text().catch(() => null)
+  if (rawBody === null) {
+    return jsonError(400, "invalid_request", "Could not read request body.")
   }
+  if (rawBody.length > MAX_REQUEST_BODY_CHARS) {
+    return jsonError(413, "payload_too_large", "Request body exceeds the maximum allowed size.")
+  }
+
+  let parsedJson: unknown
+  try {
+    parsedJson = JSON.parse(rawBody)
+  } catch {
+    return jsonError(400, "invalid_json", "Request body is not valid JSON.")
+  }
+
+  const parseResult = generateRequestSchema.safeParse(parsedJson)
+  if (!parseResult.success) {
+    return validationErrorResponse(parseResult.error)
+  }
+  const body = parseResult.data
+
   const {
-    prompt: rawPrompt,
-    model = DEFAULT_MODEL,
+    prompt,
+    model: requestedModelName = DEFAULT_MODEL,
+    provider: requestedProvider,
     idToken,
     projectId,
     existingFiles,
     intent,
+    generationType = "new",
+    maxTokens,
+    temperature,
+    promptCaching,
+    idempotencyKey,
+    skipDesignBrief,
+    inspirationContext,
   } = body
-  const prompt = typeof rawPrompt === "string" ? rawPrompt.trim() : ""
-  if (!prompt) {
-    return Response.json({ error: "Prompt is required" }, { status: 400 })
-  }
-  const safeExistingFiles = Array.isArray(existingFiles)
-    ? dedupeFilesByPath(existingFiles.filter((file): file is ProjectFileInput =>
-        Boolean(file && typeof file.path === "string" && typeof file.content === "string")
-      ))
-    : undefined
 
-  // authenticate user via Firebase ID token (body) or Authorization Bearer token (header)
-  const authHeader = req.headers.get("authorization") || req.headers.get("Authorization")
-  const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : null
-  const authToken = (idToken && idToken.trim()) || bearerToken
+  const safeExistingFiles = existingFiles ? dedupeFilesByPath(existingFiles) : undefined
+
+  // Authenticate via Firebase ID token (body) or Authorization Bearer header.
+  const authToken = getBearerToken(req, body)
   if (!authToken) {
-    return new Response(JSON.stringify({ error: 'Missing idToken' }), { status: 401 })
+    return jsonError(401, "missing_auth", "Authentication token is required.")
   }
 
   let uid: string
   try {
     const decoded = await adminAuth.verifyIdToken(authToken)
     uid = decoded.uid
-  } catch (err) {
-    return new Response(JSON.stringify({ error: 'Invalid idToken' }), { status: 401 })
+  } catch {
+    return jsonError(401, "invalid_auth", "Authentication token is invalid or expired.")
+  }
+
+  try {
+    await assertRateLimit({
+      scope: "generate",
+      key: uid,
+      limit: 20,
+      windowMs: 60 * 60 * 1000,
+    })
+  } catch (error) {
+    if (error instanceof RateLimitError) return rateLimitResponse(error)
+    throw error
   }
 
   let projectPlatform: ProjectPlatform = "web"
   const normalizedProjectId = typeof projectId === "string" ? projectId.trim() : ""
   if (normalizedProjectId) {
-    const projectSnap = await adminDb.collection("projects").doc(normalizedProjectId).get()
-    if (!projectSnap.exists) {
-      return Response.json({ error: "Project not found" }, { status: 404 })
-    }
-
-    const projectData = projectSnap.data() as { ownerId?: unknown; platform?: unknown }
-    if (typeof projectData.ownerId === "string" && projectData.ownerId !== uid) {
-      return Response.json({ error: "Access denied" }, { status: 403 })
+    let projectData: { platform?: unknown }
+    try {
+      const { snap } = await assertProjectCanEdit(normalizedProjectId, uid)
+      projectData = snap.data() as { platform?: unknown }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Access denied"
+      const status = message.includes("Project not found") ? 404 : message.includes("Forbidden") ? 403 : 500
+      return Response.json({ error: status === 500 ? "Server error" : message }, { status })
     }
 
     projectPlatform = normalizePlatform(projectData.platform)
@@ -1144,7 +1691,6 @@ export async function POST(req: Request) {
           periodEnd: Timestamp.fromDate(nextPeriodEnd),
         },
       })
-      console.log('Token period reset - User:', uid, 'Next periodEnd:', nextPeriodEnd.toISOString())
     }
 
     let remaining = shouldReset ? planTokensPerMonth : userData?.tokenUsage?.remaining
@@ -1158,7 +1704,6 @@ export async function POST(req: Request) {
     }
     remaining = Math.max(0, Number(remaining))
 
-    console.log('Token check - User:', uid, 'Plan:', planId, 'Plan Tokens:', planTokensPerMonth, 'Remaining:', remaining, 'TokenUsage:', userData?.tokenUsage)
     if (remaining <= 0) {
       return new Response(JSON.stringify({ error: 'Insufficient tokens' }), { status: 402 })
     }
@@ -1167,8 +1712,16 @@ export async function POST(req: Request) {
     return new Response(JSON.stringify({ error: 'Server error' }), { status: 500 })
   }
 
-  const requestedModel = typeof model === "string" && model.trim() ? model : DEFAULT_MODEL
-  const { client, selectedModel, provider } = await resolveModel(requestedModel)
+  let resolvedModel: ResolvedModel
+  try {
+    resolvedModel = await resolveModel(requestedModelName, requestedProvider)
+  } catch (err) {
+    const info = publicGenerationError(err)
+    return jsonError(info.status, info.code, info.message)
+  }
+  const { client, selectedModel, provider } = resolvedModel
+
+  const maxOutputTokens = maxTokens ?? GENERATION_MAX_OUTPUT_TOKENS
   const isFollowUp = Array.isArray(safeExistingFiles) && safeExistingFiles.length > 0
   const promptFiles = isFollowUp ? selectFollowUpFiles(safeExistingFiles || [], prompt) : []
 
@@ -1483,8 +2036,30 @@ OPEN-SOURCE MODEL RELIABILITY RULES (MANDATORY):
   4. package.json includes every dependency used.
   5. No file is omitted if another file depends on it.`
 
+  const promptCachePlan = buildPromptCachePlan({
+    provider,
+    selectedModel,
+    platform: projectPlatform,
+    generationType,
+    promptCaching,
+    cacheClaudeSystemPrompt: true,
+  })
+
+  let idempotencyRef: Awaited<ReturnType<typeof reserveIdempotencyKey>> = null
+  if (idempotencyKey) {
+    try {
+      idempotencyRef = await reserveIdempotencyKey(uid, idempotencyKey)
+    } catch (err) {
+      if (err instanceof IdempotencyConflictError) {
+        return jsonError(err.status, err.code, err.message)
+      }
+      logGenerationError({ phase: "idempotency_reserve", uid }, err)
+      return jsonError(500, "server_error", "Generation failed. Please try again.")
+    }
+  }
+
   const isInspiration = intent === "inspiration"
-  const designBrief = isFollowUp || body.skipDesignBrief === true ? "" : await deriveDesignBrief(prompt)
+  const designBrief = isFollowUp || skipDesignBrief === true ? "" : await deriveDesignBrief(prompt)
   const systemPrompt = projectPlatform === "mobile"
     ? buildMobileGenerationSystemPrompt({ designBrief, isFollowUp })
     : isFollowUp ? systemPromptFollowUp : systemPromptNew(designBrief)
@@ -1492,12 +2067,12 @@ OPEN-SOURCE MODEL RELIABILITY RULES (MANDATORY):
     ? `${systemPrompt}\n\n${MOBILE_MODEL_RELIABILITY_PROMPT}`
     : `${systemPrompt}\n\n${nvidiaReliabilityPrompt}`
 
-  // Build user message — inspiration mode prepends the reference site context
-  const inspirationMarkdown = typeof body.inspirationContext?.markdown === "string"
-    ? body.inspirationContext.markdown.slice(0, 8000)
+  // Build user message — inspiration mode prepends the reference site context.
+  const inspirationMarkdown = typeof inspirationContext?.markdown === "string"
+    ? inspirationContext.markdown.slice(0, 8000)
     : ""
-  const inspirationPrefix = body.inspirationContext
-    ? `REFERENCE SITE FOR INSPIRATION:\nURL: ${body.inspirationContext.sourceUrl}\nTitle: ${body.inspirationContext.title}\nDescription: ${body.inspirationContext.description}\n\nSite content:\n${inspirationMarkdown}\n\n${isInspiration ? "Use the above as the content and layout inspiration. Recreate the same sections, copy, and visual hierarchy as a modern React app with Tailwind. Match the design intent closely without copying styles verbatim." : "Use the above only as reference context. Build a fresh, inspired design."}\n\n`
+  const inspirationPrefix = inspirationContext
+    ? `REFERENCE SITE FOR INSPIRATION:\nURL: ${inspirationContext.sourceUrl}\nTitle: ${inspirationContext.title}\nDescription: ${inspirationContext.description}\n\nSite content:\n${inspirationMarkdown}\n\n${isInspiration ? "Use the above as the content and layout inspiration. Recreate the same sections, copy, and visual hierarchy as a modern React app with Tailwind. Match the design intent closely without copying styles verbatim." : "Use the above only as reference context. Build a fresh, inspired design."}\n\n`
     : ""
 
   const userMessageContent = isFollowUp
@@ -1527,23 +2102,29 @@ OPEN-SOURCE MODEL RELIABILITY RULES (MANDATORY):
           encoder,
           state: streamState,
           platform: projectPlatform,
+          maxOutputTokens,
+          temperature,
+          promptCachePlan,
         })
 
         streamState.closed = true
         try { controller.close() } catch {}
 
-        await chargeTokensForGeneration({
-          uid,
-          usageInfo: streamState.usageInfo,
-          promptChars: userMessageContent.length,
-          completionChars: streamState.streamedLength,
-        })
-      } catch (err: any) {
-        const message = err instanceof Error ? err.message : "Generation failed"
-        console.error('Stream error', err)
+        await Promise.all([
+          chargeTokensForGeneration({
+            uid,
+            usageInfo: streamState.usageInfo,
+            promptChars: userMessageContent.length,
+            completionChars: streamState.streamedLength,
+          }),
+          completeIdempotencyKey(idempotencyRef, "completed"),
+        ])
+      } catch (err) {
+        logGenerationError({ phase: "stream", uid, provider, model: selectedModel }, err)
+        await completeIdempotencyKey(idempotencyRef, "failed")
         if (!streamState.closed) {
           try {
-            controller.enqueue(encoder.encode(`\n===GENERATION_ERROR: ${message}===`))
+            controller.enqueue(encoder.encode(`\n===GENERATION_ERROR: Generation failed===`))
           } catch {}
           streamState.closed = true
           try { controller.close() } catch {}

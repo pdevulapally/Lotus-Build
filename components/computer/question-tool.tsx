@@ -157,20 +157,20 @@ function QuestionPrompt({
 
   if (!activeQuestion) return null
 
-  const optionRowBase = "w-full text-left rounded-md px-2 py-1.5 flex items-center gap-2 -mx-2 hover:bg-muted transition-colors"
-  const badgeBase = "h-5 min-w-5 px-1 rounded-[4px] inline-flex items-center justify-center text-xs font-semibold border shrink-0"
-  const badgeOff = "bg-transparent text-muted-foreground border-border"
-  const badgeOn = "bg-primary text-primary-foreground border-primary"
+  const optionRowBase = "w-full text-left rounded-xl px-2.5 py-2 flex items-center gap-2 -mx-1 transition-colors hover:bg-muted/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+  const badgeBase = "h-5 min-w-5 px-1 rounded-full inline-flex items-center justify-center text-xs font-semibold border shrink-0"
+  const badgeOff = "bg-muted/45 text-muted-foreground border-border/55"
+  const badgeOn = "bg-foreground text-background border-foreground"
 
   return (
-    <div className={cn("px-3 py-2.5 space-y-2 bg-card", className)}>
+    <div className={cn("space-y-2 bg-[oklch(0.985_0_0/0.54)] px-3 py-2.5 dark:bg-[oklch(0.26_0_0/0.54)]", className)}>
       <p className="text-sm font-medium text-foreground leading-snug">{activeQuestion.title}</p>
       {activeQuestion.description && (
         <p className="text-xs text-muted-foreground">{activeQuestion.description}</p>
       )}
 
       {activeQuestion.kind !== "text" && (activeQuestion.options?.length ?? 0) > 0 && (
-        <div className="space-y-0.5 pt-0.5">
+        <div className="space-y-1 pt-0.5">
           {activeQuestion.options!.map((option, idx) => {
             const checked = selectedIds.includes(option.id)
             return (
@@ -199,7 +199,7 @@ function QuestionPrompt({
           })}
 
           {customEnabled && (
-            <div className="pt-1 flex items-center gap-2">
+            <div className="flex items-center gap-2 pt-1">
               <span className={cn(badgeBase, selectedIds.includes(QUESTION_CUSTOM_ID) ? badgeOn : badgeOff)}>
                 {optionBadge(activeQuestion.options!.length)}
               </span>
@@ -207,7 +207,7 @@ function QuestionPrompt({
                 value={customText}
                 onChange={(e) => handleCustomTextChange(e.target.value)}
                 placeholder={activeQuestion.customPlaceholder ?? "Type your answer"}
-                className="w-full h-7 rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none focus:border-ring"
+                className="lotus-glass-control h-8 w-full rounded-full border px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground/55 focus:border-ring"
               />
             </div>
           )}
@@ -220,7 +220,7 @@ function QuestionPrompt({
           onChange={(e) => setTextValue(e.target.value)}
           placeholder={activeQuestion.placeholder ?? "Type your answer"}
           rows={3}
-          className="w-full rounded-md border border-border bg-card px-2 py-1.5 text-sm text-foreground resize-none outline-none focus:border-ring"
+          className="lotus-glass-control w-full resize-none rounded-2xl border px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/55 focus:border-ring"
         />
       )}
 
@@ -229,7 +229,7 @@ function QuestionPrompt({
           <button
             type="button"
             onClick={handleSkip}
-            className="h-6 px-2 rounded-[4px] text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="h-6 rounded-full px-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
           >
             {skipLabel}
           </button>
@@ -238,7 +238,7 @@ function QuestionPrompt({
           type="button"
           onClick={handleSubmit}
           disabled={!canSubmit}
-          className="h-6 px-2.5 rounded-[4px] text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-40 disabled:hover:bg-primary disabled:active:scale-100"
+          className="h-6 rounded-full bg-foreground px-2.5 text-xs font-semibold text-background transition-all hover:bg-foreground/85 active:scale-[0.98] disabled:opacity-40 disabled:hover:bg-foreground disabled:active:scale-100"
         >
           {primaryLabel}
         </button>
@@ -349,8 +349,8 @@ export function QuestionTool({
   if (!question) return null
 
   return (
-    <div className={cn("rounded-[10px] border border-border bg-muted overflow-hidden", className)}>
-      <div className="h-7 border-b border-border px-3 flex items-center justify-between text-xs text-muted-foreground">
+    <div className={cn("lotus-glass-panel overflow-hidden rounded-2xl border border-border/45", className)}>
+      <div className="lotus-glass-inset flex h-8 items-center justify-between border-b border-border/35 px-3 text-xs text-muted-foreground">
         <div className="inline-flex items-center gap-1.5">
           <MessageCircle className="w-3.5 h-3.5" />
           <span>Question{totalQuestions > 1 ? `s (${clampedIndex}/${totalQuestions})` : ""}</span>
@@ -361,7 +361,7 @@ export function QuestionTool({
               type="button"
               onClick={goPrev}
               disabled={!canGoPrev}
-              className="size-5 inline-flex items-center justify-center rounded-[4px] hover:bg-muted disabled:opacity-40"
+              className="inline-flex size-5 items-center justify-center rounded-full hover:bg-muted disabled:opacity-40"
               aria-label="Previous question"
             >
               <ChevronUp className="w-3.5 h-3.5" />
@@ -371,7 +371,7 @@ export function QuestionTool({
               type="button"
               onClick={goNext}
               disabled={!canGoNext}
-              className="size-5 inline-flex items-center justify-center rounded-[4px] hover:bg-muted disabled:opacity-40"
+              className="inline-flex size-5 items-center justify-center rounded-full hover:bg-muted disabled:opacity-40"
               aria-label="Next question"
             >
               <ChevronDown className="w-3.5 h-3.5" />
@@ -381,7 +381,7 @@ export function QuestionTool({
       </div>
 
       {isComplete ? (
-        <div className="px-3 py-2 text-xs text-muted-foreground bg-card">{summaryText}</div>
+        <div className="bg-[oklch(0.985_0_0/0.54)] px-3 py-2 text-xs text-muted-foreground dark:bg-[oklch(0.26_0_0/0.54)]">{summaryText}</div>
       ) : (
         <QuestionPrompt
           key={`${clampedIndex}-${question.title}`}

@@ -169,12 +169,12 @@ function PlanDescription({ text }: { text: string }) {
         if (h3) return <p key={i} className="pt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{h3[1]}</p>
         const li = t.match(/^[-*]\s+(.+)/)
         if (li) return (
-          <div key={i} className="flex items-start gap-2 font-semibold text-foreground/65">
+          <div key={i} className="flex items-start gap-2 font-semibold text-muted-foreground">
             <span className="mt-[7px] h-[3px] w-[3px] shrink-0 rounded-full bg-border" />
             <span>{renderInline(li[1])}</span>
           </div>
         )
-        return <p key={i} className="font-semibold text-foreground/65">{renderInline(t)}</p>
+        return <p key={i} className="font-semibold text-muted-foreground">{renderInline(t)}</p>
       })}
     </div>
   )
@@ -187,9 +187,9 @@ function SupabaseQuestionCard({ onSetup, onDecline }: { onSetup: () => void; onD
   if (dismissed) return null
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border/60 bg-card">
+    <div className="overflow-hidden rounded-2xl border border-border/30 bg-[oklch(0.985_0_0/0.66)] shadow-sm dark:bg-[oklch(0.28_0_0/0.62)]">
       <div className="flex items-start gap-3 px-4 py-3.5">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border/50 bg-muted/50">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-border/30 bg-[oklch(0.94_0_0/0.62)] dark:bg-[oklch(0.22_0_0/0.72)]">
           <Database className="h-4 w-4 text-foreground/70" />
         </span>
         <div className="min-w-0 flex-1">
@@ -205,7 +205,7 @@ function SupabaseQuestionCard({ onSetup, onDecline }: { onSetup: () => void; onD
                 try { await onSetup() } finally { setSetting(false) }
               }}
               disabled={setting}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-foreground px-3 py-1.5 text-[12px] font-semibold text-background transition-all hover:bg-foreground/85 active:scale-[0.97] disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1.5 text-[12px] font-semibold text-background shadow-sm transition-all hover:bg-foreground/85 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50"
             >
               {setting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Database className="h-3 w-3" />}
               {setting ? "Setting up..." : "Set up Supabase"}
@@ -214,7 +214,7 @@ function SupabaseQuestionCard({ onSetup, onDecline }: { onSetup: () => void; onD
               type="button"
               onClick={() => { setDismissed(true); onDecline?.() }}
               disabled={setting}
-              className="text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-60"
+              className="rounded-md px-1 py-1 text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35 disabled:opacity-60"
             >
               Not now
             </button>
@@ -237,14 +237,14 @@ function PlanTool({ event, onApprovePlan }: { event: ComputerTimelineEvent; onAp
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border/60 bg-card">
-      <div className="flex items-center justify-between gap-2 border-b border-border/50 px-3 py-2">
-        <span className="text-xs font-medium text-muted-foreground">Plan drafted</span>
+    <div className="overflow-hidden rounded-2xl border border-border/30 bg-[oklch(0.985_0_0/0.66)] shadow-sm dark:bg-[oklch(0.28_0_0/0.62)]">
+      <div className="flex items-center justify-between gap-2 border-b border-border/35 px-3.5 py-2.5">
+        <span className="text-xs font-semibold text-muted-foreground">Plan drafted</span>
         {summary && (
           <button
             type="button"
             onClick={() => setIsExpanded((v) => !v)}
-            className="flex items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+            className="flex items-center gap-1 rounded-md px-1 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
           >
             {isExpanded ? (
               <ChevronsUp className="h-3 w-3 shrink-0" />
@@ -258,7 +258,7 @@ function PlanTool({ event, onApprovePlan }: { event: ComputerTimelineEvent; onAp
       {summary && (
         <div
           className={cn(
-            "overflow-hidden px-3 pb-3 pt-2.5",
+            "overflow-hidden px-3.5 pb-3.5 pt-3",
             !isExpanded && "max-h-[94px]",
           )}
         >
@@ -266,12 +266,12 @@ function PlanTool({ event, onApprovePlan }: { event: ComputerTimelineEvent; onAp
         </div>
       )}
       {onApprovePlan && (
-        <div className="flex items-center gap-3 border-t border-border/50 px-3 py-2.5">
+        <div className="flex items-center gap-3 border-t border-border/35 px-3.5 py-3">
           <button
             type="button"
             onClick={handleApprove}
             disabled={isApproving}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+            className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1.5 text-xs font-semibold text-background shadow-sm transition-colors hover:bg-foreground/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-60"
           >
             <Check className="h-3.5 w-3.5 shrink-0" />
             {isApproving ? "Starting build…" : "Approve and build"}
@@ -318,53 +318,53 @@ function FeedFileItem({
     : `${isWrite ? "Created" : "Edited"} ${fileName}`
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border/60 bg-card">
+    <div className="overflow-hidden rounded-2xl border border-border/30 bg-[oklch(0.985_0_0/0.66)] shadow-sm dark:bg-[oklch(0.28_0_0/0.62)]">
       <button
         type="button"
         disabled={!hasDiff}
         onClick={() => hasDiff && setOpen((v) => !v)}
-        className="flex h-8 w-full items-center gap-2.5 px-3 text-left"
+        className="flex h-9 w-full items-center gap-2.5 px-3.5 text-left transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/35"
       >
-        <FileCode2 className="h-3.5 w-3.5 shrink-0 text-foreground/30" />
+        <FileCode2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
         {isPending || isRunning ? (
           <TextShimmer className="min-w-0 flex-1 text-xs font-semibold">
             {label}
           </TextShimmer>
         ) : (
-          <span className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground/70">{label}</span>
+          <span className="min-w-0 flex-1 truncate text-xs font-semibold text-muted-foreground">{label}</span>
         )}
         {stats && !isPending && !isRunning && (stats.added > 0 || stats.removed > 0) && (
           <span className="flex shrink-0 gap-1.5 font-mono text-[11px]">
-            {stats.added > 0 && <span className="text-emerald-600/80">+{stats.added}</span>}
-            {stats.removed > 0 && <span className="text-rose-500/80">-{stats.removed}</span>}
+            {stats.added > 0 && <span className="text-success-soft-foreground">+{stats.added}</span>}
+            {stats.removed > 0 && <span className="text-destructive/80">-{stats.removed}</span>}
           </span>
         )}
         {hasDiff && (
           <ChevronRight
             className={cn(
-              "h-3 w-3 shrink-0 text-muted-foreground/30 transition-transform duration-150",
+              "h-3 w-3 shrink-0 text-muted-foreground/50 transition-transform duration-150",
               open && "rotate-90",
             )}
           />
         )}
       </button>
       {open && hasDiff && (
-        <div className="max-h-64 overflow-auto border-t border-border/50 bg-background font-mono text-[11.5px] leading-[1.55] [scrollbar-width:thin]">
+        <div className="max-h-64 overflow-auto border-t border-border/35 bg-[oklch(0.97_0_0/0.72)] font-mono text-[11.5px] leading-[1.55] [scrollbar-width:thin] dark:bg-[oklch(0.2_0_0/0.72)]">
           {diffOps!.map((op, i) => (
             <div
               key={i}
               className={cn(
                 "flex min-w-max items-start px-3 py-px",
-                op.type === "add" && "bg-emerald-50/60 text-emerald-800",
-                op.type === "remove" && "bg-rose-50/60 text-rose-800",
+                op.type === "add" && "bg-success-soft/55 text-success-soft-foreground",
+                op.type === "remove" && "bg-destructive/10 text-destructive",
                 op.type === "context" && "text-muted-foreground",
               )}
             >
               <span
                 className={cn(
                   "w-4 shrink-0 select-none",
-                  op.type === "add" && "text-emerald-600",
-                  op.type === "remove" && "text-rose-500",
+                  op.type === "add" && "text-success-soft-foreground",
+                  op.type === "remove" && "text-destructive",
                   op.type === "context" && "text-muted-foreground/30",
                 )}
               >
@@ -531,8 +531,8 @@ function FeedItem({
               isError
                 ? "font-semibold text-destructive"
                 : isSkipped
-                  ? "font-semibold text-muted-foreground/40"
-                  : "font-semibold text-foreground/60",
+                  ? "font-semibold text-muted-foreground/60"
+                  : "font-semibold text-foreground/80",
             )}
           >
             {title}
@@ -542,7 +542,7 @@ function FeedItem({
           <p
             className={cn(
               "mt-1 text-[12.5px] leading-relaxed [overflow-wrap:anywhere]",
-              isError ? "text-destructive/80" : "text-muted-foreground/60",
+              isError ? "text-destructive/80" : "text-muted-foreground",
             )}
           >
             {secondaryLine}
@@ -603,7 +603,7 @@ function UserMessageBubble({
     return (
       <div className="flex justify-end pb-4">
         <div className="w-full max-w-[min(84%,42rem)]">
-          <div className="overflow-hidden rounded-[14px] bg-primary shadow-[0_1px_2px_var(--primary)]">
+          <div className="overflow-hidden rounded-2xl bg-foreground shadow-sm">
             <textarea
               ref={ref} value={editText} onChange={(e) => onEditChange(e.target.value)}
               rows={Math.max(2, editText.split("\n").length)}
@@ -611,12 +611,12 @@ function UserMessageBubble({
                 if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onEditSubmit(index) }
                 if (e.key === "Escape") onEditCancel()
               }}
-              className="w-full resize-none bg-transparent px-3.5 py-2.5 text-[13px] leading-relaxed text-primary-foreground outline-none placeholder:text-primary-foreground/50"
+              className="w-full resize-none bg-transparent px-3.5 py-2.5 text-[13px] leading-relaxed text-background outline-none placeholder:text-background/50"
             />
           </div>
           <div className="mt-1.5 flex items-center justify-end gap-2">
-            <button type="button" onClick={onEditCancel} className="rounded-md px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground">Cancel</button>
-            <button type="button" onClick={() => onEditSubmit(index)} className="rounded-md bg-primary px-2.5 py-1 text-[11px] font-medium text-primary-foreground transition-colors hover:bg-primary/90">Submit</button>
+            <button type="button" onClick={onEditCancel} className="rounded-md px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35">Cancel</button>
+            <button type="button" onClick={() => onEditSubmit(index)} className="rounded-full bg-foreground px-2.5 py-1 text-[11px] font-medium text-background shadow-sm transition-colors hover:bg-foreground/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40">Submit</button>
           </div>
         </div>
       </div>
@@ -627,8 +627,8 @@ function UserMessageBubble({
     <>
     <div className="group flex w-full justify-end pb-4">
       <div className="flex w-fit max-w-[min(84%,42rem)] min-w-0 flex-col items-end">
-        <div className="max-w-full rounded-[14px] bg-primary px-3.5 py-2.5 text-right shadow-[0_1px_2px_var(--primary)]">
-          <p className="whitespace-pre-wrap break-words text-left text-[14px] font-medium leading-relaxed text-primary-foreground [overflow-wrap:anywhere]">{content}</p>
+        <div className="max-w-full rounded-2xl bg-foreground px-3.5 py-2.5 text-right shadow-sm ring-1 ring-foreground/10">
+          <p className="whitespace-pre-wrap break-words text-left text-[14px] font-medium leading-relaxed text-background [overflow-wrap:anywhere]">{content}</p>
         </div>
 
         {/* Action row — copy, edit, restore */}
@@ -637,10 +637,10 @@ function UserMessageBubble({
             await navigator.clipboard?.writeText(content).catch(() => undefined)
             setCopied(true)
             window.setTimeout(() => setCopied(false), 1200)
-          }} aria-label="Copy message" className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground">
+          }} aria-label="Copy message" className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35">
             {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
           </button>
-          <button type="button" onClick={() => onEditStart(index, content)} aria-label="Edit message" className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground">
+          <button type="button" onClick={() => onEditStart(index, content)} aria-label="Edit message" className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35">
             <Pencil className="h-3.5 w-3.5" />
           </button>
           {showRestoreButton && restoreState !== "restoring" && (
@@ -648,7 +648,7 @@ function UserMessageBubble({
               type="button"
               onClick={() => { setRestoreError(null); setRestoreState("confirming") }}
               aria-label="Restore project to this checkpoint"
-              className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
+              className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
             >
               <RotateCcw className="h-3.5 w-3.5" />
             </button>
@@ -673,7 +673,7 @@ function UserMessageBubble({
     >
       <DialogContent showCloseButton={restoreState !== "restoring"} className="max-w-sm">
         <DialogHeader>
-          <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+          <div className="lotus-glass-inset mb-1 flex h-10 w-10 items-center justify-center rounded-full">
             <RotateCcw className="h-4 w-4 text-foreground" />
           </div>
           <DialogTitle>Restore to this point?</DialogTitle>
@@ -689,7 +689,7 @@ function UserMessageBubble({
             type="button"
             disabled={restoreState === "restoring"}
             onClick={() => { setRestoreState("idle"); setRestoreError(null) }}
-            className="inline-flex h-9 items-center justify-center rounded-lg border border-border bg-background px-4 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+            className="lotus-glass-control inline-flex h-9 items-center justify-center rounded-full border px-4 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
           >
             Cancel
           </button>
@@ -697,7 +697,7 @@ function UserMessageBubble({
             type="button"
             disabled={restoreState === "restoring"}
             onClick={handleConfirmRestore}
-            className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-70"
+            className="inline-flex h-9 items-center justify-center gap-2 rounded-full bg-foreground px-4 text-[13px] font-semibold text-background transition-colors hover:bg-foreground/85 disabled:opacity-70"
           >
             {restoreState === "restoring" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             {restoreState === "restoring" ? "Restoring…" : "Restore"}

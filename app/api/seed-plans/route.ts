@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { adminDb } from '@/lib/firebase-admin'
+import crypto from 'crypto'
 
 const DEFAULT_PLANS = {
   free: { id: 'free', name: 'Hobby', tokensPerMonth: 10000, features: ['10,000 credits/month', 'Single personal workspace', 'Public projects', 'Community support'] },
@@ -18,7 +19,11 @@ export async function POST(req: Request) {
   const secret = req.headers.get('x-seed-secret')
   const expected = process.env.SEED_PLANS_SECRET
   if (!expected) return NextResponse.json({ error: 'Server not configured' }, { status: 500 })
-  if (secret !== expected) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const secretBuffer = Buffer.from(secret || "")
+  const expectedBuffer = Buffer.from(expected)
+  if (secretBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(secretBuffer, expectedBuffer)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
   try {
     const batch = adminDb.batch()

@@ -11,7 +11,7 @@ const AUTH_TAG_LEN = 16
 const KEY_LEN = 32
 
 function getKey(): Buffer {
-  const raw = process.env.ENV_ENCRYPTION_KEY
+  const raw = process.env.ENV_ENCRYPTION_KEY || process.env.ENCRYPTER_KEY
   if (!raw || raw.length < 32) {
     throw new Error("ENV_ENCRYPTION_KEY must be set and at least 32 chars (32-byte key, base64 or hex)")
   }

@@ -10,12 +10,6 @@ function requiredEnv(name: string): string {
 }
 
 function getServiceAccountFromEnv() {
-  console.log("env check", {
-    hasProjectId: !!process.env.FIREBASE_PROJECT_ID,
-    hasClientEmail: !!process.env.FIREBASE_CLIENT_EMAIL,
-    hasPrivateKey: !!process.env.FIREBASE_PRIVATE_KEY,
-  })
-
   const projectId = requiredEnv("FIREBASE_PROJECT_ID")
   const clientEmail = requiredEnv("FIREBASE_CLIENT_EMAIL")
   const privateKeyRaw = requiredEnv("FIREBASE_PRIVATE_KEY")

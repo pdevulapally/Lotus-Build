@@ -1,11 +1,16 @@
 import { NextRequest } from "next/server"
 import Stripe from "stripe"
 import { adminAuth, adminDb } from "@/lib/firebase-admin"
+import { getAppBaseUrl } from "@/lib/security/url"
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
+function getStripeClient() {
+  const secretKey = process.env.STRIPE_SECRET_KEY
+  return secretKey ? new Stripe(secretKey) : null
+}
 
 export async function POST(req: NextRequest) {
-  if (!process.env.STRIPE_SECRET_KEY) {
+  const stripe = getStripeClient()
+  if (!stripe) {
     return Response.json({ error: "Stripe is not configured" }, { status: 500 })
   }
 
@@ -31,7 +36,7 @@ export async function POST(req: NextRequest) {
     const sub = await stripe.subscriptions.retrieve(data.stripeSubscriptionId)
     const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer.id
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000"
+    const baseUrl = getAppBaseUrl(new URL(req.url).origin)
     
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: customerId,
