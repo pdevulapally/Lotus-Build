@@ -137,7 +137,20 @@ async function githubRequest(
   path: string,
   body?: unknown
 ): Promise<{ ok: boolean; status: number; json: () => Promise<any>; text: () => Promise<string> }> {
-  const res = await fetch(`${GITHUB_API}${path}`, {
+  if (!path.startsWith("/")) {
+    throw new Error("Invalid GitHub API path.")
+  }
+  if (path.includes("://") || path.includes("\\") || path.includes("..")) {
+    throw new Error("Unsafe GitHub API path.")
+  }
+
+  const baseUrl = new URL(GITHUB_API)
+  const url = new URL(path, baseUrl)
+  if (url.origin !== baseUrl.origin) {
+    throw new Error("GitHub API origin mismatch.")
+  }
+
+  const res = await fetch(url.toString(), {
     method,
     headers: {
       Authorization: `Bearer ${token}`,
@@ -338,9 +351,13 @@ export async function POST(req: Request) {
     }
 
     const [owner, repoName] = repoFullName.split("/")
-    if (!owner || !repoName) {
+    const repoSegmentRegex = /^[A-Za-z0-9._-]+$/
+    if (!owner || !repoName || !repoSegmentRegex.test(owner) || !repoSegmentRegex.test(repoName)) {
       return NextResponse.json({ error: "Invalid GitHub repository on project." }, { status: 400 })
     }
+
+    const encodedOwner = encodeURIComponent(owner)
+    const encodedRepoName = encodeURIComponent(repoName)
 
     const installationToken = await getInstallationToken(installationId)
 
@@ -350,7 +367,11 @@ export async function POST(req: Request) {
       const encodedPath = encodeURIComponent(path)
 
       let sha: string | undefined
-      const getRes = await githubRequest(installationToken, "GET", `/repos/${owner}/${repoName}/contents/${encodedPath}`)
+      const getRes = await githubRequest(
+        installationToken,
+        "GET",
+        `/repos/${encodedOwner}/${encodedRepoName}/contents/${encodedPath}`
+      )
       if (getRes.ok) {
         const getJson = await getRes.json()
         sha = getJson?.sha
