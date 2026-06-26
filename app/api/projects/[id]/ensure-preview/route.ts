@@ -8,6 +8,16 @@ export const dynamic = "force-dynamic"
 
 type ProjectFile = { path: string; content: string }
 
+function getTrustedAppOrigin(): string {
+  const configured = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL
+  if (!configured) throw new Error("Server is missing APP_URL configuration")
+  const parsed = new URL(configured)
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error("APP_URL must use http or https")
+  }
+  return parsed.origin
+}
+
 async function isPreviewResponsive(previewUrl: string): Promise<boolean> {
   const tries = 3
   for (let i = 0; i < tries; i++) {
@@ -103,7 +113,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       return NextResponse.json({ error: "Project has no files to preview yet." }, { status: 400 })
     }
 
-    const origin = new URL(req.url).origin
+    const origin = getTrustedAppOrigin()
     const auth = req.headers.get("authorization") || ""
 
     // Fast path: try to keep existing runtime alive when possible.
