@@ -2502,15 +2502,37 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
       return NextResponse.json({ ok: false, message: "Run no longer active" })
     }
 
-    const requestOrigin = new URL(req.url).origin
-    const baseUrl = process.env.BASE_URL || process.env.NEXTAUTH_URL || requestOrigin
+    const configuredBaseUrl = process.env.BASE_URL || process.env.NEXTAUTH_URL
+    if (!configuredBaseUrl) {
+      return NextResponse.json(
+        { ok: false, message: "Server base URL is not configured" },
+        { status: 500 },
+      )
+    }
+
+    let trustedBaseUrl: string
+    try {
+      const parsedBaseUrl = new URL(configuredBaseUrl)
+      if (parsedBaseUrl.protocol !== "http:" && parsedBaseUrl.protocol !== "https:") {
+        return NextResponse.json(
+          { ok: false, message: "Server base URL protocol is invalid" },
+          { status: 500 },
+        )
+      }
+      trustedBaseUrl = parsedBaseUrl.origin
+    } catch {
+      return NextResponse.json(
+        { ok: false, message: "Server base URL is invalid" },
+        { status: 500 },
+      )
+    }
 
     // Fire-and-forget: pre-create a sandbox and warm its npm cache while generation runs.
     // By the time generation finishes (~15-30s), most packages are cached → sandbox install
     // takes 2-5s instead of 25s.
     let prewarmSandboxId: string | null = null
     if (generationDecision.shouldGenerate) {
-      fetch(`${baseUrl}/api/sandbox/prewarm`, {
+      fetch(new URL("/api/sandbox/prewarm", trustedBaseUrl).toString(), {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: authHeader },
       })
@@ -3158,7 +3180,7 @@ Generation result: ${JSON.stringify(genData)}`,
             }
           }
         } else {
-        const sandboxRes = await fetch(`${baseUrl}/api/sandbox`, {
+        const sandboxRes = await fetch(new URL("/api/sandbox", trustedBaseUrl).toString(), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
