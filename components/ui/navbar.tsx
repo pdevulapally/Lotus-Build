@@ -78,33 +78,54 @@ export function Navbar({ variant = "default" }: NavbarProps) {
     <header
       className={cn(
         variant === "hero"
-          ? "relative z-10 w-full"
+          ? "relative z-10 flex w-full justify-center"
           : "fixed left-0 right-0 top-6 z-40 px-4 sm:top-7"
       )}
     >
       <nav
         className={cn(
-          "relative mx-auto flex h-12 w-full max-w-5xl items-center justify-between px-4 sm:px-6 md:grid md:grid-cols-[1fr_auto_1fr]",
+          "relative mx-auto flex items-center justify-between",
           variant === "hero"
-            ? "rounded-2xl border border-white/50 bg-white/70 shadow-sm backdrop-blur-md"
-            : "rounded-full border border-border bg-card/90 shadow-[0_18px_60px_-42px_var(--primary)] backdrop-blur-xl"
+            ? "h-12 w-auto gap-4 rounded-b-2xl bg-foreground px-4 py-2 text-background shadow-[0_18px_60px_-42px_var(--foreground)] md:gap-8 md:rounded-b-3xl md:px-8"
+            : "h-12 w-full max-w-5xl rounded-full border border-border bg-card/90 px-4 shadow-[0_18px_60px_-42px_var(--primary)] backdrop-blur-xl sm:px-6 md:grid md:grid-cols-[1fr_auto_1fr]"
         )}
       >
         {/* Left: Logo */}
-        <Link href="/" className="group flex shrink-0 items-center gap-2 md:justify-self-start">
+        <Link
+          href="/"
+          className={cn(
+            "group flex shrink-0 items-center gap-2",
+            variant === "hero" ? "hidden lg:flex" : "md:justify-self-start"
+          )}
+        >
           <LotusLogo size={28} />
-          <span className="font-display text-[17px] font-semibold leading-none tracking-[-0.04em] text-foreground">
+          <span
+            className={cn(
+              "font-display text-[17px] font-semibold leading-none tracking-[-0.04em]",
+              variant === "hero" ? "text-background" : "text-foreground"
+            )}
+          >
             Lotus Build
           </span>
         </Link>
 
         {/* Center Nav Links (desktop/tablet) */}
-        <div className="hidden md:flex items-center justify-center gap-1 justify-self-center">
+        <div
+          className={cn(
+            "hidden items-center justify-center justify-self-center md:flex",
+            variant === "hero" ? "gap-3 sm:gap-6 md:gap-10 lg:gap-12" : "gap-1"
+          )}
+        >
           {navLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className="px-4 py-1.5 text-sm rounded-full transition-colors text-muted-foreground hover:text-foreground"
+              className={cn(
+                "rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                variant === "hero"
+                  ? "px-0 py-1.5 text-xs text-background/90 hover:text-background md:text-sm"
+                  : "px-4 py-1.5 text-sm text-muted-foreground hover:text-foreground"
+              )}
             >
               {link.label}
             </Link>
@@ -112,7 +133,12 @@ export function Navbar({ variant = "default" }: NavbarProps) {
         </div>
 
         {/* Right Side */}
-        <div className="ml-auto flex items-center gap-2 md:ml-0 md:justify-self-end">
+        <div
+          className={cn(
+            "ml-auto flex items-center gap-2 md:ml-0",
+            variant === "hero" ? "md:justify-self-auto" : "md:justify-self-end"
+          )}
+        >
           {/* User/profile + auth (all breakpoints) */}
           {!mounted || loading ? (
             <div className="w-8 h-8 rounded-full bg-muted animate-pulse" />
@@ -163,7 +189,7 @@ export function Navbar({ variant = "default" }: NavbarProps) {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-soft text-accent-soft-foreground">
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-foreground">
                             <Leaf className="h-3.5 w-3.5" />
                           </span>
                           <span className="truncate text-[13px] font-medium text-foreground capitalize">{userData.planName} Plan</span>
@@ -174,7 +200,7 @@ export function Navbar({ variant = "default" }: NavbarProps) {
                       </div>
                       <Link
                         href="/pricing"
-                        className="shrink-0 rounded-full px-2.5 py-1 text-[12px] font-medium text-primary transition-colors hover:bg-accent-soft hover:text-accent-soft-foreground"
+                        className="shrink-0 rounded-full px-2.5 py-1 text-[12px] font-medium text-foreground transition-colors hover:bg-muted"
                         onClick={() => setIsOpen(false)}
                       >
                         Upgrade
@@ -192,7 +218,7 @@ export function Navbar({ variant = "default" }: NavbarProps) {
                         </span>
                       </div>
                       <div className="h-1.5 overflow-hidden rounded-full bg-border">
-                        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${Math.min(tokenPercentage, 100)}%` }} />
+                        <div className="h-full rounded-full bg-foreground transition-all" style={{ width: `${Math.min(tokenPercentage, 100)}%` }} />
                       </div>
                     </div>
                   </div>
@@ -242,7 +268,7 @@ export function Navbar({ variant = "default" }: NavbarProps) {
             <Link href="/login">
               <Button
                 size="sm"
-                className="px-4 py-1.5 text-sm rounded-full bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
+                className="rounded-full bg-foreground px-4 py-1.5 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
               >
                 Get Started
               </Button>

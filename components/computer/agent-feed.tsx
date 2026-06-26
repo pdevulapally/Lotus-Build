@@ -187,9 +187,9 @@ function SupabaseQuestionCard({ onSetup, onDecline }: { onSetup: () => void; onD
   if (dismissed) return null
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/30 bg-[oklch(0.985_0_0/0.66)] shadow-sm dark:bg-[oklch(0.28_0_0/0.62)]">
+    <div className="overflow-hidden rounded-2xl border border-border/55 bg-card/78 shadow-sm backdrop-blur-xl">
       <div className="flex items-start gap-3 px-4 py-3.5">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-border/30 bg-[oklch(0.94_0_0/0.62)] dark:bg-[oklch(0.22_0_0/0.72)]">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-border/55 bg-muted/70">
           <Database className="h-4 w-4 text-foreground/70" />
         </span>
         <div className="min-w-0 flex-1">
@@ -237,7 +237,7 @@ function PlanTool({ event, onApprovePlan }: { event: ComputerTimelineEvent; onAp
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/30 bg-[oklch(0.985_0_0/0.66)] shadow-sm dark:bg-[oklch(0.28_0_0/0.62)]">
+    <div className="overflow-hidden rounded-2xl border border-border/55 bg-card/78 shadow-sm backdrop-blur-xl">
       <div className="flex items-center justify-between gap-2 border-b border-border/35 px-3.5 py-2.5">
         <span className="text-xs font-semibold text-muted-foreground">Plan drafted</span>
         {summary && (
@@ -318,7 +318,7 @@ function FeedFileItem({
     : `${isWrite ? "Created" : "Edited"} ${fileName}`
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/30 bg-[oklch(0.985_0_0/0.66)] shadow-sm dark:bg-[oklch(0.28_0_0/0.62)]">
+    <div className="overflow-hidden rounded-2xl border border-border/55 bg-card/78 shadow-sm backdrop-blur-xl">
       <button
         type="button"
         disabled={!hasDiff}
@@ -349,7 +349,7 @@ function FeedFileItem({
         )}
       </button>
       {open && hasDiff && (
-        <div className="max-h-64 overflow-auto border-t border-border/35 bg-[oklch(0.97_0_0/0.72)] font-mono text-[11.5px] leading-[1.55] [scrollbar-width:thin] dark:bg-[oklch(0.2_0_0/0.72)]">
+        <div className="max-h-64 overflow-auto border-t border-border/35 bg-muted/55 font-mono text-[11.5px] leading-[1.55] [scrollbar-width:thin]">
           {diffOps!.map((op, i) => (
             <div
               key={i}

@@ -13,10 +13,13 @@ import { AnimatedAIInput } from "@/components/ui/animated-ai-input"
 import { Navbar } from "@/components/ui/navbar"
 
 const HERO_VIDEO_URL =
-  "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260602_150901_c45b90ec-18d7-42ff-90e2-b95d7109e330.mp4"
+  "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260405_170732_8a9ccda6-5cff-4628-b164-059c500a2b41.mp4"
 
 const HERO_VIDEO_POSTER =
   "https://images.unsplash.com/photo-1557683316-973673baf926?w=1600&q=60"
+
+const HERO_NOISE_BACKGROUND =
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E\")"
 
 export default function Home() {
   return (
@@ -25,8 +28,8 @@ export default function Home() {
 
       <main className="relative min-h-screen overflow-x-clip bg-background text-foreground">
         {/* ── HERO ──────────────────────────────────────────────────────────── */}
-        <section className="min-h-screen w-full bg-background p-3 font-sans sm:p-4">
-          <div className="relative h-[calc(100vh-24px)] w-full overflow-hidden rounded-2xl bg-secondary sm:h-[calc(100vh-32px)] sm:rounded-3xl">
+        <section className="min-h-screen w-full bg-[oklch(0.18_0.012_60)] font-sans">
+          <div className="relative h-screen w-full overflow-hidden bg-foreground">
             <video
               className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[center_50%]"
               src={HERO_VIDEO_URL}
@@ -42,19 +45,27 @@ export default function Home() {
             />
 
             <div
-              className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/25 via-transparent to-black/40"
+              className="pointer-events-none absolute inset-0 opacity-70 mix-blend-overlay"
+              style={{ backgroundImage: HERO_NOISE_BACKGROUND }}
               aria-hidden
             />
 
-            <div className="relative z-10 flex h-full min-h-0 flex-col p-4 sm:p-6 md:p-8">
-              <div className="mx-auto w-full max-w-3xl shrink-0 lg:max-w-4xl">
+            <div
+              className="pointer-events-none absolute inset-0 bg-gradient-to-b from-foreground/30 via-transparent to-foreground/60"
+              aria-hidden
+            />
+
+            <div className="absolute left-1/2 top-0 z-20 w-full max-w-4xl -translate-x-1/2 px-4 sm:px-6">
+              <div className="mx-auto w-full">
                 <Navbar variant="hero" />
               </div>
+            </div>
 
-              <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden py-4 sm:py-5 md:py-6 lg:py-8">
+            <div className="relative z-10 flex h-full min-h-0 flex-col p-4 sm:p-6 md:p-8">
+              <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden pt-14 sm:pt-16 md:pt-20">
                 <div className="w-full max-w-3xl text-center lg:max-w-4xl">
                   <h1
-                    className="mx-auto max-w-4xl text-white drop-shadow-[0_2px_16px_rgba(0,0,0,0.45)]"
+                    className="mx-auto max-w-4xl text-background drop-shadow-[0_2px_16px_rgba(0,0,0,0.45)]"
                     style={{
                       fontSize: "clamp(28px, 5.5vw, 72px)",
                       lineHeight: 1.08,
@@ -75,7 +86,7 @@ export default function Home() {
                   </h1>
 
                   <p
-                    className="mx-auto mt-4 max-w-xl px-2 text-white/90 drop-shadow-[0_1px_8px_rgba(0,0,0,0.45)] sm:mt-5 sm:max-w-2xl md:mt-6"
+                    className="mx-auto mt-4 max-w-xl px-2 text-background/95 drop-shadow-[0_1px_8px_rgba(0,0,0,0.45)] sm:mt-5 sm:max-w-2xl md:mt-6"
                     style={{ fontSize: "clamp(13px, 2.5vw, 16px)" }}
                   >
                     Describe what you want to build. Lotus turns it into a live preview, production-ready code, and a workspace you can keep shaping.
@@ -83,7 +94,8 @@ export default function Home() {
 
                   <div className="mx-auto mt-6 w-full sm:mt-8 md:mt-9 lg:mt-10">
                     <AnimatedAIInput
-                      footerHintsClassName="text-white/65 [&_kbd]:border-white/25 [&_kbd]:bg-white/10 [&_kbd]:text-white/85"
+                      wrapperClassName="border-background/20 bg-background/86 shadow-[0_28px_90px_-56px_rgba(0,0,0,0.95)] backdrop-blur-2xl supports-[backdrop-filter]:bg-background/72 [&_textarea]:min-h-[76px] [&_.inline-flex.rounded-lg.bg-background]:rounded-full [&_.inline-flex.rounded-lg.bg-background]:bg-foreground/10 [&_.inline-flex.rounded-lg.bg-background]:ring-background/20 [&_.inline-flex.rounded-lg.bg-background_button]:rounded-full [&_.inline-flex.rounded-lg.bg-background_button.bg-foreground]:bg-foreground [&_.inline-flex.rounded-lg.bg-background_button.text-muted-foreground]:text-foreground/75 [&_button]:rounded-full [&_button:hover]:bg-foreground/10 [&_button:hover]:text-foreground [&_button.bg-muted]:bg-foreground/10 [&_button.bg-muted]:text-foreground/65 [&_button.bg-primary]:bg-foreground [&_button.bg-primary]:text-background [&_button.bg-primary:hover]:bg-foreground/90"
+                      footerHintsClassName="text-background/80 [&_kbd]:border-background/30 [&_kbd]:bg-background/10 [&_kbd]:text-background/95"
                     />
                   </div>
                 </div>

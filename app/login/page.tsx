@@ -6,7 +6,6 @@ import Link from "next/link"
 import { LotusLogo } from "@/components/ui/lotus-logo"
 import { AuthWorkspaceDemo } from "@/components/auth/auth-workspace-demo"
 import { motion } from "framer-motion"
-import { MeshGradient } from "@paper-design/shaders-react"
 import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,8 +18,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Loader2, Mail } from "lucide-react"
-
-const LOGIN_MESH_COLORS = ["#F2542C", "#F0EBE3", "#F9F7F3"]
 
 function GoogleIcon() {
   return (
@@ -239,7 +236,7 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="h-11 w-full rounded-lg text-sm font-semibold"
+                className="h-11 w-full rounded-full bg-foreground text-sm font-semibold text-background hover:bg-foreground/90"
               >
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Sign in"}
               </Button>
@@ -269,30 +266,25 @@ export default function LoginPage() {
       </div>
 
       {/* Visual column */}
-      <div className="relative hidden overflow-hidden md:flex">
-        <MeshGradient
-          className="absolute inset-0 h-full w-full"
-          colors={LOGIN_MESH_COLORS}
-          distortion={0.28}
-          fit="cover"
-          grainMixer={0.06}
-          grainOverlay={0.03}
-          maxPixelCount={1200000}
-          rotation={42}
-          scale={1.12}
-          speed={0.1}
-          swirl={0.14}
+      <div className="relative hidden overflow-hidden bg-foreground md:flex">
+        <div
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_18%,var(--card)_0,transparent_30%),radial-gradient(circle_at_78%_72%,var(--secondary)_0,transparent_34%)] opacity-18"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,transparent_0%,var(--background)_145%)] opacity-40"
+          aria-hidden
         />
 
-        <div className="relative flex w-full flex-col justify-between p-8 text-primary-foreground lg:p-10">
+        <div className="relative flex w-full flex-col justify-between p-8 text-background lg:p-10">
           <div>
-            <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-primary-foreground/60">
+            <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-background/60">
               Your workspace
             </p>
             <h2 className="mt-5 max-w-md text-3xl font-medium leading-tight tracking-[-0.04em] lg:text-4xl">
               Return to the build that is already in motion.
             </h2>
-            <p className="mt-4 max-w-sm text-sm leading-6 text-primary-foreground/75">
+            <p className="mt-4 max-w-sm text-sm leading-6 text-background/75">
               Sign in and your prompt thread, preview, and project state are waiting — without dashboard noise.
             </p>
           </div>
@@ -303,7 +295,7 @@ export default function LoginPage() {
             workingLabel="Refining hero typography and spacing…"
           />
 
-          <p className="max-w-sm text-xs leading-5 text-primary-foreground/60">
+          <p className="max-w-sm text-xs leading-5 text-background/60">
             Built to feel closer to a creative canvas than an admin panel.
           </p>
         </div>

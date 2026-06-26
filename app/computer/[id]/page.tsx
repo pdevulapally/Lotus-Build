@@ -29,7 +29,7 @@ import { useAuth } from "@/contexts/auth-context"
 import { db } from "@/lib/firebase"
 import { DeployTerminal } from "@/components/project/deploy-terminal"
 import { AgentFeed } from "@/components/computer/agent-feed"
-import { ComputerTopBar } from "@/components/computer/computer-top-bar"
+import { ComputerTopBar, type ComputerTheme } from "@/components/computer/computer-top-bar"
 import { VersionHistoryPanel } from "@/components/computer/version-history-panel"
 import { deriveComputerSessionProgress } from "@/components/computer/session-progress-model"
 import {
@@ -144,6 +144,7 @@ function normalizeAgentRuntime(value: unknown): ComputerAgentRuntimeCheckpoint |
 }
 
 const STOPPED_COMPUTER_SESSIONS_KEY = "lotus.stoppedComputerSessions"
+const COMPUTER_THEME_KEY = "lotus.computerTheme"
 
 function readStoppedComputerSessions(): string[] {
   if (typeof window === "undefined") return []
@@ -488,7 +489,7 @@ function IntegrationCard({
           {icon}
         </div>
         {connected && (
-          <span className="rounded-full bg-emerald-500/12 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+          <span className="rounded-full bg-success-soft px-2 py-0.5 text-[10px] font-semibold text-success-soft-foreground">
             Connected
           </span>
         )}
@@ -555,7 +556,7 @@ function IntegrationsButton({
   const connectedIntegrations = [
     hasGitHub && {
       key: "github",
-      icon: <GitBranch className="h-5 w-5 text-primary-foreground" />,
+      icon: <GitBranch className="h-5 w-5 text-background" />,
       iconBg: "bg-foreground",
       name: "GitHub",
       category: "Version Control",
@@ -580,7 +581,7 @@ function IntegrationsButton({
   const availableIntegrations = [
     !hasGitHub && {
       key: "github",
-      icon: <GitBranch className="h-5 w-5 text-primary-foreground" />,
+      icon: <GitBranch className="h-5 w-5 text-background" />,
       iconBg: "bg-foreground",
       name: "GitHub",
       category: "Version Control",
@@ -860,7 +861,7 @@ function MobileDeploySheet({
   const hasStoredDeployments = Boolean(deploymentLinks?.netlify?.siteUrl || deploymentLinks?.vercel?.siteUrl)
 
   return (
-    <div className="lotus-glass-strong fixed inset-x-3 bottom-[5.6rem] z-50 max-h-[min(72dvh,36rem)] overflow-y-auto rounded-[1.45rem] border border-border p-4 [scrollbar-width:thin] sm:hidden">
+    <div className="lotus-glass-strong fixed inset-x-3 bottom-[5.6rem] z-50 max-h-[min(72dvh,36rem)] overflow-y-auto rounded-[1.45rem] border border-border/60 p-4 [scrollbar-width:thin] sm:hidden">
       {/* Header */}
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
@@ -1021,6 +1022,7 @@ export default function ComputerPage() {
   const [runtimeError,      setRuntimeError]      = useState<{ message: string; stack: string } | null>(null)
   const [fixingError,       setFixingError]       = useState(false)
   const [stoppedSessionIds, setStoppedSessionIds] = useState<Set<string>>(() => new Set(readStoppedComputerSessions()))
+  const [computerTheme,     setComputerTheme]     = useState<ComputerTheme>("dark")
   const hasStartedRef = useRef(false)
   const runAbortRef = useRef<AbortController | null>(null)
   const previousPreviewUrlRef = useRef<string | null | undefined>(undefined)
@@ -1028,6 +1030,29 @@ export default function ComputerPage() {
   const prevSessionStatusRef = useRef<ComputerSessionStatus | null>(null)
   const prevMobileSyncStatusRef = useRef<ComputerSessionStatus | null>(null)
   const lastCodeEventCountRef = useRef(0)
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    const savedTheme = window.localStorage.getItem(COMPUTER_THEME_KEY)
+    if (savedTheme === "light" || savedTheme === "dark") {
+      setComputerTheme(savedTheme)
+      return
+    }
+
+    const prefersLight = window.matchMedia?.("(prefers-color-scheme: light)").matches ?? false
+    setComputerTheme(prefersLight ? "light" : "dark")
+  }, [])
+
+  const handleThemeToggle = useCallback(() => {
+    setComputerTheme((current) => {
+      const next = current === "dark" ? "light" : "dark"
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(COMPUTER_THEME_KEY, next)
+      }
+      return next
+    })
+  }, [])
 
   // ── Firestore listener (unchanged) ────────────────────────────────────────
   useEffect(() => {
@@ -1993,10 +2018,14 @@ export default function ComputerPage() {
   const planLabel = userData?.planId && userData.planId !== "free" ? userData.planId : "Free"
 
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-[oklch(0.955_0_0)] text-foreground dark:bg-[oklch(0.18_0_0)]">
-
+    <div
+      className={cn(
+        "relative flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground",
+        computerTheme === "dark" && "dark bg-[oklch(0.18_0_0)]",
+      )}
+    >
       {/* ── App shell ── */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">
 
       <ComputerTopBar
         session={session}
@@ -2061,6 +2090,8 @@ export default function ComputerPage() {
         hasResearch={hasResearch}
         onTabChange={setActiveTab}
         contextUsage={agentContextUsage}
+        theme={computerTheme}
+        onThemeToggle={handleThemeToggle}
       />
 
       {(deployOpen || historyOpen) && (
@@ -2128,7 +2159,7 @@ export default function ComputerPage() {
 
         {/* ── Chat panel ── */}
         <div className={cn(
-          "flex w-full shrink-0 flex-col overflow-hidden bg-[oklch(0.955_0_0)] transition-[width] duration-200 ease-in-out dark:bg-[oklch(0.18_0_0)]",
+          "flex w-full shrink-0 flex-col overflow-hidden border-r border-foreground/10 bg-[color-mix(in_oklch,var(--background)_76%,transparent)] backdrop-blur-2xl transition-[width] duration-200 ease-in-out",
           desktopChatCollapsed
             ? "sm:w-0 sm:overflow-hidden"
             : "sm:w-[32%] md:w-[31%] lg:w-[340px] xl:w-[370px] 2xl:w-[400px]",
@@ -2162,7 +2193,7 @@ export default function ComputerPage() {
           {/* Composer */}
           <div className="shrink-0 px-3 pt-2 [padding-bottom:max(4.5rem,calc(env(safe-area-inset-bottom)+3.25rem))] sm:pb-3 lg:px-4">
             {isBuildTokenBlocked && (
-              <div className="mb-3 rounded-xl border border-border bg-muted px-3 py-2.5 shadow-sm">
+              <div className="lotus-glass-panel mb-3 rounded-xl border border-border/55 px-3 py-2.5 shadow-sm">
                 <p className="text-sm font-medium text-foreground">You have used all credits for this cycle.</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   Upgrade your plan to continue running the computer agent.{" "}
@@ -2171,7 +2202,7 @@ export default function ComputerPage() {
               </div>
             )}
             {runError && !isBuildTokenBlocked && (
-              <div className="mb-3 rounded-xl border border-destructive/20 bg-destructive/10 px-3 py-2.5 shadow-sm">
+              <div className="lotus-glass-panel mb-3 rounded-xl border border-destructive/20 px-3 py-2.5 shadow-sm">
                 <p className="text-[11.5px] text-destructive">{getRunErrorMessage(runError)}</p>
               </div>
             )}
@@ -2187,12 +2218,12 @@ export default function ComputerPage() {
 
         {/* ── Workspace panel ── */}
         <div className={cn(
-          "lotus-glass-strong m-2 flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border/50",
+          "lotus-glass-strong m-2 flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border/50 shadow-[0_28px_90px_-64px_rgba(0,0,0,0.9)]",
           mobileView !== "workspace" && "hidden sm:flex"
         )}>
           {/* Workspace content — fills panel edge to edge */}
           <div className="relative min-h-0 flex-1">
-            <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[oklch(0.955_0_0)] dark:bg-[oklch(0.18_0_0)]">
+            <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[color-mix(in_oklch,var(--background)_88%,transparent)]">
               <WorkspaceTabBar
                 activeTab={activeTab}
                 previewUrl={session.previewUrl}
@@ -2251,7 +2282,7 @@ export default function ComputerPage() {
       {/* ── Mobile view switcher ── */}
       <nav
         aria-label="Switch between chat and preview"
-        className="lotus-glass-strong absolute inset-x-3 z-20 mx-auto max-w-xs rounded-xl border border-border/50 px-1 py-1 sm:hidden"
+        className="lotus-glass-strong absolute inset-x-3 z-20 mx-auto max-w-xs rounded-xl border border-border/50 px-1 py-1 shadow-[0_22px_70px_-42px_rgba(0,0,0,0.9)] sm:hidden"
         style={{ bottom: "max(0.875rem, env(safe-area-inset-bottom))" }}
       >
         <div className="grid grid-cols-2 gap-1">

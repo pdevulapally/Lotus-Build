@@ -90,7 +90,7 @@ function Toggle({
       onClick={() => onChange?.(!checked)}
       className={cn(
         "relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-        checked ? "bg-primary" : "bg-muted",
+        checked ? "bg-foreground" : "bg-muted",
         disabled && "cursor-not-allowed opacity-50"
       )}
     >
@@ -122,7 +122,7 @@ function CategoryRow({
     <div className="rounded-xl border border-border bg-card overflow-hidden">
       <div className="flex items-center gap-3 px-4 py-3.5">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
-          <Icon className="h-4 w-4 text-primary" />
+          <Icon className="h-4 w-4 text-foreground" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
@@ -193,7 +193,7 @@ function PreferencesModal({
     <div className="fixed inset-0 z-[200] flex items-end justify-center sm:items-center p-4">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-primary/40 backdrop-blur-sm"
+        className="absolute inset-0 bg-foreground/40 backdrop-blur-sm"
         onClick={onClose}
         aria-hidden
       />
@@ -208,8 +208,8 @@ function PreferencesModal({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary">
-              <Cookie className="h-4 w-4 text-primary-foreground" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-foreground">
+              <Cookie className="h-4 w-4 text-background" />
             </div>
             <div>
               <p id="cookie-prefs-title" className="text-sm font-semibold text-foreground">
@@ -265,7 +265,7 @@ function PreferencesModal({
             <button
               type="button"
               onClick={() => onSave(analytics, functional)}
-              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background transition-colors hover:bg-foreground/90 sm:flex-none"
             >
               <Check className="h-3.5 w-3.5" />
               Save preferences
@@ -319,8 +319,8 @@ export function CookieBanner() {
           <div className="px-5 py-4">
             <div className="flex items-start gap-3.5">
               {/* Icon */}
-              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary">
-                <Cookie className="h-4.5 w-4.5 text-primary-foreground" style={{ width: 18, height: 18 }} />
+              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-foreground">
+                <Cookie className="h-4.5 w-4.5 text-background" style={{ width: 18, height: 18 }} />
               </div>
 
               {/* Text */}
@@ -346,7 +346,7 @@ export function CookieBanner() {
               <button
                 type="button"
                 onClick={handleAcceptAll}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 active:scale-[0.98]"
+                className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background transition-colors hover:bg-foreground/90 active:scale-[0.98]"
               >
                 <Check className="h-3.5 w-3.5" />
                 Accept all

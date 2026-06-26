@@ -4,7 +4,6 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { LotusLogo } from "@/components/ui/lotus-logo"
-import { ShaderGradientBackground } from "@/components/ui/shader-gradient-background"
 import { deleteDoc, doc } from "firebase/firestore"
 import {
   Settings,
@@ -63,13 +62,15 @@ type ProjectSummary = {
 /* ─── helpers ────────────────────────────────────────────────────────────── */
 
 const sidebarActionClass =
-  "inline-flex items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+  "inline-flex items-center justify-center rounded-lg text-foreground/55 transition-colors hover:bg-foreground/10 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-foreground/25"
 
 
 const accountMenuItemClass =
-  "h-10 cursor-pointer rounded-lg px-3 text-[13px] text-foreground focus:bg-muted focus:text-foreground"
+  "h-10 cursor-pointer rounded-xl px-3 text-[13px] text-foreground focus:bg-muted focus:text-foreground"
 
 const RECENT_BUILDS_LIMIT = 6
+const PROJECTS_BACKGROUND_VIDEO_SRC =
+  "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260328_115001_bcdaa3b4-03de-47e7-ad63-ae3e392c32d4.mp4"
 
 function projectTitle(prompt: string, max = 42): string {
   const t = (prompt || "").trim()
@@ -79,7 +80,7 @@ function projectTitle(prompt: string, max = 42): string {
 
 const PROJECT_STATUS_META: Record<ProjectStatus, { dot: string; label: string }> = {
   pending: { dot: "bg-muted-foreground/40", label: "Draft" },
-  generating: { dot: "animate-pulse bg-primary", label: "Building" },
+  generating: { dot: "animate-pulse bg-foreground", label: "Building" },
   complete: { dot: "bg-success", label: "Ready" },
   error: { dot: "bg-destructive", label: "Needs attention" },
 }
@@ -108,7 +109,7 @@ function TaskRow({
         )}
       >
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13px] font-medium leading-snug text-foreground/85 group-hover/row:text-foreground">
+          <span className="block truncate text-[13px] font-medium leading-snug text-foreground/90 group-hover/row:text-foreground">
             {projectTitle(p.prompt, 34)}
           </span>
           <span className="mt-0.5 block truncate text-[11px] leading-snug text-muted-foreground">
@@ -154,9 +155,9 @@ function SearchBar({
         onChange={(e) => onChange(e.target.value)}
         placeholder="Search builds…"
         className={cn(
-          "h-9 w-full rounded-lg border border-border bg-background pl-8 pr-8",
+          "lotus-glass-control h-9 w-full rounded-full border border-border/55 pl-8 pr-8",
           "text-[13px] text-foreground placeholder:text-muted-foreground/50",
-          "outline-none transition-colors focus:border-border focus:ring-0"
+          "outline-none transition-colors focus:border-border-strong focus:ring-0"
         )}
       />
       {value && (
@@ -192,15 +193,15 @@ function FullBuildsPanel({
   const title = scope === "team" ? "Team build directory" : "Build directory"
 
   return (
-    <div className="mt-5 overflow-hidden rounded-2xl border border-background/65 bg-background/78 shadow-[0_24px_80px_-62px_var(--primary)] backdrop-blur-xl">
-      <div className="flex items-center justify-between gap-4 border-b border-border/55 px-4 py-3.5 sm:px-5">
+    <div className="lotus-glass-panel mt-5 overflow-hidden rounded-2xl border border-border/55">
+      <div className="flex items-center justify-between gap-4 border-b border-border/45 px-4 py-3.5 sm:px-5">
         <div className="min-w-0">
           <p className="text-[13px] font-semibold text-foreground">{title}</p>
           <p className="mt-0.5 text-[12px] text-muted-foreground">
             Search your saved builds and reopen the one you need.
           </p>
         </div>
-        <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary">
+        <span className="shrink-0 rounded-full bg-muted/70 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
           {builds.length}
         </span>
       </div>
@@ -240,7 +241,7 @@ function FullBuildsPanel({
                   key={build.id}
                   type="button"
                   onClick={() => onOpenBuild(build)}
-                  className="group flex min-h-[7.25rem] flex-col rounded-xl border border-border/55 bg-background/70 p-3.5 text-left transition-colors hover:border-border hover:bg-background/90 backdrop-blur-sm"
+                  className="group flex min-h-[7.25rem] flex-col rounded-xl border border-border/55 bg-card/78 shadow-sm backdrop-blur-xl p-3.5 text-left transition-colors hover:border-border-strong hover:bg-muted/60"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <span className="min-w-0 flex-1 text-[13.5px] font-semibold leading-snug text-foreground">
@@ -253,7 +254,7 @@ function FullBuildsPanel({
                   </p>
                   <div className="mt-auto flex items-center justify-between gap-3 pt-3 text-[11px] text-muted-foreground">
                     <span>{build.kind === "computer" ? "Computer agent" : "Website build"}</span>
-                    <span className="rounded-full bg-secondary px-2 py-0.5 text-[10.5px] font-medium text-muted-foreground">
+                    <span className="rounded-full bg-muted/70 px-2 py-0.5 text-[10.5px] font-medium text-muted-foreground">
                       {status.label}
                     </span>
                   </div>
@@ -324,13 +325,13 @@ function Sidebar({
   }
 
   return (
-    <div className="flex h-full flex-col bg-sidebar">
+    <div className="dark flex h-full flex-col bg-[oklch(0.18_0_0)]">
 
       {/* ── Logo row ── */}
-      <div className="flex h-16 shrink-0 items-center justify-between px-4">
+      <div className="flex h-16 shrink-0 items-center justify-between border-b border-foreground/10 px-4">
         <Link href="/" onClick={onClose} className="flex items-center gap-2">
           <LotusLogo size={28} />
-          <span className="font-display text-[16px] font-semibold tracking-tight text-foreground">
+          <span className="font-display text-[16px] font-semibold tracking-tight text-foreground/90">
             Lotus.build
           </span>
         </Link>
@@ -358,22 +359,22 @@ function Sidebar({
       </div>
 
       {/* ── Workspace switcher ── */}
-      <div className="px-3 pb-3">
+      <div className="px-3 pb-3 pt-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               type="button"
               className={cn(
-                "group flex h-11 w-full items-center gap-2.5 rounded-lg border border-border bg-background px-3",
-                "text-left transition-colors hover:bg-muted"
+                "group flex h-11 w-full items-center gap-2.5 rounded-2xl border border-foreground/15 bg-foreground/10 px-3 shadow-sm backdrop-blur-md",
+                "text-left transition-colors hover:border-foreground/25 hover:bg-foreground/15"
               )}
               aria-label="Switch workspace"
             >
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-[11px] font-semibold text-primary">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-foreground/20 text-[11px] font-semibold text-foreground/90">
                 {selectedWorkspaceInitial}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13px] font-semibold text-foreground">
+                <span className="block truncate text-[13px] font-semibold text-foreground/90">
                   {selectedWorkspaceName}
                 </span>
                 <span className="block text-[11px] text-muted-foreground">Workspace</span>
@@ -384,7 +385,7 @@ function Sidebar({
           <DropdownMenuContent
             align="start"
             sideOffset={8}
-            className="w-[15.75rem] overflow-hidden rounded-lg border-border bg-card p-1.5 shadow-lg"
+            className="lotus-glass-strong w-[15.75rem] overflow-hidden rounded-2xl border border-border/60 p-1.5 shadow-lg"
           >
             <div className="px-2 pb-1.5 pt-1 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground/65">
               Workspaces
@@ -393,15 +394,15 @@ function Sidebar({
             {/* Current workspace */}
             <DropdownMenuItem
               disabled
-              className="flex cursor-default items-center gap-2.5 rounded-lg px-2.5 py-2.5 opacity-100 focus:bg-muted"
+              className="flex cursor-default items-center gap-2.5 rounded-xl px-2.5 py-2.5 opacity-100 focus:bg-muted"
             >
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-[11px] font-semibold text-primary">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-foreground text-[11px] font-semibold text-background">
                 {selectedWorkspaceInitial}
               </span>
               <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
                 {selectedWorkspaceName}
               </span>
-              <Check className="h-3.5 w-3.5 shrink-0 text-primary" />
+              <Check className="h-3.5 w-3.5 shrink-0 text-foreground" />
             </DropdownMenuItem>
 
             {isPaidUser ? (
@@ -410,9 +411,9 @@ function Sidebar({
                   <DropdownMenuItem
                     key={workspace.id}
                     onSelect={() => void handleWorkspaceSelect(workspace.id)}
-                    className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2.5 focus:bg-muted"
+                    className="flex cursor-pointer items-center gap-2.5 rounded-xl px-2.5 py-2.5 focus:bg-muted"
                   >
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-semibold text-muted-foreground">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground">
                       {workspace.name.charAt(0).toUpperCase()}
                     </span>
                     <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground/80">
@@ -423,24 +424,24 @@ function Sidebar({
 
                 <DropdownMenuItem
                   onSelect={onCreateWorkspace}
-                  className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2.5 focus:bg-muted"
+                  className="flex cursor-pointer items-center gap-2.5 rounded-xl px-2.5 py-2.5 focus:bg-muted"
                 >
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-dashed border-border text-muted-foreground">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-dashed border-border text-muted-foreground">
                     <Plus className="h-3.5 w-3.5" />
                   </span>
                   <span className="text-[13px] font-medium text-muted-foreground">Add workspace</span>
                 </DropdownMenuItem>
               </>
             ) : (
-              <div className="mx-1 mt-1 flex items-center gap-2.5 rounded-lg border border-border bg-muted/30 px-2.5 py-2">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted">
+              <div className="lotus-glass-inset mx-1 mt-1 flex items-center gap-2.5 rounded-xl border border-border/55 px-2.5 py-2">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted">
                   <Lock className="h-3.5 w-3.5 text-muted-foreground/60" />
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-[12px] font-medium text-muted-foreground">Switch workspaces</p>
                   <Link
                     href="/pricing"
-                    className="text-[11px] font-semibold text-primary underline underline-offset-2 hover:text-primary/80"
+                    className="text-[11px] font-semibold text-foreground underline underline-offset-2 hover:text-muted-foreground"
                     onClick={(e) => e.stopPropagation()}
                   >
                     Upgrade to unlock
@@ -455,16 +456,16 @@ function Sidebar({
       {/* ── Team / personal scope toggle ── */}
       {isTeamsPlan && (
         <div className="px-3 pb-3">
-          <div className="grid grid-cols-2 rounded-lg border border-border bg-muted/40 p-1">
+          <div className="lotus-glass-control grid grid-cols-2 rounded-2xl border p-1">
             {(["user", "team"] as const).map((id) => (
               <button
                 key={id}
                 type="button"
                 onClick={() => setScope(id)}
                 className={cn(
-                  "flex h-8 items-center justify-center gap-1.5 rounded-md text-xs font-medium transition-colors",
+                  "flex h-8 items-center justify-center gap-1.5 rounded-full text-xs font-medium transition-colors",
                   scope === id
-                    ? "bg-primary text-primary-foreground"
+                    ? "bg-foreground text-background"
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
@@ -476,14 +477,14 @@ function Sidebar({
         </div>
       )}
 
-      <div className="mx-3 mb-3 h-px bg-border" />
+      <div className="mx-3 mb-3 border-t border-foreground/10" />
 
       {/* ── Section header ── */}
       <div className="mb-2 flex items-center justify-between px-4">
-        <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
           {scope === "team" ? "Recent team builds" : "Recent builds"}
         </span>
-        <span className="text-[11px] text-muted-foreground">
+        <span className="text-[11px] text-muted-foreground/75">
           {recentBuilds.length}{hiddenBuildCount ? `/${filtered.length}` : ""}
         </span>
       </div>
@@ -501,7 +502,7 @@ function Sidebar({
             ))}
           </div>
         ) : recentBuilds.length === 0 ? (
-          <div className="mx-3 rounded-lg border border-border bg-muted/35 px-4 py-8 text-center">
+          <div className="lotus-glass-inset mx-3 rounded-2xl border border-border/55 px-4 py-8 text-center">
             <p className="text-[13px] font-medium text-foreground">No recent builds</p>
             <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
               Start with a prompt and your builds will appear here.
@@ -521,7 +522,7 @@ function Sidebar({
               />
             ))}
             {hiddenBuildCount > 0 ? (
-              <div className="px-2 pb-1 pt-1.5 text-[11px] text-muted-foreground">
+              <div className="px-2 pb-1 pt-1.5 text-[11px] text-muted-foreground/80">
                 {hiddenBuildCount} more in all builds below
               </div>
             ) : null}
@@ -535,15 +536,15 @@ function Sidebar({
           type="button"
           onClick={onShare}
           className={cn(
-            "group flex w-full items-center gap-2.5 rounded-lg border border-border bg-muted/35 px-3 py-3",
-            "text-left transition-colors hover:bg-muted"
+            "group flex w-full items-center gap-2.5 rounded-2xl border border-foreground/15 bg-foreground/10 px-3 py-3 backdrop-blur-md",
+            "text-left transition-colors hover:border-foreground/25 hover:bg-foreground/15"
           )}
         >
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10">
-            <Gift className="h-3.5 w-3.5 text-primary" />
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground/10">
+            <Gift className="h-3.5 w-3.5 text-foreground/70" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[12px] font-medium text-foreground">Invite a friend</p>
+            <p className="truncate text-[12px] font-medium text-foreground/90">Invite a friend</p>
             <p className="truncate text-[11px] text-muted-foreground">You both get 500 credits</p>
           </div>
           <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
@@ -551,35 +552,35 @@ function Sidebar({
       </div>
 
       {/* ── User row ── */}
-      <div className="shrink-0 border-t border-border px-3 py-3">
+      <div className="shrink-0 border-t border-foreground/10 bg-foreground/5 px-3 py-3">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               type="button"
               className={cn(
-                "flex w-full items-center gap-2.5 rounded-lg px-2 py-2",
-                "transition-colors hover:bg-muted"
+                "flex w-full items-center gap-2.5 rounded-2xl border border-transparent px-2 py-2",
+                "transition-colors hover:border-foreground/15 hover:bg-foreground/10"
               )}
             >
-              <Avatar className="h-8 w-8 shrink-0 rounded-lg">
+              <Avatar className="h-8 w-8 shrink-0 rounded-full">
                 <AvatarImage
                   src={user?.photoURL ?? undefined}
                   alt=""
-                  className="rounded-lg object-cover"
+                  className="rounded-full object-cover"
                 />
-                <AvatarFallback className="rounded-md bg-primary/10 text-[10px] font-semibold text-primary">
+                <AvatarFallback className="rounded-full bg-foreground/20 text-[10px] font-semibold text-foreground/90">
                   {initials}
                 </AvatarFallback>
               </Avatar>
               <div className="min-w-0 flex-1 text-left">
-                <p className="truncate text-[13px] font-medium leading-tight text-foreground">
+                <p className="truncate text-[13px] font-medium leading-tight text-foreground/90">
                   {user?.displayName ?? user?.email?.split("@")[0] ?? "User"}
                 </p>
                 <p className="truncate text-[11px] leading-tight text-muted-foreground">
                   {stats.planName} plan
                 </p>
               </div>
-              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             </button>
           </DropdownMenuTrigger>
 
@@ -587,7 +588,7 @@ function Sidebar({
             side="top"
             align="start"
             sideOffset={6}
-            className="w-[calc(100vw-2rem)] max-w-[16rem] rounded-lg border-border bg-card p-2 shadow-lg"
+            className="lotus-glass-strong w-[calc(100vw-2rem)] max-w-[16rem] rounded-2xl border border-border/60 p-2 shadow-lg"
           >
             <DropdownMenuItem
               className={accountMenuItemClass}
@@ -603,9 +604,9 @@ function Sidebar({
               <Settings className="mr-2 h-3.5 w-3.5" />
               Settings
             </DropdownMenuItem>
-            <DropdownMenuSeparator className="my-2 bg-border" />
+            <DropdownMenuSeparator className="my-2 bg-border/50" />
             <DropdownMenuItem
-              className="h-10 cursor-pointer rounded-lg px-3 text-[13px] text-destructive focus:bg-destructive/10 focus:text-destructive"
+              className="h-10 cursor-pointer rounded-xl px-3 text-[13px] text-destructive focus:bg-destructive/10 focus:text-destructive"
               onClick={() => signOut()}
             >
               <LogOut className="mr-2 h-3.5 w-3.5" />
@@ -682,7 +683,7 @@ function ReferralDialog({
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center px-3 pb-3 sm:items-center sm:p-6">
       <div
-        className="absolute inset-0 bg-primary/35 backdrop-blur-md"
+        className="absolute inset-0 bg-foreground/35 backdrop-blur-md"
         onClick={onClose}
         aria-hidden
       />
@@ -690,19 +691,19 @@ function ReferralDialog({
         role="dialog"
         aria-modal="true"
         aria-label="Invite a friend"
-        className="relative z-10 max-h-[calc(100dvh-1.5rem)] w-full max-w-[36rem] overflow-y-auto rounded-lg border border-border bg-card p-4 shadow-xl sm:max-h-[calc(100dvh-3rem)] sm:p-6"
+        className="lotus-glass-strong relative z-10 max-h-[calc(100dvh-1.5rem)] w-full max-w-[36rem] overflow-y-auto rounded-2xl border border-border/60 p-4 shadow-xl sm:max-h-[calc(100dvh-3rem)] sm:p-6"
       >
         <button
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="lotus-glass-control absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full border border-border/55 text-muted-foreground transition-colors hover:border-border-strong hover:bg-muted/60 hover:text-foreground"
         >
           <X className="h-3.5 w-3.5" />
         </button>
 
         <div className="pr-10">
-          <p className="mb-3 inline-flex rounded-md bg-primary/10 px-3 py-1 text-[11px] font-medium text-primary">
+          <p className="mb-3 inline-flex rounded-full bg-muted/70 px-3 py-1 text-[11px] font-medium text-muted-foreground">
             500 credits each
           </p>
           <h2 className="text-[22px] font-semibold tracking-[-0.035em] text-foreground sm:text-[26px]">
@@ -715,7 +716,7 @@ function ReferralDialog({
         </div>
 
         <div className="mt-5 grid gap-2 sm:grid-cols-2">
-          <div className="rounded-lg border border-border bg-secondary/55 px-4 py-3.5">
+          <div className="lotus-glass-inset rounded-2xl border border-border/55 px-4 py-3.5">
             <p className="text-[24px] font-semibold leading-none tracking-[-0.03em] text-foreground">
               {referralCount}
             </p>
@@ -723,7 +724,7 @@ function ReferralDialog({
               Friend{referralCount === 1 ? "" : "s"} joined
             </p>
           </div>
-          <div className="rounded-lg border border-border bg-secondary/55 px-4 py-3.5">
+          <div className="lotus-glass-inset rounded-2xl border border-border/55 px-4 py-3.5">
             <p className="text-[24px] font-semibold leading-none tracking-[-0.03em] text-foreground">
               {creditsEarned.toLocaleString()}
             </p>
@@ -736,7 +737,7 @@ function ReferralDialog({
             Your link
           </p>
           <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-            <div className="flex min-w-0 items-center rounded-lg border border-border bg-background px-3.5 py-3">
+            <div className="lotus-glass-control flex min-w-0 items-center rounded-2xl border px-3.5 py-3">
               <span className="truncate text-[13px] text-muted-foreground">
                 {link || "Sign in to generate your link"}
               </span>
@@ -746,11 +747,11 @@ function ReferralDialog({
               onClick={handleCopy}
               disabled={!link}
               className={cn(
-                "inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg px-5 text-[13px] font-semibold",
+                "inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full px-5 text-[13px] font-semibold",
                 "transition-all active:scale-[0.97] disabled:opacity-50",
                 copied
                   ? "bg-success-soft text-success-soft-foreground"
-                  : "bg-primary text-primary-foreground hover:bg-primary/90"
+                  : "bg-foreground text-background hover:bg-foreground/85"
               )}
             >
               {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
@@ -765,9 +766,9 @@ function ReferralDialog({
             onClick={handleShare}
             disabled={!link}
             className={cn(
-              "mt-2.5 flex h-11 w-full items-center justify-center gap-2 rounded-lg",
-              "border border-border bg-background px-4",
-              "text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+              "lotus-glass-control mt-2.5 flex h-11 w-full items-center justify-center gap-2 rounded-full",
+              "border px-4",
+              "text-[13px] font-medium text-foreground transition-colors hover:border-border-strong hover:bg-muted/60 disabled:opacity-50"
             )}
           >
             <Share2 className="h-3.5 w-3.5" />
@@ -789,8 +790,8 @@ function OnboardingBanner() {
   if (dismissed || searchParams.get("onboarding") !== "true") return null
 
   return (
-    <div className="mb-6 flex items-start gap-3 rounded-lg border border-border bg-card px-4 py-3.5">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-[13px] font-bold text-primary">
+    <div className="lotus-glass-panel mb-6 flex items-start gap-3 rounded-2xl border border-border/55 px-4 py-3.5">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-[13px] font-bold text-background">
         {(currentWorkspace?.name ?? "W").charAt(0).toUpperCase()}
       </span>
       <div className="min-w-0 flex-1">
@@ -902,12 +903,12 @@ export default function ProjectsPage() {
 
   return (
     <ProtectedRoute>
-      <div className="flex h-[100dvh] overflow-hidden bg-background">
+      <div className="flex h-[100dvh] overflow-hidden bg-background dark:bg-[oklch(0.18_0_0)]">
 
         {/* ── Mobile overlay ── */}
         <div
           className={cn(
-            "fixed inset-0 z-40 bg-black/20 backdrop-blur-sm transition-opacity duration-200 lg:hidden",
+            "fixed inset-0 z-40 bg-foreground/20 backdrop-blur-sm transition-opacity duration-200 lg:hidden",
             mobileSidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"
           )}
           onClick={() => setMobileSidebarOpen(false)}
@@ -918,7 +919,7 @@ export default function ProjectsPage() {
         <div
           className={cn(
             "fixed inset-y-0 left-0 z-50 w-[min(21.5rem,calc(100vw-1rem))]",
-            "border-r border-border shadow-lg",
+            "border-r border-foreground/10 shadow-lg",
             "transition-transform duration-200 ease-in-out lg:hidden",
             mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
           )}
@@ -937,16 +938,16 @@ export default function ProjectsPage() {
             desktopSidebarCollapsed ? "lg:w-0 lg:overflow-hidden" : "lg:w-[280px]"
           )}
         >
-          <div className="relative h-full bg-sidebar after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:z-10 after:w-8 after:translate-x-full after:bg-gradient-to-r after:from-sidebar after:to-transparent">
+          <div className="relative h-full after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:z-10 after:w-8 after:translate-x-full after:bg-gradient-to-r after:from-[oklch(0.18_0_0)] after:to-transparent">
             <Sidebar {...sidebarProps} onToggle={() => setDesktopSidebarCollapsed(true)} />
           </div>
         </aside>
 
         {/* ── Main content ── */}
-        <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
+        <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-background dark:bg-[oklch(0.18_0_0)]">
 
           {/* ── Mobile top bar ── */}
-          <header className="relative z-10 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background px-4 lg:hidden">
+          <header className="dark lotus-glass-strong relative z-10 flex h-14 shrink-0 items-center gap-3 border-b border-foreground/10 px-3 lg:hidden">
             <button
               type="button"
               onClick={() => setMobileSidebarOpen(true)}
@@ -955,9 +956,11 @@ export default function ProjectsPage() {
             >
               <PanelLeft className="h-4 w-4" />
             </button>
-            <Link href="/" className="flex items-center gap-2">
+            <Link href="/" className="flex min-w-0 items-center gap-2">
               <LotusLogo size={24} />
-              <span className="font-display text-[15px] font-semibold text-foreground">Lotus.build</span>
+              <span className="truncate font-display text-[16px] font-semibold tracking-tight text-foreground/90">
+                Lotus.build
+              </span>
             </Link>
           </header>
 
@@ -970,8 +973,8 @@ export default function ProjectsPage() {
               className={cn(
                 "absolute left-4 top-4 z-20 hidden lg:flex",
                 "h-9 w-9 items-center justify-center rounded-lg",
-                "border border-border bg-background text-muted-foreground",
-                "transition-colors hover:bg-muted hover:text-foreground"
+                "lotus-glass-control border text-muted-foreground",
+                "transition-colors hover:border-border-strong hover:bg-muted hover:text-foreground"
               )}
             >
               <PanelLeft className="h-4 w-4" />
@@ -979,13 +982,33 @@ export default function ProjectsPage() {
           )}
 
           {/* Composer surface */}
-          <div className="relative z-10 flex min-h-0 flex-1 pt-3 sm:pt-4">
-            <div className="relative min-h-0 w-full flex-1 overflow-hidden rounded-t-[1.125rem] shadow-[0_28px_100px_-86px_var(--primary)] sm:rounded-t-[1.25rem]">
+          <div className="relative z-10 flex min-h-0 flex-1">
+            <div className="relative min-h-0 w-full flex-1 overflow-hidden md:rounded-t-[1.125rem] lg:rounded-t-[1.25rem]">
               <div className="h-full overflow-y-auto [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
-                <div className="relative isolate flex min-h-[calc(100dvh+12rem)] w-full flex-col items-center justify-start overflow-hidden rounded-t-[1.125rem] px-5 pb-24 sm:rounded-t-[1.25rem] sm:px-8 sm:pb-28">
-                  <ShaderGradientBackground
-                    className="z-0 rounded-t-[inherit]"
-                    opacity={0.82}
+                <div className="dark relative isolate flex min-h-[calc(100dvh+12rem)] w-full flex-col items-center justify-start overflow-hidden border-t border-foreground/10 bg-[oklch(0.18_0_0)] px-5 pb-24 md:rounded-t-[1.125rem] sm:px-8 sm:pb-28 lg:rounded-t-[1.25rem]">
+                  <video
+                    className="pointer-events-none absolute inset-0 z-0 h-full w-full rounded-t-[inherit] object-cover object-center brightness-[1.18] contrast-[1.08] saturate-[1.18]"
+                    src={PROJECTS_BACKGROUND_VIDEO_SRC}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    preload="auto"
+                    disableRemotePlayback
+                  />
+                  <div
+                    className="pointer-events-none absolute inset-0 z-[1] rounded-t-[inherit]"
+                    style={{
+                      background:
+                        "radial-gradient(circle at 50% 42%, transparent 0%, transparent 42%, color-mix(in oklch, var(--background) 36%, transparent) 100%)",
+                    }}
+                  />
+                  <div
+                    className="pointer-events-none absolute inset-0 z-[2] rounded-t-[inherit]"
+                    style={{
+                      background:
+                        "linear-gradient(to bottom, color-mix(in oklch, var(--background) 34%, transparent) 0%, color-mix(in oklch, var(--background) 10%, transparent) 34%, color-mix(in oklch, var(--background) 14%, transparent) 62%, color-mix(in oklch, var(--background) 58%, transparent) 100%)",
+                    }}
                   />
 
                   <div className="relative z-10 w-full max-w-[60rem]">
@@ -995,29 +1018,29 @@ export default function ProjectsPage() {
                       </Suspense>
 
                       <div className="mb-8 flex justify-center">
-                        <div className="inline-flex items-center gap-2.5 rounded-full border border-background/60 bg-background/72 px-3.5 py-1.5 text-[12px] text-muted-foreground shadow-[0_16px_50px_-38px_var(--primary)] backdrop-blur-xl">
-                          <span className="font-medium text-foreground">{stats.planName} workspace</span>
-                          <span className="h-3 w-px bg-border/70" />
-                          <Link href="/pricing" className="font-semibold text-primary transition-colors hover:text-primary/80">
+                        <div className="inline-flex items-center gap-2.5 rounded-full border border-foreground/20 bg-foreground/12 px-3.5 py-1.5 text-[12px] shadow-sm backdrop-blur-sm">
+                          <span className="font-medium text-foreground/90">{stats.planName} workspace</span>
+                          <span className="h-3 w-px bg-foreground/25" />
+                          <Link href="/pricing" className="font-semibold text-foreground transition-colors hover:text-foreground/70">
                             Upgrade
                           </Link>
                         </div>
                       </div>
 
                       <div className="mb-8 text-center md:mb-10">
-                        <h1 className="text-[2rem] font-medium tracking-[-0.055em] text-white sm:text-[2.6rem]">
+                        <h1 className="text-[2rem] font-semibold tracking-[-0.055em] text-foreground drop-shadow-[0_2px_24px_rgba(0,0,0,0.55)] sm:text-[2.8rem]">
                           <span className="font-semibold">{greeting}</span>
                           {firstName ? `, ${firstName}` : ""}
                         </h1>
-                        <p className="mx-auto mt-4 max-w-[30rem] text-[14px] leading-7 text-white sm:mt-5">
+                        <p className="mx-auto mt-4 max-w-[30rem] text-[14px] leading-7 text-foreground/80 drop-shadow-[0_1px_8px_rgba(0,0,0,0.45)] sm:mt-5">
                           Describe what you want to build. Lotus turns the brief into a focused workspace.
                         </p>
                       </div>
 
                       <AnimatedAIInput
                         placeholder="Describe the app, website, or flow you want to create..."
-                        wrapperClassName="border-background/70 bg-background/82 shadow-[0_26px_90px_-68px_var(--primary)] backdrop-blur-xl"
-                        footerHintsClassName="text-white/65 [&_kbd]:border-white/25 [&_kbd]:bg-white/10 [&_kbd]:text-white/85"
+                        wrapperClassName="border-foreground/18 bg-background/82 shadow-[0_28px_90px_-56px_rgba(0,0,0,0.95)] backdrop-blur-2xl supports-[backdrop-filter]:bg-background/68 [&_textarea]:min-h-[76px] [&_.inline-flex.rounded-lg.bg-background]:rounded-full [&_.inline-flex.rounded-lg.bg-background]:bg-foreground/10 [&_.inline-flex.rounded-lg.bg-background]:ring-foreground/15 [&_.inline-flex.rounded-lg.bg-background_button]:rounded-full [&_.inline-flex.rounded-lg.bg-background_button.bg-foreground]:bg-foreground [&_.inline-flex.rounded-lg.bg-background_button.text-muted-foreground]:text-foreground/65 [&_button]:rounded-full [&_button:hover]:bg-foreground/10 [&_button:hover]:text-foreground [&_button.bg-muted]:bg-foreground/10 [&_button.bg-muted]:text-foreground/55 [&_button.bg-primary]:bg-foreground [&_button.bg-primary]:text-background [&_button.bg-primary:hover]:bg-foreground/90"
+                        footerHintsClassName="text-foreground/65 [&_kbd]:border-foreground/25 [&_kbd]:bg-foreground/10 [&_kbd]:text-foreground/90"
                       />
                     </div>
 

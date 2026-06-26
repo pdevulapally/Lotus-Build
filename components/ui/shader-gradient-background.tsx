@@ -25,14 +25,14 @@ export function ShaderGradientBackground({
       >
         <ShaderGradient
           animate="on"
-          brightness={1.2}
+          brightness={0.72}
           cAzimuthAngle={180}
           cDistance={3.6}
           cPolarAngle={90}
           cameraZoom={1}
-          color1="#ff5005"
-          color2="#dbba95"
-          color3="#d0bce1"
+          color1="#08111f"
+          color2="#17345d"
+          color3="#6f8fb8"
           envPreset="city"
           grain="on"
           lightType="3d"
@@ -42,21 +42,37 @@ export function ShaderGradientBackground({
           range="disabled"
           rangeEnd={40}
           rangeStart={0}
-          reflection={0.1}
+          reflection={0.08}
           rotationX={0}
           rotationY={10}
           rotationZ={50}
           shader="defaults"
           type="plane"
-          uAmplitude={1}
-          uDensity={1.3}
-          uFrequency={5.5}
-          uSpeed={0.4}
-          uStrength={4}
+          uAmplitude={0.58}
+          uDensity={1.18}
+          uFrequency={4.6}
+          uSpeed={0.18}
+          uStrength={1.35}
           uTime={0}
           wireframe={false}
         />
       </ShaderGradientCanvas>
+      <div
+        className="absolute inset-0 opacity-55 mix-blend-screen"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle at 12% 18%, rgba(255,255,255,0.72) 0 1px, transparent 1.8px), radial-gradient(circle at 72% 22%, rgba(255,255,255,0.52) 0 1px, transparent 1.7px), radial-gradient(circle at 38% 64%, rgba(255,255,255,0.5) 0 1px, transparent 1.7px), radial-gradient(circle at 86% 78%, rgba(255,255,255,0.58) 0 1px, transparent 1.8px), radial-gradient(circle at 24% 82%, rgba(255,255,255,0.38) 0 1px, transparent 1.6px)",
+          backgroundSize: "280px 220px, 360px 260px, 320px 300px, 420px 340px, 240px 260px",
+        }}
+      />
+      <div
+        className="absolute inset-0 opacity-25"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle at center, rgba(255,255,255,0.18) 0 0.7px, transparent 1.3px)",
+          backgroundSize: "6px 6px",
+        }}
+      />
     </div>
   )
 }

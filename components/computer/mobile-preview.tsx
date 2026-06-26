@@ -305,7 +305,7 @@ export function MobilePreview({
   }
 
   return (
-    <div className={cn("flex h-full min-h-0 flex-col bg-[oklch(0.955_0_0)] p-3 dark:bg-[oklch(0.18_0_0)] sm:p-4", className)}>
+    <div className={cn("flex h-full min-h-0 flex-col bg-background p-3 dark:bg-[oklch(0.18_0.012_60)] sm:p-4", className)}>
       {view.kind === "loading" && (
         <PreviewShell title="Starting preview" subtitle="Preparing your mobile sandbox…">
           <PhoneFrame loading />

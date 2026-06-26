@@ -211,8 +211,8 @@ function ToolbarPill({
       className={cn(
         "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5",
         "text-xs font-medium text-muted-foreground transition-colors",
-        "hover:bg-background hover:text-foreground",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25",
+        "hover:bg-muted/60 hover:text-foreground",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border/35",
         "disabled:pointer-events-none disabled:opacity-40",
         className,
       )}
@@ -237,10 +237,10 @@ function IconButton({ children, active, label, className, ...props }: IconButton
       className={cn(
         "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground",
         "transition-colors duration-150",
-        "hover:bg-background hover:text-foreground",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25",
+        "hover:bg-muted/60 hover:text-foreground",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border/35",
         "disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground",
-        active && "bg-background text-foreground",
+        active && "bg-muted/70 text-foreground",
         className,
       )}
       {...props}
@@ -464,8 +464,8 @@ export function AnimatedAIInput({
           "group/composer relative overflow-hidden rounded-xl border transition-[border-color,box-shadow] duration-200",
           "border-border/80 bg-card shadow-sm",
           "hover:border-border",
-          "focus-within:border-border-strong focus-within:ring-2 focus-within:ring-ring/15",
-          isSlimChat && "rounded-2xl border-border/45 bg-card/70 shadow-sm",
+          "focus-within:border-border-strong focus-within:ring-2 focus-within:ring-border/30",
+          isSlimChat && "rounded-2xl border-border/55 bg-card/70 shadow-sm",
           disabled && "pointer-events-none opacity-55",
           wrapperClassName,
         )}
@@ -508,7 +508,7 @@ export function AnimatedAIInput({
             className={cn(
               "w-full resize-none appearance-none border-0 bg-transparent p-0",
               "text-[15px] leading-[1.65] tracking-[-0.01em] text-foreground",
-              "placeholder:text-muted-foreground/55",
+              "placeholder:text-muted-foreground/80",
               "outline-none focus:outline-none focus:ring-0",
               "[scrollbar-width:thin]",
               compact
@@ -533,12 +533,13 @@ export function AnimatedAIInput({
                   <button
                     key={option.id}
                     type="button"
+                    aria-pressed={selectedPlatform === option.id}
                     onClick={() => {
                       setPlatformTouched(true);
                       setSelectedPlatform(option.id);
                     }}
                     className={cn(
-                      "rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
+                      "rounded-full px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
                       selectedPlatform === option.id
                         ? "bg-foreground text-background"
                         : "text-muted-foreground hover:text-foreground",
@@ -706,7 +707,7 @@ export function AnimatedAIInput({
               whileTap={canSubmit || canStop ? { scale: 0.94 } : {}}
               className={cn(
                 "flex shrink-0 items-center justify-center rounded-full font-semibold transition-all duration-150",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border/35",
                 hasSubmitLabel && (canSubmit || canStop)
                   ? "h-9 gap-1.5 px-3.5 text-xs"
                   : "h-9 w-9",
@@ -740,7 +741,7 @@ export function AnimatedAIInput({
       </div>
 
       {!compact && mode === "create" && (
-        <p className={cn("mt-2.5 text-center text-[11px] text-muted-foreground/70", footerHintsClassName)}>
+        <p className={cn("mt-2.5 text-center text-[11px] text-muted-foreground", footerHintsClassName)}>
           <kbd className="rounded-md border border-border bg-muted/60 px-1.5 py-0.5 font-mono text-[10px]">Enter</kbd>
           {" "}to send ·{" "}
           <kbd className="rounded-md border border-border bg-muted/60 px-1.5 py-0.5 font-mono text-[10px]">Shift+Enter</kbd>

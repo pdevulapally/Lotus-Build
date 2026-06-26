@@ -6,12 +6,12 @@ import { cn } from "@/lib/utils"
 const itemStatusStyles: Record<BlueprintItemStatus, string> = {
   confirmed: "border-emerald-200 bg-emerald-50 text-emerald-800",
   suggested: "border-zinc-200 bg-zinc-100 text-zinc-700",
-  unknown: "border-amber-200 bg-amber-50 text-amber-800",
+  unknown: "border-zinc-300 bg-zinc-100 text-zinc-700",
 }
 
 const planningStatusStyles: Record<PlanningStatus, string> = {
   draft: "border-zinc-200 bg-zinc-100 text-zinc-700",
-  "needs-input": "border-amber-200 bg-amber-50 text-amber-800",
+  "needs-input": "border-zinc-300 bg-zinc-100 text-zinc-700",
   "plan-generated": "border-zinc-200 bg-zinc-100 text-zinc-700",
   approved: "border-emerald-200 bg-emerald-50 text-emerald-800",
   skipped: "border-zinc-200 bg-zinc-100 text-zinc-700",

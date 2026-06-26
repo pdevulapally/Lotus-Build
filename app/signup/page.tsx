@@ -3,11 +3,9 @@
 import React, { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import Image from "next/image"
 import { LotusLogo } from "@/components/ui/lotus-logo"
 import { AuthWorkspaceDemo } from "@/components/auth/auth-workspace-demo"
 import { motion } from "framer-motion"
-import { MeshGradient } from "@paper-design/shaders-react"
 import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -226,7 +224,7 @@ export default function SignupPage() {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="h-12 w-full rounded-2xl bg-primary text-[14px] font-semibold text-primary-foreground hover:bg-primary/90"
+                className="h-12 w-full rounded-full bg-foreground text-[14px] font-semibold text-background hover:bg-foreground/90"
               >
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create account"}
               </Button>
@@ -260,30 +258,25 @@ export default function SignupPage() {
 
       {/* ── Right content ── */}
       <div className="hidden md:flex md:items-stretch">
-        <div className="relative flex w-full overflow-hidden rounded-[2rem] text-primary-foreground">
-          <MeshGradient
-            className="absolute inset-0 h-full w-full"
-            colors={["#A34300", "#dbba95", "#d0bce1"]}
-            distortion={0.32}
-            fit="cover"
-            grainMixer={0.08}
-            grainOverlay={0.04}
-            maxPixelCount={1200000}
-            rotation={28}
-            scale={1.18}
-            speed={0.12}
-            swirl={0.16}
+        <div className="relative flex w-full overflow-hidden rounded-[2rem] bg-foreground text-background">
+          <div
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_24%_18%,var(--card)_0,transparent_28%),radial-gradient(circle_at_82%_76%,var(--secondary)_0,transparent_36%)] opacity-18"
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute inset-0 bg-[linear-gradient(145deg,transparent_0%,var(--background)_150%)] opacity-40"
+            aria-hidden
           />
 
           <div className="relative flex w-full flex-col justify-between p-8 lg:p-10">
             <div>
-              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-primary-foreground/50">
+              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-background/55">
                 From first prompt
               </p>
               <h2 className="mt-6 max-w-xl text-5xl font-medium leading-[0.98] tracking-[-0.07em] lg:text-6xl">
                 Start with a sentence. Let the interface take shape.
               </h2>
-              <p className="mt-6 max-w-md text-sm leading-7 text-primary-foreground/62">
+              <p className="mt-6 max-w-md text-sm leading-7 text-background/68">
                 The first screen should feel designed, not assembled from generic cards.
               </p>
             </div>
@@ -296,7 +289,7 @@ export default function SignupPage() {
               />
             </div>
 
-            <p className="max-w-sm text-xs leading-6 text-primary-foreground/55">
+            <p className="max-w-sm text-xs leading-6 text-background/58">
               A build surface for founders who want taste and speed in the same place.
             </p>
           </div>

@@ -68,11 +68,11 @@ export function RevealItem({
 
 export function CapabilityPills({ items }: { items: readonly string[] }) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap justify-center gap-2">
       {items.map((item) => (
         <span
           key={item}
-          className="rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-medium text-foreground"
+          className="rounded-full border border-border/60 bg-card/75 px-3.5 py-1.5 text-xs font-medium text-foreground shadow-sm backdrop-blur-xl"
         >
           {item}
         </span>

@@ -20,9 +20,9 @@ export function AuthWorkspaceDemo({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.55, delay: 0.12, ease: "easeOut" }}
-      className="max-w-xl rounded-lg bg-background/15 p-3 shadow-[0_24px_80px_-48px_rgba(0,0,0,0.35)] backdrop-blur-md"
+      className="max-w-xl rounded-[1.75rem] border border-background/12 bg-background/12 p-3 shadow-[0_28px_90px_-56px_rgba(0,0,0,0.5)] backdrop-blur-2xl"
     >
-      <div className="overflow-hidden rounded-md border border-primary-foreground/15 bg-card/95 text-foreground shadow-sm backdrop-blur-sm">
+      <div className="overflow-hidden rounded-[1.35rem] border border-background/15 bg-card/95 text-foreground shadow-sm backdrop-blur-sm">
         <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-2.5">
           <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
             Builder
@@ -62,7 +62,7 @@ export function AuthWorkspaceDemo({
           </motion.div>
         </div>
 
-        <div className="pointer-events-none select-none border-t border-border/60 bg-sidebar/80 px-3 py-3">
+        <div className="pointer-events-none select-none border-t border-border/60 bg-secondary/70 px-3 py-3">
           <AnimatedAIInput
             mode="chat"
             compact

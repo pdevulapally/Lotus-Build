@@ -835,7 +835,7 @@ function SettingsContent() {
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-muted">
                       <div
-                        className={`h-full rounded-full ${tokenPct >= 90 ? "bg-red-500" : tokenPct >= 60 ? "bg-amber-500" : "bg-primary"}`}
+                        className={`h-full rounded-full ${tokenPct >= 90 ? "bg-destructive" : tokenPct >= 60 ? "bg-muted-foreground" : "bg-primary"}`}
                         style={{ width: `${tokenPct}%` }}
                       />
                     </div>

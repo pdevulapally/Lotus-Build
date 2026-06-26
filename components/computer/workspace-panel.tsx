@@ -51,7 +51,7 @@ function ResearchPanel({ events }: { events: ComputerTimelineEvent[] }) {
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.12 }}
-            className="border-b border-border pb-4 last:border-0"
+            className="border-b border-border/55 pb-4 last:border-0"
           >
             <p className="text-[13px] font-medium text-foreground">{getEventTitle(event)}</p>
             <p className="mt-2 whitespace-pre-wrap text-[12.5px] leading-relaxed text-muted-foreground">
@@ -92,7 +92,7 @@ function RuntimeErrorCard({
   const [expanded, setExpanded] = useState(false)
   return (
     <div className="lotus-glass-strong absolute bottom-4 right-4 z-20 w-[340px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-destructive/20">
-      <div className="flex items-center justify-between gap-2 border-b border-border px-3.5 py-2.5">
+      <div className="flex items-center justify-between gap-2 border-b border-border/60 px-3.5 py-2.5">
         <div className="flex items-center gap-2">
           <ShieldAlert className="h-3.5 w-3.5 text-destructive" />
           <span className="text-[12px] font-semibold text-foreground">Something went wrong</span>
@@ -112,7 +112,7 @@ function RuntimeErrorCard({
           </pre>
         )}
       </div>
-      <div className="flex items-center gap-2 border-t border-border px-3.5 py-2.5">
+      <div className="flex items-center gap-2 border-t border-border/60 px-3.5 py-2.5">
         <button
           type="button"
           onClick={onFix}
@@ -210,7 +210,7 @@ export function WorkspaceTabBar({
   return (
     <div className="lotus-glass-inset hidden h-10 shrink-0 items-center justify-center border-b border-border/40 px-4 sm:flex">
       {/* Centered constrained URL pill */}
-      <div className="lotus-glass-control group flex w-full max-w-sm items-center gap-0.5 overflow-hidden rounded-full border border-foreground/25 px-1 transition-colors focus-within:border-foreground/40 hover:border-foreground/35">
+      <div className="lotus-glass-control group flex w-full max-w-sm items-center gap-0.5 overflow-hidden rounded-full border border-border/60 px-1 transition-colors focus-within:border-border/80 hover:border-border/70">
 
         {/* Home */}
         <button
@@ -329,7 +329,7 @@ export function WorkspaceContent({
   if (activeTab === "browser" && browserInspection) {
     return (
       <motion.div key="browser" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}
-        className="flex h-full min-h-0 flex-col bg-[oklch(0.955_0_0)] p-3 dark:bg-[oklch(0.18_0_0)] lg:p-4">
+        className="flex h-full min-h-0 flex-col bg-background p-3 lg:p-4">
         <div className="mb-2 flex min-w-0 items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="truncate text-[12px] font-medium text-foreground">
@@ -341,11 +341,11 @@ export function WorkspaceContent({
           </div>
           <WorkspaceHeaderLink href={browserInspection.url} />
         </div>
-        <div className="lotus-glass-panel relative min-h-0 flex-1 overflow-hidden rounded-xl border border-border">
+        <div className="lotus-glass-panel relative min-h-0 flex-1 overflow-hidden rounded-xl border border-border/60">
           {browserInspection.liveUrl && !browserInspection.isExpired ? (
             <iframe
               src={browserInspection.liveUrl}
-              className="h-full w-full bg-[oklch(0.985_0_0)] dark:bg-[oklch(0.18_0_0)]"
+              className="h-full w-full bg-card"
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
               referrerPolicy="no-referrer"
               title="Remote browser"
@@ -441,12 +441,12 @@ function PreviewPane({
 
   return (
     <motion.div key="preview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}
-      className="flex h-full min-h-0 flex-col bg-[oklch(0.955_0_0)] dark:bg-[oklch(0.18_0_0)]">
+      className="flex h-full min-h-0 flex-col bg-background">
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <iframe
           key={iframeKey}
           src={src}
-          className="h-full w-full bg-[oklch(0.985_0_0)] dark:bg-[oklch(0.18_0_0)]"
+          className="h-full w-full bg-card"
           sandbox="allow-scripts allow-same-origin allow-forms"
           title="Live preview"
           onLoad={() => setIsIframeLoading(false)}
@@ -464,7 +464,7 @@ function PreviewPane({
 
         {previewEnsureError && !isEnsuringPreview && (
             <div className="absolute inset-x-0 bottom-0 z-10 flex items-end justify-center p-4">
-              <div className="lotus-glass-strong flex max-w-[360px] items-center gap-2 rounded-xl border border-border px-3 py-2 text-[12px] text-muted-foreground">
+              <div className="lotus-glass-strong flex max-w-[360px] items-center gap-2 rounded-xl border border-border/60 px-3 py-2 text-[12px] text-muted-foreground">
                 <span className="min-w-0 flex-1">{previewEnsureError}</span>
                 <button type="button" onClick={onRetryPreview} className="shrink-0 rounded-full px-2 py-1 text-[12px] font-medium text-foreground hover:text-foreground/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35">
                   Retry
@@ -486,7 +486,7 @@ function PreviewPane({
 
 export function LoadingShell() {
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-background">
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-background dark:bg-[oklch(0.18_0.012_60)]">
       <header className="lotus-glass shrink-0 px-4 py-3">
         <div className="flex h-10 items-center gap-3">
           <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
@@ -494,7 +494,7 @@ export function LoadingShell() {
         </div>
       </header>
       <div className="flex flex-1 gap-0 overflow-hidden">
-        <div className="hidden w-[380px] shrink-0 animate-pulse border-r border-border/80 bg-background sm:block" />
+        <div className="hidden w-[380px] shrink-0 animate-pulse border-r border-border/80 bg-secondary/20 dark:bg-[oklch(0.18_0.012_60)] sm:block" />
         <div className="flex-1 animate-pulse bg-muted/35 p-3">
           <div className="lotus-glass-panel h-full rounded-lg border border-border/70" />
         </div>
@@ -505,7 +505,7 @@ export function LoadingShell() {
 
 export function ErrorState({ message }: { message: string }) {
   return (
-    <div className="flex h-[100dvh] items-center justify-center bg-background px-4">
+    <div className="flex h-[100dvh] items-center justify-center bg-background px-4 dark:bg-[oklch(0.18_0.012_60)]">
       <div className="w-full max-w-md text-center">
         <ShieldAlert className="mx-auto mb-4 h-8 w-8 text-muted-foreground" />
         <h1 className="text-[15px] font-semibold text-foreground">Session not found</h1>

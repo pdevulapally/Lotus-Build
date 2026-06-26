@@ -72,9 +72,16 @@ type Props = {
 function readPetalColor(override?: string): THREE.Color {
   if (override) return new THREE.Color(override)
 
-  const rgb = getComputedStyle(document.documentElement).getPropertyValue("--primary-rgb").trim()
-  const [r, g, b] = rgb.split(/\s+/).map(Number)
-  return new THREE.Color(r / 255, g / 255, b / 255)
+  const probe = document.createElement("span")
+  probe.style.color = "var(--foreground)"
+  probe.style.position = "absolute"
+  probe.style.pointerEvents = "none"
+  probe.style.opacity = "0"
+  document.body.appendChild(probe)
+  const computed = getComputedStyle(probe).color
+  document.body.removeChild(probe)
+
+  return new THREE.Color(computed)
 }
 
 export function LotusLogo({ petalColor, size = 32, className, style }: Props) {
@@ -105,7 +112,7 @@ export function LotusLogo({ petalColor, size = 32, className, style }: Props) {
     renderer.shadowMap.enabled = true
     renderer.shadowMap.type = THREE.PCFSoftShadowMap
     renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = 1.06
+    renderer.toneMappingExposure = 1.12
     renderer.outputColorSpace = THREE.SRGBColorSpace
     renderer.domElement.style.display = "block"
     mount.appendChild(renderer.domElement)
@@ -115,10 +122,10 @@ export function LotusLogo({ petalColor, size = 32, className, style }: Props) {
     camera.position.set(0, 0, 5.6)
     camera.lookAt(0, 0, 0)
 
-    scene.add(new THREE.HemisphereLight(0xfff3e6, 0xd98a8f, 0.55))
-    scene.add(new THREE.AmbientLight(0xfff1e6, 0.32))
+    scene.add(new THREE.HemisphereLight(0xfffbf2, 0x5f5a51, 0.48))
+    scene.add(new THREE.AmbientLight(0xfffbf2, 0.26))
 
-    const key = new THREE.DirectionalLight(0xfff4ea, 1.3)
+    const key = new THREE.DirectionalLight(0xfffbf2, 1.18)
     key.position.set(-2.6, 3.6, 3.4)
     key.castShadow = true
     key.shadow.mapSize.set(1024, 1024)
@@ -129,11 +136,11 @@ export function LotusLogo({ petalColor, size = 32, className, style }: Props) {
     sc.near = 0.5; sc.far = 12
     scene.add(key)
 
-    const fill = new THREE.DirectionalLight(0xffe9ef, 0.42)
+    const fill = new THREE.DirectionalLight(0xe8e4dc, 0.36)
     fill.position.set(3.2, -1.2, 2.2)
     scene.add(fill)
 
-    const rim = new THREE.DirectionalLight(0xffffff, 0.28)
+    const rim = new THREE.DirectionalLight(0xffffff, 0.36)
     rim.position.set(0, 1.2, -3.4)
     scene.add(rim)
 
@@ -146,13 +153,13 @@ export function LotusLogo({ petalColor, size = 32, className, style }: Props) {
 
     const material = new THREE.MeshPhysicalMaterial({
       color: petal.clone(),
-      roughness: 0.52,
+      roughness: 0.42,
       metalness: 0.0,
-      clearcoat: 0.55,
-      clearcoatRoughness: 0.5,
-      sheen: 0.85,
-      sheenRoughness: 0.6,
-      sheenColor: petal.clone().lerp(new THREE.Color(0xffffff), 0.45),
+      clearcoat: 0.72,
+      clearcoatRoughness: 0.34,
+      sheen: 0.55,
+      sheenRoughness: 0.5,
+      sheenColor: petal.clone().lerp(new THREE.Color(0xffffff), 0.35),
     })
 
     const extrude: THREE.ExtrudeGeometryOptions = {

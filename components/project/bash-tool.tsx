@@ -51,7 +51,7 @@ function ApprovalFooter({ isRunning, approval }: { isRunning: boolean; approval:
         : null
 
   return (
-    <div className="flex items-center justify-between border-t border-border/30 bg-[oklch(0.94_0_0/0.55)] py-1.5 pl-3 pr-2 dark:bg-[oklch(0.22_0_0/0.62)]">
+    <div className="flex items-center justify-between border-t border-border/35 bg-muted/45 py-1.5 pl-3 pr-2">
       {status ? (
         <span className="text-xs text-muted-foreground">
           {status.label}
@@ -103,7 +103,7 @@ export const BashTool = React.memo(function BashTool({
   const summary = extractCommandSummary(command)
 
   return (
-    <div className={cn("overflow-hidden rounded-2xl border border-border/30 bg-[oklch(0.985_0_0/0.66)] shadow-sm dark:bg-[oklch(0.28_0_0/0.62)]", className)}>
+    <div className={cn("overflow-hidden rounded-2xl border border-border/55 bg-card/78 shadow-sm backdrop-blur-xl", className)}>
       <div className="flex h-9 items-center justify-between gap-3 pl-3 pr-2.5">
         <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
           <Terminal className="h-3.5 w-3.5 shrink-0 text-muted-foreground/55" />
@@ -118,7 +118,7 @@ export const BashTool = React.memo(function BashTool({
         {isRunning && <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />}
       </div>
 
-      <div className="border-t border-border/30 bg-[oklch(0.97_0_0/0.68)] px-3 py-2 font-mono text-[12px] leading-5 dark:bg-[oklch(0.2_0_0/0.68)]">
+      <div className="border-t border-border/35 bg-muted/55 px-3 py-2 font-mono text-[12px] leading-5">
         <div className="break-all">
           <span className="select-none text-muted-foreground">$ </span>
           <span className="text-foreground">{command}</span>

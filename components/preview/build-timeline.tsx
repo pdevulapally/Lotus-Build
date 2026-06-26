@@ -74,7 +74,7 @@ function TerminalOutput({ logsTail }: { logsTail: string }) {
               key={i}
               className={cn(
                 "whitespace-pre-wrap break-all pl-4",
-                isStderr ? "text-amber-400" : "text-green-400"
+                isStderr ? "text-muted-foreground" : "text-green-400"
               )}
             >
               {data}

@@ -163,7 +163,7 @@ function QuestionPrompt({
   const badgeOn = "bg-foreground text-background border-foreground"
 
   return (
-    <div className={cn("space-y-2 bg-[oklch(0.985_0_0/0.54)] px-3 py-2.5 dark:bg-[oklch(0.26_0_0/0.54)]", className)}>
+    <div className={cn("space-y-2 bg-card/78 px-3 py-2.5 backdrop-blur-xl", className)}>
       <p className="text-sm font-medium text-foreground leading-snug">{activeQuestion.title}</p>
       {activeQuestion.description && (
         <p className="text-xs text-muted-foreground">{activeQuestion.description}</p>
@@ -349,7 +349,7 @@ export function QuestionTool({
   if (!question) return null
 
   return (
-    <div className={cn("lotus-glass-panel overflow-hidden rounded-2xl border border-border/45", className)}>
+    <div className={cn("lotus-glass-panel overflow-hidden rounded-2xl border border-border/55", className)}>
       <div className="lotus-glass-inset flex h-8 items-center justify-between border-b border-border/35 px-3 text-xs text-muted-foreground">
         <div className="inline-flex items-center gap-1.5">
           <MessageCircle className="w-3.5 h-3.5" />
@@ -381,7 +381,7 @@ export function QuestionTool({
       </div>
 
       {isComplete ? (
-        <div className="bg-[oklch(0.985_0_0/0.54)] px-3 py-2 text-xs text-muted-foreground dark:bg-[oklch(0.26_0_0/0.54)]">{summaryText}</div>
+        <div className="bg-card/78 px-3 py-2 text-xs text-muted-foreground backdrop-blur-xl">{summaryText}</div>
       ) : (
         <QuestionPrompt
           key={`${clampedIndex}-${question.title}`}

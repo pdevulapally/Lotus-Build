@@ -104,7 +104,7 @@ function renderContentBlocks(blocks: ContentBlock[]): React.ReactNode {
       return (
         <pre
           key={i}
-          className="my-1.5 overflow-x-auto rounded-xl bg-[oklch(0.955_0_0/0.72)] px-3 py-2 text-[11.5px] font-mono leading-relaxed [overflow-wrap:normal] dark:bg-[oklch(0.2_0_0/0.72)]"
+          className="my-1.5 overflow-x-auto rounded-xl bg-muted/55 px-3 py-2 text-[11.5px] font-mono leading-relaxed [overflow-wrap:normal]"
         >
           {block.lang ? (
             <span className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground/55">{block.lang}</span>

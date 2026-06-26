@@ -43,16 +43,16 @@ function fmt(n: number): string {
 
 function pctColor(pct: number): string {
   if (pct >= 90) return "bg-destructive"
-  if (pct >= 75) return "bg-orange-500"
-  if (pct >= 50) return "bg-yellow-500"
-  return "bg-emerald-500"
+  if (pct >= 75) return "bg-foreground"
+  if (pct >= 50) return "bg-muted-foreground"
+  return "bg-success"
 }
 
 function pctTextColor(pct: number): string {
   if (pct >= 90) return "text-destructive"
-  if (pct >= 75) return "text-orange-500"
-  if (pct >= 50) return "text-yellow-500"
-  return "text-emerald-500"
+  if (pct >= 75) return "text-foreground"
+  if (pct >= 50) return "text-muted-foreground"
+  return "text-success-soft-foreground"
 }
 
 function parseModelLabel(modelId: string): string {
