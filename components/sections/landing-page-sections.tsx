@@ -2,12 +2,18 @@ import Link from "next/link"
 import {
   ArrowUpRight,
   CheckCircle2,
+  ChevronDown,
   Code2,
   Eye,
   GitBranch,
+  Globe,
+  History,
+  KeyRound,
   Layers,
+  MessageSquare,
+  Monitor,
+  PanelLeft,
   Play,
-  Sparkles,
   Terminal,
   Zap,
 } from "lucide-react"
@@ -20,54 +26,54 @@ import {
 } from "@/components/sections/landing-reveal"
 import { cn } from "@/lib/utils"
 
-const serif = {
-  fontFamily: "'Instrument Serif', Georgia, serif",
-  fontStyle: "italic" as const,
-  fontWeight: 400,
-}
-
 const capabilityPills = ["Prompt to repo", "Live preview", "Visual edits", "Deploy-ready"]
 
-const commandLines = [
-  { type: "prompt", text: "Build a launch page for a fintech product with onboarding and pricing." },
-  { type: "plan", text: "Plan: routes, hero system, pricing model, responsive sections." },
-  { type: "write", text: "Writing src/App.tsx, src/components/Pricing.tsx, src/index.css" },
-  { type: "verify", text: "Preview running on localhost:3000" },
+const feedMessages = [
+  {
+    role: "user",
+    text: "Build a customer onboarding dashboard with pricing, account setup, and a clean preview.",
+  },
+  {
+    role: "assistant",
+    text: "I updated the app shell, added the dashboard route, and restarted the preview. I am checking the generated files now.",
+  },
 ]
 
-const codeTabs = ["App.tsx", "Pricing.tsx", "index.css"]
-
-const codeSample = `const sections = [
-  "hero",
-  "proof",
-  "pricing",
-  "onboarding",
+const timelineRows = [
+  { title: "Understanding request", detail: "Dashboard, pricing, onboarding" },
+  { title: "Generating app/dashboard/page.tsx", detail: "Writing product surface" },
+  { title: "Preview ready", detail: "localhost:3000/dashboard" },
 ]
 
-export function LaunchPage() {
-  return <SiteShell sections={sections} />
-}`
+const workspaceTabs = ["Preview", "Browser", "Research"]
+
+const generatedFiles = [
+  "app/dashboard/page.tsx",
+  "components/app-shell.tsx",
+  "components/pricing-table.tsx",
+  "lib/plans.ts",
+]
 
 const workflow = [
   {
     step: "01",
-    title: "Describe the product",
-    description: "Start with the outcome, audience, style, and any product constraints. Lotus turns that into a build plan instead of guessing from a thin prompt.",
+    title: "Prompt the computer",
+    description: "Describe the app, routes, integrations, and style. Lotus turns it into a visible build plan before editing files.",
   },
   {
     step: "02",
-    title: "Watch the workspace form",
-    description: "The agent writes files, keeps the preview alive, and shows what changed so you can judge the product instead of reading raw logs.",
+    title: "Watch the run",
+    description: "The feed shows planning, file edits, questions, preview state, and repair actions in the same place as the real workspace.",
   },
   {
     step: "03",
-    title: "Edit like an IDE, not a chatbot",
-    description: "Ask for changes, select visual context, repair build errors, and keep the project moving without resetting the whole page.",
+    title: "Inspect the preview",
+    description: "Review the generated product in the workspace panel, switch tabs, reload the preview, and catch runtime issues quickly.",
   },
   {
     step: "04",
-    title: "Ship from the same surface",
-    description: "Connect the repo, push the result, and move toward deployment once the first version is sharp enough to share.",
+    title: "Continue from context",
+    description: "Follow-up edits apply to the same project instead of starting over, so iteration feels closer to an IDE session.",
   },
 ]
 
@@ -95,33 +101,35 @@ const featureRows = [
   },
 ]
 
-const buildModes = [
+const demoUseCases = [
   {
-    title: "New product surfaces",
-    description: "Landing pages, SaaS flows, onboarding, dashboards, and product shells that need a credible first version fast.",
+    title: "SaaS launch workspace",
+    prompt: "Build a launch page, pricing, onboarding checklist, and authenticated dashboard shell.",
+    output: "Routes, app shell, pricing table, onboarding states, preview URL.",
   },
   {
-    title: "Iteration on existing code",
-    description: "Change sections, add routes, clean layout problems, or keep refining the same generated project after the first pass.",
+    title: "Internal operations tool",
+    prompt: "Create a CRM workspace with lead filters, account details, notes, import status, and empty states.",
+    output: "Table layout, filter controls, detail pane, sample data, export action.",
   },
   {
-    title: "Repair and hardening",
-    description: "Use compiler errors, preview logs, and validation feedback to get broken output back into a buildable state.",
+    title: "AI document review app",
+    prompt: "Make a document review flow with upload, analysis queue, results, and export panel.",
+    output: "Upload route, queue UI, review cards, status handling, preview checks.",
   },
-]
-
-const signalRows = [
-  { label: "Context kept", value: "Files + prompt + preview" },
-  { label: "Review surface", value: "Live browser, not screenshots" },
-  { label: "Handoff", value: "Code, branch, deployment path" },
+  {
+    title: "Preview repair run",
+    prompt: "Fix the unresolved import and restart the preview without adding unsupported dependencies.",
+    output: "Import repair, dependency validation, clean runtime log, refreshed preview.",
+  },
 ]
 
 const terminalEvents = [
-  "validated package.json dependencies",
-  "normalized generated files",
-  "started preview on port 3000",
-  "captured runtime error context",
-  "ready for follow-up edit",
+  "dependency allowlist passed",
+  "generated files normalized",
+  "preview booted on port 3000",
+  "runtime errors cleared",
+  "ready for next edit",
 ]
 
 function Section({
@@ -142,125 +150,224 @@ function Section({
   )
 }
 
-function WorkspaceSurface({ className }: { className?: string }) {
+function StaticComputerShell({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-[1.5rem] border border-border/70 bg-[#0c0c0b] text-background shadow-[0_42px_140px_-96px_var(--foreground)]",
+        "relative flex h-[760px] flex-col overflow-hidden rounded-[1.35rem] border border-border/70 bg-background text-foreground shadow-[0_42px_140px_-96px_var(--foreground)]",
         className
       )}
     >
-      <div className="flex h-11 items-center justify-between border-b border-background/10 px-4 text-[11px] text-background/52">
-        <div className="flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-full bg-background/75" />
-          <span className="h-2.5 w-2.5 rounded-full bg-background/30" />
-          <span className="h-2.5 w-2.5 rounded-full bg-background/18" />
-        </div>
-        <span>lotus.build/workspace</span>
-        <span className="hidden sm:inline">preview synced</span>
-      </div>
-
-      <div className="grid min-h-[560px] lg:grid-cols-[300px_minmax(0,1fr)_330px]">
-        <aside className="flex min-h-0 flex-col border-b border-background/10 bg-background/[0.035] p-4 lg:border-b-0 lg:border-r">
-          <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.14em] text-background/38">
-            <span>Run</span>
-            <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2 py-0.5 text-emerald-200">
-              active
-            </span>
-          </div>
-
-          <div className="mt-4 space-y-2.5">
-            {commandLines.map((line, index) => (
-              <div
-                key={line.text}
-                className={cn(
-                  "rounded-2xl border px-3 py-3 text-[12px] leading-5",
-                  index === 0
-                    ? "border-background/15 bg-background/10 text-background"
-                    : "border-background/8 bg-background/[0.045] text-background/62"
-                )}
-              >
-                <span className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-background/35">
-                  {line.type}
-                </span>
-                {line.text}
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-auto rounded-2xl border border-background/10 bg-background/[0.045] p-3">
-            <div className="flex items-center gap-2 text-[12px] text-background/72">
-              <Sparkles className="h-3.5 w-3.5" />
-              <span>Context bundle</span>
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-background/50">
-              <span className="rounded-lg bg-background/7 px-2 py-1.5">prompt</span>
-              <span className="rounded-lg bg-background/7 px-2 py-1.5">files</span>
-              <span className="rounded-lg bg-background/7 px-2 py-1.5">preview</span>
-              <span className="rounded-lg bg-background/7 px-2 py-1.5">logs</span>
-            </div>
-          </div>
-        </aside>
-
-        <div className="min-h-0 border-b border-background/10 lg:border-b-0 lg:border-r">
-          <div className="flex h-10 items-center gap-1 border-b border-background/10 px-3 text-[11px]">
-            {codeTabs.map((tab, index) => (
-              <span
-                key={tab}
-                className={cn(
-                  "rounded-lg px-2.5 py-1",
-                  index === 0 ? "bg-background/10 text-background" : "text-background/42"
-                )}
-              >
-                {tab}
+      <header className="lotus-glass relative z-30 shrink-0">
+        <div className="relative flex h-[52px] w-full items-center">
+          <div className="flex h-full min-w-0 shrink-0 items-center gap-1 px-3 sm:w-[32%] md:w-[31%] lg:w-[340px] xl:w-[370px]">
+            <button
+              type="button"
+              aria-label="Open sidebar"
+              className="mr-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground/55 transition-all duration-150 hover:bg-muted hover:text-foreground"
+            >
+              <PanelLeft className="h-[15px] w-[15px]" />
+            </button>
+            <button
+              type="button"
+              className="group -mx-1 hidden w-full min-w-0 items-center gap-1.5 rounded-lg px-1 py-1.5 text-left transition-colors hover:bg-muted/60 sm:flex"
+              aria-label="Session menu"
+            >
+              <span className="min-w-0 truncate text-[13px] font-medium tracking-[-0.01em] text-foreground">
+                Customer onboarding dashboard
               </span>
-            ))}
-          </div>
-          <pre className="h-[260px] overflow-hidden p-5 text-[12px] leading-6 text-background/68 sm:h-[330px] lg:h-[520px]">
-            <code>{codeSample}</code>
-          </pre>
-        </div>
-
-        <div className="bg-[#f8f7f3] p-4 text-foreground sm:p-5">
-          <div className="mb-3 flex items-center justify-between text-[11px] text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              localhost:3000
-            </span>
-            <span>browser</span>
+              <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground/35" />
+            </button>
           </div>
 
-          <div className="flex h-[420px] flex-col overflow-hidden rounded-[1.25rem] border border-border bg-background shadow-sm lg:h-[492px]">
-            <div className="border-b border-border px-4 py-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[12px] font-semibold">Finpilot</span>
-                <span className="rounded-full bg-foreground px-2.5 py-1 text-[10px] text-background">
-                  Waitlist
+          <div className="hidden h-full min-w-0 flex-1 items-center justify-center px-3 sm:flex">
+            <div className="inline-flex max-w-full items-center gap-1 rounded-full border border-border/60 bg-card/80 p-1 text-[11px] text-muted-foreground">
+              {workspaceTabs.map((tab, index) => (
+                <span
+                  key={tab}
+                  className={cn(
+                    "rounded-full px-3 py-1.5",
+                    index === 0 ? "bg-foreground text-background" : "text-muted-foreground"
+                  )}
+                >
+                  {tab}
                 </span>
-              </div>
+              ))}
             </div>
-            <div className="flex flex-1 flex-col px-5 py-6">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Generated preview
-              </p>
-              <h3 className="mt-5 text-4xl font-medium leading-[0.95] tracking-[-0.055em] text-foreground">
-                Finance onboarding that feels ready to fund.
-              </h3>
-              <p className="mt-4 text-sm leading-6 text-muted-foreground">
-                A composed hero, pricing logic, and early product narrative generated from one brief.
-              </p>
-              <div className="mt-auto space-y-2 border-t border-border pt-4">
-                {signalRows.map((row) => (
-                  <div key={row.label} className="flex items-center justify-between gap-4 text-[12px]">
-                    <span className="text-muted-foreground">{row.label}</span>
-                    <span className="font-medium text-foreground">{row.value}</span>
+          </div>
+
+          <div className="ml-auto hidden h-full items-center gap-2 px-3 text-[13px] sm:flex">
+            <button className="hidden h-9 items-center justify-center gap-1.5 rounded-full border border-border bg-card px-3 font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground md:inline-flex">
+              <KeyRound className="h-3.5 w-3.5" />
+              Integrations
+            </button>
+            <button className="hidden h-9 items-center justify-center gap-1.5 rounded-full border border-border bg-card px-3 font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground md:inline-flex">
+              <History className="h-3.5 w-3.5" />
+              History
+            </button>
+            <button className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-foreground px-3 font-semibold text-background transition hover:bg-foreground/85">
+              <Globe className="h-3.5 w-3.5" />
+              Deploy
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="relative flex min-h-0 w-full flex-1 overflow-hidden">
+        <div className="flex w-full shrink-0 flex-col overflow-hidden bg-[color-mix(in_oklch,var(--background)_76%,transparent)] backdrop-blur-2xl sm:w-[32%] md:w-[31%] lg:w-[340px] xl:w-[370px]">
+          <div className="relative min-h-0 flex-1 overflow-hidden">
+            <div className="chat-scrollbar flex h-full flex-col overflow-y-auto px-4 lg:px-5">
+              <div className="flex-1 pt-4" />
+              <div className="space-y-4 pb-4">
+                {feedMessages.map((message) => (
+                  <div key={message.text} className="rounded-xl border border-border/55 bg-card/78 px-3.5 py-3 shadow-sm">
+                    <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                      {message.role === "user" ? "You" : "Lotus"}
+                    </p>
+                    <p className="mt-1.5 text-[13px] leading-relaxed text-foreground/82">{message.text}</p>
                   </div>
                 ))}
+
+                <div className="rounded-xl border border-border/55 bg-card/78 px-3.5 py-3 shadow-sm">
+                  <p className="text-[12px] font-semibold text-foreground">Run timeline</p>
+                  <div className="mt-3 space-y-3">
+                    {timelineRows.map((row, index) => (
+                      <div key={row.title} className="grid grid-cols-[18px_minmax(0,1fr)] gap-2 text-[12px]">
+                        <span className={cn(
+                          "mt-1.5 h-2 w-2 rounded-full",
+                          index < 2 ? "bg-foreground" : "bg-success"
+                        )} />
+                        <span className="min-w-0">
+                          <span className="block font-medium text-foreground">{row.title}</span>
+                          <span className="block truncate text-muted-foreground">{row.detail}</span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border/55 bg-card/78 px-3.5 py-3 shadow-sm">
+                  <p className="text-[12px] font-semibold text-foreground">Generated files</p>
+                  <div className="mt-2 space-y-1.5">
+                    {generatedFiles.map((file, index) => (
+                      <div key={file} className={cn(
+                        "rounded-lg px-2.5 py-2 text-[12px]",
+                        index === 0 ? "bg-muted text-foreground" : "text-muted-foreground"
+                      )}>
+                        {file}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="shrink-0 px-3 pb-3 pt-2 lg:px-4">
+            <div className="lotus-glass-control rounded-2xl border border-border/60 p-2 shadow-sm">
+              <div className="min-h-[58px] rounded-xl px-3 py-2 text-[13px] text-muted-foreground">
+                Message the agent...
+              </div>
+              <div className="flex items-center justify-between px-1 pb-1">
+                <span className="text-[11px] text-muted-foreground">Ask for a change or fix</span>
+                <span className="rounded-full bg-foreground px-3 py-1.5 text-[11px] font-semibold text-background">Send</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="lotus-glass-strong m-2 hidden min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border/50 shadow-[0_28px_90px_-64px_rgba(0,0,0,0.9)] sm:flex">
+          <div className="relative min-h-0 flex-1">
+            <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[color-mix(in_oklch,var(--background)_88%,transparent)]">
+              <div className="lotus-glass-inset flex h-10 shrink-0 items-center justify-center border-b border-border/40 px-4">
+                <div className="lotus-glass-control group flex w-full max-w-sm items-center gap-0.5 overflow-hidden rounded-full border border-border/60 px-1">
+                  <button className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-foreground/70" aria-label="Go to root">
+                    <span className="text-[13px]">/</span>
+                  </button>
+                  <span className="max-w-[130px] shrink truncate select-none text-[11px] text-foreground/50">
+                    localhost:3000
+                  </span>
+                  <div className="flex min-w-[40px] flex-1 items-center">
+                    <span className="shrink-0 select-none text-[12px] text-foreground/40">/</span>
+                    <span className="min-w-0 flex-1 truncate py-0.5 text-[12px] text-foreground">dashboard</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-hidden bg-background p-3 lg:p-4">
+                <div className="h-full overflow-hidden rounded-xl border border-border/60 bg-card">
+                  <div className="flex h-full flex-col bg-background">
+                    <div className="flex items-center justify-between border-b border-border px-5 py-4">
+                      <div>
+                        <p className="text-[13px] font-semibold text-foreground">AcmeDesk</p>
+                        <p className="text-[11px] text-muted-foreground">Generated preview</p>
+                      </div>
+                      <span className="rounded-full bg-foreground px-3 py-1.5 text-[11px] font-medium text-background">Invite team</span>
+                    </div>
+                    <div className="grid min-h-0 flex-1 grid-cols-[156px_minmax(0,1fr)]">
+                      <aside className="border-r border-border bg-muted/35 p-3">
+                        {['Overview', 'Customers', 'Billing', 'Settings'].map((item, index) => (
+                          <div key={item} className={cn(
+                            "mb-1 rounded-lg px-2.5 py-2 text-[12px]",
+                            index === 0 ? "bg-background font-medium text-foreground shadow-sm" : "text-muted-foreground"
+                          )}>
+                            {item}
+                          </div>
+                        ))}
+                      </aside>
+                      <main className="min-w-0 p-5">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Overview</p>
+                            <h3 className="mt-2 text-2xl font-semibold tracking-[-0.035em] text-foreground">Customer onboarding</h3>
+                          </div>
+                          <span className="rounded-full border border-border px-2.5 py-1 text-[11px] text-muted-foreground">Preview ready</span>
+                        </div>
+                        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                          {[
+                            ["482", "active users"],
+                            ["31", "trial accounts"],
+                            ["0", "build errors"],
+                          ].map(([value, label]) => (
+                            <div key={label} className="rounded-xl border border-border bg-muted/25 p-3">
+                              <p className="text-2xl font-semibold tracking-[-0.04em] text-foreground">{value}</p>
+                              <p className="text-[11px] text-muted-foreground">{label}</p>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-5 rounded-xl border border-border">
+                          {['Design onboarding checklist', 'Add pricing comparison', 'Wire settings form'].map((item, index) => (
+                            <div key={item} className="flex items-center justify-between border-b border-border px-3 py-3 last:border-b-0">
+                              <span className="text-[12px] text-foreground">{item}</span>
+                              <span className="text-[11px] text-muted-foreground">{index === 0 ? "done" : "queued"}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </main>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      <nav
+        aria-label="Switch between chat and preview"
+        className="lotus-glass-strong absolute inset-x-3 bottom-3 z-20 mx-auto max-w-xs rounded-xl border border-border/50 px-1 py-1 shadow-[0_22px_70px_-42px_rgba(0,0,0,0.9)] sm:hidden"
+      >
+        <div className="grid grid-cols-2 gap-1">
+          <span className="flex h-10 items-center justify-center gap-1.5 rounded-full bg-foreground text-[12.5px] font-medium text-background">
+            <MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />
+            Chat
+          </span>
+          <span className="flex h-10 items-center justify-center gap-1.5 rounded-full text-[12.5px] font-medium text-muted-foreground">
+            <Monitor className="h-3.5 w-3.5" aria-hidden="true" />
+            Preview
+          </span>
+        </div>
+      </nav>
     </div>
   )
 }
@@ -291,14 +398,14 @@ export function LandingProductSection() {
         <Reveal>
           <div className="grid gap-8 lg:grid-cols-[0.92fr_1.08fr] lg:items-end">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">The workspace</p>
+              <p className="text-sm font-medium text-muted-foreground">The computer workspace</p>
               <h2 className="mt-4 max-w-2xl text-4xl font-medium leading-[1.02] tracking-[-0.045em] text-foreground sm:text-5xl lg:text-6xl">
-                A coding agent with a live product surface attached.
+                The landing demo should look like the product.
               </h2>
             </div>
             <div className="lg:justify-self-end">
               <p className="max-w-md text-base leading-7 text-muted-foreground">
-                Inspired by the speed of Bolt and the focus of Cursor, Lotus keeps prompt, code, logs, and preview in one continuous build loop.
+                This section mirrors the actual computer page: the same top bar, chat panel, workspace panel, preview URL bar, and mobile switcher pattern.
               </p>
               <div className="mt-7">
                 <CapabilityPills items={capabilityPills} />
@@ -310,8 +417,8 @@ export function LandingProductSection() {
 
       <Section bleed className="bg-[#f7f5ef] pb-20 pt-12 sm:pb-28 sm:pt-16">
         <Reveal delay={0.08}>
-          <div className="mx-auto max-w-[76rem] px-4 sm:px-6 lg:px-8">
-            <WorkspaceSurface />
+          <div className="mx-auto max-w-[82rem] px-4 sm:px-6 lg:px-8">
+            <StaticComputerShell />
           </div>
         </Reveal>
 
@@ -387,31 +494,27 @@ export function LandingUseCasesSection() {
       <Reveal>
         <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr] lg:items-end">
           <div>
-            <p className="text-sm font-medium text-muted-foreground">Build modes</p>
+            <p className="text-sm font-medium text-muted-foreground">Demo use cases</p>
             <h2 className="mt-4 max-w-xl text-3xl font-medium tracking-[-0.04em] text-foreground sm:text-4xl lg:text-5xl">
-              Start fast without losing the thread.
+              Real prompts, real workspace outcomes.
             </h2>
           </div>
           <p className="max-w-md text-sm leading-7 text-muted-foreground lg:justify-self-end">
-            Use Lotus when you want the speed of generation, but still need a place to inspect the result like a product engineer.
+            These are the kinds of runs that should feel natural inside the computer page, without dressing them up as fake product claims.
           </p>
         </div>
       </Reveal>
 
       <RevealStagger className="mt-12 divide-y divide-border/70 border-y border-border/70">
-        {buildModes.map((mode, index) => (
-          <RevealItem key={mode.title}>
-            <article className="group grid gap-5 py-8 transition duration-300 lg:grid-cols-[120px_minmax(0,0.75fr)_minmax(0,1fr)] lg:items-center">
-              <span className="text-sm font-semibold tabular-nums text-muted-foreground">
-                0{index + 1}
-              </span>
+        {demoUseCases.map((useCase, index) => (
+          <RevealItem key={useCase.title}>
+            <article className="grid gap-5 py-8 lg:grid-cols-[120px_minmax(0,0.7fr)_minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
+              <span className="text-sm font-semibold tabular-nums text-muted-foreground">0{index + 1}</span>
               <h3 className="text-2xl font-medium tracking-[-0.035em] text-foreground sm:text-3xl">
-                {mode.title}
+                {useCase.title}
               </h3>
-              <div className="flex items-start justify-between gap-5">
-                <p className="max-w-xl text-sm leading-7 text-muted-foreground">{mode.description}</p>
-                <ArrowUpRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-foreground" />
-              </div>
+              <p className="text-sm leading-7 text-foreground/78">{useCase.prompt}</p>
+              <p className="text-sm leading-7 text-muted-foreground">{useCase.output}</p>
             </article>
           </RevealItem>
         ))}
