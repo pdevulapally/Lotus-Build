@@ -20,32 +20,43 @@ import {
 } from "@/components/sections/landing-reveal"
 import { cn } from "@/lib/utils"
 
-const serif = {
-  fontFamily: "'Instrument Serif', Georgia, serif",
-  fontStyle: "italic" as const,
-  fontWeight: 400,
-}
-
 const capabilityPills = ["Prompt to repo", "Live preview", "Visual edits", "Deploy-ready"]
 
-const commandLines = [
-  { type: "prompt", text: "Build a launch page for a fintech product with onboarding and pricing." },
-  { type: "plan", text: "Plan: routes, hero system, pricing model, responsive sections." },
-  { type: "write", text: "Writing src/App.tsx, src/components/Pricing.tsx, src/index.css" },
-  { type: "verify", text: "Preview running on localhost:3000" },
+const agentMessages = [
+  {
+    speaker: "You",
+    text: "Build a fintech launch page with pricing, onboarding, and a sharper hero.",
+  },
+  {
+    speaker: "Lotus",
+    text: "I’ll update the visual system, generate the missing sections, then run the preview.",
+  },
+]
+
+const planSteps = [
+  { label: "Plan routes", state: "done" },
+  { label: "Write components", state: "active" },
+  { label: "Validate imports", state: "queued" },
+]
+
+const fileTree = [
+  { name: "src/App.tsx", active: true },
+  { name: "src/components/Pricing.tsx", active: false },
+  { name: "src/components/Onboarding.tsx", active: false },
+  { name: "src/index.css", active: false },
 ]
 
 const codeTabs = ["App.tsx", "Pricing.tsx", "index.css"]
 
-const codeSample = `const sections = [
-  "hero",
-  "proof",
-  "pricing",
-  "onboarding",
-]
-
-export function LaunchPage() {
-  return <SiteShell sections={sections} />
+const codeSample = `export default function App() {
+  return (
+    <SiteShell>
+      <Hero intent="fintech" />
+      <ProofStrip />
+      <PricingTable />
+      <OnboardingFlow />
+    </SiteShell>
+  )
 }`
 
 const workflow = [
@@ -146,116 +157,195 @@ function WorkspaceSurface({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-[1.5rem] border border-border/70 bg-[#0c0c0b] text-background shadow-[0_42px_140px_-96px_var(--foreground)]",
+        "overflow-hidden rounded-[1.35rem] border border-border/70 bg-[#0b0b0a] text-background shadow-[0_42px_140px_-96px_var(--foreground)]",
         className
       )}
     >
-      <div className="flex h-11 items-center justify-between border-b border-background/10 px-4 text-[11px] text-background/52">
-        <div className="flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-full bg-background/75" />
-          <span className="h-2.5 w-2.5 rounded-full bg-background/30" />
-          <span className="h-2.5 w-2.5 rounded-full bg-background/18" />
+      <div className="flex h-12 items-center justify-between border-b border-background/10 bg-background/[0.035] px-4 text-[11px] text-background/52">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#f87171]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#fbbf24]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#34d399]" />
+          </div>
+          <span className="hidden text-background/70 sm:inline">Lotus Computer</span>
+          <span className="truncate rounded-full border border-background/10 bg-background/[0.055] px-2.5 py-1">
+            fintech-launch / main
+          </span>
         </div>
-        <span>lotus.build/workspace</span>
-        <span className="hidden sm:inline">preview synced</span>
+        <div className="hidden items-center gap-1 rounded-full border border-background/10 bg-background/[0.055] p-1 sm:flex">
+          {['Preview', 'Browser', 'Research'].map((tab, index) => (
+            <span
+              key={tab}
+              className={cn(
+                "rounded-full px-2.5 py-1 text-[11px]",
+                index === 0 ? "bg-background text-foreground" : "text-background/48"
+              )}
+            >
+              {tab}
+            </span>
+          ))}
+        </div>
       </div>
 
-      <div className="grid min-h-[560px] lg:grid-cols-[300px_minmax(0,1fr)_330px]">
-        <aside className="flex min-h-0 flex-col border-b border-background/10 bg-background/[0.035] p-4 lg:border-b-0 lg:border-r">
+      <div className="grid min-h-[620px] lg:grid-cols-[308px_minmax(0,1fr)]">
+        <aside className="flex min-h-0 flex-col border-b border-background/10 bg-[#11110f] p-4 lg:border-b-0 lg:border-r">
           <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.14em] text-background/38">
-            <span>Run</span>
+            <span>Agent</span>
             <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2 py-0.5 text-emerald-200">
-              active
+              building
             </span>
           </div>
 
-          <div className="mt-4 space-y-2.5">
-            {commandLines.map((line, index) => (
+          <div className="mt-4 space-y-3">
+            {agentMessages.map((message, index) => (
               <div
-                key={line.text}
+                key={message.text}
                 className={cn(
                   "rounded-2xl border px-3 py-3 text-[12px] leading-5",
                   index === 0
-                    ? "border-background/15 bg-background/10 text-background"
-                    : "border-background/8 bg-background/[0.045] text-background/62"
+                    ? "border-background/12 bg-background/10 text-background"
+                    : "border-background/8 bg-background/[0.045] text-background/68"
                 )}
               >
-                <span className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-background/35">
-                  {line.type}
+                <span className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-background/36">
+                  {message.speaker}
                 </span>
-                {line.text}
+                {message.text}
               </div>
             ))}
           </div>
 
-          <div className="mt-auto rounded-2xl border border-background/10 bg-background/[0.045] p-3">
+          <div className="mt-5 rounded-2xl border border-background/10 bg-background/[0.045] p-3">
             <div className="flex items-center gap-2 text-[12px] text-background/72">
               <Sparkles className="h-3.5 w-3.5" />
-              <span>Context bundle</span>
+              <span>Run plan</span>
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-background/50">
-              <span className="rounded-lg bg-background/7 px-2 py-1.5">prompt</span>
-              <span className="rounded-lg bg-background/7 px-2 py-1.5">files</span>
-              <span className="rounded-lg bg-background/7 px-2 py-1.5">preview</span>
-              <span className="rounded-lg bg-background/7 px-2 py-1.5">logs</span>
+            <div className="mt-3 space-y-2">
+              {planSteps.map((step) => (
+                <div key={step.label} className="flex items-center justify-between gap-3 text-[11px] text-background/58">
+                  <span>{step.label}</span>
+                  <span
+                    className={cn(
+                      "h-1.5 w-1.5 rounded-full",
+                      step.state === "done" && "bg-emerald-300",
+                      step.state === "active" && "bg-background animate-pulse",
+                      step.state === "queued" && "bg-background/25"
+                    )}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-auto rounded-2xl border border-background/10 bg-black/25 p-3">
+            <div className="mb-2 text-[10px] uppercase tracking-[0.14em] text-background/34">Files touched</div>
+            <div className="space-y-1.5">
+              {fileTree.map((file) => (
+                <div
+                  key={file.name}
+                  className={cn(
+                    "flex items-center justify-between rounded-lg px-2.5 py-2 text-[11px]",
+                    file.active ? "bg-background text-foreground" : "bg-background/[0.055] text-background/48"
+                  )}
+                >
+                  <span className="truncate">{file.name}</span>
+                  {file.active ? <span className="text-foreground/45">open</span> : null}
+                </div>
+              ))}
             </div>
           </div>
         </aside>
 
-        <div className="min-h-0 border-b border-background/10 lg:border-b-0 lg:border-r">
-          <div className="flex h-10 items-center gap-1 border-b border-background/10 px-3 text-[11px]">
-            {codeTabs.map((tab, index) => (
-              <span
-                key={tab}
-                className={cn(
-                  "rounded-lg px-2.5 py-1",
-                  index === 0 ? "bg-background/10 text-background" : "text-background/42"
-                )}
-              >
-                {tab}
-              </span>
-            ))}
-          </div>
-          <pre className="h-[260px] overflow-hidden p-5 text-[12px] leading-6 text-background/68 sm:h-[330px] lg:h-[520px]">
-            <code>{codeSample}</code>
-          </pre>
-        </div>
+        <div className="grid min-h-0 lg:grid-rows-[minmax(0,1fr)_168px]">
+          <div className="grid min-h-0 lg:grid-cols-[minmax(0,0.95fr)_minmax(360px,1.05fr)]">
+            <div className="min-h-0 border-b border-background/10 lg:border-b-0 lg:border-r">
+              <div className="flex h-10 items-center gap-1 border-b border-background/10 px-3 text-[11px]">
+                {codeTabs.map((tab, index) => (
+                  <span
+                    key={tab}
+                    className={cn(
+                      "rounded-lg px-2.5 py-1",
+                      index === 0 ? "bg-background/10 text-background" : "text-background/42"
+                    )}
+                  >
+                    {tab}
+                  </span>
+                ))}
+              </div>
+              <pre className="h-[260px] overflow-hidden p-5 text-[12px] leading-6 text-background/68 sm:h-[330px] lg:h-[410px]">
+                <code>{codeSample}</code>
+              </pre>
+            </div>
 
-        <div className="bg-[#f8f7f3] p-4 text-foreground sm:p-5">
-          <div className="mb-3 flex items-center justify-between text-[11px] text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              localhost:3000
-            </span>
-            <span>browser</span>
-          </div>
+            <div className="bg-[#f4f2eb] p-4 text-foreground sm:p-5">
+              <div className="mb-3 flex items-center gap-2 rounded-full border border-border bg-background px-2 py-1.5 text-[11px] text-muted-foreground shadow-sm">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-foreground">/</span>
+                <span className="min-w-0 flex-1 truncate">localhost:3000/pricing</span>
+                <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700">Live</span>
+              </div>
 
-          <div className="flex h-[420px] flex-col overflow-hidden rounded-[1.25rem] border border-border bg-background shadow-sm lg:h-[492px]">
-            <div className="border-b border-border px-4 py-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[12px] font-semibold">Finpilot</span>
-                <span className="rounded-full bg-foreground px-2.5 py-1 text-[10px] text-background">
-                  Waitlist
-                </span>
+              <div className="flex h-[410px] flex-col overflow-hidden rounded-[1.1rem] border border-border bg-background shadow-sm">
+                <div className="border-b border-border px-4 py-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[12px] font-semibold">Finpilot</span>
+                    <span className="rounded-full bg-foreground px-2.5 py-1 text-[10px] text-background">
+                      Join waitlist
+                    </span>
+                  </div>
+                </div>
+                <div className="flex flex-1 flex-col px-5 py-6">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    Generated preview
+                  </p>
+                  <h3 className="mt-5 text-4xl font-medium leading-[0.95] tracking-[-0.055em] text-foreground">
+                    Finance onboarding that feels ready to fund.
+                  </h3>
+                  <p className="mt-4 text-sm leading-6 text-muted-foreground">
+                    A composed hero, pricing logic, and early product narrative generated from one brief.
+                  </p>
+                  <div className="mt-auto grid grid-cols-3 gap-2 border-t border-border pt-4">
+                    {[
+                      ["12", "screens"],
+                      ["4", "flows"],
+                      ["0", "errors"],
+                    ].map(([value, label]) => (
+                      <div key={label}>
+                        <p className="text-xl font-semibold tracking-[-0.04em] text-foreground">{value}</p>
+                        <p className="text-[11px] text-muted-foreground">{label}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="flex flex-1 flex-col px-5 py-6">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Generated preview
-              </p>
-              <h3 className="mt-5 text-4xl font-medium leading-[0.95] tracking-[-0.055em] text-foreground">
-                Finance onboarding that feels ready to fund.
-              </h3>
-              <p className="mt-4 text-sm leading-6 text-muted-foreground">
-                A composed hero, pricing logic, and early product narrative generated from one brief.
-              </p>
-              <div className="mt-auto space-y-2 border-t border-border pt-4">
+          </div>
+
+          <div className="grid border-t border-background/10 bg-background/[0.03] lg:grid-cols-[minmax(0,1fr)_320px]">
+            <div className="p-4">
+              <div className="mb-3 flex items-center justify-between text-[11px] text-background/38">
+                <span>Timeline</span>
+                <span>validating output</span>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-4">
                 {signalRows.map((row) => (
-                  <div key={row.label} className="flex items-center justify-between gap-4 text-[12px]">
-                    <span className="text-muted-foreground">{row.label}</span>
-                    <span className="font-medium text-foreground">{row.value}</span>
+                  <div key={row.label} className="rounded-xl border border-background/8 bg-background/[0.045] p-3">
+                    <p className="text-[11px] text-background/38">{row.label}</p>
+                    <p className="mt-1 text-[12px] font-medium text-background/78">{row.value}</p>
                   </div>
                 ))}
+                <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-3">
+                  <p className="text-[11px] text-emerald-100/70">Status</p>
+                  <p className="mt-1 text-[12px] font-medium text-emerald-100">Preview ready</p>
+                </div>
+              </div>
+            </div>
+            <div className="border-t border-background/10 p-4 lg:border-l lg:border-t-0">
+              <div className="font-mono text-[11px] leading-5 text-background/54">
+                <p className="text-background/34">terminal</p>
+                <p><span className="text-emerald-300">✓</span> npm install completed</p>
+                <p><span className="text-emerald-300">✓</span> vite ready on :3000</p>
+                <p><span className="text-background/40">›</span> waiting for edits</p>
               </div>
             </div>
           </div>
