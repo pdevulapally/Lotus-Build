@@ -13,6 +13,14 @@ export const runtime = "nodejs"
 
 const GITHUB_API = "https://api.github.com"
 
+type GitHubSyncIssue = {
+  code: string
+  message: string
+  action?: string
+  detail?: string
+  status?: number
+}
+
 async function getProject(projectId: string) {
   const snap = await adminDb.collection("projects").doc(projectId).get()
   if (!snap.exists) return null
@@ -33,6 +41,56 @@ function slugifyRepoName(value: string): string {
     .replace(/^-+|-+$/g, "")
     .slice(0, 80)
   return slug || "lotus-build-site"
+}
+
+function githubSyncIssueResponse(issue: GitHubSyncIssue) {
+  return NextResponse.json(
+    {
+      ok: false,
+      error: issue.code,
+      code: issue.code,
+      message: issue.message,
+      action: issue.action || "Retry sync",
+      githubSyncUnavailable: true,
+      ...(issue.detail ? { detail: issue.detail.slice(0, 500) } : {}),
+    },
+    { status: issue.status ?? 200 }
+  )
+}
+
+function publicGitHubSyncIssue(err: unknown): GitHubSyncIssue {
+  const raw = err instanceof Error ? err.message : String(err || "")
+  const normalized = raw.toLowerCase()
+
+  if (normalized.includes("bad credentials") || normalized.includes("requires authentication") || normalized.includes("unauthorized")) {
+    return {
+      code: "github_reconnect_required",
+      message: "GitHub needs to be reconnected before this project can sync.",
+      action: "Reconnect GitHub",
+    }
+  }
+
+  if (normalized.includes("rate limit")) {
+    return {
+      code: "github_rate_limited",
+      message: "GitHub is rate limiting repository sync right now. Please retry in a few minutes.",
+      action: "Retry sync",
+    }
+  }
+
+  if (normalized.includes("not configured") || normalized.includes("private key") || normalized.includes("installation")) {
+    return {
+      code: "github_app_access_required",
+      message: "GitHub is connected, but repository access is not ready. Install or grant the GitHub App access to a repository, then retry.",
+      action: "Manage GitHub access",
+    }
+  }
+
+  return {
+    code: "github_sync_failed",
+    message: "GitHub sync could not complete right now. Your project files are safe; retry the sync in a moment.",
+    action: "Retry sync",
+  }
 }
 
 function withLotusBuildCiWorkflow(files: { path: string; content: string }[]) {
@@ -163,12 +221,59 @@ async function githubRequest(
   return res
 }
 
+async function writeFilesToRepo(params: {
+  installationToken: string
+  owner: string
+  repoName: string
+  files: { path: string; content: string }[]
+}) {
+  const encodedOwner = encodeURIComponent(params.owner)
+  const encodedRepoName = encodeURIComponent(params.repoName)
+
+  for (const file of params.files) {
+    const path = file.path
+    const content = Buffer.from(file.content, "utf8").toString("base64")
+    const encodedPath = path.split("/").map(encodeURIComponent).join("/")
+
+    let sha: string | undefined
+    const getRes = await githubRequest(
+      params.installationToken,
+      "GET",
+      `/repos/${encodedOwner}/${encodedRepoName}/contents/${encodedPath}`
+    )
+    if (getRes.ok) {
+      const getJson = await getRes.json()
+      sha = getJson?.sha
+    }
+
+    const putRes = await githubRequest(
+      params.installationToken,
+      "PUT",
+      `/repos/${encodedOwner}/${encodedRepoName}/contents/${encodedPath}`,
+      {
+        message: `Sync from Lotus Build: ${path}`,
+        content,
+        ...(sha ? { sha } : {}),
+      }
+    )
+
+    if (!putRes.ok) {
+      const errText = await putRes.text().catch(() => "")
+      throw new Error(`GitHub rejected ${path} (${putRes.status}): ${errText}`)
+    }
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const uid = await requireUserUid(req)
     const token = await getGitHubToken(uid)
     if (!token) {
-      return NextResponse.json({ error: "GitHub not connected. Connect your account in Settings." }, { status: 400 })
+      return githubSyncIssueResponse({
+        code: "github_not_connected",
+        message: "Connect GitHub before syncing this project.",
+        action: "Connect GitHub",
+      })
     }
 
     let projectId: string
@@ -213,33 +318,7 @@ export async function POST(req: Request) {
             }
 
             const installationToken = await getInstallationToken(installationId)
-
-            for (const file of files) {
-              const path = file.path
-              const content = Buffer.from(file.content, "utf8").toString("base64")
-              const encodedPath = encodeURIComponent(path)
-
-              let sha: string | undefined
-              const getRes = await githubRequest(installationToken, "GET", `/repos/${owner}/${repoName}/contents/${encodedPath}`)
-              if (getRes.ok) {
-                const getJson = await getRes.json()
-                sha = getJson?.sha
-              }
-
-              const putRes = await githubRequest(installationToken, "PUT", `/repos/${owner}/${repoName}/contents/${encodedPath}`, {
-                message: `Sync from Lotus Build: ${path}`,
-                content,
-                ...(sha ? { sha } : {}),
-              })
-
-              if (!putRes.ok) {
-                const errText = await putRes.text()
-                return NextResponse.json(
-                  { error: `Failed to sync file ${path}: ${putRes.status} ${errText}` },
-                  { status: 500 }
-                )
-              }
-            }
+            await writeFilesToRepo({ installationToken, owner, repoName, files })
 
             const repoUrl = `https://github.com/${selectedRepo.full_name}`
             const syncedAt = new Date()
@@ -255,6 +334,7 @@ export async function POST(req: Request) {
             )
 
             return NextResponse.json({
+              ok: true,
               repoUrl,
               repoFullName: selectedRepo.full_name,
               syncedAt: syncedAt.toISOString(),
@@ -262,17 +342,16 @@ export async function POST(req: Request) {
             })
           }
         }
-      } catch {
-        // Fall through to the existing user-facing error below.
+      } catch (fallbackError) {
+        console.warn("GitHub app fallback sync failed:", fallbackError)
+        return githubSyncIssueResponse(publicGitHubSyncIssue(fallbackError))
       }
 
-      return NextResponse.json(
-        {
-          error:
-            "No installed repositories found for this GitHub App. Install the app on at least one repository, then reconnect GitHub and publish again.",
-        },
-        { status: 400 }
-      )
+      return githubSyncIssueResponse({
+        code: "github_app_access_required",
+        message: "No repositories are available to the GitHub App yet. Install the app on at least one repository, then retry sync.",
+        action: "Manage GitHub access",
+      })
     }
 
     let installationId = Number(projectData?.githubInstallationId || 0)
@@ -312,8 +391,8 @@ export async function POST(req: Request) {
           installationId = Number(preferredRepo.installationId)
           repoFullName = String(preferredRepo.full_name)
         }
-      } catch {
-        // Keep the user-facing error below if fallback resolution also fails.
+      } catch (fallbackError) {
+        console.warn("GitHub fallback repo resolution failed:", fallbackError)
       }
     }
 
@@ -328,13 +407,11 @@ export async function POST(req: Request) {
       const ownerType = String(chosenInstallation?.account?.type || "")
 
       if (!chosenInstallationId || !ownerLogin) {
-        return NextResponse.json(
-          {
-            error:
-              "No accessible repository available for this GitHub App installation, and no install target was available to create a new repository.",
-          },
-          { status: 400 }
-        )
+        return githubSyncIssueResponse({
+          code: "github_app_access_required",
+          message: "No repository or install target is available for GitHub sync. Grant repository access to the GitHub App, then retry.",
+          action: "Manage GitHub access",
+        })
       }
 
       const created = await createRepositoryForInstallation({
@@ -356,41 +433,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid GitHub repository on project." }, { status: 400 })
     }
 
-    const encodedOwner = encodeURIComponent(owner)
-    const encodedRepoName = encodeURIComponent(repoName)
-
     const installationToken = await getInstallationToken(installationId)
-
-    for (const file of files) {
-      const path = file.path
-      const content = Buffer.from(file.content, "utf8").toString("base64")
-      const encodedPath = encodeURIComponent(path)
-
-      let sha: string | undefined
-      const getRes = await githubRequest(
-        installationToken,
-        "GET",
-        `/repos/${encodedOwner}/${encodedRepoName}/contents/${encodedPath}`
-      )
-      if (getRes.ok) {
-        const getJson = await getRes.json()
-        sha = getJson?.sha
-      }
-
-      const putRes = await githubRequest(installationToken, "PUT", `/repos/${owner}/${repoName}/contents/${encodedPath}`, {
-        message: `Sync from Lotus Build: ${path}`,
-        content,
-        ...(sha ? { sha } : {}),
-      })
-
-      if (!putRes.ok) {
-        const errText = await putRes.text()
-        return NextResponse.json(
-          { error: `Failed to sync file ${path}: ${putRes.status} ${errText}` },
-          { status: 500 }
-        )
-      }
-    }
+    await writeFilesToRepo({ installationToken, owner, repoName, files })
 
     const repoUrl = `https://github.com/${repoFullName}`
     const syncedAt = new Date()
@@ -406,13 +450,15 @@ export async function POST(req: Request) {
     )
 
     return NextResponse.json({
+      ok: true,
       repoUrl,
       repoFullName,
       syncedAt: syncedAt.toISOString(),
       filesCount: files.length,
     })
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Sync failed"
-    return NextResponse.json({ error: message }, { status: 500 })
+    console.error("GitHub sync failed:", err)
+    const issue = publicGitHubSyncIssue(err)
+    return githubSyncIssueResponse(issue)
   }
 }

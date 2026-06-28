@@ -10,12 +10,58 @@ type ProjectFile = { path: string; content: string }
 
 function getTrustedAppOrigin(): string {
   const configured = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL
-  if (!configured) throw new Error("Server is missing APP_URL configuration")
+  if (!configured) throw new Error("preview_config_missing")
   const parsed = new URL(configured)
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    throw new Error("APP_URL must use http or https")
+    throw new Error("preview_config_invalid")
   }
   return parsed.origin
+}
+
+function previewUnavailableResponse(params: {
+  code?: string
+  message?: string
+  detail?: string
+  status?: number
+}) {
+  const message = params.message || "Preview is temporarily unavailable. Your project files are safe; retry the preview in a moment."
+  return NextResponse.json(
+    {
+      ok: false,
+      error: params.code || "preview_unavailable",
+      code: params.code || "preview_unavailable",
+      message,
+      action: "Retry preview",
+      previewUnavailable: true,
+      ...(params.detail ? { detail: params.detail.slice(0, 500) } : {}),
+    },
+    { status: params.status ?? 200 }
+  )
+}
+
+function publicPreviewError(err: unknown) {
+  const raw = err instanceof Error ? err.message : ""
+  if (raw === "preview_config_missing" || raw === "preview_config_invalid") {
+    return {
+      code: raw,
+      message: "Preview recovery is not configured on this deployment. Set APP_URL or NEXT_PUBLIC_APP_URL to the public app origin.",
+      status: 200,
+    }
+  }
+
+  if (raw.includes("aborted") || raw.includes("timeout")) {
+    return {
+      code: "preview_timeout",
+      message: "Preview startup took too long. Your project files are safe; retry the preview once the sandbox finishes warming up.",
+      status: 200,
+    }
+  }
+
+  return {
+    code: "preview_unavailable",
+    message: "Preview could not be recovered right now. Your project files are safe; retry the preview in a moment.",
+    status: 200,
+  }
 }
 
 async function isPreviewResponsive(previewUrl: string): Promise<boolean> {
@@ -127,6 +173,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         const healthy = await isPreviewResponsive(project.sandboxUrl)
         if (healthy) {
           return NextResponse.json({
+            ok: true,
             previewUrl: project.sandboxUrl,
             sandboxId: project.sandboxId,
             recovered: false,
@@ -151,8 +198,17 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       }),
     })
     if (!sandboxRes.ok) {
-      const body = await sandboxRes.text().catch(() => "")
-      throw new Error(`Failed to ensure preview (${sandboxRes.status}): ${body}`)
+      const responseBody = await sandboxRes.text().catch(() => "")
+      console.warn("[ensure-preview] sandbox recovery failed", {
+        projectId,
+        status: sandboxRes.status,
+        responseBody: responseBody.slice(0, 500),
+      })
+      return previewUnavailableResponse({
+        code: "preview_sandbox_failed",
+        message: "Preview recovery failed while starting the sandbox. Your project files are safe; retry the preview in a moment.",
+        detail: `Sandbox returned ${sandboxRes.status}`,
+      })
     }
 
     const ensured = await parseSandboxStream(sandboxRes)
@@ -166,6 +222,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     )
 
     return NextResponse.json({
+      ok: true,
       previewUrl: ensured.previewUrl,
       sandboxId: ensured.sandboxId,
       recovered: true,
@@ -173,7 +230,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to ensure preview"
     console.error("[ensure-preview] error", message)
-    const status = message === "Project not found" ? 404 : message.startsWith("Forbidden:") ? 403 : 500
-    return NextResponse.json({ error: message }, { status })
+    if (message === "Project not found") {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 })
+    }
+    if (message.startsWith("Forbidden:")) {
+      return NextResponse.json({ error: "You do not have access to this project." }, { status: 403 })
+    }
+    return previewUnavailableResponse(publicPreviewError(err))
   }
 }
