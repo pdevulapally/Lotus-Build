@@ -3,14 +3,14 @@
 import React, { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
+import { motion } from "framer-motion"
+import { Loader2 } from "lucide-react"
 import { LotusLogo } from "@/components/ui/lotus-logo"
 import { AuthWorkspaceDemo } from "@/components/auth/auth-workspace-demo"
-import { motion } from "framer-motion"
 import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2 } from "lucide-react"
 
 function GoogleIcon() {
   return (
@@ -113,188 +113,77 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-3 md:grid md:grid-cols-2 md:gap-3">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,hsl(var(--muted))_0,transparent_34%),linear-gradient(180deg,hsl(var(--background)),hsl(var(--background)))] text-foreground lg:grid lg:grid-cols-[minmax(0,0.9fr)_minmax(520px,1.1fr)]">
+      <section className="flex min-h-screen flex-col px-5 py-6 sm:px-8 lg:px-12">
+        <header className="flex items-center justify-between gap-4">
+          <Link href="/" className="flex w-fit items-center gap-2.5">
+            <LotusLogo size={28} />
+            <span className="text-[15px] font-semibold tracking-tight text-foreground">Lotus.build</span>
+          </Link>
+          <Link href={`/login?redirect=${encodeURIComponent(redirect)}`} className="rounded-lg border border-border/80 bg-card/70 px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted">
+            Sign in
+          </Link>
+        </header>
 
-      {/* ── Form column ── */}
-      <div className="flex min-h-[calc(100vh-24px)] flex-col rounded-[2rem] bg-card px-5 py-6 sm:px-8 md:min-h-0 md:px-10 lg:px-14 xl:px-16">
+        <div className="flex flex-1 items-center justify-center py-12">
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: "easeOut" }} className="w-full max-w-[420px]">
+            <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Create account</p>
+            <h1 className="mt-3 text-4xl font-semibold tracking-[-0.055em] text-foreground sm:text-5xl">Start building</h1>
+            <p className="mt-4 max-w-sm text-sm leading-6 text-muted-foreground">Create a workspace for prompts, generated files, previews, GitHub sync, and agent memory.</p>
 
-        {/* Logo */}
-        <Link href="/" className="flex w-fit items-center gap-2">
-          <LotusLogo size={30} />
-          <span className="text-[15px] font-semibold tracking-tight text-foreground">Lotus.build</span>
-        </Link>
+            {error && <div className="mt-6 rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div>}
 
-        {/* Form */}
-        <div className="flex flex-1 flex-col justify-center py-10">
-          <motion.div
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
-            className="mx-auto w-full max-w-[420px]"
-          >
-            <h1 className="text-4xl font-medium leading-[1.02] tracking-[-0.055em] text-foreground sm:text-5xl">
-              Create your account
-            </h1>
-            <p className="mt-4 max-w-sm text-sm leading-7 text-muted-foreground">
-              Start with a rough idea, then shape it into a polished product surface.
-            </p>
-
-            {error && (
-              <div className="mt-6 rounded-2xl bg-destructive/10 px-4 py-3 text-[13px] text-destructive">
-                {error}
-              </div>
-            )}
-
-            {/* Social auth */}
-            <div className="mt-8 grid gap-2.5 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={handleGoogleSignIn}
-                disabled={isLoading}
-                className="flex h-11 w-full items-center justify-center gap-2.5 rounded-2xl bg-secondary text-[13.5px] font-medium text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <GoogleIcon />
-                Google
+            <div className="mt-8 grid gap-3 sm:grid-cols-2">
+              <button type="button" onClick={handleGoogleSignIn} disabled={isLoading} className="flex h-11 w-full items-center justify-center gap-2.5 rounded-lg border border-border/80 bg-card/80 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50">
+                <GoogleIcon /> Google
               </button>
-              <button
-                type="button"
-                onClick={handleGithubSignIn}
-                disabled={isLoading}
-                className="flex h-11 w-full items-center justify-center gap-2.5 rounded-2xl bg-secondary text-[13.5px] font-medium text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <GithubIcon />
-                GitHub
+              <button type="button" onClick={handleGithubSignIn} disabled={isLoading} className="flex h-11 w-full items-center justify-center gap-2.5 rounded-lg border border-border/80 bg-card/80 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50">
+                <GithubIcon /> GitHub
               </button>
             </div>
 
-            {/* Divider */}
-            <div className="my-7 flex justify-center">
-              <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground/60">
-                or continue with email
-              </span>
-            </div>
+            <div className="my-7 flex items-center gap-3"><div className="h-px flex-1 bg-border" /><span className="text-xs text-muted-foreground">or email</span><div className="h-px flex-1 bg-border" /></div>
 
-            {/* Email form */}
             <form onSubmit={handleEmailSignUp} className="space-y-4">
               <div className="space-y-1.5">
-                <Label htmlFor="email" className="text-[13px] font-medium text-foreground">
-                  Email
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  className="h-12 rounded-2xl border-transparent bg-secondary/70 px-4 text-[14px] placeholder:text-muted-foreground/50 focus-visible:ring-1 focus-visible:ring-border-strong"
-                  required
-                />
+                <Label htmlFor="email" className="text-sm font-medium text-foreground">Email</Label>
+                <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="h-11 rounded-lg border-border/80 bg-card/70 px-3.5 text-sm" required />
               </div>
-
               <div className="space-y-1.5">
-                <Label htmlFor="password" className="text-[13px] font-medium text-foreground">
-                  Password
-                </Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 6 characters"
-                  className="h-12 rounded-2xl border-transparent bg-secondary/70 px-4 text-[14px] placeholder:text-muted-foreground/50 focus-visible:ring-1 focus-visible:ring-border-strong"
-                  required
-                />
+                <Label htmlFor="password" className="text-sm font-medium text-foreground">Password</Label>
+                <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 6 characters" className="h-11 rounded-lg border-border/80 bg-card/70 px-3.5 text-sm" required />
               </div>
-
               <div className="space-y-1.5">
-                <Label htmlFor="confirmPassword" className="text-[13px] font-medium text-foreground">
-                  Confirm password
-                </Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Repeat your password"
-                  className="h-12 rounded-2xl border-transparent bg-secondary/70 px-4 text-[14px] placeholder:text-muted-foreground/50 focus-visible:ring-1 focus-visible:ring-border-strong"
-                  required
-                />
+                <Label htmlFor="confirmPassword" className="text-sm font-medium text-foreground">Confirm password</Label>
+                <Input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Repeat your password" className="h-11 rounded-lg border-border/80 bg-card/70 px-3.5 text-sm" required />
               </div>
-
-              <Button
-                type="submit"
-                disabled={isLoading}
-                className="h-12 w-full rounded-full bg-foreground text-[14px] font-semibold text-background hover:bg-foreground/90"
-              >
+              <Button type="submit" disabled={isLoading} className="h-11 w-full rounded-lg bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary/90">
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create account"}
               </Button>
             </form>
 
-            <p className="mt-6 text-center text-[13px] text-muted-foreground">
-              Already have an account?{" "}
-              <Link
-                href={`/login?redirect=${encodeURIComponent(redirect)}`}
-                className="font-semibold text-foreground underline underline-offset-2"
-              >
-                Sign in
-              </Link>
-            </p>
+            <p className="mt-6 text-center text-sm text-muted-foreground">Already have an account? <Link href={`/login?redirect=${encodeURIComponent(redirect)}`} className="font-medium text-foreground underline-offset-2 hover:underline">Sign in</Link></p>
           </motion.div>
         </div>
 
-        {/* Footer */}
-        <p className="text-[11px] text-muted-foreground/60">
-          By creating an account, you agree to our{" "}
-          <Link href="/terms" className="underline underline-offset-2 hover:text-foreground">
-            Terms
-          </Link>{" "}
-          and{" "}
-          <Link href="/privacy" className="underline underline-offset-2 hover:text-foreground">
-            Privacy Policy
-          </Link>
-          .
-        </p>
-      </div>
+        <p className="text-xs text-muted-foreground">By creating an account, you agree to our <Link href="/terms" className="underline-offset-2 hover:text-foreground hover:underline">Terms</Link>{" and "}<Link href="/privacy" className="underline-offset-2 hover:text-foreground hover:underline">Privacy Policy</Link>.</p>
+      </section>
 
-      {/* ── Right content ── */}
-      <div className="hidden md:flex md:items-stretch">
-        <div className="relative flex w-full overflow-hidden rounded-[2rem] bg-foreground text-background">
-          <div
-            className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_24%_18%,var(--card)_0,transparent_28%),radial-gradient(circle_at_82%_76%,var(--secondary)_0,transparent_36%)] opacity-18"
-            aria-hidden
-          />
-          <div
-            className="pointer-events-none absolute inset-0 bg-[linear-gradient(145deg,transparent_0%,var(--background)_150%)] opacity-40"
-            aria-hidden
-          />
-
-          <div className="relative flex w-full flex-col justify-between p-8 lg:p-10">
-            <div>
-              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-background/55">
-                From first prompt
-              </p>
-              <h2 className="mt-6 max-w-xl text-5xl font-medium leading-[0.98] tracking-[-0.07em] lg:text-6xl">
-                Start with a sentence. Let the interface take shape.
-              </h2>
-              <p className="mt-6 max-w-md text-sm leading-7 text-background/68">
-                The first screen should feel designed, not assembled from generic cards.
-              </p>
-            </div>
-
-            <div className="ml-auto w-full max-w-xl">
-              <AuthWorkspaceDemo
-                userMessage="Build a premium launch page for an AI design studio."
-                agentMessage="I'll start with a clear hero, section rhythm, and a preview you can refine in chat — same flow as the live builder."
-                workingLabel="Generating layout and first sections…"
-              />
-            </div>
-
-            <p className="max-w-sm text-xs leading-6 text-background/58">
-              A build surface for founders who want taste and speed in the same place.
-            </p>
+      <aside className="relative hidden min-h-screen overflow-hidden border-l border-border/70 bg-foreground text-background lg:flex">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_18%,var(--card)_0,transparent_30%),radial-gradient(circle_at_78%_72%,var(--secondary)_0,transparent_34%)] opacity-20" aria-hidden />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,transparent_0%,var(--background)_145%)] opacity-40" aria-hidden />
+        <div className="relative flex w-full flex-col justify-between p-10">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-[0.18em] text-background/60">From first prompt</p>
+            <h2 className="mt-6 max-w-xl text-5xl font-semibold leading-[0.98] tracking-[-0.07em]">Start with a sentence. Shape the interface in chat.</h2>
+            <p className="mt-6 max-w-md text-sm leading-7 text-background/70">Lotus Build keeps the generated app, preview, and iteration history in one focused workspace.</p>
           </div>
+          <div className="ml-auto w-full max-w-xl">
+            <AuthWorkspaceDemo userMessage="Build a premium launch page for an AI design studio." agentMessage="I'll start with a clear hero, realistic sections, and a preview you can refine in chat." workingLabel="Generating layout and first sections..." />
+          </div>
+          <p className="max-w-sm text-xs leading-6 text-background/60">Designed for builders who want taste and speed in the same place.</p>
         </div>
-      </div>
+      </aside>
     </div>
   )
 }
