@@ -2,25 +2,19 @@ import Link from "next/link"
 import {
   ArrowUpRight,
   CheckCircle2,
+  ChevronDown,
   Code2,
-  Database,
   Eye,
-  FileCode2,
   GitBranch,
-  Globe2,
+  Globe,
   History,
   KeyRound,
   Layers,
-  LayoutPanelLeft,
+  MessageSquare,
   Monitor,
-  Pencil,
+  PanelLeft,
   Play,
-  Rocket,
-  Search,
-  Share2,
-  Sparkles,
   Terminal,
-  Wrench,
   Zap,
 } from "lucide-react"
 
@@ -34,71 +28,52 @@ import { cn } from "@/lib/utils"
 
 const capabilityPills = ["Prompt to repo", "Live preview", "Visual edits", "Deploy-ready"]
 
-const agentMessages = [
+const feedMessages = [
   {
-    speaker: "You",
-    text: "Create a B2B onboarding app with auth, pricing, a dashboard, and a clean product tour.",
+    role: "user",
+    text: "Build a customer onboarding dashboard with pricing, account setup, and a clean preview.",
   },
   {
-    speaker: "Lotus",
-    text: "I found the required routes, added the UI shell, connected the preview, and I am checking the generated imports now.",
+    role: "assistant",
+    text: "I updated the app shell, added the dashboard route, and restarted the preview. I am checking the generated files now.",
   },
 ]
 
-const runEvents = [
-  { icon: Search, title: "Understanding request", detail: "Routes, audience, integrations" },
-  { icon: FileCode2, title: "Writing files", detail: "12 files changed" },
-  { icon: Monitor, title: "Preview ready", detail: "localhost:3000/dashboard" },
+const timelineRows = [
+  { title: "Understanding request", detail: "Dashboard, pricing, onboarding" },
+  { title: "Generating app/dashboard/page.tsx", detail: "Writing product surface" },
+  { title: "Preview ready", detail: "localhost:3000/dashboard" },
 ]
 
 const workspaceTabs = ["Preview", "Browser", "Research"]
 
-const feedItems = [
-  { label: "Plan", value: "Create dashboard shell and pricing route", state: "done" },
-  { label: "Edit", value: "Update components/AppShell.tsx", state: "active" },
-  { label: "Check", value: "Validate imports before preview", state: "queued" },
+const generatedFiles = [
+  "app/dashboard/page.tsx",
+  "components/app-shell.tsx",
+  "components/pricing-table.tsx",
+  "lib/plans.ts",
 ]
-
-const fileTree = [
-  { name: "app/dashboard/page.tsx", active: true },
-  { name: "components/app-shell.tsx", active: false },
-  { name: "components/pricing-table.tsx", active: false },
-  { name: "lib/plans.ts", active: false },
-]
-
-const codeTabs = ["page.tsx", "app-shell.tsx", "pricing-table.tsx"]
-
-const codeSample = `export default function DashboardPage() {
-  return (
-    <AppShell>
-      <MetricGrid />
-      <OnboardingChecklist />
-      <ActivityTimeline />
-      <DeployPanel />
-    </AppShell>
-  )
-}`
 
 const workflow = [
   {
     step: "01",
     title: "Prompt the computer",
-    description: "Describe the app, audience, routes, integrations, and style. Lotus turns it into a visible build plan before editing files.",
+    description: "Describe the app, routes, integrations, and style. Lotus turns it into a visible build plan before editing files.",
   },
   {
     step: "02",
     title: "Watch the run",
-    description: "The left feed shows reasoning, tool calls, file edits, questions, fixes, and preview state like the real computer workspace.",
+    description: "The feed shows planning, file edits, questions, preview state, and repair actions in the same place as the real workspace.",
   },
   {
     step: "03",
-    title: "Inspect the product",
-    description: "Use the workspace tabs to review preview, browser research, runtime errors, and deployment state in one surface.",
+    title: "Inspect the preview",
+    description: "Review the generated product in the workspace panel, switch tabs, reload the preview, and catch runtime issues quickly.",
   },
   {
     step: "04",
-    title: "Keep iterating",
-    description: "Ask follow-ups against the same project context, repair failures, connect services, and push toward a real deploy.",
+    title: "Continue from context",
+    description: "Follow-up edits apply to the same project instead of starting over, so iteration feels closer to an IDE session.",
   },
 ]
 
@@ -128,35 +103,25 @@ const featureRows = [
 
 const demoUseCases = [
   {
-    label: "SaaS launch",
-    title: "Marketing site plus app shell",
-    prompt: "Build a launch page, pricing table, auth-ready dashboard, and onboarding checklist for a sales tool.",
-    output: "Hero, pricing, dashboard route, settings screen, deploy notes",
+    title: "SaaS launch workspace",
+    prompt: "Build a launch page, pricing, onboarding checklist, and authenticated dashboard shell.",
+    output: "Routes, app shell, pricing table, onboarding states, preview URL.",
   },
   {
-    label: "Internal tool",
-    title: "Operations dashboard",
-    prompt: "Create a CRM-style workspace with lead filters, account detail pages, notes, and import status.",
-    output: "Tables, filters, detail pane, empty states, mocked data layer",
+    title: "Internal operations tool",
+    prompt: "Create a CRM workspace with lead filters, account details, notes, import status, and empty states.",
+    output: "Table layout, filter controls, detail pane, sample data, export action.",
   },
   {
-    label: "AI product",
-    title: "Document review app",
-    prompt: "Make an AI document reviewer with upload flow, analysis queue, results view, and export panel.",
-    output: "Upload UI, job timeline, review cards, export actions",
+    title: "AI document review app",
+    prompt: "Make a document review flow with upload, analysis queue, results, and export panel.",
+    output: "Upload route, queue UI, review cards, status handling, preview checks.",
   },
   {
-    label: "Repair run",
-    title: "Fix a broken preview",
-    prompt: "The preview fails with an unresolved import. Fix the app without adding unsupported packages.",
-    output: "Dependency check, import repair, preview restart, clean logs",
+    title: "Preview repair run",
+    prompt: "Fix the unresolved import and restart the preview without adding unsupported dependencies.",
+    output: "Import repair, dependency validation, clean runtime log, refreshed preview.",
   },
-]
-
-const signalRows = [
-  { label: "Context", value: "Prompt, files, preview" },
-  { label: "Tabs", value: "Preview, browser, research" },
-  { label: "Actions", value: "Deploy, history, integrations" },
 ]
 
 const terminalEvents = [
@@ -185,278 +150,224 @@ function Section({
   )
 }
 
-function WorkspaceSurface({ className }: { className?: string }) {
+function StaticComputerShell({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-[1.35rem] border border-border/70 bg-[#090908] text-background shadow-[0_42px_140px_-96px_var(--foreground)]",
+        "relative flex h-[760px] flex-col overflow-hidden rounded-[1.35rem] border border-border/70 bg-background text-foreground shadow-[0_42px_140px_-96px_var(--foreground)]",
         className
       )}
     >
-      <div className="flex h-13 min-h-13 items-center justify-between border-b border-background/10 bg-[#141412] px-3 text-[11px] text-background/52 sm:px-4">
-        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-          <button className="hidden h-8 w-8 items-center justify-center rounded-lg text-background/55 transition hover:bg-background/10 sm:flex" aria-label="Collapse chat panel">
-            <LayoutPanelLeft className="h-4 w-4" />
-          </button>
-          <div className="flex gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#f87171]" />
-            <span className="h-2.5 w-2.5 rounded-full bg-[#fbbf24]" />
-            <span className="h-2.5 w-2.5 rounded-full bg-[#34d399]" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="truncate text-[12px] font-medium text-background/85">Customer onboarding build</span>
-              <span className="hidden rounded-full border border-emerald-300/25 bg-emerald-300/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-100 sm:inline-flex">
-                Building
+      <header className="lotus-glass relative z-30 shrink-0">
+        <div className="relative flex h-[52px] w-full items-center">
+          <div className="flex h-full min-w-0 shrink-0 items-center gap-1 px-3 sm:w-[32%] md:w-[31%] lg:w-[340px] xl:w-[370px]">
+            <button
+              type="button"
+              aria-label="Open sidebar"
+              className="mr-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground/55 transition-all duration-150 hover:bg-muted hover:text-foreground"
+            >
+              <PanelLeft className="h-[15px] w-[15px]" />
+            </button>
+            <button
+              type="button"
+              className="group -mx-1 hidden w-full min-w-0 items-center gap-1.5 rounded-lg px-1 py-1.5 text-left transition-colors hover:bg-muted/60 sm:flex"
+              aria-label="Session menu"
+            >
+              <span className="min-w-0 truncate text-[13px] font-medium tracking-[-0.01em] text-foreground">
+                Customer onboarding dashboard
               </span>
-            </div>
-            <p className="hidden truncate text-[10px] text-background/36 sm:block">computer / b2b-onboarding / main</p>
-          </div>
-        </div>
-        <div className="hidden items-center gap-2 md:flex">
-          <span className="rounded-full border border-background/10 bg-background/[0.055] px-2.5 py-1 text-background/54">Pro plan</span>
-          <button className="flex h-8 w-8 items-center justify-center rounded-lg text-background/60 transition hover:bg-background/10" aria-label="Version history">
-            <History className="h-3.5 w-3.5" />
-          </button>
-          <button className="flex h-8 w-8 items-center justify-center rounded-lg text-background/60 transition hover:bg-background/10" aria-label="Share project">
-            <Share2 className="h-3.5 w-3.5" />
-          </button>
-          <button className="inline-flex h-8 items-center gap-1.5 rounded-full bg-background px-3 text-[11px] font-semibold text-foreground">
-            <Rocket className="h-3.5 w-3.5" />
-            Deploy
-          </button>
-        </div>
-      </div>
-
-      <div className="grid min-h-[680px] lg:grid-cols-[330px_minmax(0,1fr)]">
-        <aside className="flex min-h-0 flex-col border-b border-background/10 bg-[#11110f] lg:border-b-0 lg:border-r">
-          <div className="border-b border-background/10 p-4">
-            <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.14em] text-background/38">
-              <span>Agent feed</span>
-              <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2 py-0.5 text-emerald-200">live</span>
-            </div>
-            <div className="mt-4 space-y-3">
-              {agentMessages.map((message, index) => (
-                <div
-                  key={message.text}
-                  className={cn(
-                    "rounded-2xl border px-3 py-3 text-[12px] leading-5",
-                    index === 0
-                      ? "border-background/12 bg-background/10 text-background"
-                      : "border-background/8 bg-background/[0.045] text-background/68"
-                  )}
-                >
-                  <span className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-background/36">
-                    {message.speaker}
-                  </span>
-                  {message.text}
-                </div>
-              ))}
-            </div>
+              <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground/35" />
+            </button>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-hidden p-4">
-            <div className="rounded-2xl border border-background/10 bg-background/[0.045] p-3">
-              <div className="flex items-center gap-2 text-[12px] text-background/72">
-                <Sparkles className="h-3.5 w-3.5" />
-                <span>Run timeline</span>
-              </div>
-              <div className="mt-3 space-y-3">
-                {runEvents.map((event, index) => {
-                  const Icon = event.icon
-                  return (
-                    <div key={event.title} className="grid grid-cols-[24px_minmax(0,1fr)] gap-2 text-[11px]">
-                      <span className={cn(
-                        "flex h-6 w-6 items-center justify-center rounded-lg border",
-                        index === 1
-                          ? "border-background/20 bg-background text-foreground"
-                          : "border-background/10 bg-background/[0.055] text-background/54"
-                      )}>
-                        <Icon className="h-3.5 w-3.5" />
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block font-medium text-background/76">{event.title}</span>
-                        <span className="block truncate text-background/40">{event.detail}</span>
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div className="mt-4 rounded-2xl border border-background/10 bg-black/25 p-3">
-              <div className="mb-2 text-[10px] uppercase tracking-[0.14em] text-background/34">Files touched</div>
-              <div className="space-y-1.5">
-                {fileTree.map((file) => (
-                  <div
-                    key={file.name}
-                    className={cn(
-                      "flex items-center justify-between rounded-lg px-2.5 py-2 text-[11px]",
-                      file.active ? "bg-background text-foreground" : "bg-background/[0.055] text-background/48"
-                    )}
-                  >
-                    <span className="truncate">{file.name}</span>
-                    {file.active ? <Pencil className="h-3 w-3 text-foreground/45" /> : null}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-4 rounded-2xl border border-background/10 bg-background/[0.045] p-3">
-              <div className="mb-2 text-[10px] uppercase tracking-[0.14em] text-background/34">Next actions</div>
-              <div className="grid gap-2">
-                {[
-                  { icon: Database, label: "Connect Supabase" },
-                  { icon: KeyRound, label: "Add env variables" },
-                  { icon: GitBranch, label: "Sync GitHub" },
-                ].map((action) => {
-                  const Icon = action.icon
-                  return (
-                    <div key={action.label} className="flex items-center gap-2 rounded-lg bg-background/[0.055] px-2.5 py-2 text-[11px] text-background/56">
-                      <Icon className="h-3.5 w-3.5" />
-                      <span>{action.label}</span>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-        </aside>
-
-        <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_170px] bg-[#0d0d0c]">
-          <div className="flex min-h-12 items-center justify-between border-b border-background/10 bg-[#151513] px-3">
-            <div className="flex min-w-0 items-center gap-1 rounded-full border border-background/10 bg-background/[0.055] p-1">
+          <div className="hidden h-full min-w-0 flex-1 items-center justify-center px-3 sm:flex">
+            <div className="inline-flex max-w-full items-center gap-1 rounded-full border border-border/60 bg-card/80 p-1 text-[11px] text-muted-foreground">
               {workspaceTabs.map((tab, index) => (
                 <span
                   key={tab}
                   className={cn(
-                    "rounded-full px-3 py-1.5 text-[11px]",
-                    index === 0 ? "bg-background text-foreground" : "text-background/48"
+                    "rounded-full px-3 py-1.5",
+                    index === 0 ? "bg-foreground text-background" : "text-muted-foreground"
                   )}
                 >
                   {tab}
                 </span>
               ))}
             </div>
-            <div className="hidden items-center gap-2 text-[11px] text-background/40 sm:flex">
-              <Globe2 className="h-3.5 w-3.5" />
-              <span>preview.lotus.local</span>
-            </div>
           </div>
 
-          <div className="grid min-h-0 lg:grid-cols-[minmax(0,0.9fr)_minmax(380px,1.1fr)]">
-            <div className="min-h-0 border-b border-background/10 lg:border-b-0 lg:border-r">
-              <div className="flex h-10 items-center gap-1 border-b border-background/10 px-3 text-[11px]">
-                {codeTabs.map((tab, index) => (
-                  <span
-                    key={tab}
-                    className={cn(
-                      "rounded-lg px-2.5 py-1",
-                      index === 0 ? "bg-background/10 text-background" : "text-background/42"
-                    )}
-                  >
-                    {tab}
-                  </span>
-                ))}
-              </div>
-              <pre className="h-[260px] overflow-hidden p-5 text-[12px] leading-6 text-background/68 sm:h-[330px] lg:h-[430px]">
-                <code>{codeSample}</code>
-              </pre>
-            </div>
+          <div className="ml-auto hidden h-full items-center gap-2 px-3 text-[13px] sm:flex">
+            <button className="hidden h-9 items-center justify-center gap-1.5 rounded-full border border-border bg-card px-3 font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground md:inline-flex">
+              <KeyRound className="h-3.5 w-3.5" />
+              Integrations
+            </button>
+            <button className="hidden h-9 items-center justify-center gap-1.5 rounded-full border border-border bg-card px-3 font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground md:inline-flex">
+              <History className="h-3.5 w-3.5" />
+              History
+            </button>
+            <button className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-foreground px-3 font-semibold text-background transition hover:bg-foreground/85">
+              <Globe className="h-3.5 w-3.5" />
+              Deploy
+            </button>
+          </div>
+        </div>
+      </header>
 
-            <div className="bg-[#f3f1e8] p-4 text-foreground sm:p-5">
-              <div className="mb-3 flex items-center gap-2 rounded-full border border-border bg-background px-2 py-1.5 text-[11px] text-muted-foreground shadow-sm">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-foreground">/</span>
-                <span className="min-w-0 flex-1 truncate">localhost:3000/dashboard</span>
-                <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700">Live</span>
-              </div>
-
-              <div className="flex h-[430px] flex-col overflow-hidden rounded-[1.1rem] border border-border bg-background shadow-sm">
-                <div className="flex items-center justify-between border-b border-border px-4 py-3">
-                  <div>
-                    <span className="block text-[12px] font-semibold">AcmeDesk</span>
-                    <span className="block text-[10px] text-muted-foreground">Generated preview</span>
+      <div className="relative flex min-h-0 w-full flex-1 overflow-hidden">
+        <div className="flex w-full shrink-0 flex-col overflow-hidden bg-[color-mix(in_oklch,var(--background)_76%,transparent)] backdrop-blur-2xl sm:w-[32%] md:w-[31%] lg:w-[340px] xl:w-[370px]">
+          <div className="relative min-h-0 flex-1 overflow-hidden">
+            <div className="chat-scrollbar flex h-full flex-col overflow-y-auto px-4 lg:px-5">
+              <div className="flex-1 pt-4" />
+              <div className="space-y-4 pb-4">
+                {feedMessages.map((message) => (
+                  <div key={message.text} className="rounded-xl border border-border/55 bg-card/78 px-3.5 py-3 shadow-sm">
+                    <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                      {message.role === "user" ? "You" : "Lotus"}
+                    </p>
+                    <p className="mt-1.5 text-[13px] leading-relaxed text-foreground/82">{message.text}</p>
                   </div>
-                  <span className="rounded-full bg-foreground px-2.5 py-1 text-[10px] text-background">Invite team</span>
-                </div>
-                <div className="grid min-h-0 flex-1 grid-cols-[148px_minmax(0,1fr)]">
-                  <div className="border-r border-border bg-muted/35 p-3">
-                    {['Overview', 'Customers', 'Billing', 'Settings'].map((item, index) => (
-                      <div key={item} className={cn(
-                        "mb-1 rounded-lg px-2.5 py-2 text-[11px]",
-                        index === 0 ? "bg-background font-medium text-foreground shadow-sm" : "text-muted-foreground"
-                      )}>
-                        {item}
+                ))}
+
+                <div className="rounded-xl border border-border/55 bg-card/78 px-3.5 py-3 shadow-sm">
+                  <p className="text-[12px] font-semibold text-foreground">Run timeline</p>
+                  <div className="mt-3 space-y-3">
+                    {timelineRows.map((row, index) => (
+                      <div key={row.title} className="grid grid-cols-[18px_minmax(0,1fr)] gap-2 text-[12px]">
+                        <span className={cn(
+                          "mt-1.5 h-2 w-2 rounded-full",
+                          index < 2 ? "bg-foreground" : "bg-success"
+                        )} />
+                        <span className="min-w-0">
+                          <span className="block font-medium text-foreground">{row.title}</span>
+                          <span className="block truncate text-muted-foreground">{row.detail}</span>
+                        </span>
                       </div>
                     ))}
                   </div>
-                  <div className="min-w-0 p-5">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Workspace dashboard</p>
-                    <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                      {[
-                        ["482", "active users"],
-                        ["31", "trial accounts"],
-                        ["0", "build errors"],
-                      ].map(([value, label]) => (
-                        <div key={label} className="rounded-xl border border-border bg-muted/25 p-3">
-                          <p className="text-2xl font-semibold tracking-[-0.04em] text-foreground">{value}</p>
-                          <p className="text-[11px] text-muted-foreground">{label}</p>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="mt-4 rounded-xl border border-border">
-                      {['Design onboarding checklist', 'Add pricing comparison', 'Wire settings form'].map((item, index) => (
-                        <div key={item} className="flex items-center justify-between border-b border-border px-3 py-3 last:border-b-0">
-                          <span className="text-[12px] text-foreground">{item}</span>
-                          <span className={cn(
-                            "rounded-full px-2 py-0.5 text-[10px] font-medium",
-                            index === 0 ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground"
-                          )}>
-                            {index === 0 ? "done" : "queued"}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="mt-4 rounded-xl bg-foreground p-4 text-background">
-                      <p className="text-[11px] text-background/60">Next deploy target</p>
-                      <p className="mt-1 text-lg font-medium tracking-[-0.03em]">Push dashboard to Vercel after review</p>
-                    </div>
+                </div>
+
+                <div className="rounded-xl border border-border/55 bg-card/78 px-3.5 py-3 shadow-sm">
+                  <p className="text-[12px] font-semibold text-foreground">Generated files</p>
+                  <div className="mt-2 space-y-1.5">
+                    {generatedFiles.map((file, index) => (
+                      <div key={file} className={cn(
+                        "rounded-lg px-2.5 py-2 text-[12px]",
+                        index === 0 ? "bg-muted text-foreground" : "text-muted-foreground"
+                      )}>
+                        {file}
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="grid border-t border-background/10 bg-background/[0.03] lg:grid-cols-[minmax(0,1fr)_320px]">
-            <div className="p-4">
-              <div className="mb-3 flex items-center justify-between text-[11px] text-background/38">
-                <span>Computer state</span>
-                <span>validating output</span>
+          <div className="shrink-0 px-3 pb-3 pt-2 lg:px-4">
+            <div className="lotus-glass-control rounded-2xl border border-border/60 p-2 shadow-sm">
+              <div className="min-h-[58px] rounded-xl px-3 py-2 text-[13px] text-muted-foreground">
+                Message the agent...
               </div>
-              <div className="grid gap-2 sm:grid-cols-4">
-                {signalRows.map((row) => (
-                  <div key={row.label} className="rounded-xl border border-background/8 bg-background/[0.045] p-3">
-                    <p className="text-[11px] text-background/38">{row.label}</p>
-                    <p className="mt-1 text-[12px] font-medium text-background/78">{row.value}</p>
-                  </div>
-                ))}
-                <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-3">
-                  <p className="text-[11px] text-emerald-100/70">Status</p>
-                  <p className="mt-1 text-[12px] font-medium text-emerald-100">Preview ready</p>
-                </div>
+              <div className="flex items-center justify-between px-1 pb-1">
+                <span className="text-[11px] text-muted-foreground">Ask for a change or fix</span>
+                <span className="rounded-full bg-foreground px-3 py-1.5 text-[11px] font-semibold text-background">Send</span>
               </div>
             </div>
-            <div className="border-t border-background/10 p-4 lg:border-l lg:border-t-0">
-              <div className="font-mono text-[11px] leading-5 text-background/54">
-                <p className="text-background/34">terminal</p>
-                <p><span className="text-emerald-300">ok</span> npm install completed</p>
-                <p><span className="text-emerald-300">ok</span> vite ready on :3000</p>
-                <p><span className="text-background/40">run</span> waiting for edits</p>
+          </div>
+        </div>
+
+        <div className="lotus-glass-strong m-2 hidden min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border/50 shadow-[0_28px_90px_-64px_rgba(0,0,0,0.9)] sm:flex">
+          <div className="relative min-h-0 flex-1">
+            <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[color-mix(in_oklch,var(--background)_88%,transparent)]">
+              <div className="lotus-glass-inset flex h-10 shrink-0 items-center justify-center border-b border-border/40 px-4">
+                <div className="lotus-glass-control group flex w-full max-w-sm items-center gap-0.5 overflow-hidden rounded-full border border-border/60 px-1">
+                  <button className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-foreground/70" aria-label="Go to root">
+                    <span className="text-[13px]">/</span>
+                  </button>
+                  <span className="max-w-[130px] shrink truncate select-none text-[11px] text-foreground/50">
+                    localhost:3000
+                  </span>
+                  <div className="flex min-w-[40px] flex-1 items-center">
+                    <span className="shrink-0 select-none text-[12px] text-foreground/40">/</span>
+                    <span className="min-w-0 flex-1 truncate py-0.5 text-[12px] text-foreground">dashboard</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-hidden bg-background p-3 lg:p-4">
+                <div className="h-full overflow-hidden rounded-xl border border-border/60 bg-card">
+                  <div className="flex h-full flex-col bg-background">
+                    <div className="flex items-center justify-between border-b border-border px-5 py-4">
+                      <div>
+                        <p className="text-[13px] font-semibold text-foreground">AcmeDesk</p>
+                        <p className="text-[11px] text-muted-foreground">Generated preview</p>
+                      </div>
+                      <span className="rounded-full bg-foreground px-3 py-1.5 text-[11px] font-medium text-background">Invite team</span>
+                    </div>
+                    <div className="grid min-h-0 flex-1 grid-cols-[156px_minmax(0,1fr)]">
+                      <aside className="border-r border-border bg-muted/35 p-3">
+                        {['Overview', 'Customers', 'Billing', 'Settings'].map((item, index) => (
+                          <div key={item} className={cn(
+                            "mb-1 rounded-lg px-2.5 py-2 text-[12px]",
+                            index === 0 ? "bg-background font-medium text-foreground shadow-sm" : "text-muted-foreground"
+                          )}>
+                            {item}
+                          </div>
+                        ))}
+                      </aside>
+                      <main className="min-w-0 p-5">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Overview</p>
+                            <h3 className="mt-2 text-2xl font-semibold tracking-[-0.035em] text-foreground">Customer onboarding</h3>
+                          </div>
+                          <span className="rounded-full border border-border px-2.5 py-1 text-[11px] text-muted-foreground">Preview ready</span>
+                        </div>
+                        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                          {[
+                            ["482", "active users"],
+                            ["31", "trial accounts"],
+                            ["0", "build errors"],
+                          ].map(([value, label]) => (
+                            <div key={label} className="rounded-xl border border-border bg-muted/25 p-3">
+                              <p className="text-2xl font-semibold tracking-[-0.04em] text-foreground">{value}</p>
+                              <p className="text-[11px] text-muted-foreground">{label}</p>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-5 rounded-xl border border-border">
+                          {['Design onboarding checklist', 'Add pricing comparison', 'Wire settings form'].map((item, index) => (
+                            <div key={item} className="flex items-center justify-between border-b border-border px-3 py-3 last:border-b-0">
+                              <span className="text-[12px] text-foreground">{item}</span>
+                              <span className="text-[11px] text-muted-foreground">{index === 0 ? "done" : "queued"}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </main>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      <nav
+        aria-label="Switch between chat and preview"
+        className="lotus-glass-strong absolute inset-x-3 bottom-3 z-20 mx-auto max-w-xs rounded-xl border border-border/50 px-1 py-1 shadow-[0_22px_70px_-42px_rgba(0,0,0,0.9)] sm:hidden"
+      >
+        <div className="grid grid-cols-2 gap-1">
+          <span className="flex h-10 items-center justify-center gap-1.5 rounded-full bg-foreground text-[12.5px] font-medium text-background">
+            <MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />
+            Chat
+          </span>
+          <span className="flex h-10 items-center justify-center gap-1.5 rounded-full text-[12.5px] font-medium text-muted-foreground">
+            <Monitor className="h-3.5 w-3.5" aria-hidden="true" />
+            Preview
+          </span>
+        </div>
+      </nav>
     </div>
   )
 }
@@ -489,12 +400,12 @@ export function LandingProductSection() {
             <div>
               <p className="text-sm font-medium text-muted-foreground">The computer workspace</p>
               <h2 className="mt-4 max-w-2xl text-4xl font-medium leading-[1.02] tracking-[-0.045em] text-foreground sm:text-5xl lg:text-6xl">
-                The same Lotus computer your project opens into.
+                The landing demo should look like the product.
               </h2>
             </div>
             <div className="lg:justify-self-end">
               <p className="max-w-md text-base leading-7 text-muted-foreground">
-                The landing demo now mirrors the real computer page: agent feed, file edits, preview tabs, deployment actions, and integration prompts in one workspace.
+                This section mirrors the actual computer page: the same top bar, chat panel, workspace panel, preview URL bar, and mobile switcher pattern.
               </p>
               <div className="mt-7">
                 <CapabilityPills items={capabilityPills} />
@@ -506,8 +417,8 @@ export function LandingProductSection() {
 
       <Section bleed className="bg-[#f7f5ef] pb-20 pt-12 sm:pb-28 sm:pt-16">
         <Reveal delay={0.08}>
-          <div className="mx-auto max-w-[80rem] px-4 sm:px-6 lg:px-8">
-            <WorkspaceSurface />
+          <div className="mx-auto max-w-[82rem] px-4 sm:px-6 lg:px-8">
+            <StaticComputerShell />
           </div>
         </Reveal>
 
@@ -585,41 +496,25 @@ export function LandingUseCasesSection() {
           <div>
             <p className="text-sm font-medium text-muted-foreground">Demo use cases</p>
             <h2 className="mt-4 max-w-xl text-3xl font-medium tracking-[-0.04em] text-foreground sm:text-4xl lg:text-5xl">
-              Show the computer doing real product work.
+              Real prompts, real workspace outcomes.
             </h2>
           </div>
           <p className="max-w-md text-sm leading-7 text-muted-foreground lg:justify-self-end">
-            Each demo starts from a realistic prompt and ends with visible product artifacts: routes, components, preview state, and the next deploy step.
+            These are the kinds of runs that should feel natural inside the computer page, without dressing them up as fake product claims.
           </p>
         </div>
       </Reveal>
 
-      <RevealStagger className="mt-12 grid gap-4 lg:grid-cols-2">
+      <RevealStagger className="mt-12 divide-y divide-border/70 border-y border-border/70">
         {demoUseCases.map((useCase, index) => (
           <RevealItem key={useCase.title}>
-            <article className="group grid h-full gap-5 border border-border/70 bg-background p-5 transition duration-300 hover:border-foreground/30 sm:grid-cols-[132px_minmax(0,1fr)] sm:p-6">
-              <div>
-                <span className="text-sm font-semibold tabular-nums text-muted-foreground">0{index + 1}</span>
-                <p className="mt-3 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{useCase.label}</p>
-              </div>
-              <div>
-                <div className="flex items-start justify-between gap-4">
-                  <h3 className="text-2xl font-medium tracking-[-0.035em] text-foreground sm:text-3xl">
-                    {useCase.title}
-                  </h3>
-                  <ArrowUpRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-foreground" />
-                </div>
-                <div className="mt-5 space-y-4">
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Prompt</p>
-                    <p className="mt-1 text-sm leading-6 text-foreground/78">{useCase.prompt}</p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Computer output</p>
-                    <p className="mt-1 text-sm leading-6 text-muted-foreground">{useCase.output}</p>
-                  </div>
-                </div>
-              </div>
+            <article className="grid gap-5 py-8 lg:grid-cols-[120px_minmax(0,0.7fr)_minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
+              <span className="text-sm font-semibold tabular-nums text-muted-foreground">0{index + 1}</span>
+              <h3 className="text-2xl font-medium tracking-[-0.035em] text-foreground sm:text-3xl">
+                {useCase.title}
+              </h3>
+              <p className="text-sm leading-7 text-foreground/78">{useCase.prompt}</p>
+              <p className="text-sm leading-7 text-muted-foreground">{useCase.output}</p>
             </article>
           </RevealItem>
         ))}
