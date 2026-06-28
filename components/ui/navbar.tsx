@@ -80,7 +80,7 @@ export function Navbar({ variant = "default" }: NavbarProps) {
     <header className={headerClass}>
       <nav
         className={cn(
-          "mx-auto grid h-13 w-full max-w-6xl grid-cols-[1fr_auto] items-center gap-3 rounded-2xl border border-border/70 bg-background/88 px-3 text-foreground shadow-[0_18px_70px_-54px_rgba(0,0,0,0.85)] backdrop-blur-2xl sm:px-4 md:grid-cols-[1fr_auto_1fr]",
+          "mx-auto grid h-[52px] w-full max-w-6xl grid-cols-[1fr_auto] items-center gap-3 rounded-2xl border border-border/70 bg-background/88 px-3 text-foreground shadow-[0_18px_70px_-54px_rgba(0,0,0,0.85)] backdrop-blur-2xl sm:px-4 md:grid-cols-[1fr_auto_1fr]",
           variant === "hero" && "bg-background/86 shadow-[0_24px_80px_-52px_rgba(0,0,0,0.95)]"
         )}
       >
