@@ -1,6 +1,10 @@
 import OpenAI from "openai"
 import { NextResponse } from "next/server"
 import { adminDb } from "@/lib/firebase-admin"
+import {
+  isGeneratedProjectPackageSupported,
+  validateGeneratedProjectFiles,
+} from "@/lib/generated-project-validation"
 import { assertProjectCanEdit } from "@/lib/project-access"
 import { createProjectVersion } from "@/lib/project-versions/service"
 import { assertRateLimit, RateLimitError, rateLimitResponse } from "@/lib/rate-limit"
@@ -17,6 +21,26 @@ const MAX_REPAIR_FILES = 200
 const MAX_REPAIR_FILE_CHARS = 200_000
 const MAX_ERROR_CONTEXT_CHARS = 20_000
 const MAX_LOG_CONTEXT_CHARS = 40_000
+
+const APPROVED_WEB_REPAIR_PACKAGES = [
+  "react",
+  "react-dom",
+  "vite",
+  "@vitejs/plugin-react",
+  "tailwindcss",
+  "postcss",
+  "autoprefixer",
+  "typescript",
+  "@types/react",
+  "@types/react-dom",
+  "lucide-react",
+  "framer-motion",
+  "react-icons",
+  "clsx",
+  "classnames",
+  "date-fns",
+  "react-intersection-observer",
+].filter((packageName) => isGeneratedProjectPackageSupported(packageName))
 
 type FixAttemptResult = {
   explanation: string
@@ -162,6 +186,10 @@ function validateFiles(files: ProjectFile[]) {
     }
   }
 
+  for (const issue of validateGeneratedProjectFiles(files, { platform: "web" }).issueMessages) {
+    issues.add(issue)
+  }
+
   return [...issues]
 }
 
@@ -196,6 +224,8 @@ async function runFixAttempt(params: {
     "- Every import must resolve.",
     "- Every referenced component must exist.",
     "- Do not reference icons or assets unless they already exist or you create them now.",
+    `- Do not add npm packages outside this approved list: ${APPROVED_WEB_REPAIR_PACKAGES.join(", ")}.`,
+    "- If a missing package is not approved, remove that dependency and implement the behavior with React, Tailwind, inline SVG, or local code.",
     "- Do not return JSON.",
     "",
     `Error: ${params.errorMessage}`,
@@ -216,7 +246,7 @@ async function runFixAttempt(params: {
       {
         role: "system",
         content:
-          "You are an expert code repair agent. Fix build errors reliably and return only the required AGENT_MESSAGE plus FILE blocks.",
+          "You are an expert code repair agent. Fix build errors reliably and return only the required AGENT_MESSAGE plus FILE blocks. Never introduce unsupported npm dependencies.",
       },
       { role: "user", content: prompt },
     ],
