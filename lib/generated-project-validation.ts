@@ -1,5 +1,6 @@
 import { MOBILE_EXPO_DEPENDENCIES } from "@/lib/generation/prompts/mobile"
 import type { ProjectPlatform } from "@/lib/projects/platform"
+import { isSensitiveFilePath, normalizeRelativeFilePath } from "@/lib/security/files"
 
 export type GeneratedProjectFile = {
   path: string
@@ -17,6 +18,10 @@ export type GeneratedProjectIssue = {
     | "unsupported-package-dependency"
     | "forbidden-mobile-web-file"
     | "forbidden-mobile-web-dependency"
+    | "unsafe-file-path"
+    | "sensitive-file-path"
+    | "file-too-large"
+    | "too-many-files"
   message: string
   filePath?: string
   importPath?: string
@@ -37,6 +42,10 @@ export const GENERATED_APP_DEPENDENCY_VERSIONS: Record<string, string> = {
   "date-fns": "^4.1.0",
   "react-intersection-observer": "^9.16.0",
 }
+
+const NATIVEWIND_VERSION = "4.2.5"
+export const MAX_GENERATED_PROJECT_FILES = 200
+export const MAX_GENERATED_PROJECT_FILE_CHARS = 200_000
 
 const REQUIRED_NEW_APP_FILES = [
   "package.json",
@@ -117,7 +126,7 @@ function getPackageVersion(packageName: string, platform: ProjectPlatform = "web
   if (packageName === "react") return platform === "mobile" ? MOBILE_EXPO_DEPENDENCIES.react : "^18.3.1"
   if (packageName === "react-dom") return "^18.3.1"
   if (packageName === "react-native") return MOBILE_EXPO_DEPENDENCIES["react-native"]
-  if (packageName === "nativewind") return "latest"
+  if (packageName === "nativewind") return NATIVEWIND_VERSION
   if (packageName === "typescript") return "^5.6.3"
   if (packageName === "@types/react") return "^18.3.12"
   if (packageName === "@types/react-dom") return "^18.3.1"
@@ -146,18 +155,80 @@ const NPM_IMPORT_RE =
   /(?:import\s+(?:type\s+)?(?:[^"']*?\s+from\s*)?["']([^."'\/][^"']*)["']|require\(\s*["']([^."'\/][^"']*)["']\s*\)|import\(\s*["']([^."'\/][^"']*)["']\s*\))/g
 
 function normalizePath(path: string) {
-  return path.replace(/\\/g, "/").replace(/^\/+/, "").trim()
+  return normalizeRelativeFilePath(path) ?? ""
+}
+
+export function sanitizeGeneratedProjectFiles(
+  files: GeneratedProjectFile[],
+  options: { maxFiles?: number; maxFileChars?: number } = {}
+) {
+  const maxFiles = options.maxFiles ?? MAX_GENERATED_PROJECT_FILES
+  const maxFileChars = options.maxFileChars ?? MAX_GENERATED_PROJECT_FILE_CHARS
+  const byPath = new Map<string, GeneratedProjectFile>()
+
+  for (const file of files) {
+    if (!file || typeof file.content !== "string") continue
+    const path = typeof file.path === "string" ? normalizeRelativeFilePath(file.path) : null
+    if (!path || isSensitiveFilePath(path)) continue
+    if (file.content.length > maxFileChars) continue
+    if (!byPath.has(path) && byPath.size >= maxFiles) continue
+    byPath.set(path, { ...file, path })
+  }
+
+  return Array.from(byPath.values())
+}
+
+function getFileSafetyIssues(files: GeneratedProjectFile[]) {
+  const issues: GeneratedProjectIssue[] = []
+  let acceptedCount = 0
+
+  for (const file of files) {
+    const rawPath = typeof file?.path === "string" ? file.path : ""
+    const normalizedPath = rawPath ? normalizeRelativeFilePath(rawPath) : null
+    const displayPath = normalizedPath || rawPath || "unknown"
+
+    if (!normalizedPath) {
+      issues.push({
+        code: "unsafe-file-path",
+        message: `Generated file path is invalid or unsafe: ${displayPath}`,
+        filePath: displayPath,
+      })
+      continue
+    }
+
+    if (isSensitiveFilePath(normalizedPath)) {
+      issues.push({
+        code: "sensitive-file-path",
+        message: `Generated output must not create or edit sensitive file: ${normalizedPath}`,
+        filePath: normalizedPath,
+      })
+      continue
+    }
+
+    if (typeof file.content !== "string" || file.content.length > MAX_GENERATED_PROJECT_FILE_CHARS) {
+      issues.push({
+        code: "file-too-large",
+        message: `Generated file is too large: ${normalizedPath}`,
+        filePath: normalizedPath,
+      })
+      continue
+    }
+
+    acceptedCount += 1
+    if (acceptedCount > MAX_GENERATED_PROJECT_FILES) {
+      issues.push({
+        code: "too-many-files",
+        message: `Generated output exceeds the ${MAX_GENERATED_PROJECT_FILES} file limit.`,
+      })
+      break
+    }
+  }
+
+  return issues
 }
 
 function dedupeFiles(files: GeneratedProjectFile[]) {
-  const byPath = new Map<string, GeneratedProjectFile>()
-  for (const file of files) {
-    if (!file || typeof file.content !== "string") continue
-    const path = typeof file.path === "string" ? normalizePath(file.path) : ""
-    if (!path) continue
-    byPath.set(path, { ...file, path })
-  }
-  return Array.from(byPath.values())
+  return sanitizeGeneratedProjectFiles(files)
 }
 
 export function resolveRelativeImport(importerPath: string, relativePath: string) {
@@ -279,7 +350,7 @@ function createMobilePackageJson() {
       expo: MOBILE_EXPO_DEPENDENCIES.expo,
       react: MOBILE_EXPO_DEPENDENCIES.react,
       "react-native": MOBILE_EXPO_DEPENDENCIES["react-native"],
-      nativewind: "latest",
+      nativewind: NATIVEWIND_VERSION,
     },
     devDependencies: {
       tailwindcss: GENERATED_APP_DEPENDENCY_VERSIONS.tailwindcss,
@@ -317,9 +388,11 @@ function ensurePackageJson(files: GeneratedProjectFile[]) {
 
   for (const packageName of importedPackages) {
     if (!isGeneratedProjectPackageSupported(packageName)) continue
+    const version = getPackageVersion(packageName)
+    if (!version) continue
     const target = getDependencyBucket(packageName, dependencies, devDependencies)
     if (target[packageName]) continue
-    target[packageName] = getPackageVersion(packageName) ?? "latest"
+    target[packageName] = version
     changed = true
   }
 
@@ -386,7 +459,7 @@ function ensureMobilePackageJson(files: GeneratedProjectFile[]) {
     expo: MOBILE_EXPO_DEPENDENCIES.expo,
     react: MOBILE_EXPO_DEPENDENCIES.react,
     "react-native": MOBILE_EXPO_DEPENDENCIES["react-native"],
-    nativewind: dependencies.nativewind || "latest",
+    nativewind: NATIVEWIND_VERSION,
   })) {
     if (dependencies[packageName] !== version) {
       dependencies[packageName] = version
@@ -406,9 +479,11 @@ function ensureMobilePackageJson(files: GeneratedProjectFile[]) {
 
   for (const packageName of importedPackages) {
     if (!isGeneratedProjectPackageSupported(packageName, "mobile")) continue
+    const version = getPackageVersion(packageName, "mobile")
+    if (!version) continue
     const target = getDependencyBucket(packageName, dependencies, devDependencies, "mobile")
     if (target[packageName]) continue
-    target[packageName] = getPackageVersion(packageName, "mobile") ?? "latest"
+    target[packageName] = version
     changed = true
   }
 
@@ -531,7 +606,10 @@ export function validateGeneratedProjectFiles(
   const existingFiles = dedupeFiles(options.existingFiles ?? [])
   const knownFiles = dedupeFiles([...existingFiles, ...generatedFiles])
   const availablePaths = new Set(knownFiles.map((file) => file.path))
-  const issues: GeneratedProjectIssue[] = []
+  const issues: GeneratedProjectIssue[] = [
+    ...getFileSafetyIssues(files),
+    ...getFileSafetyIssues(options.existingFiles ?? []),
+  ]
 
   if (options.requireNewAppScaffold) {
     const requiredFiles = platform === "mobile" ? REQUIRED_MOBILE_APP_FILES : REQUIRED_NEW_APP_FILES
