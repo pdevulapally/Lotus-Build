@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto"
 import { NextResponse } from "next/server"
 import { adminDb } from "@/lib/firebase-admin"
 import { exchangeCode, storeConnection } from "@/lib/integrations/supabase/oauth"
@@ -5,14 +6,31 @@ import { getAppBaseUrl } from "@/lib/security/url"
 
 export const runtime = "nodejs"
 
-function callbackHtml(ok: boolean, message: string, targetOrigin: string, builderProjectId?: string) {
-  const payload = JSON.stringify({
+function serializeInlineScriptJson(value: unknown): string {
+  return JSON.stringify(value)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029")
+}
+
+function callbackHtml(
+  ok: boolean,
+  message: string,
+  targetOrigin: string,
+  nonce: string,
+  builderProjectId?: string,
+) {
+  const payload = serializeInlineScriptJson({
     type: "supabase-oauth",
     ok,
     message,
     builderProjectId: builderProjectId || null,
   })
-  return `<!doctype html><html><body><script>
+  const serializedTargetOrigin = serializeInlineScriptJson(targetOrigin)
+
+  return `<!doctype html><html><head><meta charset="utf-8"></head><body><script nonce="${nonce}">
 (function () {
   var payload = ${payload};
   try {
@@ -22,13 +40,32 @@ function callbackHtml(ok: boolean, message: string, targetOrigin: string, builde
   }
   try {
     if (window.opener && !window.opener.closed) {
-      window.opener.postMessage(payload, ${JSON.stringify(targetOrigin)});
+      window.opener.postMessage(payload, ${serializedTargetOrigin});
     }
   } catch(e) {
   }
   setTimeout(function() { window.close(); }, 800);
 })();
 </script><p>${ok ? "Supabase connected. You can close this window." : "Supabase connection failed. You can close this window."}</p></body></html>`
+}
+
+function callbackResponse(
+  ok: boolean,
+  message: string,
+  targetOrigin: string,
+  builderProjectId?: string,
+) {
+  const nonce = randomBytes(18).toString("base64url")
+  return new NextResponse(callbackHtml(ok, message, targetOrigin, nonce, builderProjectId), {
+    status: 200,
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store",
+      "Content-Security-Policy": `default-src 'none'; script-src 'nonce-${nonce}'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'`,
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+    },
+  })
 }
 
 export async function GET(req: Request) {
@@ -39,7 +76,7 @@ export async function GET(req: Request) {
   const error = url.searchParams.get("error")
 
   if (error) {
-    return new NextResponse(callbackHtml(false, error, targetOrigin), { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } })
+    return callbackResponse(false, "Supabase authorization was not completed.", targetOrigin)
   }
   if (!code || !state) {
     return new NextResponse("Missing code or state", { status: 400 })
@@ -63,16 +100,9 @@ export async function GET(req: Request) {
       expiresIn: token.expires_in,
     })
     await adminDb.collection("supabaseOauthStates").doc(state).delete().catch(() => {})
-    return new NextResponse(callbackHtml(true, "connected", targetOrigin, builderProjectId), {
-      status: 200,
-      headers: { "Content-Type": "text/html; charset=utf-8" },
-    })
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "OAuth callback failed"
-    return new NextResponse(callbackHtml(false, message, targetOrigin, builderProjectId), {
-      status: 200,
-      headers: { "Content-Type": "text/html; charset=utf-8" },
-    })
+    return callbackResponse(true, "connected", targetOrigin, builderProjectId)
+  } catch {
+    return callbackResponse(false, "Supabase connection failed.", targetOrigin, builderProjectId)
   }
 }
 

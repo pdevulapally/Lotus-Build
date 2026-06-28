@@ -2159,7 +2159,7 @@ export default function ComputerPage() {
 
         {/* ── Chat panel ── */}
         <div className={cn(
-          "flex w-full shrink-0 flex-col overflow-hidden border-r border-foreground/10 bg-[color-mix(in_oklch,var(--background)_76%,transparent)] backdrop-blur-2xl transition-[width] duration-200 ease-in-out",
+          "flex w-full shrink-0 flex-col overflow-hidden bg-[color-mix(in_oklch,var(--background)_76%,transparent)] backdrop-blur-2xl transition-[width] duration-200 ease-in-out",
           desktopChatCollapsed
             ? "sm:w-0 sm:overflow-hidden"
             : "sm:w-[32%] md:w-[31%] lg:w-[340px] xl:w-[370px] 2xl:w-[400px]",

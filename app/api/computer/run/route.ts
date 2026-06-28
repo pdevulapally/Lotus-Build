@@ -1597,6 +1597,7 @@ export async function POST(req: Request) {
     }
     const authHeader =
       req.headers.get("authorization") || req.headers.get("Authorization") || ""
+    const baseUrl = new URL(req.url).origin
     const now = new Date()
     const runId = crypto.randomUUID()
     activeRunId = runId
@@ -2502,37 +2503,12 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
       return NextResponse.json({ ok: false, message: "Run no longer active" })
     }
 
-    const configuredBaseUrl = process.env.BASE_URL || process.env.NEXTAUTH_URL
-    if (!configuredBaseUrl) {
-      return NextResponse.json(
-        { ok: false, message: "Server base URL is not configured" },
-        { status: 500 },
-      )
-    }
-
-    let trustedBaseUrl: string
-    try {
-      const parsedBaseUrl = new URL(configuredBaseUrl)
-      if (parsedBaseUrl.protocol !== "http:" && parsedBaseUrl.protocol !== "https:") {
-        return NextResponse.json(
-          { ok: false, message: "Server base URL protocol is invalid" },
-          { status: 500 },
-        )
-      }
-      trustedBaseUrl = parsedBaseUrl.origin
-    } catch {
-      return NextResponse.json(
-        { ok: false, message: "Server base URL is invalid" },
-        { status: 500 },
-      )
-    }
-
     // Fire-and-forget: pre-create a sandbox and warm its npm cache while generation runs.
     // By the time generation finishes (~15-30s), most packages are cached → sandbox install
     // takes 2-5s instead of 25s.
     let prewarmSandboxId: string | null = null
     if (generationDecision.shouldGenerate) {
-      fetch(new URL("/api/sandbox/prewarm", trustedBaseUrl).toString(), {
+      fetch(new URL("/api/sandbox/prewarm", baseUrl).toString(), {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: authHeader },
       })
@@ -3180,7 +3156,7 @@ Generation result: ${JSON.stringify(genData)}`,
             }
           }
         } else {
-        const sandboxRes = await fetch(new URL("/api/sandbox", trustedBaseUrl).toString(), {
+        const sandboxRes = await fetch(new URL("/api/sandbox", baseUrl).toString(), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
