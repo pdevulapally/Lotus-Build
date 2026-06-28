@@ -3,9 +3,10 @@
 import React, { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
+import { motion } from "framer-motion"
+import { Loader2, Mail } from "lucide-react"
 import { LotusLogo } from "@/components/ui/lotus-logo"
 import { AuthWorkspaceDemo } from "@/components/auth/auth-workspace-demo"
-import { motion } from "framer-motion"
 import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,7 +18,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Loader2, Mail } from "lucide-react"
 
 function GoogleIcon() {
   return (
@@ -135,212 +135,93 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background md:grid md:grid-cols-2">
-      {/* Form column */}
-      <div className="flex min-h-screen flex-col border-border px-6 py-8 sm:px-10 md:border-r lg:px-16">
-        <Link href="/" className="flex w-fit items-center gap-2.5">
-          <LotusLogo size={28} />
-          <span className="text-[15px] font-semibold tracking-tight text-foreground">Lotus.build</span>
-        </Link>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,hsl(var(--muted))_0,transparent_34%),linear-gradient(180deg,hsl(var(--background)),hsl(var(--background)))] text-foreground lg:grid lg:grid-cols-[minmax(0,0.9fr)_minmax(520px,1.1fr)]">
+      <section className="flex min-h-screen flex-col px-5 py-6 sm:px-8 lg:px-12">
+        <header className="flex items-center justify-between gap-4">
+          <Link href="/" className="flex w-fit items-center gap-2.5">
+            <LotusLogo size={28} />
+            <span className="text-[15px] font-semibold tracking-tight text-foreground">Lotus.build</span>
+          </Link>
+          <Link href={`/signup?redirect=${encodeURIComponent(redirect)}`} className="rounded-lg border border-border/80 bg-card/70 px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted">
+            Create account
+          </Link>
+        </header>
 
-        <div className="flex flex-1 flex-col justify-center py-12 md:py-16">
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, ease: "easeOut" }}
-            className="mx-auto w-full max-w-[400px]"
-          >
-            <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-              Sign in
-            </p>
-            <h1 className="mt-3 text-3xl font-medium tracking-[-0.04em] text-foreground sm:text-[2rem]">
-              Welcome back
-            </h1>
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              Pick up where you left off — projects, previews, and edits in one workspace.
-            </p>
+        <div className="flex flex-1 items-center justify-center py-12">
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: "easeOut" }} className="w-full max-w-[420px]">
+            <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Sign in</p>
+            <h1 className="mt-3 text-4xl font-semibold tracking-[-0.055em] text-foreground sm:text-5xl">Welcome back</h1>
+            <p className="mt-4 max-w-sm text-sm leading-6 text-muted-foreground">Return to your projects, previews, GitHub sync, and computer-agent runs.</p>
 
-            {error && (
-              <div className="mt-6 rounded-lg border border-destructive/20 bg-destructive/8 px-4 py-3 text-sm text-destructive">
-                {error}
-              </div>
-            )}
+            {error && <div className="mt-6 rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div>}
 
             <div className="mt-8 grid gap-3 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={handleGoogleSignIn}
-                disabled={isLoading}
-                className="flex h-11 w-full items-center justify-center gap-2.5 rounded-lg border border-border bg-card text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <GoogleIcon />
-                Google
+              <button type="button" onClick={handleGoogleSignIn} disabled={isLoading} className="flex h-11 w-full items-center justify-center gap-2.5 rounded-lg border border-border/80 bg-card/80 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50">
+                <GoogleIcon /> Google
               </button>
-              <button
-                type="button"
-                onClick={handleGithubSignIn}
-                disabled={isLoading}
-                className="flex h-11 w-full items-center justify-center gap-2.5 rounded-lg border border-border bg-card text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <GithubIcon />
-                GitHub
+              <button type="button" onClick={handleGithubSignIn} disabled={isLoading} className="flex h-11 w-full items-center justify-center gap-2.5 rounded-lg border border-border/80 bg-card/80 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50">
+                <GithubIcon /> GitHub
               </button>
             </div>
 
-            <div className="my-7 flex items-center gap-3">
-              <div className="h-px flex-1 bg-border" />
-              <span className="text-xs text-muted-foreground">or email</span>
-              <div className="h-px flex-1 bg-border" />
-            </div>
+            <div className="my-7 flex items-center gap-3"><div className="h-px flex-1 bg-border" /><span className="text-xs text-muted-foreground">or email</span><div className="h-px flex-1 bg-border" /></div>
 
             <form onSubmit={handleEmailSignIn} className="space-y-4">
               <div className="space-y-1.5">
-                <Label htmlFor="email" className="text-sm font-medium text-foreground">
-                  Email
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  className="h-11 rounded-lg border-border bg-background px-3.5 text-sm"
-                  required
-                />
+                <Label htmlFor="email" className="text-sm font-medium text-foreground">Email</Label>
+                <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="h-11 rounded-lg border-border/80 bg-card/70 px-3.5 text-sm" required />
               </div>
-
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="text-sm font-medium text-foreground">
-                    Password
-                  </Label>
-                  <button
-                    type="button"
-                    onClick={handleForgotOpen}
-                    className="text-xs text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    Forgot password?
-                  </button>
+                  <Label htmlFor="password" className="text-sm font-medium text-foreground">Password</Label>
+                  <button type="button" onClick={handleForgotOpen} className="text-xs text-muted-foreground transition-colors hover:text-foreground">Forgot password?</button>
                 </div>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Your password"
-                  className="h-11 rounded-lg border-border bg-background px-3.5 text-sm"
-                  required
-                />
+                <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Your password" className="h-11 rounded-lg border-border/80 bg-card/70 px-3.5 text-sm" required />
               </div>
-
-              <Button
-                type="submit"
-                disabled={isLoading}
-                className="h-11 w-full rounded-full bg-foreground text-sm font-semibold text-background hover:bg-foreground/90"
-              >
+              <Button type="submit" disabled={isLoading} className="h-11 w-full rounded-lg bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary/90">
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Sign in"}
               </Button>
             </form>
 
-            <p className="mt-6 text-center text-sm text-muted-foreground">
-              Don&apos;t have an account?{" "}
-              <Link
-                href={`/signup?redirect=${encodeURIComponent(redirect)}`}
-                className="font-medium text-foreground underline-offset-2 hover:underline"
-              >
-                Create one
-              </Link>
-            </p>
+            <p className="mt-6 text-center text-sm text-muted-foreground">No account yet? <Link href={`/signup?redirect=${encodeURIComponent(redirect)}`} className="font-medium text-foreground underline-offset-2 hover:underline">Create one</Link></p>
           </motion.div>
         </div>
 
-        <p className="text-xs text-muted-foreground">
-          <Link href="/terms" className="underline-offset-2 hover:text-foreground hover:underline">
-            Terms
-          </Link>
-          {" · "}
-          <Link href="/privacy" className="underline-offset-2 hover:text-foreground hover:underline">
-            Privacy
-          </Link>
-        </p>
-      </div>
+        <p className="text-xs text-muted-foreground"><Link href="/terms" className="underline-offset-2 hover:text-foreground hover:underline">Terms</Link>{" · "}<Link href="/privacy" className="underline-offset-2 hover:text-foreground hover:underline">Privacy</Link></p>
+      </section>
 
-      {/* Visual column */}
-      <div className="relative hidden overflow-hidden bg-foreground md:flex">
-        <div
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_18%,var(--card)_0,transparent_30%),radial-gradient(circle_at_78%_72%,var(--secondary)_0,transparent_34%)] opacity-18"
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,transparent_0%,var(--background)_145%)] opacity-40"
-          aria-hidden
-        />
-
-        <div className="relative flex w-full flex-col justify-between p-8 text-background lg:p-10">
+      <aside className="relative hidden min-h-screen overflow-hidden border-l border-border/70 bg-foreground text-background lg:flex">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_18%,var(--card)_0,transparent_30%),radial-gradient(circle_at_78%_72%,var(--secondary)_0,transparent_34%)] opacity-20" aria-hidden />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,transparent_0%,var(--background)_145%)] opacity-40" aria-hidden />
+        <div className="relative flex w-full flex-col justify-between p-10">
           <div>
-            <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-background/60">
-              Your workspace
-            </p>
-            <h2 className="mt-5 max-w-md text-3xl font-medium leading-tight tracking-[-0.04em] lg:text-4xl">
-              Return to the build that is already in motion.
-            </h2>
-            <p className="mt-4 max-w-sm text-sm leading-6 text-background/75">
-              Sign in and your prompt thread, preview, and project state are waiting — without dashboard noise.
-            </p>
+            <p className="text-xs font-medium uppercase tracking-[0.18em] text-background/60">Workspace continuity</p>
+            <h2 className="mt-6 max-w-xl text-5xl font-semibold leading-[0.98] tracking-[-0.07em]">Return to the build already in motion.</h2>
+            <p className="mt-6 max-w-md text-sm leading-7 text-background/70">Your prompt thread, files, preview, and integrations stay together so every session starts with context.</p>
           </div>
-
-          <AuthWorkspaceDemo
-            userMessage="Tighten the hero, keep the structure, make the page feel more premium."
-            agentMessage="I'll adjust the hero typography and spacing while preserving your layout. Preview updates as each section lands."
-            workingLabel="Refining hero typography and spacing…"
-          />
-
-          <p className="max-w-sm text-xs leading-5 text-background/60">
-            Built to feel closer to a creative canvas than an admin panel.
-          </p>
+          <div className="ml-auto w-full max-w-xl">
+            <AuthWorkspaceDemo userMessage="Tighten the hero and keep the product flow realistic." agentMessage="I'll refine the typography, spacing, and preview-ready sections while preserving your existing structure." workingLabel="Updating layout and preview files..." />
+          </div>
+          <p className="max-w-sm text-xs leading-6 text-background/60">A focused product workspace for shipping polished web experiences faster.</p>
         </div>
-      </div>
+      </aside>
 
       <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
-        <DialogContent className="rounded-lg border-border bg-card sm:max-w-md">
+        <DialogContent className="rounded-xl border-border bg-card sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-foreground">
-              <Mail className="h-4 w-4 text-muted-foreground" />
-              Reset your password
-            </DialogTitle>
-            <DialogDescription className="text-sm text-muted-foreground">
-              Enter your email and we&apos;ll send you a reset link.
-            </DialogDescription>
+            <DialogTitle className="flex items-center gap-2 text-foreground"><Mail className="h-4 w-4 text-muted-foreground" />Reset your password</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">Enter your email and we will send you a reset link.</DialogDescription>
           </DialogHeader>
-
           {resetSent ? (
-            <div className="rounded-lg border border-border bg-muted/50 px-4 py-3 text-sm text-foreground">
-              Check your inbox for the reset link. Don&apos;t see it? Check your spam folder.
-            </div>
+            <div className="rounded-lg border border-border bg-muted/50 px-4 py-3 text-sm text-foreground">Check your inbox for the reset link. If you do not see it, check your spam folder.</div>
           ) : (
             <form onSubmit={handleSendResetLink} className="mt-1 space-y-4">
-              {resetError && (
-                <div className="rounded-lg border border-destructive/20 bg-destructive/8 px-4 py-3 text-sm text-destructive">
-                  {resetError}
-                </div>
-              )}
+              {resetError && <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{resetError}</div>}
               <div className="space-y-1.5">
-                <Label htmlFor="reset-email" className="text-sm font-medium text-foreground">
-                  Email
-                </Label>
-                <Input
-                  id="reset-email"
-                  type="email"
-                  value={resetEmail}
-                  onChange={(e) => setResetEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  className="h-11 rounded-lg"
-                  required
-                />
+                <Label htmlFor="reset-email" className="text-sm font-medium text-foreground">Email</Label>
+                <Input id="reset-email" type="email" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} placeholder="you@example.com" className="h-11 rounded-lg" required />
               </div>
-              <Button type="submit" disabled={resetLoading} className="h-11 w-full rounded-lg text-sm font-semibold">
-                {resetLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send reset link"}
-              </Button>
+              <Button type="submit" disabled={resetLoading} className="h-11 w-full rounded-lg text-sm font-semibold">{resetLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send reset link"}</Button>
             </form>
           )}
         </DialogContent>
