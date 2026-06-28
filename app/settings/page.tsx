@@ -15,7 +15,6 @@ import {
   ExternalLink,
   Loader2,
   Mail,
-  Leaf,
   Trash2,
   XCircle,
 } from "lucide-react"
@@ -39,12 +38,12 @@ type StripeInvoice = {
   description: string | null
 }
 
-const SETTINGS_PAGES: Array<{ key: SettingsPageKey; label: string }> = [
-  { key: "account", label: "Account" },
-  { key: "billing", label: "Billing" },
-  { key: "usage", label: "Usage" },
-  { key: "projects", label: "Projects" },
-  { key: "memory", label: "Memory" },
+const SETTINGS_PAGES: Array<{ key: SettingsPageKey; label: string; description: string }> = [
+  { key: "account", label: "Account", description: "Profile, workspace, security" },
+  { key: "billing", label: "Billing", description: "Plan, payment, invoices" },
+  { key: "usage", label: "Usage", description: "Credits and agent runs" },
+  { key: "projects", label: "Projects", description: "Build history and health" },
+  { key: "memory", label: "Memory", description: "Agent context controls" },
 ]
 
 type ProjectAnalyticsItem = {
@@ -82,10 +81,10 @@ function toDate(value: any): Date | null {
 }
 
 function statusDot(status: ProjectStatus) {
-  if (status === "complete") return <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
-  if (status === "generating") return <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse shrink-0" />
-  if (status === "error") return <span className="h-1.5 w-1.5 rounded-full bg-red-500 shrink-0" />
-  return <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/35 shrink-0" />
+  if (status === "complete") return <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+  if (status === "generating") return <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-primary" />
+  if (status === "error") return <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
+  return <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/35" />
 }
 
 function dateKey(date: Date) {
@@ -145,13 +144,7 @@ function buildContributionCalendar(items: ContributionActivityItem[]) {
       const key = dateKey(day)
       const count = counts.get(key) || 0
       const isPadding = day < firstDay || day > today
-      week.push({
-        date: day,
-        key,
-        count: isPadding ? 0 : count,
-        level: isPadding ? 0 : getContributionLevel(count, max),
-        isPadding,
-      })
+      week.push({ date: day, key, count: isPadding ? 0 : count, level: isPadding ? 0 : getContributionLevel(count, max), isPadding })
       cursor = addDays(cursor, 1)
     }
     weeks.push(week)
@@ -163,11 +156,64 @@ function buildContributionCalendar(items: ContributionActivityItem[]) {
 
 function getContributionColor(level: ContributionDay["level"], isPadding?: boolean) {
   if (isPadding) return "bg-transparent border-transparent"
-  if (level === 0) return "bg-muted border-border"
+  if (level === 0) return "bg-muted/70 border-border"
   if (level === 1) return "bg-primary/15 border-primary/20"
   if (level === 2) return "bg-primary/30 border-primary/35"
   if (level === 3) return "bg-primary/55 border-primary/60"
   return "bg-primary border-primary"
+}
+
+function SettingsSection({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
+  return (
+    <section className="scroll-mt-24 py-8 first:pt-0">
+      <div className="mb-5 flex flex-col gap-1">
+        <h2 className="text-[15px] font-semibold text-foreground">{title}</h2>
+        {description && <p className="max-w-2xl text-sm leading-6 text-muted-foreground">{description}</p>}
+      </div>
+      <div className="overflow-hidden rounded-xl border border-border/80 bg-card/70 shadow-sm shadow-foreground/[0.03]">
+        {children}
+      </div>
+    </section>
+  )
+}
+
+function SettingsRow({ label, description, children }: { label: string; description?: string; children: ReactNode }) {
+  return (
+    <div className="grid gap-4 border-b border-border/80 px-4 py-4 last:border-b-0 sm:grid-cols-[minmax(170px,0.72fr)_minmax(0,1fr)] sm:items-center sm:px-5">
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-foreground">{label}</p>
+        {description && <p className="mt-1 max-w-md text-xs leading-5 text-muted-foreground">{description}</p>}
+      </div>
+      <div className="min-w-0 sm:justify-self-end">{children}</div>
+    </div>
+  )
+}
+
+function ReadOnlyField({ value }: { value: string }) {
+  return (
+    <div className="w-full rounded-lg border border-border/80 bg-background/70 px-3 py-2 text-sm text-foreground shadow-inner sm:w-80">
+      <span className="block truncate">{value}</span>
+    </div>
+  )
+}
+
+function ProgressMeter({ value, tone = "primary" }: { value: number; tone?: "primary" | "warning" | "danger" }) {
+  const color = tone === "danger" ? "bg-destructive" : tone === "warning" ? "bg-muted-foreground" : "bg-primary"
+  return (
+    <div className="h-2 overflow-hidden rounded-full bg-muted">
+      <div className={`h-full rounded-full ${color}`} style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
+    </div>
+  )
+}
+
+function Metric({ label, value, helper }: { label: string; value: ReactNode; helper?: string }) {
+  return (
+    <div className="rounded-xl border border-border/80 bg-background/60 p-4">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <div className="mt-2 text-2xl font-semibold tracking-tight text-foreground">{value}</div>
+      {helper && <p className="mt-1 text-xs text-muted-foreground">{helper}</p>}
+    </div>
+  )
 }
 
 function ContributionCalendar({ items, loading }: { items: ContributionActivityItem[]; loading: boolean }) {
@@ -183,13 +229,13 @@ function ContributionCalendar({ items, loading }: { items: ContributionActivityI
   }, [weeks])
 
   return (
-    <section className="mb-6 rounded-lg border border-border bg-card p-4 shadow-sm sm:p-5">
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+    <section className="rounded-xl border border-border/80 bg-card/70 p-4 shadow-sm shadow-foreground/[0.03] sm:p-5">
+      <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-sm font-semibold text-foreground">
-            {loading ? "Loading activity..." : `${total.toLocaleString()} contribution${total === 1 ? "" : "s"} in the last year`}
+            {loading ? "Loading activity" : `${total.toLocaleString()} workspace contribution${total === 1 ? "" : "s"}`}
           </h2>
-          <p className="mt-1 text-xs text-muted-foreground">Project builds, edits, and computer-agent activity from your workspace.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Project builds, edits, and computer-agent activity across the last year.</p>
         </div>
         <Link href="/projects" className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
           View projects
@@ -198,18 +244,13 @@ function ContributionCalendar({ items, loading }: { items: ContributionActivityI
 
       <div className="overflow-x-auto pb-1 [scrollbar-width:thin]">
         <div className="min-w-[720px]">
-          <div className="relative ml-8 mb-1 h-5">
+          <div className="relative mb-1 ml-8 h-5">
             {monthLabels.map(({ label, index }) => (
-              <span
-                key={`${label}-${index}`}
-                className="absolute text-[11px] text-muted-foreground"
-                style={{ left: `${index * 16}px` }}
-              >
+              <span key={`${label}-${index}`} className="absolute text-[11px] text-muted-foreground" style={{ left: `${index * 16}px` }}>
                 {label}
               </span>
             ))}
           </div>
-
           <div className="flex gap-2">
             <div className="grid h-[104px] grid-rows-7 gap-1 pt-[16px] text-[11px] text-muted-foreground">
               <span />
@@ -220,7 +261,6 @@ function ContributionCalendar({ items, loading }: { items: ContributionActivityI
               <span>Fri</span>
               <span />
             </div>
-
             <div className="flex gap-1">
               {weeks.map((week, weekIndex) => (
                 <div key={weekIndex} className="grid grid-rows-7 gap-1">
@@ -228,24 +268,15 @@ function ContributionCalendar({ items, loading }: { items: ContributionActivityI
                     <div
                       key={day.key}
                       className={`h-3 w-3 rounded-[3px] border transition-transform hover:scale-125 ${getContributionColor(day.level, day.isPadding)}`}
-                      title={
-                        day.isPadding
-                          ? undefined
-                          : `${day.count} contribution${day.count === 1 ? "" : "s"} on ${day.date.toLocaleDateString(undefined, {
-                              month: "short",
-                              day: "numeric",
-                              year: "numeric",
-                            })}`
-                      }
+                      title={day.isPadding ? undefined : `${day.count} contribution${day.count === 1 ? "" : "s"} on ${day.date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`}
                     />
                   ))}
                 </div>
               ))}
             </div>
           </div>
-
           <div className="mt-4 flex items-center justify-between gap-4 text-xs text-muted-foreground">
-            <span>Based on real project activity</span>
+            <span>Live project activity</span>
             <div className="flex items-center gap-1.5">
               <span>Less</span>
               {[0, 1, 2, 3, 4].map((level) => (
@@ -257,53 +288,6 @@ function ContributionCalendar({ items, loading }: { items: ContributionActivityI
         </div>
       </div>
     </section>
-  )
-}
-
-function SettingsSection({
-  id,
-  title,
-  children,
-}: {
-  id: string
-  title: string
-  children: ReactNode
-}) {
-  return (
-    <section id={id} className="scroll-mt-24 pb-12">
-      <h2 className="mb-7 text-[15px] font-semibold text-foreground">{title}</h2>
-      <div className="divide-y divide-border border-y border-border">
-        {children}
-      </div>
-    </section>
-  )
-}
-
-function SettingsRow({
-  label,
-  description,
-  children,
-}: {
-  label: string
-  description?: string
-  children: ReactNode
-}) {
-  return (
-    <div className="grid gap-3 py-4 sm:grid-cols-[minmax(180px,0.75fr)_minmax(0,1fr)] sm:items-center">
-      <div>
-        <p className="text-sm text-foreground">{label}</p>
-        {description && <p className="mt-1 max-w-sm text-xs leading-relaxed text-muted-foreground">{description}</p>}
-      </div>
-      <div className="min-w-0 sm:justify-self-end">{children}</div>
-    </div>
-  )
-}
-
-function ReadOnlyField({ value }: { value: string }) {
-  return (
-    <div className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground shadow-sm sm:w-72">
-      <span className="block truncate">{value}</span>
-    </div>
   )
 }
 
@@ -370,22 +354,14 @@ function SettingsContent() {
       setComputerActivityLoading(false)
       return
     }
-
     setComputerActivityLoading(true)
     const q = query(collection(db, "computerSessions"), where("ownerId", "==", user.uid))
     const unsub = onSnapshot(q, (snap) => {
       const next: ContributionActivityItem[] = []
       snap.forEach((d) => {
         const data = d.data() as any
-        const timelineDates = Array.isArray(data.timeline)
-          ? data.timeline.map((event: any) => event?.createdAt).filter(Boolean)
-          : []
-
-        next.push({
-          createdAt: data.createdAt,
-          updatedAt: data.updatedAt,
-          activityDates: timelineDates,
-        })
+        const timelineDates = Array.isArray(data.timeline) ? data.timeline.map((event: any) => event?.createdAt).filter(Boolean) : []
+        next.push({ createdAt: data.createdAt, updatedAt: data.updatedAt, activityDates: timelineDates })
       })
       setComputerActivityData(next)
       setComputerActivityLoading(false)
@@ -412,8 +388,7 @@ function SettingsContent() {
       if (mounted) invoicesFetched.current = true
     }).finally(() => { if (mounted) setInvoicesLoading(false) })
     return () => { mounted = false }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activePage, user?.uid, userData?.planId])
+  }, [activePage, user, userData?.planId])
 
   useEffect(() => {
     if (activePage !== "memory" || !user?.uid || globalMemoryFetched.current) return
@@ -450,17 +425,25 @@ function SettingsContent() {
       const d = toDate(p.createdAt)
       return !!d && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
     }).length
-    const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7)
-    const weekProjects = projectsData.filter((p) => { const d = toDate(p.createdAt); return !!d && d >= weekAgo }).length
-    return { total, complete, generating, error, monthProjects, weekProjects,
+    const weekAgo = new Date()
+    weekAgo.setDate(weekAgo.getDate() - 7)
+    const weekProjects = projectsData.filter((p) => {
+      const d = toDate(p.createdAt)
+      return !!d && d >= weekAgo
+    }).length
+    return {
+      total,
+      complete,
+      generating,
+      error,
+      monthProjects,
+      weekProjects,
       successRate: total > 0 ? Math.round((complete / total) * 100) : 0,
       recentProjects: projectsData.slice(0, 6),
     }
   }, [projectsData])
 
-  const contributionItems = useMemo<ContributionActivityItem[]>(() => {
-    return [...projectsData, ...computerActivityData]
-  }, [computerActivityData, projectsData])
+  const contributionItems = useMemo<ContributionActivityItem[]>(() => [...projectsData, ...computerActivityData], [computerActivityData, projectsData])
 
   if (loading || !user || !userData) {
     return (
@@ -471,18 +454,21 @@ function SettingsContent() {
   }
 
   const remainingClamped = Math.max(0, userData.tokenUsage?.remaining ?? 0)
-  const tokensLimit = Math.max(Number(userData.tokensLimit ?? 0), Number(userData.tokenUsage.used ?? 0) + remainingClamped)
-  const tokenPct = tokensLimit > 0 ? Math.min(100, Math.round((userData.tokenUsage.used / tokensLimit) * 100)) : 0
+  const usedCredits = Math.max(0, Number(userData.tokenUsage?.used ?? 0))
+  const tokensLimit = Math.max(Number(userData.tokensLimit ?? 0), usedCredits + remainingClamped)
+  const tokenPct = tokensLimit > 0 ? Math.min(100, Math.round((usedCredits / tokensLimit) * 100)) : 0
   const periodEnd = userData.tokenUsage?.periodEnd ? new Date(userData.tokenUsage.periodEnd) : null
   const periodStart = userData.tokenUsage?.periodStart ? new Date(userData.tokenUsage.periodStart) : null
   const daysLeft = periodEnd ? Math.max(0, Math.ceil((periodEnd.getTime() - Date.now()) / 86400000)) : 0
   const cycleDays = periodStart && periodEnd ? Math.max(1, Math.ceil((periodEnd.getTime() - periodStart.getTime()) / 86400000)) : 30
-  const dailyAvg = Math.max(0, Math.round((userData.tokenUsage.used || 0) / cycleDays))
+  const dailyAvg = Math.max(0, Math.round(usedCredits / cycleDays))
   const agentRunLimit = getAgentRunLimitForPlan(userData.planId, userData.agentRunLimit)
   const agentUsed = Math.max(0, Number(userData.agentUsage?.used ?? 0))
   const agentRemaining = Math.max(0, Number.isFinite(Number(userData.agentUsage?.remaining)) ? Number(userData.agentUsage?.remaining) : agentRunLimit - agentUsed)
+  const agentPct = agentRunLimit > 0 ? Math.min(100, Math.round((agentUsed / agentRunLimit) * 100)) : 0
   const createdAt = userData.createdAt ? new Date(userData.createdAt) : null
   const isFreePlan = !userData.planId || userData.planId === "free"
+  const activePageMeta = SETTINGS_PAGES.find((page) => page.key === activePage) ?? SETTINGS_PAGES[0]
 
   const getInitials = (name: string | null, email: string | null) => {
     if (name) return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
@@ -543,16 +529,10 @@ function SettingsContent() {
     setPortalLoading(true)
     try {
       const token = await user.getIdToken()
-      const res = await fetch("/api/stripe/portal", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      const res = await fetch("/api/stripe/portal", { method: "POST", headers: { Authorization: `Bearer ${token}` } })
       const data = await res.json()
-      if (data.url) {
-        window.location.href = data.url
-      } else {
-        alert(data.error || "Failed to load billing portal")
-      }
+      if (data.url) window.location.href = data.url
+      else alert(data.error || "Failed to load billing portal")
     } catch (err) {
       console.error(err)
       alert("Failed to load billing portal")
@@ -562,466 +542,331 @@ function SettingsContent() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto grid w-full max-w-7xl gap-8 px-5 py-8 sm:px-8 md:grid-cols-[220px_minmax(0,1fr)] md:gap-12 lg:px-12 lg:py-12">
-        <aside className="md:sticky md:top-10 md:h-fit">
-          <div className="mb-7 flex items-center gap-3">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,hsl(var(--muted))_0,transparent_34%),linear-gradient(180deg,hsl(var(--background)),hsl(var(--background)))] text-foreground">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
+        <header className="flex flex-col gap-5 border-b border-border/70 pb-6 md:flex-row md:items-end md:justify-between">
+          <div className="flex min-w-0 items-start gap-4">
             <button
               type="button"
               onClick={() => router.back()}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/80 bg-card/70 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               aria-label="Go back"
             >
               <ArrowLeft className="h-4 w-4" />
             </button>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Settings</h1>
+            <div className="min-w-0">
+              <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Lotus Build</p>
+              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Settings</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+                Manage your workspace, billing, usage, and AI memory from one focused control surface.
+              </p>
+            </div>
           </div>
+          <div className="rounded-xl border border-border/80 bg-card/70 px-4 py-3 shadow-sm shadow-foreground/[0.03]">
+            <p className="text-xs text-muted-foreground">Current section</p>
+            <p className="mt-1 text-sm font-medium text-foreground">{activePageMeta.label}</p>
+          </div>
+        </header>
 
-          <nav className="-mx-1 space-y-1 text-sm sm:mx-0">
-            {SETTINGS_PAGES.map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => setActivePage(item.key)}
-                className={`block w-full whitespace-nowrap rounded-lg px-3 py-2 text-left transition-colors ${
-                  activePage === item.key
-                    ? "bg-accent-soft text-accent-soft-foreground"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
-              >
-                {item.label}
-              </button>
-            ))}
-          </nav>
-        </aside>
+        <div className="grid gap-8 lg:grid-cols-[260px_minmax(0,1fr)]">
+          <aside className="lg:sticky lg:top-8 lg:h-fit">
+            <div className="rounded-2xl border border-border/80 bg-card/70 p-2 shadow-sm shadow-foreground/[0.03]">
+              {SETTINGS_PAGES.map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => setActivePage(item.key)}
+                  className={`group flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition-colors ${
+                    activePage === item.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  }`}
+                >
+                  <span className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full ${activePage === item.key ? "bg-primary-foreground" : "bg-muted-foreground/40 group-hover:bg-foreground"}`} />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium">{item.label}</span>
+                    <span className={`mt-0.5 block text-xs ${activePage === item.key ? "text-primary-foreground/75" : "text-muted-foreground"}`}>{item.description}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </aside>
 
-        <main className="min-w-0 pb-16 lg:max-w-4xl">
-          {activePage === "account" && (
-            <>
-              <SettingsSection id="profile" title="Profile">
-                <div className="py-5">
-                  <div className="overflow-hidden rounded-lg border border-border bg-card">
-                    <div className="h-20 bg-[linear-gradient(135deg,var(--muted)_0%,var(--accent-soft)_100%)]" />
-                    <div className="px-5 pb-5 sm:px-6">
-                      <div className="flex items-end gap-4">
-                        <Avatar className="-mt-10 h-16 w-16 rounded-lg border-2 border-card shadow-md sm:h-20 sm:w-20">
+          <main className="min-w-0 pb-16">
+            {activePage === "account" && (
+              <>
+                <SettingsSection title="Profile" description="Your identity inside Lotus Build and the workspace currently attached to this account.">
+                  <div className="border-b border-border/80 p-5 last:border-b-0">
+                    <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex min-w-0 items-center gap-4">
+                        <Avatar className="h-16 w-16 rounded-2xl border border-border bg-background shadow-sm sm:h-20 sm:w-20">
                           <AvatarImage src={userData.photoURL || undefined} alt={userData.displayName || "User"} />
-                          <AvatarFallback className="rounded-lg bg-muted text-lg font-semibold text-foreground">
+                          <AvatarFallback className="rounded-2xl bg-muted text-xl font-semibold text-foreground">
                             {getInitials(userData.displayName, userData.email)}
                           </AvatarFallback>
                         </Avatar>
-                        <div className="min-w-0 pb-1">
-                          <h3 className="truncate text-xl font-semibold text-foreground">{userData.displayName || "Account"}</h3>
+                        <div className="min-w-0">
+                          <h3 className="truncate text-xl font-semibold tracking-tight text-foreground">{userData.displayName || "Account"}</h3>
+                          <div className="mt-2 flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+                            <Mail className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate">{userData.email}</span>
+                          </div>
                         </div>
+                      </div>
+                      <div className="rounded-xl border border-border/80 bg-background/60 px-4 py-3 text-sm">
+                        <p className="text-xs text-muted-foreground">Plan</p>
+                        <p className="mt-1 font-medium text-foreground">{userData.planName || "Free"}</p>
                       </div>
                     </div>
                   </div>
-                </div>
-                <SettingsRow label="Email">
-                  <div className="flex w-full items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground shadow-sm sm:w-72">
-                    <Mail className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    <span className="truncate">{userData.email}</span>
-                  </div>
-                </SettingsRow>
-                <SettingsRow label="Member since">
-                  <p className="text-sm text-muted-foreground">
-                    {createdAt ? createdAt.toLocaleDateString(undefined, { month: "long", year: "numeric" }) : "Unknown"}
-                  </p>
-                </SettingsRow>
-              </SettingsSection>
+                  <SettingsRow label="Member since">
+                    <p className="text-sm text-muted-foreground">{createdAt ? createdAt.toLocaleDateString(undefined, { month: "long", year: "numeric" }) : "Unknown"}</p>
+                  </SettingsRow>
+                  <SettingsRow label="Current workspace">
+                    <ReadOnlyField value={currentWorkspace?.name || "Personal"} />
+                  </SettingsRow>
+                  <SettingsRow label="Workspace count">
+                    <p className="text-sm text-muted-foreground">{Array.isArray(workspaces) ? workspaces.length : 0}</p>
+                  </SettingsRow>
+                  <SettingsRow label="User ID" description="Useful when contacting support.">
+                    <p className="max-w-full truncate rounded-lg bg-background/60 px-3 py-2 font-mono text-xs text-muted-foreground sm:max-w-80">{userData.uid}</p>
+                  </SettingsRow>
+                </SettingsSection>
 
-              <SettingsSection id="account" title="Account Details">
-                <SettingsRow label="Current workspace">
-                  <ReadOnlyField value={currentWorkspace?.name || "Personal"} />
-                </SettingsRow>
-                <SettingsRow label="Workspace count">
-                  <p className="text-sm text-muted-foreground">{Array.isArray(workspaces) ? workspaces.length : 0}</p>
-                </SettingsRow>
-                <SettingsRow label="User ID" description="Useful when contacting support.">
-                  <p className="max-w-full truncate font-mono text-xs text-muted-foreground sm:max-w-72">{userData.uid}</p>
-                </SettingsRow>
-              </SettingsSection>
-
-              <SettingsSection id="security" title="Security">
-                <SettingsRow label="Sign out">
-                  <button
-                    type="button"
-                    onClick={() => signOut()}
-                    className="rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-                  >
-                    Sign out
-                  </button>
-                </SettingsRow>
-                <SettingsRow
-                  label="Delete account"
-                  description="Permanently delete your account, all projects, and associated data. This cannot be undone."
-                >
-                  <button
-                    type="button"
-                    onClick={() => { setDeleteDialogOpen(true); setDeleteConfirmText(""); setDeleteError("") }}
-                    className="rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-1.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
-                  >
-                    Delete account
-                  </button>
-                </SettingsRow>
-              </SettingsSection>
-            </>
-          )}
-
-          {activePage === "billing" && (
-          <section className="pb-12">
-            <h2 className="mb-7 text-[15px] font-semibold text-foreground">Billing</h2>
-
-            <div className="space-y-12">
-              <div className="grid gap-5 border-b border-border pb-10 sm:grid-cols-[64px_minmax(0,1fr)_auto] sm:items-start">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border bg-card text-foreground">
-                  {isFreePlan ? <img src="/Images/leaf-svgrepo-com.svg" className="h-6 w-6" alt="Starter" /> : userData.planId === "pro" ? <img src="/Images/lotus-flower-svgrepo-com.svg" className="h-6 w-6" alt="Pro" /> : <img src="/Images/enterprise-svgrepo-com.svg" className="h-6 w-6" alt="Enterprise" />}
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-foreground">{userData.planName || "Free"} plan</p>
-                  <p className="mt-2 text-sm text-foreground">{isFreePlan ? "Free workspace" : "Active subscription"}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {periodEnd
-                      ? `${isFreePlan ? "Credits reset" : "Your subscription renews"} on ${periodEnd.toLocaleDateString(undefined, {
-                          month: "long",
-                          day: "numeric",
-                          year: "numeric",
-                        })}.`
-                      : "No billing cycle is available for this account."}
-                  </p>
-                </div>
-                <Link
-                  href="/pricing"
-                  className="inline-flex h-9 items-center justify-center rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted"
-                >
-                  {isFreePlan ? "Upgrade plan" : "Adjust plan"}
-                </Link>
-              </div>
-
-              <div>
-                <h3 className="mb-7 text-[15px] font-semibold text-foreground">Payment</h3>
-                <div className="flex flex-col gap-4 border-b border-border pb-10 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm text-foreground/85">
-                    {isFreePlan ? "No payment method is attached to your free plan." : "Payment details are managed from your billing portal."}
-                  </p>
-                  {isFreePlan ? (
-                    <Link
-                      href="/pricing"
-                      className="inline-flex h-9 items-center justify-center rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted"
-                    >
-                      Add payment
-                    </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleManageBilling}
-                      disabled={portalLoading}
-                      className="inline-flex h-9 items-center justify-center rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted disabled:opacity-50"
-                    >
-                      {portalLoading ? "Loading..." : "Update"}
+                <SettingsSection title="Security" description="Session controls and destructive account actions.">
+                  <SettingsRow label="Sign out" description="End this browser session and return to the sign-in screen.">
+                    <button type="button" onClick={() => signOut()} className="rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted">
+                      Sign out
                     </button>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <h3 className="mb-7 text-[15px] font-semibold text-foreground">Invoices</h3>
-                <div className="border-b border-border pb-10">
-                  {isFreePlan ? (
-                    <p className="text-sm text-muted-foreground">Invoices are available after a paid subscription is active.</p>
-                  ) : invoicesLoading ? (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Loader2 className="h-4 w-4 animate-spin" /> Loading invoices…
-                    </div>
-                  ) : invoices.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No invoices found for this account.</p>
-                  ) : (
-                    <div className="overflow-hidden rounded-lg border border-border bg-card">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-border bg-muted">
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Invoice</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Date</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Amount</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
-                            <th className="px-4 py-3" />
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                          {invoices.map((inv) => {
-                            const date = new Date(inv.date * 1000).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
-                            const amount = new Intl.NumberFormat("en-US", { style: "currency", currency: inv.currency.toUpperCase() }).format(inv.amount / 100)
-                            const statusColor =
-                              inv.status === "paid" ? "bg-success-soft text-success-soft-foreground border-success/20"
-                              : inv.status === "open" ? "bg-warning-soft text-warning-soft-foreground border-warning/20"
-                              : "bg-muted text-muted-foreground border-border"
-                            return (
-                              <tr key={inv.id} className="hover:bg-muted/50 transition-colors">
-                                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{inv.number ?? inv.id.slice(-8).toUpperCase()}</td>
-                                <td className="px-4 py-3 text-foreground/85">{date}</td>
-                                <td className="px-4 py-3 font-medium text-foreground">{amount}</td>
-                                <td className="px-4 py-3">
-                                  <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold capitalize ${statusColor}`}>
-                                    {inv.status}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3">
-                                  <div className="flex items-center justify-end gap-2">
-                                    {inv.pdfUrl && (
-                                      <a
-                                        href={inv.pdfUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex h-7 w-7 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
-                                        title="Download PDF"
-                                      >
-                                        <Download className="h-3.5 w-3.5" />
-                                      </a>
-                                    )}
-                                    {inv.hostedUrl && (
-                                      <a
-                                        href={inv.hostedUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex h-7 w-7 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
-                                        title="View invoice"
-                                      >
-                                        <ExternalLink className="h-3.5 w-3.5" />
-                                      </a>
-                                    )}
-                                  </div>
-                                </td>
-                              </tr>
-                            )
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <h3 className="mb-7 text-[15px] font-semibold text-foreground">Cancellation</h3>
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm text-foreground/85">{isFreePlan ? "There is no active subscription to cancel." : "Manage or cancel your subscription from your billing portal."}</p>
-                  {!isFreePlan && (
-                    <button
-                      type="button"
-                      onClick={handleManageBilling}
-                      disabled={portalLoading}
-                      className="inline-flex h-9 items-center justify-center rounded-lg bg-destructive px-3 text-sm font-medium text-destructive-foreground transition-colors hover:bg-destructive/90 disabled:opacity-50"
-                    >
-                      {portalLoading ? "Loading..." : "Cancel"}
+                  </SettingsRow>
+                  <SettingsRow label="Delete account" description="Permanently delete your account, projects, and associated data. This cannot be undone.">
+                    <button type="button" onClick={() => { setDeleteDialogOpen(true); setDeleteConfirmText(""); setDeleteError("") }} className="rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10">
+                      Delete account
                     </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </section>
-          )}
+                  </SettingsRow>
+                </SettingsSection>
+              </>
+            )}
 
-          {activePage === "usage" && (
-            <>
-              <SettingsSection id="usage" title="Usage">
-                <SettingsRow
-                  label="Build credits"
-                  description={`${userData.tokenUsage.used.toLocaleString()} of ${tokensLimit.toLocaleString()} credits used this cycle.`}
-                >
-                  <div className="w-full sm:w-80">
-                    <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
-                      <span>{remainingClamped.toLocaleString()} remaining</span>
-                      <span>{tokenPct}% used</span>
+            {activePage === "billing" && (
+              <>
+                <SettingsSection title="Billing" description="Plan status, subscription controls, and invoices for your Lotus Build workspace.">
+                  <div className="grid gap-4 border-b border-border/80 p-5 md:grid-cols-[1fr_auto] md:items-center">
+                    <div>
+                      <p className="text-lg font-semibold tracking-tight text-foreground">{userData.planName || "Free"} plan</p>
+                      <p className="mt-2 text-sm text-muted-foreground">{isFreePlan ? "Free workspace" : "Active subscription"}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {periodEnd ? `${isFreePlan ? "Credits reset" : "Subscription renews"} on ${periodEnd.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}.` : "No billing cycle is available for this account."}
+                      </p>
                     </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className={`h-full rounded-full ${tokenPct >= 90 ? "bg-destructive" : tokenPct >= 60 ? "bg-muted-foreground" : "bg-primary"}`}
-                        style={{ width: `${tokenPct}%` }}
-                      />
-                    </div>
-                  </div>
-                </SettingsRow>
-                <SettingsRow label="Daily average">
-                  <p className="text-sm text-muted-foreground">{dailyAvg.toLocaleString()} credits</p>
-                </SettingsRow>
-                <SettingsRow label="Days left">
-                  <p className="text-sm text-muted-foreground">{daysLeft}</p>
-                </SettingsRow>
-                <SettingsRow label="Agent runs">
-                  <div className="w-full sm:w-80">
-                    <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
-                      <span>{agentRemaining} remaining</span>
-                      <span>{agentUsed} / {agentRunLimit}</span>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="h-full rounded-full bg-primary"
-                        style={{ width: `${agentRunLimit > 0 ? Math.min(100, Math.round((agentUsed / agentRunLimit) * 100)) : 0}%` }}
-                      />
-                    </div>
-                  </div>
-                </SettingsRow>
-              </SettingsSection>
-
-              <section id="activity" className="scroll-mt-24 pb-12">
-                <h2 className="mb-7 text-[15px] font-semibold text-foreground">Activity</h2>
-                <ContributionCalendar items={contributionItems} loading={projectsLoading || computerActivityLoading} />
-              </section>
-            </>
-          )}
-
-          {activePage === "projects" && (
-          <SettingsSection id="projects" title="Projects">
-            <SettingsRow label="Total projects">
-              <p className="text-sm text-muted-foreground">{projectsLoading ? "Loading..." : analytics.total}</p>
-            </SettingsRow>
-            <SettingsRow label="This month">
-              <p className="text-sm text-muted-foreground">{projectsLoading ? "Loading..." : analytics.monthProjects}</p>
-            </SettingsRow>
-            <SettingsRow label="Success rate">
-              <p className="text-sm text-muted-foreground">{projectsLoading ? "Loading..." : `${analytics.successRate}%`}</p>
-            </SettingsRow>
-            <SettingsRow label="Recent builds">
-              {projectsLoading ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Loading
-                </div>
-              ) : analytics.recentProjects.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No projects yet</p>
-              ) : (
-                <div className="w-full space-y-2 sm:w-96">
-                  {analytics.recentProjects.slice(0, 4).map((p) => (
-                    <Link key={p.id} href={`/project/${p.id}`} className="flex min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-muted">
-                      {statusDot(p.status)}
-                      <span className="min-w-0 flex-1 truncate text-sm text-foreground">{p.prompt?.trim() || "Untitled project"}</span>
+                    <Link href="/pricing" className="inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">
+                      {isFreePlan ? "Upgrade" : "Adjust plan"}
                     </Link>
-                  ))}
-                </div>
-              )}
-            </SettingsRow>
-            <SettingsRow label="All projects">
-              <Link href="/projects" className="text-sm font-medium text-primary underline underline-offset-4 hover:text-primary/80">
-                Open projects
-              </Link>
-            </SettingsRow>
-          </SettingsSection>
-          )}
-
-          {activePage === "memory" && (
-            <div className="pb-12">
-              <h2 className="mb-2 text-[15px] font-semibold text-foreground">Memory</h2>
-              <p className="mb-8 text-sm text-muted-foreground">
-                Memory lets the AI agent carry context across sessions. Global memory applies to every project; project memory is scoped to a single project.
-              </p>
-
-              {/* Global memory */}
-              <section className="mb-10">
-                <h3 className="mb-1 text-sm font-semibold text-foreground">Global Memory</h3>
-                <p className="mb-3 text-xs text-muted-foreground">Preferences and facts that apply to all projects — coding style, preferred libraries, tone, recurring requirements.</p>
-                {globalMemoryLoading ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading…
                   </div>
-                ) : (
-                  <>
-                    <textarea
-                      value={globalMemoryDraft}
-                      onChange={(e) => { setGlobalMemoryDraft(e.target.value); setGlobalMemorySaved(false) }}
-                      rows={8}
-                      placeholder={"e.g. Always use TypeScript. Prefer Tailwind CSS. Keep code minimal and readable. Never add comments explaining what the code does."}
-                      className="w-full resize-y rounded-lg border border-border bg-card px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/20 shadow-sm"
-                    />
-                    <div className="mt-3 flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={handleSaveGlobalMemory}
-                        disabled={globalMemorySaving}
-                        className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-                      >
-                        {globalMemorySaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                        {globalMemorySaving ? "Saving…" : "Save"}
+                  <SettingsRow label="Payment" description={isFreePlan ? "No payment method is attached to your free plan." : "Payment details are managed from your billing portal."}>
+                    {isFreePlan ? (
+                      <Link href="/pricing" className="inline-flex h-9 items-center justify-center rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted">
+                        Add payment
+                      </Link>
+                    ) : (
+                      <button type="button" onClick={handleManageBilling} disabled={portalLoading} className="inline-flex h-9 items-center justify-center rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50">
+                        {portalLoading ? "Loading" : "Update"}
                       </button>
-                      {globalMemorySaved && <span className="text-xs text-success">Saved</span>}
-                    </div>
-                  </>
-                )}
-              </section>
+                    )}
+                  </SettingsRow>
+                  <SettingsRow label="Cancellation" description={isFreePlan ? "There is no active subscription to cancel." : "Manage or cancel from the billing portal."}>
+                    {!isFreePlan ? (
+                      <button type="button" onClick={handleManageBilling} disabled={portalLoading} className="inline-flex h-9 items-center justify-center rounded-lg bg-destructive px-3 text-sm font-medium text-destructive-foreground transition-colors hover:bg-destructive/90 disabled:opacity-50">
+                        {portalLoading ? "Loading" : "Cancel"}
+                      </button>
+                    ) : <p className="text-sm text-muted-foreground">No active subscription</p>}
+                  </SettingsRow>
+                </SettingsSection>
 
-              {/* Project memories */}
-              <section>
-                <h3 className="mb-1 text-sm font-semibold text-foreground">Project Memory</h3>
-                <p className="mb-5 text-xs text-muted-foreground">Context specific to each project — goals, constraints, tech stack, design decisions. Only injected when working in that project.</p>
-                {projectsLoading ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading projects…
-                  </div>
-                ) : projectsData.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No projects yet.</p>
-                ) : (
-                  <div className="space-y-6">
-                    {projectsData.map((p) => (
-                      <div key={p.id} className="rounded-lg border border-border bg-card p-4 shadow-sm">
-                        <div className="mb-3 flex items-center gap-2">
-                          {statusDot(p.status)}
-                          <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{p.prompt?.trim() || "Untitled project"}</span>
-                          <a
-                            href={`/computer/${p.id}`}
-                            className="shrink-0 text-xs text-muted-foreground transition-colors hover:text-primary flex items-center gap-1"
-                          >
-                            <ExternalLink className="h-3 w-3" />
-                            Open
-                          </a>
-                        </div>
-                        <textarea
-                          value={projectMemoryDrafts[p.id] ?? ""}
-                          onChange={(e) => {
-                            setProjectMemoryDrafts((prev) => ({ ...prev, [p.id]: e.target.value }))
-                            setProjectMemorySaved((prev) => ({ ...prev, [p.id]: false }))
-                          }}
-                          rows={4}
-                          placeholder="Project-specific context, constraints, decisions…"
-                          className="w-full resize-y rounded-lg border border-border bg-muted/50 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring/20"
-                        />
-                        <div className="mt-2.5 flex items-center gap-3">
-                          <button
-                            type="button"
-                            onClick={() => handleSaveProjectMemory(p.id)}
-                            disabled={projectMemorySaving[p.id]}
-                            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
-                          >
-                            {projectMemorySaving[p.id] && <Loader2 className="h-3 w-3 animate-spin" />}
-                            {projectMemorySaving[p.id] ? "Saving…" : "Save"}
-                          </button>
-                          {projectMemorySaved[p.id] && <span className="text-xs text-success">Saved</span>}
-                        </div>
+                <SettingsSection title="Invoices" description="Download receipts or open hosted invoices from Stripe.">
+                  <div className="p-0">
+                    {isFreePlan ? (
+                      <p className="p-5 text-sm text-muted-foreground">Invoices are available after a paid subscription is active.</p>
+                    ) : invoicesLoading ? (
+                      <div className="flex items-center gap-2 p-5 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading invoices</div>
+                    ) : invoices.length === 0 ? (
+                      <p className="p-5 text-sm text-muted-foreground">No invoices found for this account.</p>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full min-w-[640px] text-sm">
+                          <thead>
+                            <tr className="border-b border-border/80 bg-muted/50">
+                              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">Invoice</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">Date</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">Amount</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">Status</th>
+                              <th className="px-4 py-3" />
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border/80">
+                            {invoices.map((inv) => {
+                              const date = new Date(inv.date * 1000).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+                              const amount = new Intl.NumberFormat("en-US", { style: "currency", currency: inv.currency.toUpperCase() }).format(inv.amount / 100)
+                              const statusColor = inv.status === "paid" ? "bg-success-soft text-success-soft-foreground border-success/20" : inv.status === "open" ? "bg-warning-soft text-warning-soft-foreground border-warning/20" : "bg-muted text-muted-foreground border-border"
+                              return (
+                                <tr key={inv.id} className="transition-colors hover:bg-muted/40">
+                                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{inv.number ?? inv.id.slice(-8).toUpperCase()}</td>
+                                  <td className="px-4 py-3 text-foreground/85">{date}</td>
+                                  <td className="px-4 py-3 font-medium text-foreground">{amount}</td>
+                                  <td className="px-4 py-3"><span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium capitalize ${statusColor}`}>{inv.status}</span></td>
+                                  <td className="px-4 py-3">
+                                    <div className="flex items-center justify-end gap-2">
+                                      {inv.pdfUrl && <a href={inv.pdfUrl} target="_blank" rel="noopener noreferrer" className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:text-foreground" title="Download PDF"><Download className="h-3.5 w-3.5" /></a>}
+                                      {inv.hostedUrl && <a href={inv.hostedUrl} target="_blank" rel="noopener noreferrer" className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:text-foreground" title="View invoice"><ExternalLink className="h-3.5 w-3.5" /></a>}
+                                    </div>
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
                       </div>
-                    ))}
+                    )}
                   </div>
-                )}
-              </section>
-            </div>
-          )}
+                </SettingsSection>
+              </>
+            )}
 
-        </main>
+            {activePage === "usage" && (
+              <>
+                <div className="mb-6 grid gap-4 md:grid-cols-3">
+                  <Metric label="Credits remaining" value={remainingClamped.toLocaleString()} helper={`${tokenPct}% used`} />
+                  <Metric label="Agent runs" value={`${agentRemaining}`} helper={`${agentUsed} of ${agentRunLimit} used`} />
+                  <Metric label="Days left" value={daysLeft} helper={`${dailyAvg.toLocaleString()} credits daily avg`} />
+                </div>
+                <SettingsSection title="Usage" description="Track build credits and computer-agent run limits for the current billing cycle.">
+                  <SettingsRow label="Build credits" description={`${usedCredits.toLocaleString()} of ${tokensLimit.toLocaleString()} credits used this cycle.`}>
+                    <div className="w-full sm:w-80">
+                      <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground"><span>{remainingClamped.toLocaleString()} remaining</span><span>{tokenPct}% used</span></div>
+                      <ProgressMeter value={tokenPct} tone={tokenPct >= 90 ? "danger" : tokenPct >= 60 ? "warning" : "primary"} />
+                    </div>
+                  </SettingsRow>
+                  <SettingsRow label="Agent runs" description="Runs available for autonomous computer sessions.">
+                    <div className="w-full sm:w-80">
+                      <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground"><span>{agentRemaining} remaining</span><span>{agentUsed} / {agentRunLimit}</span></div>
+                      <ProgressMeter value={agentPct} />
+                    </div>
+                  </SettingsRow>
+                </SettingsSection>
+                <section className="py-8">
+                  <div className="mb-5"><h2 className="text-[15px] font-semibold text-foreground">Activity</h2><p className="mt-1 text-sm text-muted-foreground">A contribution-style view of actual workspace activity.</p></div>
+                  <ContributionCalendar items={contributionItems} loading={projectsLoading || computerActivityLoading} />
+                </section>
+              </>
+            )}
+
+            {activePage === "projects" && (
+              <>
+                <div className="mb-6 grid gap-4 md:grid-cols-3">
+                  <Metric label="Total projects" value={projectsLoading ? "..." : analytics.total} />
+                  <Metric label="This month" value={projectsLoading ? "..." : analytics.monthProjects} helper={`${analytics.weekProjects} this week`} />
+                  <Metric label="Success rate" value={projectsLoading ? "..." : `${analytics.successRate}%`} helper={`${analytics.complete} complete, ${analytics.error} errors`} />
+                </div>
+                <SettingsSection title="Projects" description="Recent builds and workspace health at a glance.">
+                  <SettingsRow label="Recent builds">
+                    {projectsLoading ? (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading</div>
+                    ) : analytics.recentProjects.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No projects yet</p>
+                    ) : (
+                      <div className="w-full space-y-1 sm:w-[28rem]">
+                        {analytics.recentProjects.slice(0, 5).map((p) => (
+                          <Link key={p.id} href={`/project/${p.id}`} className="flex min-w-0 items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-muted">
+                            {statusDot(p.status)}
+                            <span className="min-w-0 flex-1 truncate text-sm text-foreground">{p.prompt?.trim() || "Untitled project"}</span>
+                            <span className="text-xs text-muted-foreground">{p.model || "GPT-5.5"}</span>
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </SettingsRow>
+                  <SettingsRow label="All projects" description="Open the full projects index.">
+                    <Link href="/projects" className="text-sm font-medium text-primary underline underline-offset-4 hover:text-primary/80">Open projects</Link>
+                  </SettingsRow>
+                </SettingsSection>
+              </>
+            )}
+
+            {activePage === "memory" && (
+              <div className="pb-12">
+                <SettingsSection title="Memory" description="Control what Lotus Build remembers across projects and what stays scoped to one build.">
+                  <div className="border-b border-border/80 p-5">
+                    <div className="mb-3 flex flex-col gap-1">
+                      <h3 className="text-sm font-semibold text-foreground">Global memory</h3>
+                      <p className="text-xs leading-5 text-muted-foreground">Preferences and facts that apply to all projects, such as coding style, preferred libraries, tone, and recurring requirements.</p>
+                    </div>
+                    {globalMemoryLoading ? (
+                      <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading</div>
+                    ) : (
+                      <>
+                        <textarea
+                          value={globalMemoryDraft}
+                          onChange={(e) => { setGlobalMemoryDraft(e.target.value); setGlobalMemorySaved(false) }}
+                          rows={8}
+                          placeholder="Example: Always use TypeScript. Prefer Tailwind CSS. Keep generated code minimal and readable."
+                          className="w-full resize-y rounded-xl border border-border/80 bg-background/70 px-4 py-3 text-sm text-foreground shadow-inner placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/20"
+                        />
+                        <div className="mt-3 flex items-center gap-3">
+                          <button type="button" onClick={handleSaveGlobalMemory} disabled={globalMemorySaving} className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50">
+                            {globalMemorySaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}{globalMemorySaving ? "Saving" : "Save memory"}
+                          </button>
+                          {globalMemorySaved && <span className="text-xs text-success">Saved</span>}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <div className="p-5">
+                    <div className="mb-5 flex flex-col gap-1">
+                      <h3 className="text-sm font-semibold text-foreground">Project memory</h3>
+                      <p className="text-xs leading-5 text-muted-foreground">Context specific to each project: goals, constraints, stack choices, and design decisions.</p>
+                    </div>
+                    {projectsLoading ? (
+                      <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading projects</div>
+                    ) : projectsData.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No projects yet.</p>
+                    ) : (
+                      <div className="space-y-4">
+                        {projectsData.map((p) => (
+                          <div key={p.id} className="rounded-xl border border-border/80 bg-background/60 p-4">
+                            <div className="mb-3 flex items-center gap-2">
+                              {statusDot(p.status)}
+                              <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{p.prompt?.trim() || "Untitled project"}</span>
+                              <a href={`/computer/${p.id}`} className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-primary"><ExternalLink className="h-3 w-3" /> Open</a>
+                            </div>
+                            <textarea
+                              value={projectMemoryDrafts[p.id] ?? ""}
+                              onChange={(e) => { setProjectMemoryDrafts((prev) => ({ ...prev, [p.id]: e.target.value })); setProjectMemorySaved((prev) => ({ ...prev, [p.id]: false })) }}
+                              rows={4}
+                              placeholder="Project-specific context, constraints, decisions"
+                              className="w-full resize-y rounded-lg border border-border/80 bg-card/80 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring/20"
+                            />
+                            <div className="mt-2.5 flex items-center gap-3">
+                              <button type="button" onClick={() => handleSaveProjectMemory(p.id)} disabled={projectMemorySaving[p.id]} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50">
+                                {projectMemorySaving[p.id] && <Loader2 className="h-3 w-3 animate-spin" />}{projectMemorySaving[p.id] ? "Saving" : "Save"}
+                              </button>
+                              {projectMemorySaved[p.id] && <span className="text-xs text-success">Saved</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </SettingsSection>
+              </div>
+            )}
+          </main>
+        </div>
       </div>
 
-      {/* ── Delete confirmation dialog ── */}
       {deleteDialogOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-foreground/40 backdrop-blur-sm"
-            onClick={() => !deleteLoading && setDeleteDialogOpen(false)}
-          />
-
-          {/* Panel */}
-          <div className="relative w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-xl">
-            {/* Header */}
+          <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={() => !deleteLoading && setDeleteDialogOpen(false)} />
+          <div className="relative w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
             <div className="mb-5 flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-destructive/10">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-destructive/10">
                 <Trash2 className="h-5 w-5 text-destructive" />
               </div>
               <div>
@@ -1029,70 +874,23 @@ function SettingsContent() {
                 <p className="mt-0.5 text-sm text-muted-foreground">This action is permanent and cannot be reversed.</p>
               </div>
             </div>
-
-            {/* Warning list */}
-            <div className="mb-5 rounded-lg border border-destructive/20 bg-destructive/5 p-4">
-              <p className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-destructive">
-                You will permanently lose:
-              </p>
+            <div className="mb-5 rounded-xl border border-destructive/20 bg-destructive/5 p-4">
+              <p className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-destructive">You will permanently lose:</p>
               <ul className="space-y-1.5 text-sm text-destructive/90">
-                {[
-                  "Your account and profile",
-                  "All projects and generated code",
-                  "Token and billing history",
-                  "All workspaces and integrations",
-                ].map((item) => (
-                  <li key={item} className="flex items-center gap-2">
-                    <XCircle className="h-3.5 w-3.5 shrink-0 text-destructive/60" />
-                    {item}
-                  </li>
+                {["Your account and profile", "All projects and generated code", "Token and billing history", "All workspaces and integrations"].map((item) => (
+                  <li key={item} className="flex items-center gap-2"><XCircle className="h-3.5 w-3.5 shrink-0 text-destructive/60" />{item}</li>
                 ))}
               </ul>
             </div>
-
-            {/* Confirmation input */}
             <div className="mb-5">
-              <label className="mb-2 block text-sm text-foreground">
-                Type <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs font-semibold text-foreground">{userData.email}</span> to confirm
-              </label>
-              <Input
-                type="email"
-                value={deleteConfirmText}
-                onChange={(e) => { setDeleteConfirmText(e.target.value); setDeleteError("") }}
-                placeholder={userData.email ?? "your@email.com"}
-                className="h-10 rounded-lg border-border bg-muted/50 text-sm focus:bg-card"
-                disabled={deleteLoading}
-                autoComplete="off"
-              />
+              <label className="mb-2 block text-sm text-foreground">Type <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs font-semibold text-foreground">{userData.email}</span> to confirm</label>
+              <Input type="email" value={deleteConfirmText} onChange={(e) => { setDeleteConfirmText(e.target.value); setDeleteError("") }} placeholder={userData.email ?? "your@email.com"} className="h-10 rounded-lg border-border bg-muted/50 text-sm focus:bg-card" disabled={deleteLoading} autoComplete="off" />
             </div>
-
-            {deleteError && (
-              <div className="mb-4 rounded-lg border border-destructive/20 bg-destructive/10 px-3.5 py-2.5 text-sm text-destructive">
-                {deleteError}
-              </div>
-            )}
-
-            {/* Actions */}
+            {deleteError && <div className="mb-4 rounded-lg border border-destructive/20 bg-destructive/10 px-3.5 py-2.5 text-sm text-destructive">{deleteError}</div>}
             <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setDeleteDialogOpen(false)}
-                disabled={deleteLoading}
-                className="flex-1 rounded-lg border border-border bg-card py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleDeleteAccount}
-                disabled={deleteConfirmText !== userData.email || deleteLoading}
-                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-destructive py-2.5 text-sm font-medium text-destructive-foreground transition-colors hover:bg-destructive/90 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {deleteLoading ? (
-                  <><Loader2 className="h-3.5 w-3.5 animate-spin" />Deleting…</>
-                ) : (
-                  <><Trash2 className="h-3.5 w-3.5" />Delete my account</>
-                )}
+              <button type="button" onClick={() => setDeleteDialogOpen(false)} disabled={deleteLoading} className="flex-1 rounded-lg border border-border bg-card py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50">Cancel</button>
+              <button type="button" onClick={handleDeleteAccount} disabled={deleteConfirmText !== userData.email || deleteLoading} className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-destructive py-2.5 text-sm font-medium text-destructive-foreground transition-colors hover:bg-destructive/90 disabled:cursor-not-allowed disabled:opacity-40">
+                {deleteLoading ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Deleting</> : <><Trash2 className="h-3.5 w-3.5" />Delete account</>}
               </button>
             </div>
           </div>
