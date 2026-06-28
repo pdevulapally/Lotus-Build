@@ -14,6 +14,7 @@ export type GeneratedProjectIssue = {
     | "missing-asset"
     | "invalid-package-json"
     | "missing-package-dependency"
+    | "unsupported-package-dependency"
     | "forbidden-mobile-web-file"
     | "forbidden-mobile-web-dependency"
   message: string
@@ -31,6 +32,10 @@ export const GENERATED_APP_DEPENDENCY_VERSIONS: Record<string, string> = {
   "react-icons": "^5.0.0",
   "framer-motion": "12.39.0",
   "lucide-react": "1.16.0",
+  clsx: "^2.1.1",
+  classnames: "^2.5.1",
+  "date-fns": "^4.1.0",
+  "react-intersection-observer": "^9.16.0",
 }
 
 const REQUIRED_NEW_APP_FILES = [
@@ -67,6 +72,69 @@ const MOBILE_FORBIDDEN_DEPENDENCIES = new Set([
   "@vitejs/plugin-react",
   "next",
 ])
+
+const WEB_DEV_DEPENDENCIES = new Set([
+  "vite",
+  "@vitejs/plugin-react",
+  "tailwindcss",
+  "postcss",
+  "autoprefixer",
+  "typescript",
+  "@types/react",
+  "@types/react-dom",
+])
+
+const WEB_SUPPORTED_DEPENDENCIES = new Set([
+  "react",
+  "react-dom",
+  "typescript",
+  "@types/react",
+  "@types/react-dom",
+  ...Object.keys(GENERATED_APP_DEPENDENCY_VERSIONS),
+])
+
+const MOBILE_SUPPORTED_DEPENDENCIES = new Set([
+  "expo",
+  "react",
+  "react-native",
+  "nativewind",
+  "tailwindcss",
+  "typescript",
+  ...Object.keys(MOBILE_EXPO_DEPENDENCIES),
+])
+
+export function isGeneratedProjectPackageSupported(packageName: string, platform: ProjectPlatform = "web") {
+  if (!packageName) return false
+  return platform === "mobile"
+    ? MOBILE_SUPPORTED_DEPENDENCIES.has(packageName) && !MOBILE_FORBIDDEN_DEPENDENCIES.has(packageName)
+    : WEB_SUPPORTED_DEPENDENCIES.has(packageName)
+}
+
+function getPackageVersion(packageName: string, platform: ProjectPlatform = "web") {
+  if (platform === "mobile" && packageName in MOBILE_EXPO_DEPENDENCIES) {
+    return MOBILE_EXPO_DEPENDENCIES[packageName as keyof typeof MOBILE_EXPO_DEPENDENCIES]
+  }
+  if (packageName === "react") return platform === "mobile" ? MOBILE_EXPO_DEPENDENCIES.react : "^18.3.1"
+  if (packageName === "react-dom") return "^18.3.1"
+  if (packageName === "react-native") return MOBILE_EXPO_DEPENDENCIES["react-native"]
+  if (packageName === "nativewind") return "latest"
+  if (packageName === "typescript") return "^5.6.3"
+  if (packageName === "@types/react") return "^18.3.12"
+  if (packageName === "@types/react-dom") return "^18.3.1"
+  return GENERATED_APP_DEPENDENCY_VERSIONS[packageName]
+}
+
+function getDependencyBucket(
+  packageName: string,
+  dependencies: Record<string, any>,
+  devDependencies: Record<string, any>,
+  platform: ProjectPlatform = "web"
+) {
+  if (platform === "mobile") {
+    return packageName === "tailwindcss" || packageName === "typescript" ? devDependencies : dependencies
+  }
+  return WEB_DEV_DEPENDENCIES.has(packageName) ? devDependencies : dependencies
+}
 
 export function isForbiddenMobileWebFilePath(path: string) {
   return MOBILE_FORBIDDEN_FILE_PATHS.has(normalizePath(path))
@@ -248,20 +316,15 @@ function ensurePackageJson(files: GeneratedProjectFile[]) {
   }
 
   for (const packageName of importedPackages) {
-    if (packageName === "react" || packageName === "react-dom") continue
-    if (dependencies[packageName] || devDependencies[packageName]) continue
-    dependencies[packageName] = GENERATED_APP_DEPENDENCY_VERSIONS[packageName] ?? "latest"
+    if (!isGeneratedProjectPackageSupported(packageName)) continue
+    const target = getDependencyBucket(packageName, dependencies, devDependencies)
+    if (target[packageName]) continue
+    target[packageName] = getPackageVersion(packageName) ?? "latest"
     changed = true
   }
 
   for (const [packageName, version] of Object.entries(GENERATED_APP_DEPENDENCY_VERSIONS)) {
-    const target = packageName === "vite" ||
-      packageName === "@vitejs/plugin-react" ||
-      packageName === "tailwindcss" ||
-      packageName === "postcss" ||
-      packageName === "autoprefixer"
-      ? devDependencies
-      : dependencies
+    const target = getDependencyBucket(packageName, dependencies, devDependencies)
 
     if (target[packageName] && target[packageName] !== version) {
       target[packageName] = version
@@ -342,10 +405,10 @@ function ensureMobilePackageJson(files: GeneratedProjectFile[]) {
   }
 
   for (const packageName of importedPackages) {
-    if (MOBILE_FORBIDDEN_DEPENDENCIES.has(packageName)) continue
-    if (packageName === "react" || packageName === "react-native" || packageName === "expo") continue
-    if (dependencies[packageName] || devDependencies[packageName]) continue
-    dependencies[packageName] = GENERATED_APP_DEPENDENCY_VERSIONS[packageName] ?? "latest"
+    if (!isGeneratedProjectPackageSupported(packageName, "mobile")) continue
+    const target = getDependencyBucket(packageName, dependencies, devDependencies, "mobile")
+    if (target[packageName]) continue
+    target[packageName] = getPackageVersion(packageName, "mobile") ?? "latest"
     changed = true
   }
 
@@ -541,7 +604,9 @@ export function validateGeneratedProjectFiles(
     ...(packageJson?.devDependencies && typeof packageJson.devDependencies === "object" ? packageJson.devDependencies : {}),
   }
 
-  if (!packageJson && extractNpmPackages(generatedFiles).length > 0) {
+  const importedPackages = extractNpmPackages(generatedFiles)
+
+  if (!packageJson && importedPackages.length > 0) {
     issues.push({
       code: "missing-package-json",
       message: "Generated code imports npm packages but no package.json was generated.",
@@ -560,7 +625,26 @@ export function validateGeneratedProjectFiles(
       }
     }
 
-    for (const packageName of extractNpmPackages(generatedFiles)) {
+    for (const packageName of Object.keys(allDeps).sort()) {
+      if (platform === "mobile" && MOBILE_FORBIDDEN_DEPENDENCIES.has(packageName)) continue
+      if (!isGeneratedProjectPackageSupported(packageName, platform)) {
+        issues.push({
+          code: "unsupported-package-dependency",
+          message: `Unsupported package dependency "${packageName}". Use the generated-app approved packages only, or implement this locally without adding a dependency.`,
+          packageName,
+        })
+      }
+    }
+
+    for (const packageName of importedPackages) {
+      if (!isGeneratedProjectPackageSupported(packageName, platform)) {
+        issues.push({
+          code: "unsupported-package-dependency",
+          message: `Unsupported package import "${packageName}". Replace it with React, Tailwind, lucide-react, framer-motion, react-icons, or local code.`,
+          packageName,
+        })
+        continue
+      }
       if (!allDeps[packageName]) {
         issues.push({
           code: "missing-package-dependency",
