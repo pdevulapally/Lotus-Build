@@ -55,7 +55,7 @@ export default function Home() {
               aria-hidden
             />
 
-            <div className="absolute left-1/2 top-0 z-20 w-full max-w-4xl -translate-x-1/2 px-4 sm:px-6">
+            <div className="absolute left-1/2 top-0 z-20 w-full max-w-6xl -translate-x-1/2 px-4 sm:px-6">
               <div className="mx-auto w-full">
                 <Navbar variant="hero" />
               </div>
