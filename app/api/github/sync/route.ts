@@ -54,7 +54,7 @@ function githubSyncIssueResponse(issue: GitHubSyncIssue) {
       githubSyncUnavailable: true,
       ...(issue.detail ? { detail: issue.detail.slice(0, 500) } : {}),
     },
-    { status: issue.status ?? 200 }
+    { status: issue.status ?? 409 }
   )
 }
 
@@ -67,6 +67,7 @@ function publicGitHubSyncIssue(err: unknown): GitHubSyncIssue {
       code: "github_reconnect_required",
       message: "GitHub needs to be reconnected before this project can sync.",
       action: "Reconnect GitHub",
+      status: 401,
     }
   }
 
@@ -75,6 +76,7 @@ function publicGitHubSyncIssue(err: unknown): GitHubSyncIssue {
       code: "github_rate_limited",
       message: "GitHub is rate limiting repository sync right now. Please retry in a few minutes.",
       action: "Retry sync",
+      status: 429,
     }
   }
 
@@ -83,6 +85,7 @@ function publicGitHubSyncIssue(err: unknown): GitHubSyncIssue {
       code: "github_app_access_required",
       message: "GitHub is connected, but repository access is not ready. Install or grant the GitHub App access to a repository, then retry.",
       action: "Manage GitHub access",
+      status: 409,
     }
   }
 
@@ -90,6 +93,7 @@ function publicGitHubSyncIssue(err: unknown): GitHubSyncIssue {
     code: "github_sync_failed",
     message: "GitHub sync could not complete right now. Your project files are safe; retry the sync in a moment.",
     action: "Retry sync",
+    status: 502,
   }
 }
 
@@ -273,6 +277,7 @@ export async function POST(req: Request) {
         code: "github_not_connected",
         message: "Connect GitHub before syncing this project.",
         action: "Connect GitHub",
+        status: 409,
       })
     }
 
@@ -351,6 +356,7 @@ export async function POST(req: Request) {
         code: "github_app_access_required",
         message: "No repositories are available to the GitHub App yet. Install the app on at least one repository, then retry sync.",
         action: "Manage GitHub access",
+        status: 409,
       })
     }
 
@@ -411,6 +417,7 @@ export async function POST(req: Request) {
           code: "github_app_access_required",
           message: "No repository or install target is available for GitHub sync. Grant repository access to the GitHub App, then retry.",
           action: "Manage GitHub access",
+          status: 409,
         })
       }
 

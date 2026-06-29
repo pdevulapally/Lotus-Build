@@ -31,6 +31,16 @@ type Props = {
   onSaved?: (next: WebsiteSettings) => void
 }
 
+type GitHubSyncResponse = {
+  ok?: boolean
+  repoUrl?: string
+  repoFullName?: string
+  syncedAt?: string
+  code?: string
+  error?: string
+  message?: string
+}
+
 const DEFAULT_SETTINGS: WebsiteSettings = {
   siteName: "",
   envVars: [],
@@ -183,9 +193,15 @@ export function WebsiteSettingsPanel({ projectId, initialSettings, projectName, 
         headers: { "Content-Type": "application/json", ...authHeader },
         body: JSON.stringify({ projectId }),
       })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(json?.error || "Failed to sync project to GitHub.")
-      setGithubSuccess("Project synced to GitHub.")
+      const json = await res.json().catch(() => ({})) as GitHubSyncResponse
+      if (json.code === "github_not_connected" || json.code === "github_reconnect_required") {
+        await handleConnectGitHub()
+        return
+      }
+      if (!res.ok || json.ok !== true || !json.repoUrl || !json.repoFullName) {
+        throw new Error(json?.message || json?.error || "Failed to sync project to GitHub.")
+      }
+      setGithubSuccess(`Project synced to ${json.repoFullName}.`)
     } catch (e) {
       setGithubError(e instanceof Error ? e.message : "Failed to sync to GitHub.")
     } finally {

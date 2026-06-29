@@ -94,6 +94,31 @@ type ComputerProjectIntegration = {
 
 type IntegrationAction = "github" | "supabase" | "env"
 
+type GitHubSyncResponse = {
+  ok?: boolean
+  repoUrl?: string
+  repoFullName?: string
+  syncedAt?: string
+  code?: string
+  error?: string
+  message?: string
+  action?: string
+}
+
+type IntegrationCardItem = {
+  key: string
+  icon: React.ReactNode
+  iconBg: string
+  name: string
+  category: string
+  description?: string
+  href?: string
+  hrefLabel?: string
+  actionLabel: string
+  actionBusy: boolean
+  onClick: () => void
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function shortenId(id: string) {
@@ -462,6 +487,8 @@ function IntegrationCard({
   name,
   category,
   description,
+  href,
+  hrefLabel,
   actionLabel,
   actionBusy,
   connected,
@@ -473,6 +500,8 @@ function IntegrationCard({
   name: string
   category: string
   description?: string
+  href?: string
+  hrefLabel?: string
   actionLabel: string
   actionBusy?: boolean
   connected?: boolean
@@ -497,6 +526,17 @@ function IntegrationCard({
       <p className="mt-3 text-[13px] font-semibold text-foreground">{name}</p>
       <span className="mt-1 text-[11px] text-muted-foreground">{category}</span>
       {description && <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground/80">{description}</p>}
+      {href && (
+        <a
+          href={href}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-2 flex min-w-0 items-center gap-1.5 text-[11px] font-medium text-foreground underline underline-offset-2"
+        >
+          <span className="truncate">{hrefLabel || href}</span>
+          <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
+        </a>
+      )}
       <button
         type="button"
         onClick={onClick}
@@ -561,6 +601,8 @@ function IntegrationsButton({
       name: "GitHub",
       category: "Version Control",
       description: project?.githubRepoFullName || project?.githubRepoUrl,
+      href: project?.githubRepoUrl,
+      hrefLabel: project?.githubRepoUrl,
       actionLabel: busy === "github" ? "Syncing…" : "Sync",
       actionBusy: busy === "github",
       onClick: onGithubSync,
@@ -576,7 +618,7 @@ function IntegrationsButton({
       actionBusy: busy === "supabase",
       onClick: onSupabaseSetup,
     },
-  ].filter(Boolean) as Array<{ key: string; icon: React.ReactNode; iconBg: string; name: string; category: string; description?: string; actionLabel: string; actionBusy: boolean; onClick: () => void }>
+  ].filter(Boolean) as IntegrationCardItem[]
 
   const availableIntegrations = [
     !hasGitHub && {
@@ -601,7 +643,7 @@ function IntegrationsButton({
       actionBusy: busy === "supabase",
       onClick: onSupabaseSetup,
     },
-  ].filter(Boolean) as Array<{ key: string; icon: React.ReactNode; iconBg: string; name: string; category: string; description?: string; actionLabel: string; actionBusy: boolean; onClick: () => void }>
+  ].filter(Boolean) as IntegrationCardItem[]
 
   return (
     <div className={cn("relative", headless && !open && "hidden")}>
@@ -705,6 +747,9 @@ function IntegrationsButton({
 
               {/* Scrollable content */}
               <div className="min-h-0 flex-1 overflow-y-auto p-5 [scrollbar-width:thin] sm:p-6">
+                {message && (
+                  <p className="lotus-glass-inset mb-4 rounded-lg px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">{message}</p>
+                )}
 
                 {/* ── Integrations panel ── */}
                 {activeSection === "integrations" && (
@@ -724,6 +769,8 @@ function IntegrationsButton({
                               name={item.name}
                               category={item.category}
                               description={item.description}
+                              href={item.href}
+                              hrefLabel={item.hrefLabel}
                               actionLabel={item.actionLabel}
                               actionBusy={item.actionBusy}
                               connected
@@ -754,6 +801,8 @@ function IntegrationsButton({
                               name={item.name}
                               category={item.category}
                               description={item.description}
+                              href={item.href}
+                              hrefLabel={item.hrefLabel}
                               actionLabel={item.actionLabel}
                               actionBusy={item.actionBusy}
                               onClick={item.onClick}
@@ -826,10 +875,6 @@ function IntegrationsButton({
                         >
                           {busy === "env" ? "Saving…" : "Save and update preview"}
                         </button>
-                      )}
-
-                      {message && (
-                        <p className="lotus-glass-inset rounded-lg px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">{message}</p>
                       )}
                     </div>
                   </div>
@@ -1788,22 +1833,32 @@ export default function ComputerPage() {
         headers: { "Content-Type": "application/json", ...auth },
         body: JSON.stringify({ projectId: session.projectId }),
       })
-      const data = await res.json().catch(() => ({})) as { repoUrl?: string; repoFullName?: string; error?: string }
-      if (!res.ok) {
-        const error = data.error || "GitHub sync failed"
-        if (/not connected/i.test(error)) {
+      const data = await res.json().catch(() => ({})) as GitHubSyncResponse
+      if (!res.ok || data.ok !== true) {
+        const code = data.code || data.error || ""
+        const message = data.message || data.error || "GitHub sync failed"
+        if (code === "github_not_connected" || code === "github_reconnect_required" || /not connected/i.test(message)) {
           const returnTo = encodeURIComponent(`/computer/${session.id}`)
           const start = await fetch(`/api/github/oauth/start?projectId=${encodeURIComponent(session.projectId)}&returnTo=${returnTo}`, {
             headers: auth,
           })
           const startJson = await start.json().catch(() => ({})) as { url?: string; error?: string }
-          if (!start.ok || !startJson.url) throw new Error(startJson.error || error)
+          if (!start.ok || !startJson.url) throw new Error(startJson.error || message)
           window.location.href = startJson.url
           return
         }
-        throw new Error(error)
+        throw new Error(message)
       }
-      setIntegrationMessage(`Synced to ${data.repoFullName || data.repoUrl || "GitHub"}.`)
+      if (!data.repoUrl || !data.repoFullName) {
+        throw new Error("GitHub did not return a repository for this project.")
+      }
+      setProjectIntegration((current) => ({
+        ...(current || {}),
+        githubRepoUrl: data.repoUrl,
+        githubRepoFullName: data.repoFullName,
+        githubSyncedAt: data.syncedAt || new Date().toISOString(),
+      }))
+      setIntegrationMessage(`Synced to ${data.repoFullName}.`)
     } catch (err) {
       setIntegrationMessage(err instanceof Error ? err.message : "GitHub sync failed")
     } finally {
