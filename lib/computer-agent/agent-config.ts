@@ -76,8 +76,8 @@ function composeSystemPrompt(
 }
 
 function isFreeBillingPlan(plan: BillingPlan) {
-  const normalized = String(plan || "free").trim().toLowerCase()
-  return !normalized || normalized === "free"
+  const normalized = typeof plan === "string" ? plan.trim().toLowerCase() : ""
+  return normalized === "free"
 }
 
 function getReasoningProvider(plan: BillingPlan): ReasoningProvider {
