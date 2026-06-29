@@ -3,6 +3,8 @@
  * Used by the /pricing page for consistent, dynamic pricing UI.
  */
 
+import { TEAM_MINIMUM_SEATS } from "@/lib/team-workspace"
+
 export type PlanId = "free" | "pro" | "team"
 
 export interface PlanDisplayConfig {
@@ -13,7 +15,7 @@ export interface PlanDisplayConfig {
 
 export const PLAN_DISPLAY: Record<PlanId, PlanDisplayConfig> = {
   free: {
-    description: "Perfect for trying Lotus.build before going live.",
+    description: "Perfect for trying Lotus Build before going live.",
     features: [
       "10,000 credits/month",
       "Single personal workspace",
@@ -23,7 +25,7 @@ export const PLAN_DISPLAY: Record<PlanId, PlanDisplayConfig> = {
     ],
   },
   pro: {
-    description: "For founders shipping production sites with AI speed.",
+    description: "For founders shipping production apps with AI speed.",
     recommended: true,
     features: [
       "120,000 credits/month",
@@ -33,12 +35,13 @@ export const PLAN_DISPLAY: Record<PlanId, PlanDisplayConfig> = {
     ],
   },
   team: {
-    description: "Agency-grade scale for teams shipping many client sites.",
+    description: "A shared AI engineering workspace for teams building Lotus projects together.",
     features: [
-      "500,000 credits/month",
-      "Create and switch workspaces",
-      "Client handoff + white-label",
-      "Priority support",
+      `${TEAM_MINIMUM_SEATS}+ seats with centralized billing`,
+      "Shared team workspaces and projects",
+      "Member roles, permissions, and admin controls",
+      "Workspace knowledge, AI rules, and approval mode",
+      "Audit logs, usage analytics, and GitHub review flows",
     ],
   },
 }
@@ -63,18 +66,16 @@ export interface PlanTier {
 
 /**
  * Get tiers for a paid plan based purely on live Stripe/plan data.
- * For now, each paid plan exposes a single tier that matches its
- * configured tokensPerMonth and price. If you add additional Stripe
- * prices per plan in the API, you can extend this to return multiple
- * tiers per plan.
+ * Team plans are seat based and always enforce the workspace minimum.
  */
 export function getPaidPlanTiers(plan: PlanForApi): PlanTier[] {
   const baseTokens = Math.max(1, plan.tokensPerMonth || 1)
   const basePrice = Math.max(0, plan.price || 0)
+  const planId = plan.id.toLowerCase()
 
   const multipliers =
-    baseTokens >= 500000
-      ? [1, 2, 3, 4]
+    planId === "team" || planId === "business"
+      ? [TEAM_MINIMUM_SEATS, 3, 4, 5, 10]
       : [1, 2, 3, 4, 6]
 
   return multipliers.map((quantity) => ({
@@ -107,7 +108,7 @@ export const DEFAULT_PLANS_FALLBACK: PlanForApi[] = [
   },
   {
     id: "team",
-    name: "Agency",
+    name: "Team",
     price: 29900,
     interval: "month",
     priceId: null,
@@ -120,6 +121,6 @@ export const DEFAULT_PLANS_FALLBACK: PlanForApi[] = [
 export function planIdForDisplay(id: string): PlanId {
   const lower = id.toLowerCase()
   if (lower === "free" || lower === "hobby" || lower === "starter") return "free"
-  if (lower === "team" || lower === "business" || lower === "elite") return "team"
+  if (lower === "team" || lower === "business" || lower === "elite" || lower === "agency") return "team"
   return "pro"
 }
