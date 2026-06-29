@@ -1,4 +1,7 @@
 import type { Metadata } from "next"
+import type { ReactNode } from "react"
+
+import styles from "./layout.module.css"
 
 const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://lotus-build.app"
 
@@ -14,10 +17,6 @@ export const metadata: Metadata = {
   alternates: { canonical: `${siteUrl}/projects` },
 }
 
-export default function ProjectsLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  return children
+export default function ProjectsLayout({ children }: { children: ReactNode }) {
+  return <div className={styles.shell}>{children}</div>
 }
