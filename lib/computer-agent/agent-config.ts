@@ -21,7 +21,9 @@ type ComputerAgentMessageParams = Omit<MessageCreateParamsNonStreaming, "model">
 }
 
 type ReasoningProvider = "nvidia" | "anthropic"
+type BillingPlan = "free" | "paid" | "team" | string | null | undefined
 
+const DEFAULT_ANTHROPIC_REASONING_MODEL = "claude-sonnet-4-6"
 const DEFAULT_NVIDIA_REASONING_MODELS = [
   "deepseek-ai/deepseek-r1",
   "meta/llama-3.3-70b-instruct",
@@ -34,7 +36,7 @@ export const LOTUS_BUILD_ORCHESTRATOR_AGENT: ComputerAgentDefinition = {
   name: "Lotus Build Orchestrator",
   description:
     "Autonomous website/app builder orchestration agent for Lotus Build. Understands build requests, plans when needed, researches when useful, prepares structured briefs, and coordinates the existing generation and preview pipelines.",
-  model: DEFAULT_NVIDIA_REASONING_MODELS[0],
+  model: DEFAULT_ANTHROPIC_REASONING_MODEL,
   system: `You are the Lotus Build Orchestrator, a senior product engineer who turns user requests into working web apps and sites.
 
 You are calm, practical, careful, and product-minded. You do not guess, fabricate data, or invent unsupported capabilities. Ask concise clarifying questions only when the request is too ambiguous to build safely.
@@ -73,11 +75,19 @@ function composeSystemPrompt(
   return `${base}\n\nTask-specific instructions:\n${system}`
 }
 
-function getReasoningProvider(): ReasoningProvider {
-  if ((process.env.LOTUS_REASONING_PROVIDER || "nvidia").toLowerCase() === "anthropic") {
-    return "anthropic"
-  }
-  return "nvidia"
+function isFreeBillingPlan(plan: BillingPlan) {
+  const normalized = typeof plan === "string" ? plan.trim().toLowerCase() : ""
+  return normalized === "free"
+}
+
+function getReasoningProvider(plan: BillingPlan): ReasoningProvider {
+  const configured = (process.env.LOTUS_REASONING_PROVIDER || "").toLowerCase()
+  if (configured === "anthropic" || configured === "nvidia") return configured
+
+  const freeConfigured = (process.env.LOTUS_FREE_REASONING_PROVIDER || "nvidia").toLowerCase()
+  if (isFreeBillingPlan(plan) && freeConfigured === "nvidia") return "nvidia"
+
+  return "anthropic"
 }
 
 function getNvidiaClient() {
@@ -164,16 +174,16 @@ async function createNvidiaReasoningMessage(params: ComputerAgentMessageParams, 
 export async function createComputerAgentMessage(
   anthropic: Anthropic,
   params: ComputerAgentMessageParams,
-  options?: { enableMcp?: boolean; memory?: MemoryContext },
+  options?: { enableMcp?: boolean; memory?: MemoryContext; billingPlan?: BillingPlan },
 ) {
-  if (getReasoningProvider() === "nvidia") {
+  if (getReasoningProvider(options?.billingPlan) === "nvidia") {
     const nvidiaResponse = await createNvidiaReasoningMessage(params, options?.memory)
     if (nvidiaResponse) return nvidiaResponse
   }
 
   return anthropic.beta.messages.create({
     ...params,
-    model: "claude-sonnet-4-6",
+    model: DEFAULT_ANTHROPIC_REASONING_MODEL,
     system: composeSystemPrompt(params.system, options?.memory),
   })
 }
