@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk"
+import OpenAI from "openai"
 import type { MessageCreateParamsNonStreaming } from "@anthropic-ai/sdk/resources/beta/messages/messages"
 
 export type ComputerAgentDefinition = {
@@ -19,11 +20,21 @@ type ComputerAgentMessageParams = Omit<MessageCreateParamsNonStreaming, "model">
   model?: MessageCreateParamsNonStreaming["model"]
 }
 
+type ReasoningProvider = "nvidia" | "anthropic"
+
+const DEFAULT_NVIDIA_REASONING_MODELS = [
+  "deepseek-ai/deepseek-r1",
+  "meta/llama-3.3-70b-instruct",
+  "qwen/qwen2.5-coder-32b-instruct",
+]
+
+let nvidiaClient: OpenAI | null = null
+
 export const LOTUS_BUILD_ORCHESTRATOR_AGENT: ComputerAgentDefinition = {
   name: "Lotus Build Orchestrator",
   description:
     "Autonomous website/app builder orchestration agent for Lotus Build. Understands build requests, plans when needed, researches when useful, prepares structured briefs, and coordinates the existing generation and preview pipelines.",
-  model: "claude-sonnet-4-6",
+  model: DEFAULT_NVIDIA_REASONING_MODELS[0],
   system: `You are the Lotus Build Orchestrator, a senior product engineer who turns user requests into working web apps and sites.
 
 You are calm, practical, careful, and product-minded. You do not guess, fabricate data, or invent unsupported capabilities. Ask concise clarifying questions only when the request is too ambiguous to build safely.
@@ -62,14 +73,107 @@ function composeSystemPrompt(
   return `${base}\n\nTask-specific instructions:\n${system}`
 }
 
-export function createComputerAgentMessage(
+function getReasoningProvider(): ReasoningProvider {
+  if ((process.env.LOTUS_REASONING_PROVIDER || "nvidia").toLowerCase() === "anthropic") {
+    return "anthropic"
+  }
+  return "nvidia"
+}
+
+function getNvidiaClient() {
+  const apiKey = process.env.NVIDIA_API_KEY || process.env.NGC_API_KEY
+  if (!apiKey) return null
+  nvidiaClient ??= new OpenAI({
+    apiKey,
+    baseURL: process.env.NVIDIA_BASE_URL || "https://integrate.api.nvidia.com/v1",
+  })
+  return nvidiaClient
+}
+
+function getReasoningModels() {
+  const configured = process.env.LOTUS_NVIDIA_REASONING_MODELS
+    ?.split(",")
+    .map((model) => model.trim())
+    .filter(Boolean)
+  return configured?.length ? configured : DEFAULT_NVIDIA_REASONING_MODELS
+}
+
+function chooseReasoningModel(params: ComputerAgentMessageParams) {
+  const models = getReasoningModels()
+  const seed = JSON.stringify(params.messages || []).slice(0, 2000)
+  let hash = 0
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0
+  }
+  return models[hash % models.length]
+}
+
+function stringifyAnthropicContent(content: unknown): string {
+  if (typeof content === "string") return content
+  if (!Array.isArray(content)) return ""
+  return content
+    .map((block) => {
+      if (typeof block === "string") return block
+      if (!block || typeof block !== "object") return ""
+      const record = block as Record<string, unknown>
+      return typeof record.text === "string" ? record.text : ""
+    })
+    .filter(Boolean)
+    .join("\n")
+}
+
+function toOpenAIMessages(
+  params: ComputerAgentMessageParams,
+  system: string | MessageCreateParamsNonStreaming["system"] | undefined,
+): OpenAI.Chat.Completions.ChatCompletionMessageParam[] {
+  const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = []
+  if (typeof system === "string" && system.trim()) {
+    messages.push({ role: "system", content: system })
+  }
+
+  for (const message of params.messages || []) {
+    const role = message.role === "assistant" ? "assistant" : "user"
+    messages.push({ role, content: stringifyAnthropicContent(message.content) })
+  }
+
+  return messages
+}
+
+function toAnthropicLikeResponse(text: string) {
+  return {
+    content: [{ type: "text", text }],
+  }
+}
+
+async function createNvidiaReasoningMessage(params: ComputerAgentMessageParams, memory?: MemoryContext) {
+  const client = getNvidiaClient()
+  if (!client) return null
+
+  const model = chooseReasoningModel(params)
+  const system = composeSystemPrompt(params.system, memory)
+  const response = await client.chat.completions.create({
+    model,
+    messages: toOpenAIMessages(params, system),
+    temperature: params.temperature,
+    max_tokens: params.max_tokens,
+  })
+
+  return toAnthropicLikeResponse(response.choices[0]?.message?.content || "")
+}
+
+export async function createComputerAgentMessage(
   anthropic: Anthropic,
   params: ComputerAgentMessageParams,
   options?: { enableMcp?: boolean; memory?: MemoryContext },
 ) {
+  if (getReasoningProvider() === "nvidia") {
+    const nvidiaResponse = await createNvidiaReasoningMessage(params, options?.memory)
+    if (nvidiaResponse) return nvidiaResponse
+  }
+
   return anthropic.beta.messages.create({
     ...params,
-    model: LOTUS_BUILD_ORCHESTRATOR_AGENT.model,
+    model: "claude-sonnet-4-6",
     system: composeSystemPrompt(params.system, options?.memory),
   })
 }
