@@ -14,12 +14,12 @@ import {
   ExternalLink,
   Globe,
   GitBranch,
-  Info,
   KeyRound,
   Loader2,
   MessageSquare,
   Monitor,
   Rocket,
+  Search,
   X,
 } from "lucide-react"
 import { AnimatedAIInput } from "@/components/ui/animated-ai-input"
@@ -114,10 +114,13 @@ type IntegrationCardItem = {
   description?: string
   href?: string
   hrefLabel?: string
+  connected: boolean
   actionLabel: string
   actionBusy: boolean
   onClick: () => void
 }
+
+type IntegrationSection = "integrations" | "env"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -509,39 +512,51 @@ function IntegrationCard({
   disabled?: boolean
 }) {
   return (
-    <div className="lotus-glass-panel flex flex-col rounded-xl border border-border/60 p-4">
-      <div className="flex items-start justify-between">
+    <article className="group flex min-h-[104px] flex-col justify-between gap-4 rounded-lg border border-border bg-card p-3.5 transition-colors hover:border-border-strong hover:bg-muted/45 sm:flex-row sm:items-center">
+      <div className="flex min-w-0 items-start gap-3">
         <div className={cn(
-          "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+          "flex h-12 w-12 shrink-0 items-center justify-center rounded-lg",
           iconBg ?? "bg-foreground/8 dark:bg-foreground/10",
         )}>
           {icon}
         </div>
-        {connected && (
-          <span className="rounded-full bg-success-soft px-2 py-0.5 text-[10px] font-semibold text-success-soft-foreground">
-            Connected
-          </span>
-        )}
+        <div className="min-w-0">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <p className="truncate text-[14px] font-semibold text-foreground">{name}</p>
+            <span className={cn(
+              "rounded-md px-2 py-0.5 text-[11px] font-medium",
+              connected
+                ? "bg-success-soft text-success-soft-foreground"
+                : "bg-slate-soft text-slate-soft-foreground",
+            )}>
+              {connected ? "Enabled" : "Available"}
+            </span>
+          </div>
+          <p className="mt-1 text-[12px] text-muted-foreground">{category}</p>
+          {description && <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-muted-foreground/85">{description}</p>}
+          {href && (
+            <a
+              href={href}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 flex min-w-0 items-center gap-1.5 text-[11px] font-medium text-foreground underline underline-offset-2"
+            >
+              <span className="truncate">{hrefLabel || href}</span>
+              <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
+            </a>
+          )}
+        </div>
       </div>
-      <p className="mt-3 text-[13px] font-semibold text-foreground">{name}</p>
-      <span className="mt-1 text-[11px] text-muted-foreground">{category}</span>
-      {description && <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground/80">{description}</p>}
-      {href && (
-        <a
-          href={href}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-2 flex min-w-0 items-center gap-1.5 text-[11px] font-medium text-foreground underline underline-offset-2"
-        >
-          <span className="truncate">{hrefLabel || href}</span>
-          <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
-        </a>
-      )}
       <button
         type="button"
         onClick={onClick}
         disabled={disabled}
-        className="lotus-glass-control mt-3.5 w-full rounded-full border py-2 text-[12px] font-semibold text-foreground transition-all hover:border-foreground/30 hover:bg-muted active:scale-[0.98] disabled:opacity-50"
+        className={cn(
+          "h-9 shrink-0 rounded-lg px-4 text-[12px] font-semibold transition-colors active:scale-[0.98] disabled:opacity-50 sm:min-w-[112px]",
+          connected
+            ? "border border-border bg-card text-foreground hover:bg-muted"
+            : "bg-foreground text-background hover:bg-foreground/85",
+        )}
       >
         {actionBusy ? (
           <span className="flex items-center justify-center gap-1.5">
@@ -550,7 +565,7 @@ function IntegrationCard({
           </span>
         ) : actionLabel}
       </button>
-    </div>
+    </article>
   )
 }
 
@@ -585,65 +600,93 @@ function IntegrationsButton({
 }) {
   const [newEnvKey, setNewEnvKey] = useState("")
   const [newEnvValue, setNewEnvValue] = useState("")
-  const [activeSection, setActiveSection] = useState<"integrations" | "env">("integrations")
-  if (!projectId) return null
-
+  const [activeSection, setActiveSection] = useState<IntegrationSection>("integrations")
+  const [connectorSearch, setConnectorSearch] = useState("")
+  const [activeConnectorFilter, setActiveConnectorFilter] = useState("all")
   const envNames = project?.envVarNames || []
   const hasGitHub = Boolean(project?.githubRepoUrl || project?.githubRepoFullName)
   const hasSupabase = Boolean(project?.supabaseUrl || project?.supabaseProjectRef)
   const syncedAt = formatSyncedAt(project?.githubSyncedAt)
 
-  const connectedIntegrations = [
-    hasGitHub && {
+  const connectorItems: IntegrationCardItem[] = [
+    {
       key: "github",
       icon: <GitBranch className="h-5 w-5 text-background" />,
       iconBg: "bg-foreground",
       name: "GitHub",
-      category: "Version Control",
-      description: project?.githubRepoFullName || project?.githubRepoUrl,
+      category: "Version control",
+      description: hasGitHub
+        ? project?.githubRepoFullName || "Repository connected"
+        : "Publish generated code to a GitHub repository.",
       href: project?.githubRepoUrl,
       hrefLabel: project?.githubRepoUrl,
-      actionLabel: busy === "github" ? "Syncing…" : "Sync",
+      connected: hasGitHub,
+      actionLabel: busy === "github" ? (hasGitHub ? "Syncing..." : "Publishing...") : (hasGitHub ? "Sync" : "Publish"),
       actionBusy: busy === "github",
       onClick: onGithubSync,
     },
-    hasSupabase && {
+    {
       key: "supabase",
       icon: <Database className="h-5 w-5 text-success-foreground" />,
       iconBg: "bg-success",
       name: "Supabase",
       category: "Database",
-      description: project?.supabaseProjectRef || project?.supabaseUrl,
-      actionLabel: busy === "supabase" ? "Running…" : "Re-run setup",
+      description: hasSupabase
+        ? project?.supabaseProjectRef || project?.supabaseUrl || "Database connected"
+        : "Add auth and persistent storage to this project.",
+      href: project?.supabaseUrl,
+      hrefLabel: project?.supabaseProjectRef || project?.supabaseUrl,
+      connected: hasSupabase,
+      actionLabel: busy === "supabase" ? (hasSupabase ? "Running..." : "Setting up...") : (hasSupabase ? "Re-run setup" : "Set up"),
       actionBusy: busy === "supabase",
       onClick: onSupabaseSetup,
     },
-  ].filter(Boolean) as IntegrationCardItem[]
+  ]
 
-  const availableIntegrations = [
-    !hasGitHub && {
-      key: "github",
-      icon: <GitBranch className="h-5 w-5 text-background" />,
-      iconBg: "bg-foreground",
-      name: "GitHub",
-      category: "Version Control",
-      description: "Publish your code to a GitHub repository",
-      actionLabel: busy === "github" ? "Publishing…" : "Publish",
-      actionBusy: busy === "github",
-      onClick: onGithubSync,
+  const enabledConnectorCount = connectorItems.filter((item) => item.connected).length
+  const categoryFilters = Array.from(
+    connectorItems.reduce((counts, item) => {
+      counts.set(item.category, (counts.get(item.category) || 0) + 1)
+      return counts
+    }, new Map<string, number>())
+  ).map(([id, count]) => ({ id, label: id, count }))
+  const connectorFilters = [
+    { id: "enabled", label: "Enabled", count: enabledConnectorCount },
+    { id: "all", label: "All", count: connectorItems.length },
+    ...categoryFilters,
+  ]
+  const normalizedConnectorSearch = connectorSearch.trim().toLowerCase()
+  const connectorFilterMatchers: Record<string, (item: IntegrationCardItem) => boolean> = {
+    all: () => true,
+    enabled: (item) => item.connected,
+  }
+  const filteredConnectorItems = connectorItems.filter((item) => {
+    const matchesFilter = (connectorFilterMatchers[activeConnectorFilter] || ((entry) => entry.category === activeConnectorFilter))(item)
+    const matchesSearch = !normalizedConnectorSearch || [
+      item.name,
+      item.category,
+      item.description,
+      item.href,
+      item.hrefLabel,
+    ].some((value) => value?.toLowerCase().includes(normalizedConnectorSearch))
+    return matchesFilter && matchesSearch
+  })
+  const activeFilterLabel = connectorFilters.find((filter) => filter.id === activeConnectorFilter)?.label || "All"
+  const sectionMeta: Record<IntegrationSection, { label: string; detail: string; Icon: React.ComponentType<{ className?: string }> }> = {
+    integrations: {
+      label: "Connectors",
+      detail: `${enabledConnectorCount} enabled of ${connectorItems.length}`,
+      Icon: GitBranch,
     },
-    !hasSupabase && {
-      key: "supabase",
-      icon: <Database className="h-5 w-5 text-success-foreground" />,
-      iconBg: "bg-success",
-      name: "Supabase",
-      category: "Database",
-      description: "Add auth and persistent storage to your app",
-      actionLabel: busy === "supabase" ? "Setting up…" : "Set up",
-      actionBusy: busy === "supabase",
-      onClick: onSupabaseSetup,
+    env: {
+      label: "Secrets",
+      detail: `${envNames.length} saved for this project`,
+      Icon: KeyRound,
     },
-  ].filter(Boolean) as IntegrationCardItem[]
+  }
+  const SectionIcon = sectionMeta[activeSection].Icon
+
+  if (!projectId) return null
 
   return (
     <div className={cn("relative", headless && !open && "hidden")}>
@@ -668,23 +711,34 @@ function IntegrationsButton({
 
       {open && (
         <>
-          {/* Backdrop */}
           <div
             className="fixed inset-0 z-40 bg-foreground/35 backdrop-blur-[2px]"
             onClick={() => onOpenChange(false)}
           />
 
-          {/* Centered modal — two-panel layout */}
-          <div className="lotus-glass-strong fixed inset-x-0 bottom-0 z-50 flex max-h-[92dvh] flex-col overflow-hidden rounded-t-2xl border border-border/60 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:max-h-[85vh] sm:w-[680px] sm:max-w-[calc(100vw-2rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:flex-row sm:rounded-2xl">
+          <div className="fixed inset-x-3 bottom-3 z-50 flex max-h-[92dvh] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl sm:inset-auto sm:left-1/2 sm:top-1/2 sm:max-h-[85vh] sm:w-[980px] sm:max-w-[calc(100vw-2rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:flex-row">
+            <aside className="shrink-0 border-b border-border bg-card sm:flex sm:w-[248px] sm:flex-col sm:border-b-0 sm:border-r">
+              <div className="border-b border-border p-3">
+                <label className="flex h-10 items-center gap-2 rounded-lg border border-border bg-background px-3 text-sm text-muted-foreground focus-within:border-border-strong focus-within:bg-card">
+                  <Search className="h-4 w-4 shrink-0" />
+                  <input
+                    value={connectorSearch}
+                    onFocus={() => setActiveSection("integrations")}
+                    onChange={(event) => {
+                      setConnectorSearch(event.target.value)
+                      setActiveSection("integrations")
+                    }}
+                    placeholder="Search"
+                    className="min-w-0 flex-1 bg-transparent text-[14px] text-foreground outline-none placeholder:text-muted-foreground"
+                  />
+                </label>
+              </div>
 
-            {/* ── Left nav (desktop) / Top tabs (mobile) ── */}
-            <div className="lotus-glass-inset shrink-0 border-b border-border/50 sm:flex sm:w-[200px] sm:flex-col sm:border-b-0 sm:border-r sm:p-4">
-              {/* Mobile: horizontal tab strip */}
-              <div className="flex sm:hidden">
+              <div className="flex border-b border-border sm:hidden">
                 {([
-                  { id: "integrations" as const, label: "Integrations" },
-                  { id: "env" as const, label: "Env Variables" },
-                ] as Array<{ id: "integrations" | "env"; label: string }>).map((item) => (
+                  { id: "integrations" as const, label: "Connectors" },
+                  { id: "env" as const, label: "Secrets" },
+                ]).map((item) => (
                   <button
                     key={item.id}
                     type="button"
@@ -700,68 +754,128 @@ function IntegrationsButton({
                   </button>
                 ))}
               </div>
-              {/* Desktop: vertical nav */}
-              <div className="hidden sm:block">
-                <p className="mb-3 px-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/50">
-                  Settings
-                </p>
-                <nav className="space-y-0.5">
-                  {([
-                    { id: "integrations" as const, label: "Integrations", icon: <Database className="h-3.5 w-3.5" /> },
-                    { id: "env" as const, label: "Environment Variables", icon: <KeyRound className="h-3.5 w-3.5" /> },
-                  ] as Array<{ id: "integrations" | "env"; label: string; icon: React.ReactNode }>).map((item) => (
+
+              <div className="hidden min-h-0 flex-1 flex-col overflow-y-auto p-3 [scrollbar-width:thin] sm:flex">
+                <div className="space-y-1">
+                  {connectorFilters.map((filter) => (
                     <button
-                      key={item.id}
+                      key={filter.id}
                       type="button"
-                      onClick={() => setActiveSection(item.id)}
+                      onClick={() => {
+                        setActiveSection("integrations")
+                        setActiveConnectorFilter(filter.id)
+                      }}
                       className={cn(
-                        "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium transition-colors",
-                        activeSection === item.id
-                          ? "lotus-glass-control text-foreground"
-                          : "text-muted-foreground hover:bg-background/60 hover:text-foreground",
+                        "flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[13px] transition-colors",
+                        activeSection === "integrations" && activeConnectorFilter === filter.id
+                          ? "bg-muted text-foreground"
+                          : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
                       )}
                     >
-                      <span className="shrink-0 opacity-60">{item.icon}</span>
-                      {item.label}
+                      <span className="font-medium">{filter.label}</span>
+                      <span className="text-[12px] tabular-nums text-muted-foreground">{filter.count}</span>
                     </button>
                   ))}
-                </nav>
-              </div>
-            </div>
+                </div>
 
-            {/* ── Right content ── */}
-            <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-              {/* Header */}
-              <div className="flex shrink-0 items-center justify-between border-b border-border/50 px-5 py-4 sm:px-6">
-                <p className="text-[15px] font-semibold text-foreground">
-                  {activeSection === "integrations" ? "Integrations" : "Environment Variables"}
-                </p>
+                <div className="mt-4 border-t border-border pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setActiveSection("env")}
+                    className={cn(
+                      "flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[13px] transition-colors",
+                      activeSection === "env"
+                        ? "bg-muted text-foreground"
+                        : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
+                    )}
+                  >
+                    <span className="flex items-center gap-2 font-medium">
+                      <KeyRound className="h-3.5 w-3.5" />
+                      Secrets
+                    </span>
+                    <span className="text-[12px] tabular-nums text-muted-foreground">{envNames.length}</span>
+                  </button>
+                </div>
+              </div>
+            </aside>
+
+            <section className="flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
+              <div className="flex shrink-0 items-center justify-between border-b border-border bg-card px-5 py-4 sm:px-6">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <SectionIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <div className="min-w-0">
+                    <p className="truncate text-[15px] font-semibold text-foreground">
+                      {sectionMeta[activeSection].label}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {sectionMeta[activeSection].detail}
+                    </p>
+                  </div>
+                </div>
                 <button
                   type="button"
                   onClick={() => onOpenChange(false)}
-                  className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground/50 transition-colors hover:bg-muted hover:text-foreground"
+                  aria-label="Close connectors"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
-              {/* Scrollable content */}
               <div className="min-h-0 flex-1 overflow-y-auto p-5 [scrollbar-width:thin] sm:p-6">
                 {message && (
-                  <p className="lotus-glass-inset mb-4 rounded-lg px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">{message}</p>
+                  <p className="mb-4 rounded-lg border border-border bg-card px-3 py-2 text-[12px] leading-relaxed text-muted-foreground">{message}</p>
                 )}
 
-                {/* ── Integrations panel ── */}
                 {activeSection === "integrations" && (
                   <div className="space-y-6">
-                    {connectedIntegrations.length > 0 && (
-                      <div>
-                        <div className="mb-3 flex items-center gap-1.5">
-                          <p className="text-[12px] font-semibold text-foreground">Connected</p>
-                          <Info className="h-3 w-3 text-muted-foreground/40" />
+                    <div className="border-b border-border pb-6 text-center sm:text-left">
+                      <div className="mb-4 flex flex-wrap justify-center gap-2 sm:justify-start">
+                        {connectorItems.map((item) => (
+                          <span key={item.key} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                            <span className={cn("h-2 w-2 rounded-full", item.connected ? "bg-success" : "bg-border-strong")} />
+                            {item.name}
+                          </span>
+                        ))}
+                      </div>
+                      <h2 className="text-[24px] font-semibold tracking-normal text-foreground sm:text-[28px]">Connect what this project uses</h2>
+                      <p className="mx-auto mt-2 max-w-[560px] text-[14px] leading-6 text-muted-foreground sm:mx-0">
+                        Publish code, add data, and keep project secrets close to the build.
+                      </p>
+                    </div>
+
+                    <div className="space-y-3 sm:hidden">
+                      <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
+                        {connectorFilters.map((filter) => (
+                          <button
+                            key={filter.id}
+                            type="button"
+                            onClick={() => setActiveConnectorFilter(filter.id)}
+                            className={cn(
+                              "shrink-0 rounded-lg border px-3 py-1.5 text-[12px] font-medium transition-colors",
+                              activeConnectorFilter === filter.id
+                                ? "border-border-strong bg-card text-foreground"
+                                : "border-border bg-card text-muted-foreground",
+                            )}
+                          >
+                            {filter.label} {filter.count}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="mb-3 flex items-end justify-between gap-3">
+                        <div>
+                          <h3 className="text-[18px] font-semibold text-foreground">App connectors</h3>
+                          <p className="mt-1 text-[13px] text-muted-foreground">{activeFilterLabel} connectors from the current project setup.</p>
                         </div>
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          {connectedIntegrations.map((item) => (
+                        <span className="hidden text-[12px] tabular-nums text-muted-foreground sm:inline">{filteredConnectorItems.length} shown</span>
+                      </div>
+
+                      {filteredConnectorItems.length > 0 ? (
+                        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                          {filteredConnectorItems.map((item) => (
                             <IntegrationCard
                               key={item.key}
                               icon={item.icon}
@@ -773,81 +887,59 @@ function IntegrationsButton({
                               hrefLabel={item.hrefLabel}
                               actionLabel={item.actionLabel}
                               actionBusy={item.actionBusy}
-                              connected
+                              connected={item.connected}
                               onClick={item.onClick}
                               disabled={busy !== null}
                             />
                           ))}
                         </div>
-                        {syncedAt && hasGitHub && (
-                          <p className="mt-2 text-[10.5px] text-muted-foreground/50">Last synced to GitHub {syncedAt}</p>
-                        )}
-                      </div>
-                    )}
-                    {availableIntegrations.length > 0 && (
-                      <div>
-                        <div className="mb-3 flex items-center gap-1.5">
-                          <p className="text-[12px] font-semibold text-foreground">
-                            {connectedIntegrations.length > 0 ? "Available" : "All integrations"}
-                          </p>
-                          <Info className="h-3 w-3 text-muted-foreground/40" />
+                      ) : (
+                        <div className="rounded-lg border border-border bg-card p-5 text-center">
+                          <p className="text-[14px] font-medium text-foreground">No connectors match this search</p>
+                          <p className="mt-1 text-[13px] text-muted-foreground">Clear the search or choose another category.</p>
                         </div>
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          {availableIntegrations.map((item) => (
-                            <IntegrationCard
-                              key={item.key}
-                              icon={item.icon}
-                              iconBg={item.iconBg}
-                              name={item.name}
-                              category={item.category}
-                              description={item.description}
-                              href={item.href}
-                              hrefLabel={item.hrefLabel}
-                              actionLabel={item.actionLabel}
-                              actionBusy={item.actionBusy}
-                              onClick={item.onClick}
-                              disabled={busy !== null}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                      )}
+
+                      {syncedAt && hasGitHub && (
+                        <p className="mt-3 text-[11px] text-muted-foreground">Last synced to GitHub {syncedAt}</p>
+                      )}
+                    </div>
                   </div>
                 )}
 
-                {/* ── Environment variables panel ── */}
                 {activeSection === "env" && (
-                  <div>
-                    <p className="mb-4 text-[12px] leading-relaxed text-muted-foreground">
-                      Secret keys and tokens injected into your preview environment at runtime.
-                    </p>
+                  <div className="mx-auto max-w-[680px]">
+                    <div className="mb-5 border-b border-border pb-5">
+                      <h2 className="text-[22px] font-semibold text-foreground">Project secrets</h2>
+                      <p className="mt-2 text-[14px] leading-6 text-muted-foreground">Save keys used by the preview runtime for this project.</p>
+                    </div>
                     <div className="space-y-3">
                       {envNames.map((name) => (
                         <label key={name} className="block">
-                          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/60">{name}</span>
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{name}</span>
                           <input
                             value={envValues[name] || ""}
                             onChange={(event) => onEnvChange(name, event.target.value)}
                             placeholder="Value"
-                            className="lotus-glass-control mt-1 h-9 w-full rounded-lg border px-3 text-[12px] text-foreground outline-none placeholder:text-muted-foreground/40 focus:border-border/80 focus:bg-background"
+                            className="mt-1 h-10 w-full rounded-lg border border-border bg-card px-3 text-[13px] text-foreground outline-none placeholder:text-muted-foreground/55 focus:border-border-strong"
                           />
                         </label>
                       ))}
 
-                      <div className="pt-1">
-                        <p className="mb-2 text-[11px] font-semibold text-foreground">Add variable</p>
-                        <div className="grid grid-cols-[1fr_1fr_auto] gap-1.5">
+                      <div className="pt-2">
+                        <p className="mb-2 text-[13px] font-semibold text-foreground">Add secret</p>
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto]">
                           <input
                             value={newEnvKey}
                             onChange={(event) => setNewEnvKey(event.target.value)}
                             placeholder="KEY"
-                            className="lotus-glass-control h-9 min-w-0 rounded-lg border px-3 text-[12px] text-foreground outline-none placeholder:text-muted-foreground/40 focus:border-border/80 focus:bg-background"
+                            className="h-10 min-w-0 rounded-lg border border-border bg-card px-3 text-[13px] text-foreground outline-none placeholder:text-muted-foreground/55 focus:border-border-strong"
                           />
                           <input
                             value={newEnvValue}
                             onChange={(event) => setNewEnvValue(event.target.value)}
                             placeholder="Value"
-                            className="lotus-glass-control h-9 min-w-0 rounded-lg border px-3 text-[12px] text-foreground outline-none placeholder:text-muted-foreground/40 focus:border-border/80 focus:bg-background"
+                            className="h-10 min-w-0 rounded-lg border border-border bg-card px-3 text-[13px] text-foreground outline-none placeholder:text-muted-foreground/55 focus:border-border-strong"
                           />
                           <button
                             type="button"
@@ -859,7 +951,7 @@ function IntegrationsButton({
                               setNewEnvValue("")
                             }}
                             disabled={busy !== null || !newEnvKey.trim()}
-                            className="lotus-glass-control h-9 rounded-full border px-3 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                            className="h-10 rounded-lg border border-border bg-card px-4 text-[12px] font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-50"
                           >
                             Add
                           </button>
@@ -871,16 +963,16 @@ function IntegrationsButton({
                           type="button"
                           onClick={onEnvSave}
                           disabled={busy !== null}
-                          className="w-full rounded-full bg-foreground px-3 py-2.5 text-[12px] font-semibold text-background transition-all hover:bg-foreground/85 active:scale-[0.98] disabled:opacity-50"
+                          className="mt-2 h-10 w-full rounded-lg bg-foreground px-3 text-[13px] font-semibold text-background transition-colors hover:bg-foreground/85 disabled:opacity-50"
                         >
-                          {busy === "env" ? "Saving…" : "Save and update preview"}
+                          {busy === "env" ? "Saving..." : "Save and update preview"}
                         </button>
                       )}
                     </div>
                   </div>
                 )}
               </div>
-            </div>
+            </section>
           </div>
         </>
       )}

@@ -69,11 +69,75 @@ type Props = {
   style?: React.CSSProperties
 }
 
-function readPetalColor(override?: string): THREE.Color {
-  if (override) return new THREE.Color(override)
+function clamp01(value: number) {
+  return Math.min(1, Math.max(0, value))
+}
 
+function linearToSrgb(value: number) {
+  const clamped = clamp01(value)
+  return clamped <= 0.0031308
+    ? clamped * 12.92
+    : 1.055 * Math.pow(clamped, 1 / 2.4) - 0.055
+}
+
+function colorFromRgb(cssColor: string) {
+  const match = cssColor.match(/rgba?\(\s*([0-9.]+)\s+([0-9.]+)\s+([0-9.]+)/i)
+    ?? cssColor.match(/rgba?\(\s*([0-9.]+),\s*([0-9.]+),\s*([0-9.]+)/i)
+  if (!match) return null
+
+  return new THREE.Color(
+    Number.parseFloat(match[1] ?? "0") / 255,
+    Number.parseFloat(match[2] ?? "0") / 255,
+    Number.parseFloat(match[3] ?? "0") / 255
+  )
+}
+
+function colorFromSrgb(cssColor: string) {
+  const match = cssColor.match(
+    /color\(\s*srgb\s+([0-9.]+%?)\s+([0-9.]+%?)\s+([0-9.]+%?)/i
+  )
+  if (!match) return null
+
+  const toChannel = (value: string) =>
+    value.endsWith("%") ? Number.parseFloat(value) / 100 : Number.parseFloat(value)
+
+  return new THREE.Color(
+    toChannel(match[1] ?? "0"),
+    toChannel(match[2] ?? "0"),
+    toChannel(match[3] ?? "0")
+  )
+}
+
+function colorFromOklch(cssColor: string) {
+  const match = cssColor.match(
+    /oklch\(\s*([0-9.]+%?)\s+([0-9.]+)\s+([0-9.]+)(deg)?/i
+  )
+  if (!match) return null
+
+  const lRaw = match[1] ?? "0"
+  const l = lRaw.endsWith("%") ? Number.parseFloat(lRaw) / 100 : Number.parseFloat(lRaw)
+  const c = Number.parseFloat(match[2] ?? "0")
+  const h = (Number.parseFloat(match[3] ?? "0") * Math.PI) / 180
+  const a = c * Math.cos(h)
+  const b = c * Math.sin(h)
+
+  const lPrime = l + 0.3963377774 * a + 0.2158037573 * b
+  const mPrime = l - 0.1055613458 * a - 0.0638541728 * b
+  const sPrime = l - 0.0894841775 * a - 1.291485548 * b
+  const lCube = lPrime ** 3
+  const mCube = mPrime ** 3
+  const sCube = sPrime ** 3
+
+  const r = 4.0767416621 * lCube - 3.3077115913 * mCube + 0.2309699292 * sCube
+  const g = -1.2684380046 * lCube + 2.6097574011 * mCube - 0.3413193965 * sCube
+  const blue = -0.0041960863 * lCube - 0.7034186147 * mCube + 1.707614701 * sCube
+
+  return new THREE.Color(linearToSrgb(r), linearToSrgb(g), linearToSrgb(blue))
+}
+
+function resolveCssColor(color: string): THREE.Color {
   const probe = document.createElement("span")
-  probe.style.color = "var(--foreground)"
+  probe.style.color = color
   probe.style.position = "absolute"
   probe.style.pointerEvents = "none"
   probe.style.opacity = "0"
@@ -81,7 +145,16 @@ function readPetalColor(override?: string): THREE.Color {
   const computed = getComputedStyle(probe).color
   document.body.removeChild(probe)
 
-  return new THREE.Color(computed)
+  return (
+    colorFromRgb(computed)
+    ?? colorFromSrgb(computed)
+    ?? colorFromOklch(computed)
+    ?? new THREE.Color(0x2e3440)
+  )
+}
+
+function readPetalColor(override?: string): THREE.Color {
+  return resolveCssColor(override ?? "var(--primary)")
 }
 
 export function LotusLogo({ petalColor, size = 32, className, style }: Props) {
@@ -112,7 +185,7 @@ export function LotusLogo({ petalColor, size = 32, className, style }: Props) {
     renderer.shadowMap.enabled = true
     renderer.shadowMap.type = THREE.PCFSoftShadowMap
     renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = 1.12
+    renderer.toneMappingExposure = 1.04
     renderer.outputColorSpace = THREE.SRGBColorSpace
     renderer.domElement.style.display = "block"
     mount.appendChild(renderer.domElement)
@@ -122,10 +195,10 @@ export function LotusLogo({ petalColor, size = 32, className, style }: Props) {
     camera.position.set(0, 0, 5.6)
     camera.lookAt(0, 0, 0)
 
-    scene.add(new THREE.HemisphereLight(0xfffbf2, 0x5f5a51, 0.48))
-    scene.add(new THREE.AmbientLight(0xfffbf2, 0.26))
+    scene.add(new THREE.HemisphereLight(0xfffbf2, 0x5f5a51, 0.42))
+    scene.add(new THREE.AmbientLight(0xfffbf2, 0.18))
 
-    const key = new THREE.DirectionalLight(0xfffbf2, 1.18)
+    const key = new THREE.DirectionalLight(0xfffbf2, 0.92)
     key.position.set(-2.6, 3.6, 3.4)
     key.castShadow = true
     key.shadow.mapSize.set(1024, 1024)
@@ -136,11 +209,11 @@ export function LotusLogo({ petalColor, size = 32, className, style }: Props) {
     sc.near = 0.5; sc.far = 12
     scene.add(key)
 
-    const fill = new THREE.DirectionalLight(0xe8e4dc, 0.36)
+    const fill = new THREE.DirectionalLight(0xe8e4dc, 0.28)
     fill.position.set(3.2, -1.2, 2.2)
     scene.add(fill)
 
-    const rim = new THREE.DirectionalLight(0xffffff, 0.36)
+    const rim = new THREE.DirectionalLight(0xffffff, 0.34)
     rim.position.set(0, 1.2, -3.4)
     scene.add(rim)
 
@@ -153,13 +226,13 @@ export function LotusLogo({ petalColor, size = 32, className, style }: Props) {
 
     const material = new THREE.MeshPhysicalMaterial({
       color: petal.clone(),
-      roughness: 0.42,
+      roughness: 0.5,
       metalness: 0.0,
-      clearcoat: 0.72,
-      clearcoatRoughness: 0.34,
-      sheen: 0.55,
-      sheenRoughness: 0.5,
-      sheenColor: petal.clone().lerp(new THREE.Color(0xffffff), 0.35),
+      clearcoat: 0.38,
+      clearcoatRoughness: 0.44,
+      sheen: 0.22,
+      sheenRoughness: 0.62,
+      sheenColor: petal.clone().lerp(new THREE.Color(0xffffff), 0.12),
     })
 
     const extrude: THREE.ExtrudeGeometryOptions = {

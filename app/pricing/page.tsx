@@ -137,94 +137,62 @@ export default function PricingPage() {
     <main className="min-h-screen overflow-x-hidden bg-background">
       <Navbar />
 
-      <div className="mx-auto w-full max-w-5xl px-4 pb-24 pt-20 sm:px-6 sm:pt-28 lg:px-8">
+      <div className="mx-auto w-full max-w-5xl px-4 pb-32 pt-20 sm:px-6 sm:pt-28 lg:px-8">
 
         {/* ── Back nav ─────────────────────────────────────────── */}
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-10 flex items-center justify-between">
           <Link
             href="/"
-            className="group inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-[13px] font-medium text-muted-foreground transition-all hover:border-border-strong hover:bg-muted hover:text-foreground"
+            className="group inline-flex items-center gap-2 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />
             Back
           </Link>
-          <span className="hidden text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground sm:block">
+          <span className="hidden text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground/70 sm:block">
             Monthly billing · USD
           </span>
         </div>
 
-        {/* ── Hero split ───────────────────────────────────────── */}
-        <div className="mb-2.5 grid overflow-hidden rounded-lg border border-border bg-card lg:grid-cols-2">
-          {/* Left: headline */}
-          <div className="flex flex-col justify-between border-b border-border/60 px-8 py-8 lg:border-b-0 lg:border-r lg:py-10">
-            <div>
-              <div className="mb-5 inline-flex items-center gap-1.5 rounded-md border border-border bg-muted px-2.5 py-1.5">
-                <Leaf className="h-3 w-3 text-primary" />
-                <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                  Pricing
-                </span>
-              </div>
-              <h1 className="text-[30px] font-bold leading-[1.1] tracking-[-0.03em] text-foreground sm:text-[36px]">
-                Build, launch,{" "}
-                <span className="text-muted-foreground">ship</span> — pick the plan that fits.
-              </h1>
-              <p className="mt-4 max-w-sm text-[13px] leading-relaxed text-muted-foreground">
-                One platform for every stage of your website journey. Start free, upgrade when you&apos;re ready.
-              </p>
-            </div>
+        {/* ── Page header ──────────────────────────────────────── */}
+        <section className="mb-14 max-w-2xl">
+          <div className="mb-5 inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-card px-3 py-1">
+            <Leaf className="h-3 w-3 text-primary" />
+            <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              Pricing
+            </span>
           </div>
-
-          {/* Right: plan guide */}
-          <div className="bg-background px-8 py-8 lg:py-10">
-            <p className="mb-4 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
-              Which plan is right for you?
-            </p>
-            <div className="flex flex-col gap-2">
-              {[
-                { num: "01", name: "Hobby", desc: "Validate ideas and prototype fast" },
-                { num: "02", name: "Pro", desc: "Launch production-ready websites" },
-                { num: "03", name: "Agency", desc: "Scale teams and client delivery" },
-              ].map((item) => (
-                <div
-                  key={item.num}
-                  className="group flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 transition-colors hover:border-border-strong"
-                >
-                  <span className="font-mono text-[10px] font-bold text-muted-foreground/50">{item.num}</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[13px] font-semibold text-foreground">{item.name}</p>
-                    <p className="text-[11px] text-muted-foreground">{item.desc}</p>
-                  </div>
-                  <span className="text-[12px] text-border transition-colors group-hover:text-muted-foreground">→</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+          <h1 className="text-[34px] font-semibold leading-[1.1] tracking-[-0.025em] text-foreground sm:text-[44px]">
+            Pick the plan that matches this stage.
+          </h1>
+          <p className="mt-4 max-w-md text-[15px] leading-relaxed text-muted-foreground">
+            Start free, upgrade when the work needs more credits, and keep every plan change tied to your existing account.
+          </p>
+        </section>
 
         {/* ── Current plan usage (logged-in only) ──────────────── */}
         {user && userData && (
-          <div className="mb-2.5 flex flex-col items-start gap-5 rounded-lg border border-border bg-card px-6 py-5 sm:flex-row sm:items-center sm:gap-6">
+          <div className="mb-12 flex flex-col items-start gap-6 rounded-2xl border border-border/70 bg-card px-7 py-6 shadow-sm sm:flex-row sm:items-center sm:gap-8">
             {/* Plan name */}
             <div className="shrink-0">
-              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                 Current plan
               </p>
-              <p className="mt-1 text-xl font-bold tracking-tight text-foreground">{planName}</p>
+              <p className="mt-1.5 text-2xl font-semibold tracking-tight text-foreground">{planName}</p>
             </div>
 
             <div className="hidden h-10 w-px bg-border sm:block" />
 
             {/* Usage bar */}
             <div className="min-w-0 flex-1">
-              <div className="mb-2 flex items-baseline gap-2">
-                <span className="text-2xl font-bold tracking-tight text-foreground">
+              <div className="mb-2.5 flex items-baseline gap-2">
+                <span className="text-2xl font-semibold tracking-tight text-foreground">
                   {remaining.toLocaleString()}
                 </span>
-                <span className="text-[12px] text-muted-foreground">
+                <span className="text-[12.5px] text-muted-foreground">
                   of {tokensLimit.toLocaleString()} credits remaining
                 </span>
               </div>
-              <div className="h-[3px] w-full overflow-hidden rounded-full bg-muted">
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                 <div
                   className="h-full rounded-full bg-primary transition-all duration-500"
                   style={{
@@ -232,7 +200,7 @@ export default function PricingPage() {
                   }}
                 />
               </div>
-              <p className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <p className="mt-2.5 flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
                 <ShieldCheck className="h-3 w-3 shrink-0" />
                 {userData.tokenUsage?.periodEnd
                   ? `Renews ${new Date(userData.tokenUsage.periodEnd).toLocaleDateString()} · `
@@ -248,7 +216,7 @@ export default function PricingPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="h-9 rounded-lg border-border bg-card px-4 text-[13px] font-semibold text-foreground hover:bg-muted"
+                className="h-9 rounded-full border-border bg-transparent px-5 text-[13px] font-medium text-foreground hover:bg-muted"
               >
                 Manage
               </Button>
@@ -257,24 +225,24 @@ export default function PricingPage() {
         )}
 
         {/* ── Plans section header ──────────────────────────────── */}
-        <div className="mb-3 flex items-center justify-between px-0.5">
-          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+        <div className="mb-4 flex items-center justify-between px-0.5">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
             Plans
           </span>
-          <span className="text-[11px] text-muted-foreground">Upgrade or downgrade anytime</span>
+          <span className="text-[12px] text-muted-foreground">Upgrade or downgrade anytime</span>
         </div>
 
         {/* ── Plans grid ───────────────────────────────────────── */}
         {loading ? (
           <div className="flex items-center justify-center py-24">
             <div className="flex flex-col items-center gap-3">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
               <p className="text-[13px] text-muted-foreground">Loading plans…</p>
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 overflow-hidden rounded-lg border border-border md:grid-cols-3">
-            {displayPlans.map((plan, planIdx) => {
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+            {displayPlans.map((plan) => {
               const planKey = planIdForDisplay(plan.id) as PlanId
               const display = PLAN_DISPLAY[planKey] || PLAN_DISPLAY.pro
               const recommended = display.recommended ?? false
@@ -294,30 +262,32 @@ export default function PricingPage() {
                 <div
                   key={plan.id}
                   className={cn(
-                    "relative flex flex-col",
-                    // dividers between columns
-                    planIdx > 0 && "border-t border-border md:border-l md:border-t-0",
-                    recommended ? "bg-primary" : "bg-card"
+                    "relative flex flex-col rounded-2xl border transition-shadow",
+                    recommended
+                      ? "border-primary bg-primary shadow-lg shadow-primary/10"
+                      : "border-border/70 bg-card hover:shadow-sm"
                   )}
                 >
+                  {recommended && (
+                    <div className="absolute -top-3 left-6 rounded-full bg-primary-foreground px-3 py-1 text-[9.5px] font-semibold uppercase tracking-[0.12em] text-primary shadow-sm">
+                      Recommended
+                    </div>
+                  )}
+
                   {/* Plan header */}
-                  <div
-                    className={cn(
-                      "border-b px-6 pb-5 pt-6",
-                      recommended ? "border-primary-foreground/10" : "border-border/60"
-                    )}
-                  >
-                    {recommended && (
-                      <div className="mb-3 inline-block rounded-[4px] bg-primary-foreground px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-primary">
-                        Recommended
-                      </div>
-                    )}
-                    <div className={cn("mb-4", recommended ? "text-primary-foreground" : "text-foreground")}>
-                      {planKey === "free" ? <img src="/Images/leaf-svgrepo-com.svg" className="h-8 w-8" alt="Starter" /> : planKey === "pro" ? <img src="/Images/lotus-flower-svgrepo-com.svg" className="h-8 w-8" alt="Pro" /> : <img src="/Images/enterprise-svgrepo-com.svg" className="h-8 w-8" alt="Enterprise" />}
+                  <div className="px-7 pb-5 pt-8">
+                    <div className={cn("mb-5", recommended ? "text-primary-foreground" : "text-foreground")}>
+                      {planKey === "free" ? (
+                        <img src="/Images/leaf-svgrepo-com.svg" className="h-7 w-7" alt="Starter" />
+                      ) : planKey === "pro" ? (
+                        <img src="/Images/lotus-flower-svgrepo-com.svg" className="h-7 w-7" alt="Pro" />
+                      ) : (
+                        <img src="/Images/enterprise-svgrepo-com.svg" className="h-7 w-7" alt="Enterprise" />
+                      )}
                     </div>
                     <h2
                       className={cn(
-                        "text-[18px] font-bold tracking-tight",
+                        "text-[17px] font-semibold tracking-tight",
                         recommended ? "text-primary-foreground" : "text-foreground"
                       )}
                     >
@@ -325,61 +295,56 @@ export default function PricingPage() {
                     </h2>
                     <p
                       className={cn(
-                        "mt-1 text-[12px] leading-relaxed",
-                        recommended ? "text-primary-foreground/60" : "text-muted-foreground"
+                        "mt-1.5 text-[12.5px] leading-relaxed",
+                        recommended ? "text-primary-foreground/65" : "text-muted-foreground"
                       )}
                     >
                       {display.description}
                     </p>
-                  </div>
 
-                  {/* Price row */}
-                  <div
-                    className={cn(
-                      "flex items-baseline gap-1 border-b px-6 py-5",
-                      recommended ? "border-primary-foreground/10" : "border-border/60"
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "text-[32px] font-bold leading-none tracking-[-0.03em]",
-                        recommended ? "text-primary-foreground" : "text-foreground"
-                      )}
-                    >
-                      {priceStr}
-                    </span>
-                    <span
-                      className={cn(
-                        "text-[12px]",
-                        recommended ? "text-primary-foreground/40" : "text-muted-foreground"
-                      )}
-                    >
-                      {period}
-                    </span>
+                    {/* Price row */}
+                    <div className="mt-5 flex items-baseline gap-1">
+                      <span
+                        className={cn(
+                          "text-[36px] font-semibold leading-none tracking-[-0.03em]",
+                          recommended ? "text-primary-foreground" : "text-foreground"
+                        )}
+                      >
+                        {priceStr}
+                      </span>
+                      <span
+                        className={cn(
+                          "text-[12.5px]",
+                          recommended ? "text-primary-foreground/45" : "text-muted-foreground"
+                        )}
+                      >
+                        {period}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Credits / tier selector */}
-                  <div
-                    className={cn(
-                      "border-b px-6 py-3.5",
-                      recommended
-                        ? "border-primary-foreground/10 bg-primary-foreground/[0.06]"
-                        : "border-border/60 bg-muted/50"
-                    )}
-                  >
+                  <div className="px-7 pb-5">
                     {isFree ? (
-                      <p className={cn("text-[12px]", recommended ? "text-primary-foreground/60" : "text-muted-foreground")}>
-                        <span className={cn("font-semibold", recommended ? "text-primary-foreground" : "text-foreground")}>
-                          {plan.tokensPerMonth.toLocaleString()}
-                        </span>{" "}
-                        credits / month
-                      </p>
+                      <div
+                        className={cn(
+                          "rounded-xl px-4 py-3",
+                          recommended ? "bg-primary-foreground/10" : "bg-muted/60"
+                        )}
+                      >
+                        <p className={cn("text-[12.5px]", recommended ? "text-primary-foreground/70" : "text-muted-foreground")}>
+                          <span className={cn("font-semibold", recommended ? "text-primary-foreground" : "text-foreground")}>
+                            {plan.tokensPerMonth.toLocaleString()}
+                          </span>{" "}
+                          credits / month
+                        </p>
+                      </div>
                     ) : tiers.length > 0 ? (
                       <div>
                         <p
                           className={cn(
-                            "mb-2 text-[10px] font-bold uppercase tracking-[0.1em]",
-                            recommended ? "text-primary-foreground/40" : "text-muted-foreground"
+                            "mb-2 text-[10px] font-semibold uppercase tracking-[0.12em]",
+                            recommended ? "text-primary-foreground/45" : "text-muted-foreground"
                           )}
                         >
                           Monthly credits
@@ -392,10 +357,10 @@ export default function PricingPage() {
                         >
                           <SelectTrigger
                             className={cn(
-                              "h-9 w-full rounded-lg border text-[12px] font-semibold",
+                              "h-10 w-full rounded-xl border text-[12.5px] font-medium",
                               recommended
                                 ? "border-primary-foreground/20 bg-primary-foreground/10 text-primary-foreground focus:ring-primary-foreground/20"
-                                : "border-border bg-card text-foreground focus:ring-ring/20"
+                                : "border-border bg-muted/40 text-foreground focus:ring-ring/20"
                             )}
                           >
                             <SelectValue>
@@ -405,21 +370,21 @@ export default function PricingPage() {
                                   : effectiveTokens.toLocaleString()}{" "}
                                 credits /mo
                               </span>
-                              <span className={cn("ml-1.5 font-normal", recommended ? "text-primary-foreground/40" : "text-muted-foreground")}>
+                              <span className={cn("ml-1.5 font-normal", recommended ? "text-primary-foreground/45" : "text-muted-foreground")}>
                                 · {priceStr}{period}
                               </span>
                             </SelectValue>
                           </SelectTrigger>
-                          <SelectContent className="rounded-lg border-border bg-card p-1">
+                          <SelectContent className="rounded-xl border-border bg-card p-1">
                             {tiers.map((tier, i) => {
                               const tierPrice = formatPrice(tier.priceCents, plan.interval)
                               return (
                                 <SelectItem
                                   key={i}
                                   value={String(i)}
-                                  className="rounded-md py-2.5 pl-3 pr-8 text-foreground focus:bg-muted"
+                                  className="rounded-lg py-2.5 pl-3 pr-8 text-foreground focus:bg-muted"
                                 >
-                                  <span className="font-semibold">
+                                  <span className="font-medium">
                                     {tier.tokensPerMonth >= 1000
                                       ? `${(tier.tokensPerMonth / 1000).toFixed(tier.tokensPerMonth % 1000 === 0 ? 0 : 1)}k`
                                       : tier.tokensPerMonth.toLocaleString()}{" "}
@@ -435,37 +400,47 @@ export default function PricingPage() {
                         </Select>
                       </div>
                     ) : (
-                      <p className={cn("text-[12px]", recommended ? "text-primary-foreground/60" : "text-muted-foreground")}>
-                        <span className={cn("font-semibold", recommended ? "text-primary-foreground" : "text-foreground")}>
-                          {plan.tokensPerMonth.toLocaleString()}
-                        </span>{" "}
-                        credits / month
-                      </p>
+                      <div
+                        className={cn(
+                          "rounded-xl px-4 py-3",
+                          recommended ? "bg-primary-foreground/10" : "bg-muted/60"
+                        )}
+                      >
+                        <p className={cn("text-[12.5px]", recommended ? "text-primary-foreground/70" : "text-muted-foreground")}>
+                          <span className={cn("font-semibold", recommended ? "text-primary-foreground" : "text-foreground")}>
+                            {plan.tokensPerMonth.toLocaleString()}
+                          </span>{" "}
+                          credits / month
+                        </p>
+                      </div>
                     )}
                   </div>
 
+                  {/* Divider */}
+                  <div className={cn("mx-7 h-px", recommended ? "bg-primary-foreground/10" : "bg-border/60")} />
+
                   {/* Features */}
-                  <div className="flex flex-1 flex-col gap-2.5 px-6 py-5">
+                  <div className="flex flex-1 flex-col gap-3 px-7 py-6">
                     {features.map((feature) => (
                       <div key={feature} className="flex items-start gap-2.5">
                         <span
                           className={cn(
-                            "mt-[1px] flex h-[14px] w-[14px] shrink-0 items-center justify-center rounded-full",
+                            "mt-[2px] flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-full",
                             recommended ? "bg-primary-foreground/15" : "bg-muted"
                           )}
                         >
                           <Check
                             className={cn(
-                              "h-[7px] w-[7px]",
-                              recommended ? "text-primary-foreground/80" : "text-foreground/70"
+                              "h-[8px] w-[8px]",
+                              recommended ? "text-primary-foreground/85" : "text-foreground/70"
                             )}
                             strokeWidth={3}
                           />
                         </span>
                         <span
                           className={cn(
-                            "text-[12px] leading-snug",
-                            recommended ? "text-primary-foreground/70" : "text-muted-foreground"
+                            "text-[12.5px] leading-snug",
+                            recommended ? "text-primary-foreground/75" : "text-muted-foreground"
                           )}
                         >
                           {normalizeFeatureCopy(feature)}
@@ -475,17 +450,12 @@ export default function PricingPage() {
                   </div>
 
                   {/* CTA */}
-                  <div
-                    className={cn(
-                      "border-t px-6 pb-6 pt-5",
-                      recommended ? "border-primary-foreground/10" : "border-border/60"
-                    )}
-                  >
+                  <div className="px-7 pb-7 pt-1">
                     {isFree ? (
                       <Link href="/projects" className="block w-full">
                         <Button
                           variant="outline"
-                          className="h-10 w-full rounded-lg border-border bg-card text-[13px] font-semibold text-foreground hover:bg-muted"
+                          className="h-11 w-full rounded-full border-border bg-transparent text-[13.5px] font-medium text-foreground hover:bg-muted"
                         >
                           Start building free
                         </Button>
@@ -494,7 +464,7 @@ export default function PricingPage() {
                       <Button
                         disabled={!!checkoutLoading || authLoading}
                         className={cn(
-                          "h-10 w-full rounded-lg border-0 text-[13px] font-semibold transition-all active:scale-[0.99]",
+                          "h-11 w-full rounded-full border-0 text-[13.5px] font-medium transition-all active:scale-[0.99]",
                           recommended
                             ? "bg-primary-foreground text-primary hover:bg-primary-foreground/90"
                             : "bg-primary text-primary-foreground hover:bg-primary/90"
@@ -511,7 +481,7 @@ export default function PricingPage() {
                       <Button
                         disabled
                         className={cn(
-                          "h-10 w-full rounded-lg border-0 text-[13px] font-semibold opacity-60",
+                          "h-11 w-full rounded-full border-0 text-[13.5px] font-medium opacity-60",
                           recommended
                             ? "bg-primary-foreground text-primary"
                             : "bg-primary text-primary-foreground"
@@ -528,13 +498,13 @@ export default function PricingPage() {
         )}
 
         {/* ── Footer note ──────────────────────────────────────── */}
-        <div className="mt-6 flex flex-col items-center justify-between gap-3 sm:flex-row">
-          <p className="text-[11px] text-muted-foreground">
+        <div className="mt-10 flex flex-col items-center justify-between gap-3 border-t border-border/60 pt-8 sm:flex-row">
+          <p className="text-[12px] text-muted-foreground">
             Prices in USD · Upgrade or downgrade at any time
           </p>
           <Link
             href="/help"
-            className="text-[11px] text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"
+            className="text-[12px] text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"
           >
             Need help choosing? Visit Help &amp; Support →
           </Link>

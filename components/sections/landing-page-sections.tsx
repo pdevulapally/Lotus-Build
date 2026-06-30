@@ -5,6 +5,8 @@ import {
   ChevronDown,
   Code2,
   Eye,
+  FileCode2,
+  Folder,
   GitBranch,
   Globe,
   History,
@@ -14,6 +16,8 @@ import {
   Monitor,
   PanelLeft,
   Play,
+  Plus,
+  Minus,
   Terminal,
   Zap,
 } from "lucide-react"
@@ -28,108 +32,117 @@ import { cn } from "@/lib/utils"
 
 const capabilityPills = ["Prompt to repo", "Live preview", "Visual edits", "Deploy-ready"]
 
+// ─── computer workspace demo content ──────────────────────────────────────────
+
 const feedMessages = [
   {
     role: "user",
-    text: "Build a customer onboarding dashboard with pricing, account setup, and a clean preview.",
+    text: "Add a Stripe checkout button to the pricing table and wire it to the /api/checkout route.",
   },
   {
     role: "assistant",
-    text: "I updated the app shell, added the dashboard route, and restarted the preview. I am checking the generated files now.",
+    text: "Reading pricing-table.tsx and lib/plans.ts. I'll add a checkout handler, loading state, and connect it to the existing API route.",
   },
+]
+
+const fileTree = [
+  { name: "app", type: "folder", depth: 0, open: true },
+  { name: "dashboard", type: "folder", depth: 1, open: true },
+  { name: "page.tsx", type: "file", depth: 2 },
+  { name: "api", type: "folder", depth: 1, open: false },
+  { name: "components", type: "folder", depth: 0, open: true },
+  { name: "app-shell.tsx", type: "file", depth: 1 },
+  { name: "pricing-table.tsx", type: "file", depth: 1, active: true },
+  { name: "lib", type: "folder", depth: 0, open: true },
+  { name: "plans.ts", type: "file", depth: 1 },
+]
+
+const diffLines = [
+  { type: "ctx", code: "  const [loading, setLoading] = useState(false)" },
+  { type: "add", code: "  const [checkoutId, setCheckoutId] = useState<string | null>(null)" },
+  { type: "ctx", code: "" },
+  { type: "del", code: "  function handleSelect(planId: string) {" },
+  { type: "add", code: "  async function handleSelect(planId: string) {" },
+  { type: "add", code: "    setLoading(true)" },
+  { type: "add", code: "    setCheckoutId(planId)" },
+  { type: "add", code: '    const res = await fetch("/api/checkout", {' },
+  { type: "add", code: '      method: "POST",' },
+  { type: "add", code: "      body: JSON.stringify({ planId })," },
+  { type: "add", code: "    })" },
+  { type: "ctx", code: "  }" },
 ]
 
 const timelineRows = [
-  { title: "Understanding request", detail: "Dashboard, pricing, onboarding" },
-  { title: "Generating app/dashboard/page.tsx", detail: "Writing product surface" },
-  { title: "Preview ready", detail: "localhost:3000/dashboard" },
+  { title: "Reading pricing-table.tsx", detail: "Found 3 plan cards, no checkout handler", done: true },
+  { title: "Editing handleSelect()", detail: "Added async checkout request + loading state", done: true },
+  { title: "Restarting preview", detail: "localhost:3000/pricing", done: true },
+  { title: "Verifying runtime", detail: "Checking for unresolved imports", active: true },
 ]
-
-const workspaceTabs = ["Preview", "Browser", "Research"]
 
 const generatedFiles = [
-  "app/dashboard/page.tsx",
-  "components/app-shell.tsx",
-  "components/pricing-table.tsx",
-  "lib/plans.ts",
+  { name: "components/pricing-table.tsx", change: "edited" },
+  { name: "app/api/checkout/route.ts", change: "added" },
+  { name: "lib/plans.ts", change: "edited" },
 ]
 
-const workflow = [
-  {
-    step: "01",
-    title: "Prompt the computer",
-    description: "Describe the app, routes, integrations, and style. Lotus turns it into a visible build plan before editing files.",
-  },
-  {
-    step: "02",
-    title: "Watch the run",
-    description: "The feed shows planning, file edits, questions, preview state, and repair actions in the same place as the real workspace.",
-  },
-  {
-    step: "03",
-    title: "Inspect the preview",
-    description: "Review the generated product in the workspace panel, switch tabs, reload the preview, and catch runtime issues quickly.",
-  },
-  {
-    step: "04",
-    title: "Continue from context",
-    description: "Follow-up edits apply to the same project instead of starting over, so iteration feels closer to an IDE session.",
-  },
+const workspaceTabs = ["Code", "Preview", "Terminal"]
+
+const terminalLines = [
+  { type: "cmd", text: "▲ next dev" },
+  { type: "ok", text: "✓ Compiled /pricing in 412ms" },
+  { type: "ok", text: "✓ Compiled /api/checkout in 88ms" },
+  { type: "info", text: "GET /pricing 200 in 64ms" },
+  { type: "info", text: "POST /api/checkout 200 in 121ms" },
+  { type: "ok", text: "✓ No runtime errors detected" },
 ]
 
-const featureRows = [
-  {
-    icon: Terminal,
-    label: "Agent runtime",
-    title: "Generation stays close to the working tree.",
-    description: "The builder plans, writes, verifies, and repairs inside one project context so follow-up requests land on the existing code instead of starting from scratch.",
-    detail: "Files, preview, logs, and fixes stay in the same run.",
-  },
-  {
-    icon: Eye,
-    label: "Preview first",
-    title: "Every change is judged as a live product surface.",
-    description: "The preview is not a decoration. It is the main review loop, with responsive viewing, reloads, runtime errors, and repair actions close at hand.",
-    detail: "See the app as users will see it, then refine directly.",
-  },
-  {
-    icon: GitBranch,
-    label: "Production path",
-    title: "Move from exploration to a real branch.",
-    description: "Lotus is built for real projects: generated files, integrations, GitHub sync, environment variables, and deployment handoff all sit behind the workspace.",
-    detail: "Prototype speed without throwing away the code path.",
-  },
-]
+// ─── modern "Cursor-style" use case demos ─────────────────────────────────────
 
 const demoUseCases = [
   {
-    title: "SaaS launch workspace",
-    prompt: "Build a launch page, pricing, onboarding checklist, and authenticated dashboard shell.",
-    output: "Routes, app shell, pricing table, onboarding states, preview URL.",
+    title: "Fix a failing test",
+    prompt: "The checkout test is failing on the price assertion — find and fix it.",
+    file: "checkout.test.ts",
+    diff: [
+      { type: "del", code: 'expect(total).toBe("$29")' },
+      { type: "add", code: 'expect(total).toBe("$29.00")' },
+    ],
+    result: "1 test fixed · 0 regressions",
   },
   {
-    title: "Internal operations tool",
-    prompt: "Create a CRM workspace with lead filters, account details, notes, import status, and empty states.",
-    output: "Table layout, filter controls, detail pane, sample data, export action.",
+    title: "Add Stripe checkout",
+    prompt: "Wire the Pro plan button to Stripe checkout with a redirect on success.",
+    file: "api/checkout/route.ts",
+    diff: [
+      { type: "add", code: "const session = await stripe.checkout.sessions.create({" },
+      { type: "add", code: "  mode: 'subscription'," },
+      { type: "add", code: "  line_items: [{ price: planId, quantity: 1 }]," },
+      { type: "add", code: "})" },
+    ],
+    result: "New route + redirect URL returned",
   },
   {
-    title: "AI document review app",
-    prompt: "Make a document review flow with upload, analysis queue, results, and export panel.",
-    output: "Upload route, queue UI, review cards, status handling, preview checks.",
+    title: "Refactor to server actions",
+    prompt: "Move the onboarding form submit logic from a client fetch to a server action.",
+    file: "onboarding-form.tsx",
+    diff: [
+      { type: "del", code: 'await fetch("/api/onboarding", { method: "POST" })' },
+      { type: "add", code: "await submitOnboarding(formData)" },
+    ],
+    result: "Client bundle reduced, 1 route removed",
   },
   {
-    title: "Preview repair run",
-    prompt: "Fix the unresolved import and restart the preview without adding unsupported dependencies.",
-    output: "Import repair, dependency validation, clean runtime log, refreshed preview.",
+    title: "Generate API route from schema",
+    prompt: "Create a typed /api/leads route from the Lead schema in lib/schema.ts.",
+    file: "api/leads/route.ts",
+    diff: [
+      { type: "add", code: "export async function POST(req: Request) {" },
+      { type: "add", code: "  const body = leadSchema.parse(await req.json())" },
+      { type: "add", code: "  return Response.json(await db.leads.create(body))" },
+      { type: "add", code: "}" },
+    ],
+    result: "Route validated against schema, 0 type errors",
   },
-]
-
-const terminalEvents = [
-  "dependency allowlist passed",
-  "generated files normalized",
-  "preview booted on port 3000",
-  "runtime errors cleared",
-  "ready for next edit",
 ]
 
 function Section({
@@ -147,6 +160,24 @@ function Section({
     <section id={id} className={cn("px-4 sm:px-6 lg:px-8", className)}>
       <div className={cn(!bleed && "mx-auto max-w-6xl")}>{children}</div>
     </section>
+  )
+}
+
+function DiffLine({ type, code }: { type: "add" | "del" | "ctx"; code: string }) {
+  return (
+    <div
+      className={cn(
+        "flex items-start gap-2 whitespace-pre rounded px-2 py-[3px] font-mono text-[11.5px] leading-5",
+        type === "add" && "bg-emerald-500/10 text-emerald-300",
+        type === "del" && "bg-rose-500/10 text-rose-300/90",
+        type === "ctx" && "text-foreground/55"
+      )}
+    >
+      <span className="mt-[1px] w-3 shrink-0 select-none opacity-60">
+        {type === "add" ? "+" : type === "del" ? "−" : ""}
+      </span>
+      <span className="min-w-0 flex-1 truncate">{code || " "}</span>
+    </div>
   )
 }
 
@@ -174,7 +205,7 @@ function StaticComputerShell({ className }: { className?: string }) {
               aria-label="Session menu"
             >
               <span className="min-w-0 truncate text-[13px] font-medium tracking-[-0.01em] text-foreground">
-                Customer onboarding dashboard
+                Stripe checkout on pricing table
               </span>
               <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground/35" />
             </button>
@@ -214,6 +245,7 @@ function StaticComputerShell({ className }: { className?: string }) {
       </header>
 
       <div className="relative flex min-h-0 w-full flex-1 overflow-hidden">
+        {/* chat / agent feed */}
         <div className="flex w-full shrink-0 flex-col overflow-hidden bg-[color-mix(in_oklch,var(--background)_76%,transparent)] backdrop-blur-2xl sm:w-[32%] md:w-[31%] lg:w-[340px] xl:w-[370px]">
           <div className="relative min-h-0 flex-1 overflow-hidden">
             <div className="chat-scrollbar flex h-full flex-col overflow-y-auto px-4 lg:px-5">
@@ -228,15 +260,40 @@ function StaticComputerShell({ className }: { className?: string }) {
                   </div>
                 ))}
 
+                {/* inline diff card, like an agent edit summary */}
+                <div className="overflow-hidden rounded-xl border border-border/55 bg-[#0c0c0b] shadow-sm">
+                  <div className="flex items-center justify-between border-b border-background/10 px-3.5 py-2.5">
+                    <span className="flex min-w-0 items-center gap-1.5 text-[11.5px] font-medium text-background/80">
+                      <FileCode2 className="h-3.5 w-3.5 shrink-0 text-background/45" />
+                      <span className="truncate">pricing-table.tsx</span>
+                    </span>
+                    <span className="flex shrink-0 items-center gap-2 text-[10.5px] text-background/40">
+                      <span className="flex items-center gap-0.5 text-emerald-300/80">
+                        <Plus className="h-2.5 w-2.5" />8
+                      </span>
+                      <span className="flex items-center gap-0.5 text-rose-300/75">
+                        <Minus className="h-2.5 w-2.5" />1
+                      </span>
+                    </span>
+                  </div>
+                  <div className="space-y-[1px] px-2 py-2">
+                    {diffLines.map((line, i) => (
+                      <DiffLine key={i} type={line.type as "add" | "del" | "ctx"} code={line.code} />
+                    ))}
+                  </div>
+                </div>
+
                 <div className="rounded-xl border border-border/55 bg-card/78 px-3.5 py-3 shadow-sm">
                   <p className="text-[12px] font-semibold text-foreground">Run timeline</p>
                   <div className="mt-3 space-y-3">
-                    {timelineRows.map((row, index) => (
+                    {timelineRows.map((row) => (
                       <div key={row.title} className="grid grid-cols-[18px_minmax(0,1fr)] gap-2 text-[12px]">
-                        <span className={cn(
-                          "mt-1.5 h-2 w-2 rounded-full",
-                          index < 2 ? "bg-foreground" : "bg-success"
-                        )} />
+                        <span
+                          className={cn(
+                            "mt-1.5 h-2 w-2 rounded-full",
+                            row.active ? "animate-pulse bg-foreground" : row.done ? "bg-success" : "bg-border"
+                          )}
+                        />
                         <span className="min-w-0">
                           <span className="block font-medium text-foreground">{row.title}</span>
                           <span className="block truncate text-muted-foreground">{row.detail}</span>
@@ -250,11 +307,24 @@ function StaticComputerShell({ className }: { className?: string }) {
                   <p className="text-[12px] font-semibold text-foreground">Generated files</p>
                   <div className="mt-2 space-y-1.5">
                     {generatedFiles.map((file, index) => (
-                      <div key={file} className={cn(
-                        "rounded-lg px-2.5 py-2 text-[12px]",
-                        index === 0 ? "bg-muted text-foreground" : "text-muted-foreground"
-                      )}>
-                        {file}
+                      <div
+                        key={file.name}
+                        className={cn(
+                          "flex items-center justify-between rounded-lg px-2.5 py-2 text-[12px]",
+                          index === 0 ? "bg-muted text-foreground" : "text-muted-foreground"
+                        )}
+                      >
+                        <span className="truncate">{file.name}</span>
+                        <span
+                          className={cn(
+                            "ml-2 shrink-0 rounded-full px-1.5 py-0.5 text-[9.5px] font-medium uppercase tracking-[0.06em]",
+                            file.change === "added"
+                              ? "bg-emerald-500/12 text-emerald-500"
+                              : "bg-amber-500/12 text-amber-500"
+                          )}
+                        >
+                          {file.change}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -276,77 +346,105 @@ function StaticComputerShell({ className }: { className?: string }) {
           </div>
         </div>
 
+        {/* code editor / preview panel */}
         <div className="lotus-glass-strong m-2 hidden min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border/50 shadow-[0_28px_90px_-64px_rgba(0,0,0,0.9)] sm:flex">
-          <div className="relative min-h-0 flex-1">
-            <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[color-mix(in_oklch,var(--background)_88%,transparent)]">
-              <div className="lotus-glass-inset flex h-10 shrink-0 items-center justify-center border-b border-border/40 px-4">
-                <div className="lotus-glass-control group flex w-full max-w-sm items-center gap-0.5 overflow-hidden rounded-full border border-border/60 px-1">
-                  <button className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-foreground/70" aria-label="Go to root">
-                    <span className="text-[13px]">/</span>
-                  </button>
-                  <span className="max-w-[130px] shrink truncate select-none text-[11px] text-foreground/50">
-                    localhost:3000
-                  </span>
-                  <div className="flex min-w-[40px] flex-1 items-center">
-                    <span className="shrink-0 select-none text-[12px] text-foreground/40">/</span>
-                    <span className="min-w-0 flex-1 truncate py-0.5 text-[12px] text-foreground">dashboard</span>
+          <div className="relative flex min-h-0 flex-1">
+            {/* file tree */}
+            <div className="hidden w-[176px] shrink-0 border-r border-border/40 bg-[color-mix(in_oklch,var(--background)_92%,transparent)] py-3 lg:block">
+              <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/70">
+                Explorer
+              </p>
+              <div className="space-y-[1px] px-2">
+                {fileTree.map((item) => (
+                  <div
+                    key={item.name + item.depth}
+                    style={{ paddingLeft: `${item.depth * 12 + 6}px` }}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-md py-[5px] pr-2 text-[12px]",
+                      item.active ? "bg-muted font-medium text-foreground" : "text-muted-foreground"
+                    )}
+                  >
+                    {item.type === "folder" ? (
+                      <Folder className="h-3 w-3 shrink-0 opacity-60" />
+                    ) : (
+                      <FileCode2 className="h-3 w-3 shrink-0 opacity-50" />
+                    )}
+                    <span className="truncate">{item.name}</span>
                   </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[color-mix(in_oklch,var(--background)_88%,transparent)]">
+              {/* editor tab bar */}
+              <div className="flex h-9 shrink-0 items-center border-b border-border/40 px-1">
+                <div className="flex h-full items-center gap-1.5 border-b-2 border-foreground px-3 text-[11.5px] font-medium text-foreground">
+                  <FileCode2 className="h-3 w-3 opacity-60" />
+                  pricing-table.tsx
+                </div>
+                <div className="flex h-full items-center gap-1.5 px-3 text-[11.5px] text-muted-foreground/70">
+                  <FileCode2 className="h-3 w-3 opacity-40" />
+                  route.ts
                 </div>
               </div>
 
-              <div className="min-h-0 flex-1 overflow-hidden bg-background p-3 lg:p-4">
-                <div className="h-full overflow-hidden rounded-xl border border-border/60 bg-card">
-                  <div className="flex h-full flex-col bg-background">
-                    <div className="flex items-center justify-between border-b border-border px-5 py-4">
-                      <div>
-                        <p className="text-[13px] font-semibold text-foreground">AcmeDesk</p>
-                        <p className="text-[11px] text-muted-foreground">Generated preview</p>
-                      </div>
-                      <span className="rounded-full bg-foreground px-3 py-1.5 text-[11px] font-medium text-background">Invite team</span>
-                    </div>
-                    <div className="grid min-h-0 flex-1 grid-cols-[156px_minmax(0,1fr)]">
-                      <aside className="border-r border-border bg-muted/35 p-3">
-                        {['Overview', 'Customers', 'Billing', 'Settings'].map((item, index) => (
-                          <div key={item} className={cn(
-                            "mb-1 rounded-lg px-2.5 py-2 text-[12px]",
-                            index === 0 ? "bg-background font-medium text-foreground shadow-sm" : "text-muted-foreground"
-                          )}>
-                            {item}
-                          </div>
-                        ))}
-                      </aside>
-                      <main className="min-w-0 p-5">
-                        <div className="flex items-start justify-between gap-4">
-                          <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Overview</p>
-                            <h3 className="mt-2 text-2xl font-semibold tracking-[-0.035em] text-foreground">Customer onboarding</h3>
-                          </div>
-                          <span className="rounded-full border border-border px-2.5 py-1 text-[11px] text-muted-foreground">Preview ready</span>
-                        </div>
-                        <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                          {[
-                            ["482", "active users"],
-                            ["31", "trial accounts"],
-                            ["0", "build errors"],
-                          ].map(([value, label]) => (
-                            <div key={label} className="rounded-xl border border-border bg-muted/25 p-3">
-                              <p className="text-2xl font-semibold tracking-[-0.04em] text-foreground">{value}</p>
-                              <p className="text-[11px] text-muted-foreground">{label}</p>
-                            </div>
-                          ))}
-                        </div>
-                        <div className="mt-5 rounded-xl border border-border">
-                          {['Design onboarding checklist', 'Add pricing comparison', 'Wire settings form'].map((item, index) => (
-                            <div key={item} className="flex items-center justify-between border-b border-border px-3 py-3 last:border-b-0">
-                              <span className="text-[12px] text-foreground">{item}</span>
-                              <span className="text-[11px] text-muted-foreground">{index === 0 ? "done" : "queued"}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </main>
-                    </div>
-                  </div>
+              {/* code lines, syntax-ish coloring */}
+              <div className="min-h-0 flex-1 overflow-hidden px-4 py-3 font-mono text-[11.5px] leading-[1.65]">
+                <div className="grid grid-cols-[28px_minmax(0,1fr)] gap-x-3 text-foreground/85">
+                  <span className="select-none text-right text-foreground/25">14</span>
+                  <span><span className="text-sky-400/80">function</span> PricingTable() {"{"}</span>
+
+                  <span className="select-none text-right text-foreground/25">15</span>
+                  <span className="pl-3"><span className="text-sky-400/80">const</span> [loading, setLoading] = useState(<span className="text-amber-400/80">false</span>)</span>
+
+                  <span className="select-none text-right text-emerald-400/40">16</span>
+                  <span className="rounded bg-emerald-500/10 pl-3 text-emerald-300">
+                    <span className="text-sky-400/80">const</span> [checkoutId, setCheckoutId] = useState(<span className="text-amber-400/80">null</span>)
+                  </span>
+
+                  <span className="select-none text-right text-foreground/25">17</span>
+                  <span className="pl-3 text-foreground/40">{"// triggered from the Pro plan CTA"}</span>
+
+                  <span className="select-none text-right text-emerald-400/40">18</span>
+                  <span className="rounded bg-emerald-500/10 pl-3 text-emerald-300">
+                    <span className="text-sky-400/80">async function</span> handleSelect(planId: string) {"{"}
+                  </span>
+
+                  <span className="select-none text-right text-emerald-400/40">19</span>
+                  <span className="rounded bg-emerald-500/10 pl-6 text-emerald-300">setLoading(<span className="text-amber-400/80">true</span>)</span>
+
+                  <span className="select-none text-right text-emerald-400/40">20</span>
+                  <span className="rounded bg-emerald-500/10 pl-6 text-emerald-300">
+                    <span className="text-sky-400/80">const</span> res = <span className="text-sky-400/80">await</span> fetch(<span className="text-orange-300/80">&quot;/api/checkout&quot;</span>, {"{"}
+                  </span>
+
+                  <span className="select-none text-right text-emerald-400/40">21</span>
+                  <span className="rounded bg-emerald-500/10 pl-9 text-emerald-300">method: <span className="text-orange-300/80">&quot;POST&quot;</span>,</span>
+
+                  <span className="select-none text-right text-emerald-400/40">22</span>
+                  <span className="rounded bg-emerald-500/10 pl-9 text-emerald-300">body: JSON.stringify({"{ planId }"}),</span>
+
+                  <span className="select-none text-right text-emerald-400/40">23</span>
+                  <span className="rounded bg-emerald-500/10 pl-6 text-emerald-300">{"})"}</span>
+
+                  <span className="select-none text-right text-foreground/25">24</span>
+                  <span className="pl-3">{"}"}</span>
                 </div>
+              </div>
+
+              {/* mini terminal strip */}
+              <div className="shrink-0 border-t border-border/40 bg-[#0c0c0b] px-4 py-2.5">
+                <div className="flex items-center gap-2 text-[10.5px] text-background/45">
+                  <Terminal className="h-3 w-3" />
+                  <span>terminal</span>
+                  <span className="ml-auto flex items-center gap-1 text-emerald-300/80">
+                    <CheckCircle2 className="h-3 w-3" />
+                    compiled
+                  </span>
+                </div>
+                <p className="mt-1.5 truncate font-mono text-[11px] text-background/70">
+                  ✓ Compiled /api/checkout in 88ms · GET /pricing 200 in 64ms
+                </p>
               </div>
             </div>
           </div>
@@ -372,22 +470,39 @@ function StaticComputerShell({ className }: { className?: string }) {
   )
 }
 
-function TerminalLog() {
+function UseCaseDemoCard({ useCase }: { useCase: (typeof demoUseCases)[number] }) {
   return (
-    <div className="overflow-hidden rounded-[1.25rem] border border-background/10 bg-black/35 font-mono text-[12px] text-background/65">
-      <div className="flex items-center justify-between border-b border-background/10 px-4 py-3 text-[11px] text-background/42">
-        <span>runtime.log</span>
-        <span>clean</span>
+    <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-card/60 transition-colors hover:border-border">
+      <div className="flex items-start justify-between gap-3 px-4 pt-4">
+        <div className="min-w-0">
+          <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+            Agent run
+          </span>
+          <h3 className="mt-1.5 truncate text-[15px] font-semibold tracking-[-0.01em] text-foreground">
+            {useCase.title}
+          </h3>
+        </div>
       </div>
-      <div className="space-y-2 p-4">
-        {terminalEvents.map((event) => (
-          <div key={event} className="flex items-center gap-3">
-            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-300" />
-            <span>{event}</span>
-          </div>
-        ))}
+
+      <p className="mt-2 px-4 text-[12.5px] leading-relaxed text-muted-foreground">&ldquo;{useCase.prompt}&rdquo;</p>
+
+      <div className="mx-4 mt-3 overflow-hidden rounded-xl border border-border/60 bg-[#0c0c0b]">
+        <div className="flex items-center gap-1.5 border-b border-background/10 px-3 py-2 text-[10.5px] text-background/45">
+          <FileCode2 className="h-3 w-3" />
+          <span className="truncate">{useCase.file}</span>
+        </div>
+        <div className="space-y-[1px] px-2 py-2">
+          {useCase.diff.map((line, i) => (
+            <DiffLine key={i} type={line.type as "add" | "del"} code={line.code} />
+          ))}
+        </div>
       </div>
-    </div>
+
+      <div className="mt-auto flex items-center gap-1.5 px-4 py-4 text-[11.5px] text-muted-foreground">
+        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+        {useCase.result}
+      </div>
+    </article>
   )
 }
 
@@ -405,7 +520,7 @@ export function LandingProductSection() {
             </div>
             <div className="lg:justify-self-end">
               <p className="max-w-md text-base leading-7 text-muted-foreground">
-                This section mirrors the actual computer page: the same top bar, chat panel, workspace panel, preview URL bar, and mobile switcher pattern.
+                This section mirrors the actual computer page: file explorer, editor with live diffs, terminal output, and an agent feed that edits real files instead of narrating fake progress.
               </p>
               <div className="mt-7">
                 <CapabilityPills items={capabilityPills} />
@@ -422,9 +537,51 @@ export function LandingProductSection() {
           </div>
         </Reveal>
 
-        <div className="mx-auto mt-14 max-w-6xl">
+        <div className="mx-auto mt-16 max-w-6xl">
+          <Reveal>
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Try it on a real task</p>
+                <h3 className="mt-2 text-2xl font-medium tracking-[-0.03em] text-foreground sm:text-3xl">
+                  Same prompt → diff → result loop, every run.
+                </h3>
+              </div>
+            </div>
+          </Reveal>
+
+          <RevealStagger className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {demoUseCases.map((useCase) => (
+              <RevealItem key={useCase.title}>
+                <UseCaseDemoCard useCase={useCase} />
+              </RevealItem>
+            ))}
+          </RevealStagger>
+        </div>
+
+        <div className="mx-auto mt-16 max-w-6xl">
           <RevealStagger className="grid border-y border-border/70 sm:grid-cols-2 lg:grid-cols-4">
-            {workflow.map((item) => (
+            {[
+              {
+                step: "01",
+                title: "Prompt the computer",
+                description: "Describe the app, routes, integrations, and style. Lotus turns it into a visible build plan before editing files.",
+              },
+              {
+                step: "02",
+                title: "Watch the run",
+                description: "The feed shows planning, file edits, questions, preview state, and repair actions in the same place as the real workspace.",
+              },
+              {
+                step: "03",
+                title: "Inspect the preview",
+                description: "Review the generated product in the workspace panel, switch tabs, reload the preview, and catch runtime issues quickly.",
+              },
+              {
+                step: "04",
+                title: "Continue from context",
+                description: "Follow-up edits apply to the same project instead of starting over, so iteration feels closer to an IDE session.",
+              },
+            ].map((item) => (
               <RevealItem key={item.step}>
                 <article className="group h-full border-border/70 py-7 transition duration-300 sm:px-5 sm:odd:border-r lg:border-r lg:last:border-r-0">
                   <p className="text-xs font-semibold tabular-nums text-muted-foreground">{item.step}</p>
@@ -437,6 +594,59 @@ export function LandingProductSection() {
         </div>
       </Section>
     </>
+  )
+}
+
+// ─── everything below is unchanged ────────────────────────────────────────────
+
+const featureRows = [
+  {
+    icon: Terminal,
+    label: "Agent runtime",
+    title: "Generation stays close to the working tree.",
+    description: "The builder plans, writes, verifies, and repairs inside one project context so follow-up requests land on the existing code instead of starting from scratch.",
+    detail: "Files, preview, logs, and fixes stay in the same run.",
+  },
+  {
+    icon: Eye,
+    label: "Preview first",
+    title: "Every change is judged as a live product surface.",
+    description: "The preview is not a decoration. It is the main review loop, with responsive viewing, reloads, runtime errors, and repair actions close at hand.",
+    detail: "See the app as users will see it, then refine directly.",
+  },
+  {
+    icon: GitBranch,
+    label: "Production path",
+    title: "Move from exploration to a real branch.",
+    description: "Lotus is built for real projects: generated files, integrations, GitHub sync, environment variables, and deployment handoff all sit behind the workspace.",
+    detail: "Prototype speed without throwing away the code path.",
+  },
+]
+
+const terminalEvents = [
+  "dependency allowlist passed",
+  "generated files normalized",
+  "preview booted on port 3000",
+  "runtime errors cleared",
+  "ready for next edit",
+]
+
+function TerminalLog() {
+  return (
+    <div className="overflow-hidden rounded-[1.25rem] border border-background/10 bg-black/35 font-mono text-[12px] text-background/65">
+      <div className="flex items-center justify-between border-b border-background/10 px-4 py-3 text-[11px] text-background/42">
+        <span>runtime.log</span>
+        <span>clean</span>
+      </div>
+      <div className="space-y-2 p-4">
+        {terminalEvents.map((event) => (
+          <div key={event} className="flex items-center gap-3">
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-300" />
+            <span>{event}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -489,6 +699,29 @@ export function LandingFeaturesSection() {
 }
 
 export function LandingUseCasesSection() {
+  const sectionUseCases = [
+    {
+      title: "SaaS launch workspace",
+      prompt: "Build a launch page, pricing, onboarding checklist, and authenticated dashboard shell.",
+      output: "Routes, app shell, pricing table, onboarding states, preview URL.",
+    },
+    {
+      title: "Internal operations tool",
+      prompt: "Create a CRM workspace with lead filters, account details, notes, import status, and empty states.",
+      output: "Table layout, filter controls, detail pane, sample data, export action.",
+    },
+    {
+      title: "AI document review app",
+      prompt: "Make a document review flow with upload, analysis queue, results, and export panel.",
+      output: "Upload route, queue UI, review cards, status handling, preview checks.",
+    },
+    {
+      title: "Preview repair run",
+      prompt: "Fix the unresolved import and restart the preview without adding unsupported dependencies.",
+      output: "Import repair, dependency validation, clean runtime log, refreshed preview.",
+    },
+  ]
+
   return (
     <Section id="use-cases" className="border-t border-border bg-background py-20 sm:py-28">
       <Reveal>
@@ -506,7 +739,7 @@ export function LandingUseCasesSection() {
       </Reveal>
 
       <RevealStagger className="mt-12 divide-y divide-border/70 border-y border-border/70">
-        {demoUseCases.map((useCase, index) => (
+        {sectionUseCases.map((useCase, index) => (
           <RevealItem key={useCase.title}>
             <article className="grid gap-5 py-8 lg:grid-cols-[120px_minmax(0,0.7fr)_minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
               <span className="text-sm font-semibold tabular-nums text-muted-foreground">0{index + 1}</span>

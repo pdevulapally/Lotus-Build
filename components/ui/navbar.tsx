@@ -73,30 +73,30 @@ export function Navbar({ variant = "default" }: NavbarProps) {
     : 0
 
   const headerClass = variant === "hero"
-    ? "relative z-20 flex w-full justify-center px-0"
-    : "fixed left-0 right-0 top-4 z-40 px-4 sm:top-5"
+    ? "relative z-20 flex w-full justify-center px-0 pt-5 sm:pt-6"
+    : "fixed left-0 right-0 top-5 z-40 px-4 sm:top-6"
 
   return (
     <header className={headerClass}>
       <nav
         className={cn(
-          "mx-auto grid h-[52px] w-full max-w-6xl grid-cols-[1fr_auto] items-center gap-3 rounded-2xl border border-border/70 bg-background/88 px-3 text-foreground shadow-[0_18px_70px_-54px_rgba(0,0,0,0.85)] backdrop-blur-2xl sm:px-4 md:grid-cols-[1fr_auto_1fr]",
-          variant === "hero" && "bg-background/86 shadow-[0_24px_80px_-52px_rgba(0,0,0,0.95)]"
+          "mx-auto grid h-14 w-full max-w-6xl grid-cols-[1fr_auto] items-center gap-3 rounded-full border border-border/60 bg-background/80 px-3.5 text-foreground shadow-[0_8px_30px_-12px_rgba(0,0,0,0.25)] backdrop-blur-xl sm:px-5 md:grid-cols-[1fr_auto_1fr]",
+          variant === "hero" && "bg-background/78 shadow-[0_10px_36px_-14px_rgba(0,0,0,0.32)]"
         )}
       >
-        <Link href="/" className="flex min-w-0 items-center gap-2 md:justify-self-start">
-          <LotusLogo size={26} />
-          <span className="truncate text-[15px] font-semibold tracking-[-0.02em] text-foreground">
+        <Link href="/" className="flex min-w-0 items-center gap-2.5 md:justify-self-start">
+          <LotusLogo size={24} />
+          <span className="truncate text-[14.5px] font-semibold tracking-[-0.02em] text-foreground">
             Lotus.build
           </span>
         </Link>
 
-        <div className="hidden items-center justify-center gap-0.5 rounded-full border border-border/50 bg-muted/35 p-1 md:flex">
+        <div className="hidden items-center justify-center gap-0.5 md:flex">
           {navLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className="rounded-full px-3 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45"
+              className="rounded-full px-3.5 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45"
             >
               {link.label}
             </Link>
@@ -110,7 +110,7 @@ export function Navbar({ variant = "default" }: NavbarProps) {
             <>
               <Link
                 href="/projects"
-                className="hidden h-9 items-center rounded-full bg-foreground px-3 text-[13px] font-semibold text-background transition hover:bg-foreground/85 sm:inline-flex"
+                className="hidden h-9 items-center rounded-full bg-foreground px-4 text-[13px] font-medium text-background transition-colors hover:bg-foreground/88 sm:inline-flex"
               >
                 Projects
               </Link>
@@ -118,10 +118,10 @@ export function Navbar({ variant = "default" }: NavbarProps) {
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    className="flex h-9 items-center gap-1.5 rounded-full border border-border bg-card px-1.5 pr-2 text-foreground transition hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/45"
+                    className="flex h-9 items-center gap-1.5 rounded-full border border-border/70 bg-card px-1.5 pr-2 text-foreground transition-colors hover:bg-muted/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/45"
                     aria-label="Open account menu"
                   >
-                    <Avatar className="h-7 w-7 border border-border">
+                    <Avatar className="h-7 w-7 border border-border/70">
                       <AvatarImage src={userData.photoURL || undefined} alt={userData.displayName || "User"} />
                       <AvatarFallback className="bg-muted text-[11px] text-foreground">
                         {getInitials(userData.displayName, userData.email)}
@@ -132,12 +132,12 @@ export function Navbar({ variant = "default" }: NavbarProps) {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="end"
-                  className="w-[calc(100vw-2rem)] max-w-[22rem] overflow-hidden rounded-xl border border-border bg-card p-0 text-popover-foreground shadow-lg"
-                  sideOffset={10}
+                  className="w-[calc(100vw-2rem)] max-w-[22rem] overflow-hidden rounded-2xl border border-border/70 bg-card p-0 text-popover-foreground shadow-xl"
+                  sideOffset={12}
                 >
                   <DropdownMenuLabel className="px-4 py-4 font-normal">
                     <div className="flex min-w-0 items-center gap-3">
-                      <Avatar className="h-10 w-10 shrink-0 border border-border">
+                      <Avatar className="h-10 w-10 shrink-0 border border-border/70">
                         <AvatarImage src={userData.photoURL || undefined} />
                         <AvatarFallback className="bg-muted text-sm text-foreground">
                           {getInitials(userData.displayName, userData.email)}
@@ -152,17 +152,17 @@ export function Navbar({ variant = "default" }: NavbarProps) {
                     </div>
                   </DropdownMenuLabel>
 
-                  <DropdownMenuSeparator className="m-0 bg-border" />
+                  <DropdownMenuSeparator className="m-0 bg-border/70" />
 
                   <div className="px-3 py-3">
-                    <div className="rounded-xl border border-border/65 bg-muted/45 px-3 py-3">
+                    <div className="rounded-xl border border-border/60 bg-muted/40 px-3.5 py-3.5">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="flex h-6 w-6 items-center justify-center rounded-md bg-background text-foreground">
+                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-background text-foreground">
                               <Leaf className="h-3.5 w-3.5" />
                             </span>
-                            <span className="truncate text-[13px] font-medium text-foreground capitalize">{userData.planName} Plan</span>
+                            <span className="truncate text-[13px] font-medium capitalize text-foreground">{userData.planName} Plan</span>
                           </div>
                           <p className="mt-1.5 text-[11.5px] text-muted-foreground">
                             {remainingClamped.toLocaleString()} tokens available
@@ -170,14 +170,14 @@ export function Navbar({ variant = "default" }: NavbarProps) {
                         </div>
                         <Link
                           href="/pricing"
-                          className="shrink-0 rounded-full px-2.5 py-1 text-[12px] font-medium text-foreground transition-colors hover:bg-background"
+                          className="shrink-0 rounded-full bg-background px-2.5 py-1 text-[12px] font-medium text-foreground transition-colors hover:bg-border/40"
                           onClick={() => setIsOpen(false)}
                         >
                           Upgrade
                         </Link>
                       </div>
 
-                      <div className="mt-3 space-y-2">
+                      <div className="mt-3.5 space-y-2">
                         <div className="flex items-center justify-between gap-3 text-[11.5px]">
                           <span className="flex items-center gap-1.5 text-muted-foreground">
                             <Coins className="h-3.5 w-3.5" />
@@ -187,14 +187,14 @@ export function Navbar({ variant = "default" }: NavbarProps) {
                             {userData.tokenUsage.used.toLocaleString()} / {tokensLimit.toLocaleString()}
                           </span>
                         </div>
-                        <div className="h-1.5 overflow-hidden rounded-full bg-border">
+                        <div className="h-1.5 overflow-hidden rounded-full bg-border/70">
                           <div className="h-full rounded-full bg-foreground transition-all" style={{ width: `${tokenPercentage}%` }} />
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  <DropdownMenuSeparator className="m-0 bg-border" />
+                  <DropdownMenuSeparator className="m-0 bg-border/70" />
 
                   <div className="p-2">
                     <DropdownMenuItem
@@ -220,7 +220,7 @@ export function Navbar({ variant = "default" }: NavbarProps) {
                     </DropdownMenuItem>
                   </div>
 
-                  <DropdownMenuSeparator className="m-0 bg-border" />
+                  <DropdownMenuSeparator className="m-0 bg-border/70" />
 
                   <div className="p-2">
                     <DropdownMenuItem
@@ -237,7 +237,7 @@ export function Navbar({ variant = "default" }: NavbarProps) {
           ) : (
             <Link
               href="/login"
-              className="inline-flex h-9 items-center rounded-full bg-foreground px-4 text-[13px] font-semibold text-background transition hover:bg-foreground/85"
+              className="inline-flex h-9 items-center rounded-full bg-foreground px-4 text-[13px] font-medium text-background transition-colors hover:bg-foreground/88"
             >
               Sign in
             </Link>
@@ -249,7 +249,7 @@ export function Navbar({ variant = "default" }: NavbarProps) {
                 <SheetTrigger asChild>
                   <button
                     type="button"
-                    className="inline-flex h-9 items-center justify-center rounded-full border border-border bg-card px-3 text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/45"
+                    className="inline-flex h-9 items-center justify-center rounded-full border border-border/70 bg-card px-3 text-foreground transition-colors hover:bg-muted/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/45"
                     aria-label="Open navigation"
                   >
                     <span className="relative block h-3.5 w-4.5">
@@ -264,7 +264,7 @@ export function Navbar({ variant = "default" }: NavbarProps) {
                       Navigation
                     </SheetTitle>
                   </SheetHeader>
-                  <div className="divide-y divide-border border-y border-border">
+                  <div className="divide-y divide-border/70 border-y border-border/70">
                     {navLinks.map((link) => (
                       <Link
                         key={link.href}
@@ -288,7 +288,7 @@ export function Navbar({ variant = "default" }: NavbarProps) {
             ) : (
               <button
                 type="button"
-                className="inline-flex h-9 items-center justify-center rounded-full border border-border bg-card px-3 text-foreground"
+                className="inline-flex h-9 items-center justify-center rounded-full border border-border/70 bg-card px-3 text-foreground"
                 aria-label="Open navigation"
                 disabled
               >
