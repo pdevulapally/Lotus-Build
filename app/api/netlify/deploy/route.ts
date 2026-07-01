@@ -7,6 +7,7 @@ import { normalizeGeneratedCodeFiles } from "@/lib/generated-code-normalization"
 import { assertProjectCanEdit } from "@/lib/project-access"
 import { normalizeRelativeFilePath } from "@/lib/security/files"
 import { Buffer } from "buffer"
+import { checkRateLimit } from "@/lib/rate-limit-plan"
 
 export const runtime = "nodejs"
 
@@ -165,6 +166,8 @@ async function zipDistFromSandbox(sandbox: Sandbox) {
 }
 
 export async function POST(req: Request) {
+  const blocked = await checkRateLimit(req, "deploy")
+  if (blocked) return blocked
   let projectId = ""
   let requestedSiteName: string | null = null
 

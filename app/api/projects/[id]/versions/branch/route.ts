@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { assertProjectCanEdit } from "@/lib/project-access"
 import { pruneVersionsForRunIds } from "@/lib/project-versions/service"
 import { requireUserUid } from "@/lib/server-auth"
+import { checkRateLimit } from "@/lib/rate-limit-plan"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -10,6 +11,8 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const blocked = await checkRateLimit(req, "restore")
+  if (blocked) return blocked
   try {
     const uid = await requireUserUid(req)
     const { id: projectId } = await params

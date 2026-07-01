@@ -154,6 +154,7 @@ export function ComputerTopBar({
   hasPreview,
   hasBrowser,
   hasResearch,
+  hasCode,
   onTabChange,
   contextUsage,
   theme,
@@ -185,6 +186,7 @@ export function ComputerTopBar({
   hasPreview?: boolean
   hasBrowser?: boolean
   hasResearch?: boolean
+  hasCode?: boolean
   onTabChange?: (tab: WorkspaceTab) => void
   contextUsage?: { maxTokens: number; usedTokens: number; usage: ContextUsage }
   theme: ComputerTheme
@@ -241,7 +243,7 @@ export function ComputerTopBar({
 
           {/* ── Mobile: title absolutely centered so it's always mid-screen ── */}
           <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center sm:hidden">
-            <div className="pointer-events-auto flex max-w-[55vw] min-w-0 items-center">
+            <div className="pointer-events-auto flex max-w-[38vw] min-w-0 -translate-x-6 items-center">
               {isEditingTitle ? (
                 <input
                   value={titleDraft}
@@ -661,6 +663,7 @@ export function ComputerTopBar({
                     { id: "preview" as WorkspaceTab, label: "Preview", show: true },
                     { id: "browser" as WorkspaceTab, label: "Browser", show: !!hasBrowser },
                     { id: "research" as WorkspaceTab, label: "Research", show: !!hasResearch },
+                    { id: "code" as WorkspaceTab, label: "Code", show: !!hasCode },
                   ] as Array<{ id: WorkspaceTab; label: string; show: boolean }>)
                     .filter((t) => t.show || t.id === "preview")
                     .map((tab) => (

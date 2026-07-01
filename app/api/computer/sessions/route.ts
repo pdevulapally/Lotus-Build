@@ -8,6 +8,7 @@ import { sanitizeConversationTurns } from "@/lib/computer-agent/conversation"
 import { isProjectPlatform, normalizePlatform } from "@/lib/projects/platform"
 import { normalizeComputerSessionMode } from "@/lib/computer-agent/session-modes"
 import { createRuntimeCheckpoint, normalizeComputerAgentRuntime } from "@/lib/computer-agent/runtime"
+import { checkRateLimit } from "@/lib/rate-limit-plan"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -75,6 +76,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const blocked = await checkRateLimit(req, "session")
+  if (blocked) return blocked
   try {
     const uid = await requireUserUid(req)
     const body = await req.json().catch(() => null)

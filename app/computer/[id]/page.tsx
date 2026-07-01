@@ -124,6 +124,64 @@ type IntegrationSection = "integrations" | "env"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+function buildRuntimeFixPrompt(
+  error: { message: string; stack: string },
+  files: Array<{ path: string; content: string }>
+): string {
+  // Parse every stack frame for filename + line number
+  const framePattern = /\/([^/\s:()]+\.[a-zA-Z0-9]+):(\d+):\d+/g
+  const frameMap = new Map<string, number>()
+  for (const m of error.stack.matchAll(framePattern)) {
+    const filename = m[1].toLowerCase()
+    const line = parseInt(m[2], 10)
+    if (!frameMap.has(filename)) frameMap.set(filename, line)
+  }
+
+  // Match project files by basename
+  const matched = files.flatMap((f) => {
+    const basename = f.path.split("/").pop()?.toLowerCase() ?? ""
+    if (!basename || !frameMap.has(basename)) return []
+    return [{ file: f, errorLine: frameMap.get(basename)! }]
+  })
+
+  // Total character budget split evenly across matched files
+  const TOTAL_BUDGET = 14_000
+  const perFileBudget = matched.length > 0 ? Math.floor(TOTAL_BUDGET / matched.length) : TOTAL_BUDGET
+
+  const lines: string[] = [
+    "A runtime JavaScript error occurred in the generated app. Find the exact line causing it and fix only that — do not rewrite unrelated code.",
+    "",
+    `Error: ${error.message}`,
+    "",
+    "Stack trace:",
+    "```",
+    error.stack,
+    "```",
+  ]
+
+  if (matched.length > 0) {
+    lines.push("", "Source files referenced in the stack:")
+    for (const { file, errorLine } of matched) {
+      const fileLines = file.content.split("\n")
+      const totalLines = fileLines.length
+      // Estimate lines we can afford given the budget (~80 chars avg per line)
+      const contextRadius = Math.max(20, Math.floor(perFileBudget / 80 / 2))
+      const start = Math.max(0, errorLine - contextRadius - 1)
+      const end = Math.min(totalLines, errorLine + contextRadius)
+      const snippet = fileLines
+        .slice(start, end)
+        .map((l, i) => `${start + i + 1} | ${l}`)
+        .join("\n")
+      const prefix = start > 0 ? `… lines 1–${start} omitted\n` : ""
+      const suffix = end < totalLines ? `\n… lines ${end + 1}–${totalLines} omitted` : ""
+      lines.push("", `File: ${file.path} (error near line ${errorLine})`, "```", prefix + snippet + suffix, "```")
+    }
+  }
+
+  lines.push("", "Fix the broken code precisely. Output only the corrected file(s).")
+  return lines.join("\n")
+}
+
 function shortenId(id: string) {
   if (id.length <= 12) return id
   return `${id.slice(0, 6)}...${id.slice(-4)}`
@@ -1515,6 +1573,7 @@ export default function ComputerPage() {
   useEffect(() => {
     if (!session?.previewUrl) return
     const handler = (event: MessageEvent) => {
+      if (event.origin !== new URL(session.previewUrl!).origin) return
       const data = event.data as { type?: string; message?: string; stack?: string }
       if (data?.type !== 'runtime-error') return
       if (!data.message) return
@@ -1594,7 +1653,14 @@ export default function ComputerPage() {
   // ── handleApprovePlan — approves a plan and triggers code generation ──────
   const handleApprovePlan = useCallback(async () => {
     if (!session || isRunning) return
-    await updateDoc(doc(db, "sessions", session.id), { planApproved: true })
+    // Best-effort flag write; the authoritative approval is the run request
+    // below. The `sessions` collection is not client-writable under Firestore
+    // rules, so a rejection here must not block the build.
+    try {
+      await updateDoc(doc(db, "sessions", session.id), { planApproved: true })
+    } catch {
+      // ignore — approval is carried by the run request
+    }
     await handleRun("Approved. Build from the plan.")
   }, [session, isRunning, handleRun])
 
@@ -2130,6 +2196,7 @@ export default function ComputerPage() {
     if (!session?.projectId) return
 
     const onMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return
       const data = event.data as { type?: string; ok?: boolean; builderProjectId?: string; message?: string }
       if (data?.type !== "supabase-oauth") return
       if (data.builderProjectId && data.builderProjectId !== session.projectId) return
@@ -2235,6 +2302,7 @@ export default function ComputerPage() {
         hasPreview={hasPreview}
         hasBrowser={hasBrowser}
         hasResearch={hasResearch}
+        hasCode={projectFileCount > 0}
         onTabChange={setActiveTab}
         contextUsage={agentContextUsage}
         theme={computerTheme}
@@ -2402,7 +2470,7 @@ export default function ComputerPage() {
                     if (!runtimeError || fixingError) return
                     setFixingError(true)
                     setMobileView("feed")
-                    const fixPrompt = `Fix this runtime error in the app:\n\n${runtimeError.message}${runtimeError.stack ? '\n\nStack trace:\n' + runtimeError.stack.slice(0, 800) : ''}`
+                    const fixPrompt = buildRuntimeFixPrompt(runtimeError, projectIntegration?.files ?? [])
                     setRuntimeError(null)
                     await handleRun(fixPrompt)
                     setFixingError(false)
@@ -2416,6 +2484,8 @@ export default function ComputerPage() {
                   previewSyncNonce={previewRetryNonce}
                   previewSrc={previewNavSrc}
                   iframeReloadNonce={previewReloadNonce}
+                  files={projectIntegration?.files ?? []}
+                  codeTheme={computerTheme}
                 />
               </motion.div>
             </AnimatePresence>
@@ -2429,7 +2499,7 @@ export default function ComputerPage() {
       {/* ── Mobile view switcher ── */}
       <nav
         aria-label="Switch between chat and preview"
-        className="lotus-glass-strong absolute inset-x-3 z-20 mx-auto max-w-xs rounded-xl border border-border/50 px-1 py-1 shadow-[0_22px_70px_-42px_rgba(0,0,0,0.9)] sm:hidden"
+        className="lotus-glass-strong absolute inset-x-3 z-20 mx-auto max-w-xs rounded-full border border-border/50 px-1 py-1 shadow-[0_22px_70px_-42px_rgba(0,0,0,0.9)] sm:hidden"
         style={{ bottom: "max(0.875rem, env(safe-area-inset-bottom))" }}
       >
         <div className="grid grid-cols-2 gap-1">

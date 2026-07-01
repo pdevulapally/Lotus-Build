@@ -3,11 +3,14 @@ import { adminDb } from "@/lib/firebase-admin"
 import { assertProjectCanEdit } from "@/lib/project-access"
 import { requireUserUid } from "@/lib/server-auth"
 import { supabaseManagementFetch } from "@/lib/supabase-management"
+import { checkRateLimit } from "@/lib/rate-limit-plan"
 
 export const runtime = "nodejs"
 const MAX_SQL_CHARS = 200_000
 
 export async function POST(req: Request) {
+  const blocked = await checkRateLimit(req, "provision")
+  if (blocked) return blocked
   try {
     const uid = await requireUserUid(req)
     const body = await req.json().catch(() => ({}))

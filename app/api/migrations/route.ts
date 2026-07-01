@@ -2,12 +2,15 @@ import { NextResponse } from "next/server"
 import { adminDb } from "@/lib/firebase-admin"
 import { assertProjectCanEdit } from "@/lib/project-access"
 import { requireUserUid } from "@/lib/server-auth"
+import { checkRateLimit } from "@/lib/rate-limit-plan"
 
 export const runtime = "nodejs"
 const MAX_SQL_CHARS = 200_000
 const MAX_MIGRATION_NAME_CHARS = 120
 
 export async function POST(req: Request) {
+  const blocked = await checkRateLimit(req, "migration")
+  if (blocked) return blocked
   try {
     const uid = await requireUserUid(req)
     const body = await req.json().catch(() => ({}))

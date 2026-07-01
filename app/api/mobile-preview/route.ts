@@ -3,6 +3,7 @@ import { z } from "zod"
 import { ensureMobilePreview } from "@/lib/mobile-preview/ensure"
 import { mapRouteError } from "@/lib/orchestrator/route-utils"
 import { requireUserUid } from "@/lib/server-auth"
+import { checkRateLimit } from "@/lib/rate-limit-plan"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -12,6 +13,8 @@ const createSchema = z.object({
 })
 
 export async function POST(req: Request) {
+  const blocked = await checkRateLimit(req, "session")
+  if (blocked) return blocked
   try {
     const uid = await requireUserUid(req)
     const body = await req.json().catch(() => null)

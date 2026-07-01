@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { adminAuth, adminDb } from "@/lib/firebase-admin"
 import { requireUserUid } from "@/lib/server-auth"
+import { checkRateLimit } from "@/lib/rate-limit-plan"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -17,6 +18,8 @@ async function requireWorkspaceMember(workspaceId: string, uid: string) {
 }
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const blocked = await checkRateLimit(req, "workspace")
+  if (blocked) return blocked
   try {
     const uid = await requireUserUid(req)
     const { id: workspaceId } = await params

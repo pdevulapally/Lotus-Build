@@ -10,6 +10,7 @@ import {
 import { generatePostgresSchema } from "@/lib/integrations/supabase/schema"
 import { assertProjectCanEdit } from "@/lib/project-access"
 import { requireUserUid } from "@/lib/server-auth"
+import { checkRateLimit } from "@/lib/rate-limit-plan"
 import { supabaseManagementFetch } from "@/lib/supabase-management"
 import { encryptEnvVars } from "@/lib/encrypt-env"
 
@@ -55,6 +56,8 @@ function ensureSupportFiles(params: {
 }
 
 export async function POST(req: Request) {
+  const blocked = await checkRateLimit(req, "provision")
+  if (blocked) return blocked
   try {
     const uid = await requireUserUid(req)
     const body = await req.json().catch(() => ({}))

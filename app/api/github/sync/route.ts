@@ -8,6 +8,7 @@ import {
   getUserInstallationRepos,
   getUserInstallations,
 } from "@/lib/integrations/github-app"
+import { checkRateLimit } from "@/lib/rate-limit-plan"
 
 export const runtime = "nodejs"
 
@@ -269,6 +270,8 @@ async function writeFilesToRepo(params: {
 }
 
 export async function POST(req: Request) {
+  const blocked = await checkRateLimit(req, "sync")
+  if (blocked) return blocked
   try {
     const uid = await requireUserUid(req)
     const token = await getGitHubToken(uid)

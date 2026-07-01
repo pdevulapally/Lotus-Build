@@ -2,10 +2,13 @@ import { NextResponse } from "next/server"
 import { adminDb } from "@/lib/firebase-admin"
 import { assertProjectCanEdit } from "@/lib/project-access"
 import { getUserNetlifyToken, requireUserUid } from "@/lib/server-auth"
+import { checkRateLimit } from "@/lib/rate-limit-plan"
 
 export const runtime = "nodejs"
 
 export async function GET(req: Request, ctx: { params: Promise<{ deployId: string }> }) {
+  const blocked = await checkRateLimit(req, "deploy")
+  if (blocked) return blocked
   try {
     const uid = await requireUserUid(req)
 

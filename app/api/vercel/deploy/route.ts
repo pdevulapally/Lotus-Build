@@ -5,6 +5,7 @@ import { normalizeGeneratedCodeFiles } from "@/lib/generated-code-normalization"
 import { assertProjectCanEdit } from "@/lib/project-access"
 import { decryptEnvVars } from "@/lib/encrypt-env"
 import { normalizeRelativeFilePath } from "@/lib/security/files"
+import { checkRateLimit } from "@/lib/rate-limit-plan"
 
 export const runtime = "nodejs"
 
@@ -57,6 +58,8 @@ function normalizeSourceImports(files: any[]) {
 }
 
 export async function POST(req: Request) {
+  const blocked = await checkRateLimit(req, "deploy")
+  if (blocked) return blocked
   let projectId = ""
 
   try {

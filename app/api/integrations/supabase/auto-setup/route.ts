@@ -8,6 +8,7 @@ import { extractSqlTables, generatePostgresSchema } from "@/lib/integrations/sup
 import { assertProjectCanEdit } from "@/lib/project-access"
 import { requireUserUid } from "@/lib/server-auth"
 import { getSupabaseConnection, supabaseManagementFetch } from "@/lib/supabase-management"
+import { checkRateLimit } from "@/lib/rate-limit-plan"
 
 export const runtime = "nodejs"
 
@@ -152,6 +153,8 @@ async function ensureLinkedSupabaseProject(params: {
 }
 
 export async function POST(req: Request) {
+  const blocked = await checkRateLimit(req, "provision")
+  if (blocked) return blocked
   try {
     const uid = await requireUserUid(req)
     const body = await req.json().catch(() => ({})) as Record<string, unknown>

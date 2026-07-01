@@ -3,10 +3,13 @@ import { adminDb } from "@/lib/firebase-admin"
 import { requireUserUid } from "@/lib/server-auth"
 import { assertProjectCanEdit } from "@/lib/project-access"
 import { encryptEnvVars } from "@/lib/encrypt-env"
+import { checkRateLimit } from "@/lib/rate-limit-plan"
 
 export const runtime = "nodejs"
 
 export async function POST(req: Request) {
+  const blocked = await checkRateLimit(req, "provision")
+  if (blocked) return blocked
   try {
     const uid = await requireUserUid(req)
     const body = await req.json().catch(() => ({}))

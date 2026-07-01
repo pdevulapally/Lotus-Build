@@ -339,11 +339,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const newUsed = (userData.tokenUsage.used || 0) + actualDeduct
 
     const userRef = doc(db, "users", user.uid)
-    // client-side best-effort update; server-side transaction should be authoritative
-    await updateDoc(userRef, {
-      'tokenUsage.used': newUsed,
-      'tokenUsage.remaining': newRemaining,
-    } as any)
+    // Optimistic UI only. tokenUsage is server-write-only under Firestore rules
+    // (the charge-tokens transaction is authoritative), so a permission-denied
+    // rejection here is expected and must not break generation — the user-doc
+    // onSnapshot will reconcile the real balance.
+    try {
+      await updateDoc(userRef, {
+        'tokenUsage.used': newUsed,
+        'tokenUsage.remaining': newRemaining,
+      } as any)
+    } catch {
+      // ignore — server transaction owns tokenUsage
+    }
 
     setUserData(prev => prev ? { ...prev, tokenUsage: { ...prev.tokenUsage, used: newUsed, remaining: newRemaining } } : null)
   }
