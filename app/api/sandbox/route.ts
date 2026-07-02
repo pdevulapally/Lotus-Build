@@ -1351,6 +1351,7 @@ export async function POST(req: Request) {
       }
 
       let sandbox: Sandbox | null = null
+      let isFreshSandbox = false
       let cleanupScheduled = false
 
       const cleanupOnAbort = async () => {
@@ -1420,6 +1421,7 @@ export async function POST(req: Request) {
           try {
             const templateId = process.env.E2B_TEMPLATE_ID || "base"
             sandbox = await Sandbox.create(templateId, opts)
+            isFreshSandbox = true
             console.log(`[sandbox] Created new sandbox: ${sandbox.sandboxId} (+${Date.now() - t0}ms)`)
           } catch (createErr: any) {
             const msg = createErr?.message ?? ""
@@ -1612,8 +1614,13 @@ export async function POST(req: Request) {
         }
 
         // Clean up previous preview servers, then pick the first available preview port.
-        for (const port of DEV_PORT_CANDIDATES) {
-          await cleanupPort(sandbox, port)
+        // Fresh sandboxes have never run a dev server, so there is nothing to clean up;
+        // selectDevPort below still verifies the port is free before choosing it.
+        if (isFreshSandbox) {
+          console.log(`[sandbox] Fresh sandbox, skipping port cleanup (+${Date.now() - t0}ms)`)
+        } else {
+          await Promise.allSettled(DEV_PORT_CANDIDATES.map((port) => cleanupPort(sandbox!, port)))
+          console.log(`[sandbox] Port cleanup complete (+${Date.now() - t0}ms)`)
         }
         const devPort = await selectDevPort(sandbox)
         console.log(`[sandbox] Selected dev server port: ${devPort} (+${Date.now() - t0}ms)`)

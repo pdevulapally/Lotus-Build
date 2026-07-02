@@ -77,7 +77,9 @@
       "PowerShell(e2b *)",
       "PowerShell(node scripts/generate-template-package-json.mjs)",
       "PowerShell(git *)",
-      "PowerShell(node \"C:\\\\Users\\\\Preet\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Preet-Desktop-Lotus-Build\\\\6fa5656a-0c49-4272-acf7-783926b45c56\\\\scratchpad\\\\verify-template.mjs\")"
+      "PowerShell(node \"C:\\\\Users\\\\Preet\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Preet-Desktop-Lotus-Build\\\\6fa5656a-0c49-4272-acf7-783926b45c56\\\\scratchpad\\\\verify-template.mjs\")",
+      "PowerShell(Out-File *)",
+      "PowerShell(Select-String *)"
     ]
   }
 }
