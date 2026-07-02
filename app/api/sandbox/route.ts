@@ -1280,7 +1280,18 @@ export async function POST(req: Request) {
 
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (obj: any) => ndjson(controller, encoder, obj)
+      const t0 = Date.now()
+      let tSandbox = t0
+      let tWrite = t0
+      let tInstall = t0
+      let installSkipped = false
+      const send = (obj: any) => {
+        if (obj?.type === "step") {
+          const ts = Date.now()
+          obj = { ...obj, ts, elapsedMs: ts - t0 }
+        }
+        ndjson(controller, encoder, obj)
+      }
 
       let heartbeatInterval: NodeJS.Timeout | null = null
       const startHeartbeat = () => {
@@ -1320,8 +1331,22 @@ export async function POST(req: Request) {
 
       const emitSuccess = (url: string, sandboxId: string, warning?: string) => {
         if (streamClosed) return
+        const tReady = Date.now()
         send({ type: "step", step: "dev", status: "success", message: "Preview ready" })
-        send({ type: "success", url, sandboxId, warning })
+        send({
+          type: "success",
+          url,
+          sandboxId,
+          warning,
+          timings: {
+            createMs: tSandbox - t0,
+            writeMs: tWrite - tSandbox,
+            installMs: installSkipped ? 0 : tInstall - tWrite,
+            devReadyMs: tReady - tInstall,
+            totalMs: tReady - t0,
+            installSkipped,
+          },
+        })
         finish()
       }
 
@@ -1395,7 +1420,7 @@ export async function POST(req: Request) {
           try {
             const templateId = process.env.E2B_TEMPLATE_ID || "base"
             sandbox = await Sandbox.create(templateId, opts)
-            console.log(`[sandbox] Created new sandbox: ${sandbox.sandboxId}`)
+            console.log(`[sandbox] Created new sandbox: ${sandbox.sandboxId} (+${Date.now() - t0}ms)`)
           } catch (createErr: any) {
             const msg = createErr?.message ?? ""
             console.error("[sandbox] Create failed:", msg)
@@ -1415,6 +1440,8 @@ export async function POST(req: Request) {
           emitTerminalError({ error: "Failed to get sandbox", failureCategory: "infra", failureReason: "Sandbox unavailable" })
           return
         }
+
+        tSandbox = Date.now()
 
         await tryExtendTimeout(sandbox)
 
@@ -1450,6 +1477,7 @@ export async function POST(req: Request) {
         // Visual edit: inject client script only for live preview (skip when building for deploy)
         if (injectVisualEdit) await injectVisualEditScript(sandbox)
         
+        tWrite = Date.now()
         send({ type: "step", step: "write", status: "success", message: "Files written" })
 
         // Handle environment variables
@@ -1522,7 +1550,9 @@ export async function POST(req: Request) {
         const skipInstall = nodeModulesValid && currentLockHash && currentLockHash === lastLockHash
 
         if (skipInstall) {
-          console.log("[sandbox] Skipping install, using cached node_modules")
+          installSkipped = true
+          tInstall = Date.now()
+          console.log(`[sandbox] Skipping install, using cached node_modules (+${tInstall - t0}ms)`)
           send({ type: "step", step: "install", status: "success", message: "Using cached dependencies" })
         } else {
           const installCmd = `cd ${PROJECT_DIR} && npm install --prefer-offline --legacy-peer-deps --no-audit --no-fund 2>&1`
@@ -1552,7 +1582,8 @@ export async function POST(req: Request) {
             if (install.exitCode !== 0 && install.exitCode !== undefined) {
               throw new Error(`npm install failed with exit code ${install.exitCode}`)
             }
-            
+
+            tInstall = Date.now()
             await new Promise(r => setTimeout(r, 150))
             send({
               type: "step",
@@ -1585,7 +1616,7 @@ export async function POST(req: Request) {
           await cleanupPort(sandbox, port)
         }
         const devPort = await selectDevPort(sandbox)
-        console.log(`[sandbox] Selected dev server port: ${devPort}`)
+        console.log(`[sandbox] Selected dev server port: ${devPort} (+${Date.now() - t0}ms)`)
 
         // Configure Vite if needed
         if (framework === "vite") {
@@ -1731,7 +1762,7 @@ export async function POST(req: Request) {
               continue
             }
 
-            console.log(`[sandbox] Server ready! Reason: ${readyCheck.reason}, publicUrlReady=${publicUrlReady}`)
+            console.log(`[sandbox] Server ready! Reason: ${readyCheck.reason}, publicUrlReady=${publicUrlReady} (+${Date.now() - t0}ms)`)
             
             // Get final logs — also brief delay to catch Vite lazy-resolution errors
             await new Promise(r => setTimeout(r, 2500))

@@ -71,7 +71,13 @@
       "PowerShell(node -e \"const r = require\\('react-resizable-panels'\\); console.log\\('RRP:', Object.keys\\(r\\).join\\(', '\\)\\); const rc = require\\('recharts'\\); console.log\\('recharts has TooltipContentProps:', 'TooltipContentProps' in rc\\); console.log\\(Object.keys\\(rc\\).filter\\(k=>/Tooltip|Legend|Payload/i.test\\(k\\)\\).join\\(', '\\)\\)\")",
       "PowerShell(Get-ChildItem node_modules/react-resizable-panels/dist; node -e \"const fs=require\\('fs'\\); const d=fs.readFileSync\\('node_modules/react-resizable-panels/dist/react-resizable-panels.d.ts','utf8'\\); console.log\\(d.slice\\(0,6000\\)\\)\")",
       "PowerShell(node -e \"const fs=require\\('fs'\\); const d=fs.readFileSync\\('node_modules/react-resizable-panels/dist/react-resizable-panels.d.ts','utf8'\\); const i=d.indexOf\\('export declare function Separator'\\); console.log\\(d.slice\\(i-3000, i+2500\\)\\)\")",
-      "PowerShell(npm run *)"
+      "PowerShell(npm run *)",
+      "PowerShell(git stash *)",
+      "PowerShell(try { \\(Get-Command e2b -ErrorAction Stop\\).Source } catch { \"e2b: not on PATH\" }; try { \\(Get-Command docker -ErrorAction Stop\\).Source } catch { \"docker: not on PATH\" }; if \\(Test-Path .env.local\\) { \"has .env.local\" }; if \\(Test-Path .env\\) { \"has .env\" }; if \\($env:E2B_API_KEY\\) { \"E2B_API_KEY in env\" } else { \"E2B_API_KEY not in shell env\" }; if \\($env:E2B_ACCESS_TOKEN\\) { \"E2B_ACCESS_TOKEN in env\" } else { \"E2B_ACCESS_TOKEN not in shell env\" })",
+      "PowerShell(e2b *)",
+      "PowerShell(node scripts/generate-template-package-json.mjs)",
+      "PowerShell(git *)",
+      "PowerShell(node \"C:\\\\Users\\\\Preet\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Preet-Desktop-Lotus-Build\\\\6fa5656a-0c49-4272-acf7-783926b45c56\\\\scratchpad\\\\verify-template.mjs\")"
     ]
   }
 }
