@@ -60,6 +60,18 @@ export const SCOPE_LIMITS: Record<string, Record<PlanTier, { limit: number; wind
     pro:       { limit: 3,   windowMs: DAY  },
     team:      { limit: 3,   windowMs: DAY  },
   },
+  contact: {
+    anonymous: { limit: 3,   windowMs: HOUR },
+    free:      { limit: 5,   windowMs: HOUR },
+    pro:       { limit: 10,  windowMs: HOUR },
+    team:      { limit: 20,  windowMs: HOUR },
+  },
+  "contact-token": {
+    anonymous: { limit: 30,  windowMs: HOUR },
+    free:      { limit: 30,  windowMs: HOUR },
+    pro:       { limit: 60,  windowMs: HOUR },
+    team:      { limit: 60,  windowMs: HOUR },
+  },
   default: {
     anonymous: { limit: 20,  windowMs: MIN  },
     free:      { limit: 30,  windowMs: MIN  },

@@ -57,6 +57,23 @@ export const lotusBuildTestimonials = [
   },
 ] as const
 
+export const lotusBuildSupportEmail = "lotusbuild.support@gmail.com"
+
+export const lotusBuildSupportAreas = [
+  {
+    title: "Build issues",
+    description: "Preview errors, generated files, repair runs, and project recovery.",
+  },
+  {
+    title: "Account and billing",
+    description: "Plans, token usage, workspace access, and account settings.",
+  },
+  {
+    title: "Shipping",
+    description: "GitHub sync, environment variables, Supabase, Vercel, and Netlify handoff.",
+  },
+] as const
+
 export const lotusBuildFaqs = [
   {
     q: "How do I create a new project?",

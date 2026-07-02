@@ -65,7 +65,13 @@
       "Bash(del *)",
       "Bash(echo \"exit=$?\")",
       "Bash(command -v firebase)",
-      "Bash(firebase --version)"
+      "Bash(firebase --version)",
+      "PowerShell(npx tsc --noEmit 2>$null; echo \"exit: $LASTEXITCODE\")",
+      "PowerShell(node -p \"require\\('./node_modules/recharts/package.json'\\).version + ' | ' + require\\('./node_modules/react-resizable-panels/package.json'\\).version + ' | ' + require\\('./node_modules/react-day-picker/package.json'\\).version\")",
+      "PowerShell(node -e \"const r = require\\('react-resizable-panels'\\); console.log\\('RRP:', Object.keys\\(r\\).join\\(', '\\)\\); const rc = require\\('recharts'\\); console.log\\('recharts has TooltipContentProps:', 'TooltipContentProps' in rc\\); console.log\\(Object.keys\\(rc\\).filter\\(k=>/Tooltip|Legend|Payload/i.test\\(k\\)\\).join\\(', '\\)\\)\")",
+      "PowerShell(Get-ChildItem node_modules/react-resizable-panels/dist; node -e \"const fs=require\\('fs'\\); const d=fs.readFileSync\\('node_modules/react-resizable-panels/dist/react-resizable-panels.d.ts','utf8'\\); console.log\\(d.slice\\(0,6000\\)\\)\")",
+      "PowerShell(node -e \"const fs=require\\('fs'\\); const d=fs.readFileSync\\('node_modules/react-resizable-panels/dist/react-resizable-panels.d.ts','utf8'\\); const i=d.indexOf\\('export declare function Separator'\\); console.log\\(d.slice\\(i-3000, i+2500\\)\\)\")",
+      "PowerShell(npm run *)"
     ]
   }
 }

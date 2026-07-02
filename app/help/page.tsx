@@ -3,9 +3,10 @@
 import { useMemo, useState } from "react"
 import Link from "next/link"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { ContactForm } from "@/components/help/contact-form"
 import { FooterSection } from "@/components/sections/footer-section"
 import { Navbar } from "@/components/ui/navbar"
-import { lotusBuildFaqs } from "@/lib/lotus-build-site-content"
+import { lotusBuildFaqs, lotusBuildSupportAreas, lotusBuildSupportEmail } from "@/lib/lotus-build-site-content"
 import { cn } from "@/lib/utils"
 
 const FAQ_CATEGORIES = [
@@ -25,12 +26,6 @@ const FAQ_CATEGORY_MAP: CategoryKey[] = [
   "preview",
   "billing",
   "sharing",
-]
-
-const supportRows = [
-  ["Build issues", "Preview errors, generated files, repair runs, and project recovery."],
-  ["Account and billing", "Plans, token usage, workspace access, and account settings."],
-  ["Shipping", "GitHub sync, environment variables, Supabase, Vercel, and Netlify handoff."],
 ]
 
 export default function HelpPage() {
@@ -70,7 +65,7 @@ export default function HelpPage() {
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
                 <Link
-                  href="mailto:support@lotus-build.app"
+                  href="#contact"
                   className="inline-flex min-h-11 items-center rounded-full bg-foreground px-5 text-sm font-semibold text-background transition hover:bg-foreground/85"
                 >
                   Contact support
@@ -113,7 +108,7 @@ export default function HelpPage() {
             </h2>
           </div>
           <div className="divide-y divide-border border-y border-border">
-            {supportRows.map(([title, description]) => (
+            {lotusBuildSupportAreas.map(({ title, description }) => (
               <article key={title} className="grid gap-4 py-6 sm:grid-cols-[180px_minmax(0,1fr)]">
                 <h3 className="text-lg font-semibold tracking-[-0.02em] text-foreground">{title}</h3>
                 <p className="text-sm leading-7 text-muted-foreground">{description}</p>
@@ -190,6 +185,34 @@ export default function HelpPage() {
               </button>
             </div>
           )}
+        </div>
+      </section>
+
+      <section
+        id="contact"
+        className="scroll-mt-24 border-t border-border bg-[#f7f5ef] px-4 py-16 sm:px-6 sm:py-20 lg:px-8"
+      >
+        <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[0.72fr_1.28fr]">
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">Contact us</p>
+            <h2 className="mt-3 max-w-sm text-3xl font-medium tracking-[-0.04em] text-foreground sm:text-4xl">
+              Send the details. A human replies.
+            </h2>
+            <p className="mt-4 max-w-sm text-sm leading-7 text-muted-foreground">
+              Include the project name and what you expected to happen so the team can pick it up without a
+              back-and-forth.
+            </p>
+            <p className="mt-6 text-sm text-muted-foreground">
+              Prefer email?{" "}
+              <a
+                href={`mailto:${lotusBuildSupportEmail}`}
+                className="font-medium text-foreground underline underline-offset-4 transition hover:no-underline"
+              >
+                {lotusBuildSupportEmail}
+              </a>
+            </p>
+          </div>
+          <ContactForm />
         </div>
       </section>
 
