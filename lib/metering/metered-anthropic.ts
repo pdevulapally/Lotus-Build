@@ -68,7 +68,10 @@ export class UsageMeter {
    * payload so it can be reconciled — it never crashes the run.
    */
   record(input: MeterRecordInput): number {
-    const charged = input.usage ? computeChargedTokens(input.model, input.usage) : 0
+    const reported = input.usage ? computeChargedTokens(input.model, input.usage) : 0
+    const remaining = this.opts.remainingTokens
+    const localRemaining = remaining == null ? null : Math.max(0, remaining - this.spentTokens)
+    const charged = localRemaining == null ? reported : Math.min(reported, localRemaining)
     this.spentTokens += charged
 
     const persist = recordUsageAndDebit({
@@ -83,7 +86,7 @@ export class UsageMeter {
     }).catch((err) => {
       console.error(
         "[metering] Failed to persist usage event — reconcile manually:",
-        JSON.stringify({ ctx: this.ctx, input, charged }),
+        JSON.stringify({ ctx: this.ctx, input, reportedTokens: reported, localChargedTokens: charged }),
         err
       )
     })

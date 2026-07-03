@@ -1225,6 +1225,13 @@ export default function ComputerPage() {
   const prevSessionStatusRef = useRef<ComputerSessionStatus | null>(null)
   const prevMobileSyncStatusRef = useRef<ComputerSessionStatus | null>(null)
   const lastCodeEventCountRef = useRef(0)
+  const requestPreviewRecovery = useCallback(() => {
+    previewEnsureKeyRef.current = null
+    setPreviewEnsureError(null)
+    setPreviewNavSrc(null)
+    setPreviewReloadNonce((current) => current + 1)
+    setPreviewRetryNonce((current) => current + 1)
+  }, [])
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -2442,7 +2449,7 @@ export default function ComputerPage() {
               <WorkspaceTabBar
                 activeTab={activeTab}
                 previewUrl={session.previewUrl}
-                onRefreshPreview={() => setPreviewReloadNonce((n) => n + 1)}
+                onRefreshPreview={requestPreviewRecovery}
                 onNavigatePreview={(url) => setPreviewNavSrc(url)}
               />
             <AnimatePresence mode="wait" initial={false}>
@@ -2476,11 +2483,7 @@ export default function ComputerPage() {
                     setFixingError(false)
                   }}
                   onDismissError={() => setRuntimeError(null)}
-                  onRetryPreview={() => {
-                    previewEnsureKeyRef.current = null
-                    setPreviewEnsureError(null)
-                    setPreviewRetryNonce((n) => n + 1)
-                  }}
+                  onRetryPreview={requestPreviewRecovery}
                   previewSyncNonce={previewRetryNonce}
                   previewSrc={previewNavSrc}
                   iframeReloadNonce={previewReloadNonce}

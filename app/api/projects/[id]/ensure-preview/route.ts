@@ -8,12 +8,10 @@ export const dynamic = "force-dynamic"
 
 type ProjectFile = { path: string; content: string }
 
-function getTrustedAppOrigin(): string {
-  const configured = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL
-  if (!configured) throw new Error("preview_config_missing")
-  const parsed = new URL(configured)
+function getRequestOrigin(req: Request): string {
+  const parsed = new URL(req.url)
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    throw new Error("preview_config_invalid")
+    throw new Error("preview_origin_invalid")
   }
   return parsed.origin
 }
@@ -41,10 +39,10 @@ function previewUnavailableResponse(params: {
 
 function publicPreviewError(err: unknown) {
   const raw = err instanceof Error ? err.message : ""
-  if (raw === "preview_config_missing" || raw === "preview_config_invalid") {
+  if (raw === "preview_origin_invalid") {
     return {
       code: raw,
-      message: "Preview recovery is not configured on this deployment. Set APP_URL or NEXT_PUBLIC_APP_URL to the public app origin.",
+      message: "Preview recovery could not resolve the current app origin.",
       status: 200,
     }
   }
@@ -159,7 +157,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       return NextResponse.json({ error: "Project has no files to preview yet." }, { status: 400 })
     }
 
-    const origin = getTrustedAppOrigin()
+    const origin = getRequestOrigin(req)
     const auth = req.headers.get("authorization") || ""
 
     // Fast path: try to keep existing runtime alive when possible.
@@ -198,11 +196,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       }),
     })
     if (!sandboxRes.ok) {
-      const responseBody = await sandboxRes.text().catch(() => "")
+      await sandboxRes.text().catch(() => "")
       console.warn("[ensure-preview] sandbox recovery failed", {
         projectId,
         status: sandboxRes.status,
-        responseBody: responseBody.slice(0, 500),
       })
       return previewUnavailableResponse({
         code: "preview_sandbox_failed",

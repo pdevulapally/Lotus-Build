@@ -990,8 +990,14 @@ const VISUAL_EDIT_SCRIPT = `
       }, '*');
     }
   };
+  var visualEditEnabled = false;
   var lastHover = null;
+  function setVisualEditEnabled(value) {
+    visualEditEnabled = !!value;
+    if (!visualEditEnabled) lastHover = null;
+  }
   document.addEventListener('mousemove', function(e) {
+    if (!visualEditEnabled) return;
     var el = e.target && e.target.closest ? e.target.closest('[data-bstudio-id]') : null;
     if (el && el.getAttribute('data-bstudio-id') !== lastHover) {
       lastHover = el.getAttribute('data-bstudio-id');
@@ -1000,6 +1006,7 @@ const VISUAL_EDIT_SCRIPT = `
     }
   }, true);
   document.addEventListener('click', function(e) {
+    if (!visualEditEnabled) return;
     var el = e.target && e.target.closest ? e.target.closest('[data-bstudio-id]') : null;
     if (el) {
       e.preventDefault();
@@ -1054,6 +1061,11 @@ const VISUAL_EDIT_SCRIPT = `
   window.addEventListener('message', function(e) {
     var d = e.data;
     if (!d) return;
+    if (d.type === 'bstudio-set-visual-edit') {
+      setVisualEditEnabled(!!d.enabled);
+      if (visualEditEnabled) postStructure();
+      return;
+    }
     if (d.type === 'bstudio-apply-design' && d.id) {
       var el = document.querySelector('[data-bstudio-id="' + d.id + '"]');
       if (!el) return;

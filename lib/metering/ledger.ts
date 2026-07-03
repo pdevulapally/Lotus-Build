@@ -11,9 +11,9 @@
  *   - Actuals only: a call whose usage is unavailable is recorded as
  *     `usage_missing` with a zero charge for offline reconciliation. It is
  *     never estimated from character counts.
- *   - No silent forgiveness: the full charge is always added to
- *     `tokenUsage.used`; anything beyond the balance is recorded on the event
- *     as `overageTokens` (remaining floors at 0).
+ *   - No over-quota debit: provider-reported usage is stored for audit, but
+ *     the user balance is only debited up to the live remaining balance.
+ *     Anything beyond the balance is recorded on the event as `overageTokens`.
  *   - Canonical shape: reads tolerate the legacy `tokensUsed`/`tokensLimit`
  *     fields, writes only ever touch `tokenUsage.*` (the same shape written
  *     by the Stripe webhook and the monthly reset).
@@ -56,6 +56,7 @@ export type UsageEventInput = {
 }
 
 export type UsageChargeResult = {
+  reportedTokens: number
   chargedTokens: number
   overageTokens: number
   remaining: number | null
@@ -107,12 +108,12 @@ function readUserBalance(data: Record<string, unknown> | undefined): UserBalance
  * Safe to call concurrently; replays keyed by `requestId` are no-ops.
  */
 export async function recordUsageAndDebit(event: UsageEventInput): Promise<UsageChargeResult> {
-  const chargedTokens = event.usage ? computeChargedTokens(event.model, event.usage) : 0
+  const reportedTokens = event.usage ? computeChargedTokens(event.model, event.usage) : 0
   const status = event.usage ? "charged" : "usage_missing"
 
   // A call that genuinely used zero tokens (and reported so) needs no ledger entry.
-  if (event.usage && !hasUsage(event.usage) && chargedTokens === 0) {
-    return { chargedTokens: 0, overageTokens: 0, remaining: null, deduplicated: false }
+  if (event.usage && !hasUsage(event.usage) && reportedTokens === 0) {
+    return { reportedTokens: 0, chargedTokens: 0, overageTokens: 0, remaining: null, deduplicated: false }
   }
 
   const eventsCollection = adminDb.collection("usageEvents")
@@ -125,8 +126,9 @@ export async function recordUsageAndDebit(event: UsageEventInput): Promise<Usage
     const [existingEvent, userSnap] = await Promise.all([tx.get(eventRef), tx.get(userRef)])
 
     if (existingEvent.exists) {
-      const prior = existingEvent.data() as { chargedTokens?: number; overageTokens?: number }
+      const prior = existingEvent.data() as { reportedTokens?: number; chargedTokens?: number; overageTokens?: number }
       return {
+        reportedTokens: prior?.reportedTokens ?? ((prior?.chargedTokens ?? 0) + (prior?.overageTokens ?? 0)),
         chargedTokens: prior?.chargedTokens ?? 0,
         overageTokens: prior?.overageTokens ?? 0,
         remaining: null,
@@ -136,9 +138,10 @@ export async function recordUsageAndDebit(event: UsageEventInput): Promise<Usage
     if (!userSnap.exists) throw new MeteringUserNotFoundError()
 
     const balance = readUserBalance(userSnap.data())
-    const overageTokens = Math.max(0, chargedTokens - balance.remaining)
+    const chargedTokens = Math.min(reportedTokens, balance.remaining)
+    const overageTokens = Math.max(0, reportedTokens - chargedTokens)
     const newUsed = balance.used + chargedTokens
-    const newRemaining = Math.max(0, balance.remaining - chargedTokens)
+    const newRemaining = balance.remaining - chargedTokens
 
     tx.create(eventRef, {
       uid: event.uid,
@@ -156,6 +159,7 @@ export async function recordUsageAndDebit(event: UsageEventInput): Promise<Usage
             cacheReadTokens: event.usage.cacheReadTokens,
           }
         : null,
+      reportedTokens,
       chargedTokens,
       overageTokens,
       planId: balance.planId,
@@ -172,11 +176,11 @@ export async function recordUsageAndDebit(event: UsageEventInput): Promise<Usage
 
     if (overageTokens > 0) {
       console.warn(
-        `[metering] uid=${event.uid} feature=${event.feature} overage of ${overageTokens} tokens recorded (charge ${chargedTokens} > remaining ${balance.remaining})`
+        `[metering] uid=${event.uid} feature=${event.feature} usage exceeded balance by ${overageTokens} tokens (reported ${reportedTokens}, charged ${chargedTokens}, remaining ${balance.remaining})`
       )
     }
 
-    return { chargedTokens, overageTokens, remaining: newRemaining, deduplicated: false }
+    return { reportedTokens, chargedTokens, overageTokens, remaining: newRemaining, deduplicated: false }
   })
 }
 

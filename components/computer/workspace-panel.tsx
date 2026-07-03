@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 import Link from "next/link"
 import { AnimatePresence, motion } from "framer-motion"
 import { BookOpen, Check, ChevronDown, ChevronRight, Copy, ExternalLink, FileCode, Folder, FolderOpen, Globe2, Home, Laptop, Loader2, Monitor, RotateCcw, ShieldAlert, Wrench } from "lucide-react"
@@ -26,6 +26,246 @@ function formatBrowserHost(url: string) {
     return new URL(url).hostname.replace(/^www\./, "")
   } catch {
     return "Browser"
+  }
+}
+
+type ResearchBlock =
+  | { type: "heading"; level: number; text: string }
+  | { type: "metadata"; entries: Array<{ label: string; value: string }> }
+  | { type: "paragraph"; text: string }
+  | { type: "list"; ordered: boolean; items: string[] }
+  | { type: "tags"; tags: string[] }
+  | { type: "colors"; colors: Array<{ label: string; value: string }> }
+
+const LINK_REGEX = /https?:\/\/[^\s]+/g
+const COLOR_LINE_REGEX = /^(?:HEX\s+)?(#[0-9A-Fa-f]{6})(.*)$/
+
+function formatTextWithLinks(text: string): React.ReactNode[] {
+  const parts: React.ReactNode[] = []
+  let lastIndex = 0
+  text.replace(LINK_REGEX, (match, offset) => {
+    if (offset > lastIndex) {
+      parts.push(text.slice(lastIndex, offset))
+    }
+    parts.push(
+      <a
+        key={`${match}-${offset}`}
+        href={match}
+        target="_blank"
+        rel="noreferrer"
+        className="text-foreground underline underline-offset-2 transition-colors hover:text-foreground/80"
+      >
+        {match}
+      </a>,
+    )
+    lastIndex = offset + match.length
+    return match
+  })
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex))
+  }
+  return parts
+}
+
+function parseResearchNotes(text: string): ResearchBlock[] {
+  const lines = text.replace(/\r/g, "").split(/\n/)
+  const blocks: ResearchBlock[] = []
+
+  const normalizeLine = (line: string) => line.trim()
+
+  let index = 0
+  while (index < lines.length) {
+    const line = normalizeLine(lines[index])
+    if (!line) {
+      index += 1
+      continue
+    }
+
+    const headingMatch = line.match(/^#{1,6}\s*(.+)$/)
+    if (headingMatch) {
+      blocks.push({ type: "heading", level: headingMatch[0].startsWith("#") ? headingMatch[0].match(/^#+/)?.[0].length ?? 2 : 2, text: headingMatch[1].trim() })
+      index += 1
+      continue
+    }
+
+    const sectionHeading = line.match(/^(Search results|Color Palette|Browser insight|Research insight|DOM outline|Sections|Votes):?$/i)
+    if (sectionHeading) {
+      blocks.push({ type: "heading", level: 2, text: sectionHeading[1] })
+      index += 1
+      continue
+    }
+
+    if (/^\d+\.\s+/.test(line)) {
+      const items: string[] = []
+      while (index < lines.length) {
+        const current = normalizeLine(lines[index])
+        const numberedMatch = current.match(/^(\d+)\.\s+(.*)$/)
+        if (!numberedMatch) break
+        let item = numberedMatch[2]
+        index += 1
+        while (index < lines.length) {
+          const next = normalizeLine(lines[index])
+          if (!next || /^\d+\.\s+/.test(next) || /^[-*]\s+/.test(next)) break
+          if (/^https?:\/\//i.test(next)) {
+            item = `${item} ${next}`
+            index += 1
+            continue
+          }
+          break
+        }
+        items.push(item.trim())
+      }
+      blocks.push({ type: "list", ordered: true, items })
+      continue
+    }
+
+    if (/^[-*]\s+/.test(line)) {
+      const items: string[] = []
+      while (index < lines.length) {
+        const current = normalizeLine(lines[index])
+        const bulletMatch = current.match(/^[-*]\s+(.*)$/)
+        if (!bulletMatch) break
+        items.push(bulletMatch[1].trim())
+        index += 1
+      }
+      blocks.push({ type: "list", ordered: false, items })
+      continue
+    }
+
+    const colorLines: Array<{ label: string; value: string }> = []
+    let colorIndex = index
+    while (colorIndex < lines.length) {
+      const current = normalizeLine(lines[colorIndex])
+      const colorMatch = current.match(COLOR_LINE_REGEX)
+      if (!colorMatch) break
+      colorLines.push({ label: colorMatch[2].trim() || "", value: colorMatch[1] })
+      colorIndex += 1
+    }
+    if (colorLines.length > 0) {
+      blocks.push({ type: "colors", colors: colorLines })
+      index = colorIndex
+      continue
+    }
+
+    const metaCandidates: Array<{ label: string; value: string }> = []
+    let metaIndex = index
+    while (metaIndex < lines.length) {
+      const current = normalizeLine(lines[metaIndex])
+      const metaMatch = current.match(/^([A-Za-z0-9][A-Za-z0-9\s&'\-\/]+):\s*(.*)$/)
+      if (!metaMatch) break
+      metaCandidates.push({ label: metaMatch[1], value: metaMatch[2] })
+      metaIndex += 1
+    }
+    if (metaCandidates.length > 1 || (metaCandidates.length === 1 && metaCandidates[0].value)) {
+      blocks.push({ type: "metadata", entries: metaCandidates })
+      index = metaIndex
+      continue
+    }
+
+    if (/^This website has been created using/i.test(line)) {
+      const tags: string[] = []
+      index += 1
+      while (index < lines.length) {
+        const next = normalizeLine(lines[index])
+        if (!next || /^[A-Za-z0-9][A-Za-z0-9\s&'\-\/]+:\s*(.*)$/.test(next) || /^\d+\.\s+/.test(next) || /^[-*]\s+/.test(next)) {
+          break
+        }
+        tags.push(next)
+        index += 1
+      }
+      if (tags.length > 0) {
+        blocks.push({ type: "paragraph", text: line })
+        blocks.push({ type: "tags", tags })
+        continue
+      }
+    }
+
+    let paragraphLines = [line]
+    index += 1
+    while (index < lines.length && normalizeLine(lines[index]) && !/^#{1,6}\s+/.test(normalizeLine(lines[index])) && !/^\d+\.\s+/.test(normalizeLine(lines[index])) && !/^[-*]\s+/.test(normalizeLine(lines[index])) && !/^(Search results|Color Palette|Browser insight|Research insight|DOM outline|Sections|Votes):?$/i.test(normalizeLine(lines[index])) && !/^([A-Za-z0-9][A-Za-z0-9\s&'\-\/]+):/.test(normalizeLine(lines[index])) && !COLOR_LINE_REGEX.test(normalizeLine(lines[index]))) {
+      paragraphLines.push(normalizeLine(lines[index]))
+      index += 1
+    }
+    blocks.push({ type: "paragraph", text: paragraphLines.join(" ") })
+  }
+  return blocks
+}
+
+function renderResearchBlock(block: ResearchBlock, eventKey: string, index: number) {
+  switch (block.type) {
+    case "heading":
+      return (
+        <p key={`research-${eventKey}-heading-${index}-${block.text}`} className={cn(
+          "mt-4 text-[12px] font-semibold uppercase tracking-[0.18em] text-muted-foreground",
+          block.level === 2 && "",
+          block.level === 3 && "text-[11px]",
+        )}>
+          {block.text}
+        </p>
+      )
+    case "metadata":
+      return (
+        <dl key={`research-${eventKey}-meta-${index}-${block.entries.map((entry) => entry.label).join("-")}`} className="grid gap-2 sm:grid-cols-2">
+          {block.entries.map((entry) => (
+            <div key={entry.label} className="rounded-2xl border border-border/50 bg-secondary/60 p-3">
+              <dt className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">{entry.label}</dt>
+              <dd className="mt-1 text-[12px] text-foreground">
+                {formatTextWithLinks(entry.value || "").map((node, nodeIndex) => <span key={nodeIndex}>{node}</span>)}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )
+    case "paragraph":
+      return (
+        <p key={`para-${index}-${block.text.slice(0, 40)}`} className="text-[12.5px] leading-relaxed text-muted-foreground">
+          {formatTextWithLinks(block.text)}
+        </p>
+      )
+    case "list":
+      return (
+        <div key={`list-${index}-${block.items.length}`} className="space-y-2">
+          {block.ordered ? (
+            <ol className="list-decimal space-y-2 pl-5 text-[12.5px] leading-relaxed text-muted-foreground">
+              {block.items.map((item, idx) => (
+                <li key={idx}>{formatTextWithLinks(item)}</li>
+              ))}
+            </ol>
+          ) : (
+            <ul className="list-disc space-y-2 pl-5 text-[12.5px] leading-relaxed text-muted-foreground">
+              {block.items.map((item, idx) => (
+                <li key={idx}>{formatTextWithLinks(item)}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )
+    case "tags":
+      return (
+        <div key={`tags-${block.tags.join("-")}`} className="flex flex-wrap gap-2">
+          {block.tags.map((tag) => (
+            <span key={tag} className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold text-foreground">
+              {tag}
+            </span>
+          ))}
+        </div>
+      )
+    case "colors":
+      return (
+        <div key={`colors-${block.colors.map((color) => color.value).join("-")}`} className="grid gap-2 sm:grid-cols-2">
+          {block.colors.map((color) => (
+            <div key={color.value} className="flex items-center gap-3 rounded-2xl border border-border/50 bg-secondary/60 px-3 py-3">
+              <span className="h-9 w-9 rounded-xl border border-border/60" style={{ backgroundColor: color.value }} />
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">{color.label || "Color"}</p>
+                <p className="text-[12px] text-foreground">{color.value}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )
+    default:
+      return null
   }
 }
 
@@ -57,9 +297,9 @@ function ResearchPanel({ events }: { events: ComputerTimelineEvent[] }) {
             className="border-b border-border/55 pb-4 last:border-0"
           >
             <p className="text-[13px] font-medium text-foreground">{getEventTitle(event)}</p>
-            <p className="mt-2 whitespace-pre-wrap text-[12.5px] leading-relaxed text-muted-foreground">
-              {event.description}
-            </p>
+            <div className="mt-3 space-y-3">
+              {parseResearchNotes(event.description || "pdf").map((block, blockIndex) => renderResearchBlock(block, event.id ?? `${event.title}-${i}`, blockIndex))}
+            </div>
           </motion.div>
         ))}
       </AnimatePresence>
@@ -890,7 +1130,7 @@ function PreviewPane({
           key={iframeKey}
           src={src}
           className="h-full w-full bg-card"
-          sandbox="allow-scripts allow-same-origin allow-forms"
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
           title="Live preview"
           onLoad={() => setIsIframeLoading(false)}
         />

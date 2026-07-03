@@ -194,6 +194,11 @@ export function PreviewWithVisualEdit({
 
   const handleIframeLoad = useCallback(() => {
     if (!iframeRef.current?.contentWindow) return
+    iframeRef.current.contentWindow.postMessage(
+      { type: "bstudio-set-visual-edit", enabled: canEdit && enabled },
+      "*"
+    )
+
     try {
       const doc = iframeRef.current.contentDocument
       if (!doc) return
@@ -236,7 +241,14 @@ export function PreviewWithVisualEdit({
     } catch {
       // Cross-origin iframe, script injection not allowed.
     }
-  }, [])
+  }, [canEdit, enabled])
+
+  useEffect(() => {
+    iframeRef.current?.contentWindow?.postMessage(
+      { type: "bstudio-set-visual-edit", enabled: canEdit && enabled },
+      "*"
+    )
+  }, [canEdit, enabled, iframeKey, src])
 
   useEffect(() => {
     if (!externalDraft || !iframeRef.current?.contentWindow) return
