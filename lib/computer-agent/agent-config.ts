@@ -1,6 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk"
 import OpenAI from "openai"
 import type { MessageCreateParamsNonStreaming } from "@anthropic-ai/sdk/resources/beta/messages/messages"
+import { normalizeOpenAiSdkUsage } from "@/lib/metering/pricing"
+import type { UsageMeter } from "@/lib/metering/metered-anthropic"
 
 export type ComputerAgentDefinition = {
   name: string
@@ -155,7 +157,11 @@ function toAnthropicLikeResponse(text: string) {
   }
 }
 
-async function createNvidiaReasoningMessage(params: ComputerAgentMessageParams, memory?: MemoryContext) {
+async function createNvidiaReasoningMessage(
+  params: ComputerAgentMessageParams,
+  memory?: MemoryContext,
+  meter?: UsageMeter,
+) {
   const client = getNvidiaClient()
   if (!client) return null
 
@@ -168,16 +174,26 @@ async function createNvidiaReasoningMessage(params: ComputerAgentMessageParams, 
     max_tokens: params.max_tokens,
   })
 
+  // NVIDIA is OpenAI-compatible and reports usage on the response; bill the
+  // actuals through the same ledger as Anthropic calls.
+  meter?.record({
+    provider: "nvidia",
+    model: response.model || model,
+    usage: normalizeOpenAiSdkUsage(response.usage),
+    requestId: response.id ?? null,
+  })
+
   return toAnthropicLikeResponse(response.choices[0]?.message?.content || "")
 }
 
 export async function createComputerAgentMessage(
   anthropic: Anthropic,
   params: ComputerAgentMessageParams,
-  options?: { enableMcp?: boolean; memory?: MemoryContext; billingPlan?: BillingPlan },
+  options?: { enableMcp?: boolean; memory?: MemoryContext; billingPlan?: BillingPlan; meter?: UsageMeter },
 ) {
   if (getReasoningProvider(options?.billingPlan) === "nvidia") {
-    const nvidiaResponse = await createNvidiaReasoningMessage(params, options?.memory)
+    options?.meter?.assertBudget()
+    const nvidiaResponse = await createNvidiaReasoningMessage(params, options?.memory, options?.meter)
     if (nvidiaResponse) return nvidiaResponse
   }
 

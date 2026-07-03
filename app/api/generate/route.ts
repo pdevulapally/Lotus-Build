@@ -21,6 +21,7 @@ import {
   type GeneratedProjectFile,
 } from "@/lib/generated-project-validation"
 import { chargeTokensForGeneration } from "@/lib/charge-tokens"
+import { InsufficientTokensError, MeteringUserNotFoundError, assertTokenBalance } from "@/lib/metering/ledger"
 import { assertProjectCanEdit } from "@/lib/project-access"
 import { assertRateLimit, RateLimitError, rateLimitResponse } from "@/lib/rate-limit"
 import { isSensitiveFilePath, normalizeRelativeFilePath } from "@/lib/security/files"
@@ -352,6 +353,37 @@ function normalizeAnthropicUsage(usage: AnthropicUsage | null | undefined) {
   }
 }
 
+// A generation can span several provider calls (continuation, format retry,
+// repair, salvage). Billing must SUM the usage of every call — assignment
+// would charge only the last one.
+function mergeUsageInfo(prev: any, next: any) {
+  if (!next) return prev ?? null
+  if (!prev) return { ...next }
+  const sum = (a?: number | null, b?: number | null) => (a ?? 0) + (b ?? 0)
+  const totalOf = (u: any) => u.total_tokens ?? sum(u.prompt_tokens, u.completion_tokens)
+  return {
+    prompt_tokens: sum(prev.prompt_tokens, next.prompt_tokens),
+    completion_tokens: sum(prev.completion_tokens, next.completion_tokens),
+    total_tokens: sum(totalOf(prev), totalOf(next)),
+    cache_creation_input_tokens: sum(prev.cache_creation_input_tokens, next.cache_creation_input_tokens),
+    cache_read_input_tokens: sum(prev.cache_read_input_tokens, next.cache_read_input_tokens),
+  }
+}
+
+function addAnthropicUsage(prev: AnthropicUsage | null, next: AnthropicUsage | null): AnthropicUsage | null {
+  if (!next) return prev
+  if (!prev) return next
+  return {
+    ...prev,
+    input_tokens: prev.input_tokens + next.input_tokens,
+    output_tokens: prev.output_tokens + next.output_tokens,
+    cache_creation_input_tokens:
+      (prev.cache_creation_input_tokens ?? 0) + (next.cache_creation_input_tokens ?? 0),
+    cache_read_input_tokens:
+      (prev.cache_read_input_tokens ?? 0) + (next.cache_read_input_tokens ?? 0),
+  } as AnthropicUsage
+}
+
 function getProviderErrorInfo(error: unknown) {
   const err = error as { status?: unknown; code?: unknown; type?: unknown; name?: unknown; message?: unknown }
   return {
@@ -402,6 +434,11 @@ async function reserveIdempotencyKey(uid: string, key?: string) {
   const now = Date.now()
   const id = crypto.createHash("sha256").update(`generate:${uid}:${key}`).digest("hex")
   const ref = adminDb.collection("generationIdempotency").doc(id)
+  // Server-minted per reservation. The billing ledger event is keyed to THIS
+  // id — never to the client-chosen key — so a user cannot craft or replay a
+  // key (their own after TTL expiry, or another user's) that collides with an
+  // existing usageEvents doc and dodges the charge via deduplication.
+  const billingEventId = crypto.randomUUID()
 
   await adminDb.runTransaction(async (transaction) => {
     const snap = await transaction.get(ref)
@@ -423,6 +460,7 @@ async function reserveIdempotencyKey(uid: string, key?: string) {
       uid,
       keyHash: id,
       status: "processing",
+      billingEventId,
       createdAtMs: now,
       updatedAtMs: now,
       createdAt: FieldValue.serverTimestamp(),
@@ -430,7 +468,7 @@ async function reserveIdempotencyKey(uid: string, key?: string) {
     })
   })
 
-  return ref
+  return { ref, billingEventId }
 }
 
 async function completeIdempotencyKey(ref: DocumentReference | null, status: "completed" | "failed") {
@@ -979,7 +1017,7 @@ async function generateWithNvidiaValidation(params: {
       })
 
       finalContent += continued.choices[0]?.message?.content || ""
-      usageInfo = continued.usage || usageInfo
+      usageInfo = mergeUsageInfo(usageInfo, continued.usage)
     } catch (err) {
       console.error("NVIDIA generation continuation failed:", err)
     }
@@ -1001,7 +1039,7 @@ async function generateWithNvidiaValidation(params: {
     })
 
     finalContent = retried.choices[0]?.message?.content || ""
-    usageInfo = retried.usage || usageInfo
+    usageInfo = mergeUsageInfo(usageInfo, retried.usage)
     assertValidFileBlockOutput(finalContent)
   }
 
@@ -1023,7 +1061,7 @@ async function generateWithNvidiaValidation(params: {
     })
 
     finalContent = repaired.choices[0]?.message?.content || finalContent
-    usageInfo = repaired.usage || usageInfo
+    usageInfo = mergeUsageInfo(usageInfo, repaired.usage)
     validation = validateGeneratedFiles(finalContent, params.existingFiles, params.platform)
   }
 
@@ -1257,7 +1295,7 @@ async function streamAnthropicCompletion(params: {
   let firstResult = await runAnthropicStream(buildMessages())
   let output = firstResult.buffered
   let stopReason = firstResult.stopReason
-  let lastUsage: AnthropicUsage | null = firstResult.partialUsage
+  let totalUsage: AnthropicUsage | null = firstResult.partialUsage
   let continuationRounds = 0
 
   while (stopReason === "max_tokens" && continuationRounds < MAX_CONTINUATION_ROUNDS) {
@@ -1268,14 +1306,14 @@ async function streamAnthropicCompletion(params: {
       const continued = await runAnthropicStream(buildMessages(output, buildContinuationInstruction(cutOffPath)))
       output += continued.buffered
       stopReason = continued.stopReason
-      if (continued.partialUsage) lastUsage = continued.partialUsage
+      totalUsage = addAnthropicUsage(totalUsage, continued.partialUsage)
     } catch (err) {
       logGenerationError({ phase: "anthropic_continuation", provider: "anthropic" }, err)
       break
     }
   }
 
-  params.state.usageInfo = normalizeAnthropicUsage(lastUsage)
+  params.state.usageInfo = mergeUsageInfo(params.state.usageInfo, normalizeAnthropicUsage(totalUsage))
   params.state.streamedLength += output.length
 
   const parsedBlocks = filterFilesForPlatform(parseFileBlocks(output), params.platform)
@@ -1328,7 +1366,7 @@ async function streamWithResolvedProvider(params: {
       maxOutputTokens: params.maxOutputTokens,
       temperature: params.temperature,
     })
-    params.state.usageInfo = validated.usageInfo
+    params.state.usageInfo = mergeUsageInfo(params.state.usageInfo, validated.usageInfo)
     params.state.streamedLength = validated.streamedLength
     try {
       assertValidFileBlockOutput(validated.finalContent)
@@ -1339,7 +1377,7 @@ async function streamWithResolvedProvider(params: {
         brokenContent: validated.finalContent,
         maxOutputTokens: params.maxOutputTokens,
       })
-      params.state.usageInfo = repaired.usage || params.state.usageInfo
+      params.state.usageInfo = mergeUsageInfo(params.state.usageInfo, repaired.usage)
       params.state.streamedLength = repaired.content.length
       params.controller.enqueue(params.encoder.encode(repaired.content))
       return
@@ -1356,7 +1394,7 @@ async function streamWithResolvedProvider(params: {
         maxOutputTokens: params.maxOutputTokens,
       })
       assertValidFileBlockOutput(salvaged.content)
-      params.state.usageInfo = salvaged.usage || params.state.usageInfo
+      params.state.usageInfo = mergeUsageInfo(params.state.usageInfo, salvaged.usage)
       params.state.streamedLength = salvaged.content.length
       params.controller.enqueue(params.encoder.encode(salvaged.content))
     } else {
@@ -1422,7 +1460,7 @@ async function streamWithResolvedProvider(params: {
     let buffered = ""
     let finishReason: string | null = null
     for await (const chunk of completion) {
-      if ((chunk as any).usage) params.state.usageInfo = (chunk as any).usage
+      if ((chunk as any).usage) params.state.usageInfo = mergeUsageInfo(params.state.usageInfo, (chunk as any).usage)
       const chunkFinishReason = chunk.choices?.[0]?.finish_reason
       if (chunkFinishReason) finishReason = chunkFinishReason
       const content = chunk.choices?.[0]?.delta?.content
@@ -1531,12 +1569,12 @@ async function streamWithResolvedProvider(params: {
       if (emitIncremental) {
         try {
           params.controller.enqueue(params.encoder.encode(salvagePayload))
-          params.state.usageInfo = salvaged.usage || params.state.usageInfo
+          params.state.usageInfo = mergeUsageInfo(params.state.usageInfo, salvaged.usage)
           params.state.streamedLength += salvagePayload.length
         }
         catch { params.state.closed = true }
       } else {
-        params.state.usageInfo = salvaged.usage || params.state.usageInfo
+        params.state.usageInfo = mergeUsageInfo(params.state.usageInfo, salvaged.usage)
       }
       finalBlocks = mergeFilesByPath(finalBlocks, salvagedBlocks)
       validation = validateGeneratedFiles(serializeFileBlocks(finalBlocks), params.existingFiles, params.platform)
@@ -1665,49 +1703,17 @@ export async function POST(req: Request) {
     projectPlatform = normalizePlatform(projectData.platform)
   }
 
-  // Check if token period has ended → reset monthly, then check remaining tokens
+  // Shared balance gate: resets the monthly period when lapsed, then requires
+  // a positive balance. Same gate as /api/computer/run.
   try {
-    const userRef = adminDb.collection('users').doc(uid)
-    const userSnap = await userRef.get()
-    if (!userSnap.exists) {
-      return new Response(JSON.stringify({ error: 'User not found' }), { status: 404 })
-    }
-    const userData = userSnap.data() as any
-
-    const planId = userData?.planId || 'free'
-    const planTokensPerMonth = userData?.tokensLimit != null ? Number(userData.tokensLimit) : (DEFAULT_PLANS[planId as keyof typeof DEFAULT_PLANS]?.tokensPerMonth || DEFAULT_PLANS.free.tokensPerMonth)
-
-    const periodEnd = getPeriodEndDate(userData?.tokenUsage?.periodEnd)
-    const now = new Date()
-    const shouldReset = !periodEnd || isNaN(periodEnd.getTime()) || now >= periodEnd
-
-    if (shouldReset) {
-      const nextPeriodEnd = getFirstDayOfNextMonth(now)
-      await userRef.update({
-        tokenUsage: {
-          used: 0,
-          remaining: planTokensPerMonth,
-          periodStart: Timestamp.fromDate(now),
-          periodEnd: Timestamp.fromDate(nextPeriodEnd),
-        },
-      })
-    }
-
-    let remaining = shouldReset ? planTokensPerMonth : userData?.tokenUsage?.remaining
-
-    if (remaining === undefined || remaining === null) {
-      if (userData?.tokensLimit != null && userData?.tokensUsed !== undefined) {
-        remaining = userData.tokensLimit - userData.tokensUsed
-      } else {
-        remaining = planTokensPerMonth
-      }
-    }
-    remaining = Math.max(0, Number(remaining))
-
-    if (remaining <= 0) {
+    await assertTokenBalance(uid)
+  } catch (e) {
+    if (e instanceof InsufficientTokensError) {
       return new Response(JSON.stringify({ error: 'Insufficient tokens' }), { status: 402 })
     }
-  } catch (e) {
+    if (e instanceof MeteringUserNotFoundError) {
+      return new Response(JSON.stringify({ error: 'User not found' }), { status: 404 })
+    }
     console.error('Token check failed', e)
     return new Response(JSON.stringify({ error: 'Server error' }), { status: 500 })
   }
@@ -2045,10 +2051,10 @@ OPEN-SOURCE MODEL RELIABILITY RULES (MANDATORY):
     cacheClaudeSystemPrompt: true,
   })
 
-  let idempotencyRef: Awaited<ReturnType<typeof reserveIdempotencyKey>> = null
+  let idempotencyReservation: Awaited<ReturnType<typeof reserveIdempotencyKey>> = null
   if (idempotencyKey) {
     try {
-      idempotencyRef = await reserveIdempotencyKey(uid, idempotencyKey)
+      idempotencyReservation = await reserveIdempotencyKey(uid, idempotencyKey)
     } catch (err) {
       if (err instanceof IdempotencyConflictError) {
         return jsonError(err.status, err.code, err.message)
@@ -2116,12 +2122,18 @@ OPEN-SOURCE MODEL RELIABILITY RULES (MANDATORY):
             usageInfo: streamState.usageInfo,
             promptChars: userMessageContent.length,
             completionChars: streamState.streamedLength,
+            provider,
+            model: selectedModel,
+            // Ledger event id is the server-minted reservation id — replays of
+            // the same in-flight request can't double-charge, and the
+            // client-chosen idempotency key can never influence billing.
+            requestId: idempotencyReservation ? `gen_${idempotencyReservation.billingEventId}` : null,
           }),
-          completeIdempotencyKey(idempotencyRef, "completed"),
+          completeIdempotencyKey(idempotencyReservation?.ref ?? null, "completed"),
         ])
       } catch (err) {
         logGenerationError({ phase: "stream", uid, provider, model: selectedModel }, err)
-        await completeIdempotencyKey(idempotencyRef, "failed")
+        await completeIdempotencyKey(idempotencyReservation?.ref ?? null, "failed")
         if (!streamState.closed) {
           try {
             controller.enqueue(encoder.encode(`\n===GENERATION_ERROR: Generation failed===`))

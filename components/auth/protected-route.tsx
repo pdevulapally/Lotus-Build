@@ -62,9 +62,9 @@ export function ProtectedRoute({ children, requiredTokens = 0 }: ProtectedRouteP
             You&apos;ve used all your tokens for this month. Upgrade your plan to continue building.
           </p>
           <p className="text-zinc-600 text-sm mb-6">
-            Current plan: <span className="text-zinc-400 capitalize">{userData?.plan}</span>
+            Current plan: <span className="text-zinc-400 capitalize">{userData?.planName || userData?.planId || "free"}</span>
             {" | "}
-            Used: <span className="text-zinc-400">{userData?.tokensUsed.toLocaleString()}</span> / {userData?.tokensLimit.toLocaleString()}
+            Used: <span className="text-zinc-400">{(userData?.tokenUsage?.used ?? 0).toLocaleString()}</span> / {(userData?.tokensLimit ?? 0).toLocaleString()}
           </p>
           <a
             href="/pricing"

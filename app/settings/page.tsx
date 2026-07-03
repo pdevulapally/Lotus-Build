@@ -3,8 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { collection, deleteDoc, doc, getDoc, onSnapshot, query, updateDoc, where } from "firebase/firestore"
-import { deleteUser } from "firebase/auth"
+import { collection, doc, getDoc, onSnapshot, query, updateDoc, where } from "firebase/firestore"
 import { useAuth } from "@/contexts/auth-context"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
@@ -481,15 +480,20 @@ function SettingsContent() {
     setDeleteLoading(true)
     setDeleteError("")
     try {
-      await deleteDoc(doc(db, "users", user.uid))
-      await deleteUser(user)
-      router.push("/")
-    } catch (err: any) {
-      if (err?.code === "auth/requires-recent-login") {
-        setDeleteError("For security, please sign out and sign back in before deleting your account.")
-      } else {
-        setDeleteError("Failed to delete account. Please try again or contact support.")
+      // Deletion is server-side only: firestore.rules deny client deletes of
+      // users/{uid} so a delete + re-create can't refresh the token balance.
+      const token = await user.getIdToken()
+      const res = await fetch("/api/user/delete-account", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        throw new Error(body?.error || "delete-failed")
       }
+      router.push("/")
+    } catch {
+      setDeleteError("Failed to delete account. Please try again or contact support.")
       setDeleteLoading(false)
     }
   }

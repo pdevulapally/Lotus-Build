@@ -79,7 +79,12 @@
       "PowerShell(git *)",
       "PowerShell(node \"C:\\\\Users\\\\Preet\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Preet-Desktop-Lotus-Build\\\\6fa5656a-0c49-4272-acf7-783926b45c56\\\\scratchpad\\\\verify-template.mjs\")",
       "PowerShell(Out-File *)",
-      "PowerShell(Select-String *)"
+      "PowerShell(Select-String *)",
+      "Skill(claude-api)",
+      "PowerShell(npx -y tsx \"C:\\\\Users\\\\Preet\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Preet-Desktop-Lotus-Build\\\\6fa5656a-0c49-4272-acf7-783926b45c56\\\\scratchpad\\\\test-pricing.ts\")",
+      "PowerShell(npx -y tsx --env-file=.env.local \"C:\\\\Users\\\\Preet\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Preet-Desktop-Lotus-Build\\\\6fa5656a-0c49-4272-acf7-783926b45c56\\\\scratchpad\\\\test-meter-wrapper.ts\")",
+      "PowerShell(npx -y tsx --env-file=.env.local \"C:\\\\Users\\\\Preet\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Preet-Desktop-Lotus-Build\\\\6fa5656a-0c49-4272-acf7-783926b45c56\\\\scratchpad\\\\test-ledger-live.ts\")",
+      "PowerShell(Set-Content *)"
     ]
   }
 }

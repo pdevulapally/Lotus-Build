@@ -2,7 +2,9 @@ import Anthropic from "@anthropic-ai/sdk"
 import { validateGeneratedProjectFiles } from "@/lib/generated-project-validation"
 import type { ProjectPlatform } from "@/lib/projects/platform"
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
+// Fallback client for callers that don't inject one. Routes should pass a
+// metered client (lib/metering/metered-anthropic) so generation turns are billed.
+const defaultClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
 export type AgenticFile = { path: string; content: string }
 
@@ -134,6 +136,8 @@ function extractJsonString(partial: string, key: string): string | null {
 }
 
 export async function runAgenticGeneration(params: {
+  /** Pass a metered client so every generation turn is billed to the user. */
+  client?: Anthropic
   prompt: string
   existingFiles: AgenticFile[]
   platform: ProjectPlatform
@@ -146,6 +150,7 @@ export async function runAgenticGeneration(params: {
   onFileWritten?: (file: AgenticFile) => Promise<void>
   onToolCall?: (title: string) => Promise<void>
 }): Promise<{ files: AgenticFile[]; suggestsBackend: boolean }> {
+  const client = params.client ?? defaultClient
   const fileStore = new Map<string, string>()
   for (const f of params.existingFiles) {
     fileStore.set(f.path, f.content)

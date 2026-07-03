@@ -1,65 +1,76 @@
-import { adminDb } from "@/lib/firebase-admin"
-import { DEFAULT_PLANS } from "@/lib/firebase"
+/**
+ * Adapter between /api/generate's accumulated OpenAI-shape usage and the
+ * metering ledger (lib/metering). All debits flow through recordUsageAndDebit
+ * so generation charges share the same idempotent ledger, pricing registry,
+ * and canonical balance shape as every other surface.
+ *
+ * There is deliberately no character-count fallback: when a provider fails to
+ * report usage, the call is recorded as `usage_missing` (zero charge) with the
+ * prompt/output sizes attached for offline reconciliation — never estimated.
+ */
+import { recordUsageAndDebit, type UsageProvider } from "@/lib/metering/ledger"
+import type { NormalizedUsage } from "@/lib/metering/pricing"
 
 type UsageInfo = {
   total_tokens?: number
   prompt_tokens?: number
   completion_tokens?: number
+  cache_creation_input_tokens?: number
+  cache_read_input_tokens?: number
+  prompt_tokens_details?: { cached_tokens?: number | null } | null
 } | null
+
+function toNormalizedUsage(usageInfo: UsageInfo): NormalizedUsage | null {
+  if (!usageInfo) return null
+
+  const completion = Math.max(0, usageInfo.completion_tokens ?? 0)
+  const prompt = Math.max(
+    0,
+    usageInfo.prompt_tokens ?? Math.max(0, (usageInfo.total_tokens ?? 0) - completion)
+  )
+  if (prompt === 0 && completion === 0) return null
+
+  // Anthropic-normalized usage folds cache tokens into prompt_tokens and also
+  // reports them separately; OpenAI-compatible providers report cached prompt
+  // tokens under prompt_tokens_details. Both are subsets of `prompt`.
+  const cacheWrite = Math.max(0, usageInfo.cache_creation_input_tokens ?? 0)
+  const cacheRead = Math.max(
+    0,
+    usageInfo.cache_read_input_tokens ?? usageInfo.prompt_tokens_details?.cached_tokens ?? 0
+  )
+  const bounded = Math.min(cacheWrite + cacheRead, prompt)
+  const boundedWrite = Math.min(cacheWrite, bounded)
+  const boundedRead = bounded - boundedWrite
+
+  return {
+    inputTokens: prompt - bounded,
+    outputTokens: completion,
+    cacheCreationTokens: boundedWrite,
+    cacheReadTokens: boundedRead,
+  }
+}
 
 export async function chargeTokensForGeneration(params: {
   uid: string
   usageInfo: UsageInfo
   promptChars: number
   completionChars: number
+  provider?: UsageProvider
+  model?: string
+  requestId?: string | null
 }): Promise<void> {
-  const { uid, usageInfo, promptChars, completionChars } = params
+  const usage = toNormalizedUsage(params.usageInfo)
 
-  const fallbackTokens = Math.ceil((promptChars + completionChars) / 4)
-  const tokensToCharge = usageInfo
-    ? (usageInfo.total_tokens ?? (usageInfo.prompt_tokens || 0) + (usageInfo.completion_tokens || 0))
-    : fallbackTokens
-
-  if (tokensToCharge <= 0) return
-
-  const userRef = adminDb.collection("users").doc(uid)
-  await adminDb.runTransaction(async (tx) => {
-    const snap = await tx.get(userRef)
-    if (!snap.exists) throw new Error("user-not-found")
-    const data = snap.data() as any
-
-    const planId = data?.planId || "free"
-    const planTokensPerMonth =
-      data?.tokensLimit != null
-        ? Number(data.tokensLimit)
-        : (DEFAULT_PLANS[planId as keyof typeof DEFAULT_PLANS]?.tokensPerMonth ??
-           DEFAULT_PLANS.free.tokensPerMonth)
-
-    let remaining: number
-    if (data?.tokenUsage?.remaining != null) {
-      remaining = Number(data.tokenUsage.remaining)
-    } else if (data?.tokensLimit != null && data?.tokensUsed != null) {
-      remaining = Number(data.tokensLimit) - Number(data.tokensUsed)
-    } else {
-      remaining = planTokensPerMonth
-    }
-    remaining = Math.max(0, remaining)
-
-    if (tokensToCharge > planTokensPerMonth) {
-      console.warn(`[tokens] Generation used ${tokensToCharge} tokens; plan=${planId} monthly=${planTokensPerMonth}`)
-    }
-    if (remaining < tokensToCharge) {
-      console.warn(`[tokens] Generation exceeded remaining balance; consuming available balance`)
-    }
-
-    const actualCharge = Math.min(tokensToCharge, remaining)
-    const currentUsed = data?.tokenUsage?.used ?? data?.tokensUsed ?? 0
-    const newUsed = Number(currentUsed) + actualCharge
-    const newRemaining = Math.max(0, remaining - actualCharge)
-
-    tx.update(userRef, {
-      "tokenUsage.used": newUsed,
-      "tokenUsage.remaining": newRemaining,
-    })
+  await recordUsageAndDebit({
+    uid: params.uid,
+    feature: "generate",
+    provider: params.provider ?? "anthropic",
+    model: params.model ?? "unknown",
+    usage,
+    requestId: params.requestId ?? null,
+    meta: {
+      promptChars: params.promptChars,
+      completionChars: params.completionChars,
+    },
   })
 }

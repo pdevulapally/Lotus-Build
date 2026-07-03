@@ -48,6 +48,8 @@ import { runAgenticGeneration } from "@/lib/computer-agent/agentic-generation"
 import { assertRateLimit, RateLimitError, rateLimitResponse } from "@/lib/rate-limit"
 import { assertProjectCanEdit } from "@/lib/project-access"
 import { isSensitiveFilePath, normalizeRelativeFilePath } from "@/lib/security/files"
+import { InsufficientTokensError, MeteringUserNotFoundError, assertTokenBalance } from "@/lib/metering/ledger"
+import { UsageMeter, createMeteredAnthropic } from "@/lib/metering/metered-anthropic"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -1503,6 +1505,7 @@ If the request is to recreate or draw inspiration from a website, build a fronte
 export async function POST(req: Request) {
   let activeDocRef: DocumentReference | null = null
   let activeRunId: string | null = null
+  let meter: UsageMeter | null = null
 
   try {
     const uid = await requireUserUid(req)
@@ -1512,6 +1515,8 @@ export async function POST(req: Request) {
       limit: 40,
       windowMs: 60 * 60 * 1000,
     })
+    // Every model call in this run is billed; refuse to start with an empty balance.
+    const tokenBalance = await assertTokenBalance(uid)
     const body = await req.json().catch(() => null)
     const parsed = runRequestSchema.safeParse(body)
 
@@ -1565,11 +1570,20 @@ export async function POST(req: Request) {
     }
     const globalMemory: string = (userMemSnap.data()?.globalMemory as string | undefined) || ""
     const sessionMemory: MemoryContext = { global: globalMemory, project: projectMemory }
+    // All model traffic for this run flows through the metered client: usage is
+    // read from provider responses, ledgered per call, and cut off mid-run if
+    // the balance runs out.
+    const runMeter = new UsageMeter(
+      { uid, feature: "computer-agent", runId: parsed.data.sessionId },
+      { remainingTokens: tokenBalance.remaining }
+    )
+    meter = runMeter
+    const meteredAnthropic = createMeteredAnthropic(anthropic, runMeter)
     const callAgent = (
       params: Parameters<typeof createComputerAgentMessage>[1],
       options?: { enableMcp?: boolean }
     ) =>
-      createComputerAgentMessage(anthropic, params, { ...options, memory: sessionMemory })
+      createComputerAgentMessage(meteredAnthropic, params, { ...options, memory: sessionMemory, meter: runMeter })
 
     const storedPrompt = typeof data.prompt === "string" ? data.prompt.trim() : ""
     const incomingPrompt = parsed.data.prompt?.trim() || ""
@@ -2560,6 +2574,7 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
 
       try {
         const { files: generatedPatchFiles, suggestsBackend: genSuggestsBackend } = await runAgenticGeneration({
+          client: meteredAnthropic,
           prompt: generationPrompt,
           existingFiles: projectFiles,
           platform: projectPlatform,
@@ -3448,7 +3463,11 @@ Format:
   } catch (error) {
     if (error instanceof RateLimitError) return rateLimitResponse(error)
     const message = error instanceof Error ? error.message : "Request failed"
-    const status = message === "RUN_ALREADY_IN_PROGRESS"
+    const status = error instanceof InsufficientTokensError
+      ? 402
+      : error instanceof MeteringUserNotFoundError
+      ? 404
+      : message === "RUN_ALREADY_IN_PROGRESS"
       ? 409
       : message.includes("Authorization")
       ? 401
@@ -3485,5 +3504,9 @@ Format:
     }
 
     return NextResponse.json({ error: message }, { status })
+  } finally {
+    // Ledger writes run in the background per call; make sure they land
+    // before the function instance can be frozen.
+    if (meter) await meter.flush()
   }
 }
