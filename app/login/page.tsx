@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useAuth } from "@/contexts/auth-context"
+import { getSafeRedirectPath } from "@/lib/auth/redirect"
 
 const authInputClassName =
   "w-full rounded-2xl border border-border bg-card px-4 py-3.5 text-sm text-foreground shadow-none outline-none transition-colors placeholder:text-muted-foreground focus:border-border-strong focus:bg-secondary/60"
@@ -33,7 +34,7 @@ function GoogleMark() {
 export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const redirect = searchParams.get("redirect") || "/projects"
+  const redirect = getSafeRedirectPath(searchParams.get("redirect"))
   const { signInWithGoogle, signInWithEmail, sendPasswordResetEmail, user, loading } = useAuth()
 
   const [email, setEmail] = useState("")

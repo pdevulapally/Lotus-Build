@@ -5,6 +5,7 @@ import { exchangeCode, storeConnection } from "@/lib/integrations/supabase/oauth
 import { getAppBaseUrl } from "@/lib/security/url"
 
 export const runtime = "nodejs"
+const OAUTH_STATE_TTL_MS = 10 * 60 * 1000
 
 function serializeInlineScriptJson(value: unknown): string {
   return JSON.stringify(value)
@@ -13,6 +14,17 @@ function serializeInlineScriptJson(value: unknown): string {
     .replace(/&/g, "\\u0026")
     .replace(/\u2028/g, "\\u2028")
     .replace(/\u2029/g, "\\u2029")
+}
+
+function isFreshState(createdAt: unknown): boolean {
+  const date = createdAt && typeof createdAt === "object" && "toDate" in createdAt && typeof (createdAt as { toDate: () => Date }).toDate === "function"
+    ? (createdAt as { toDate: () => Date }).toDate()
+    : createdAt instanceof Date
+      ? createdAt
+      : typeof createdAt === "string" || typeof createdAt === "number"
+        ? new Date(createdAt)
+        : null
+  return !!date && !Number.isNaN(date.getTime()) && Date.now() - date.getTime() <= OAUTH_STATE_TTL_MS
 }
 
 function callbackHtml(
@@ -87,7 +99,13 @@ export async function GET(req: Request) {
     return new NextResponse("Invalid or expired state", { status: 400 })
   }
 
-  const { uid, builderProjectId } = (stateSnap.data() ?? {}) as { uid?: string; builderProjectId?: string }
+  const stateData = stateSnap.data() ?? {}
+  if (!isFreshState(stateData.createdAt)) {
+    await adminDb.collection("supabaseOauthStates").doc(state).delete().catch(() => {})
+    return new NextResponse("Invalid or expired state", { status: 400 })
+  }
+
+  const { uid, builderProjectId } = stateData as { uid?: string; builderProjectId?: string }
   if (!uid) {
     return new NextResponse("Invalid state payload", { status: 400 })
   }

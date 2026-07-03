@@ -157,12 +157,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
+    let unsubscribeUser: (() => void) | undefined
+    let authChangeVersion = 0
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      const version = ++authChangeVersion
+      unsubscribeUser?.()
+      unsubscribeUser = undefined
+
       setUser(firebaseUser)
       
       if (firebaseUser) {
         try {
           await ensureUserDoc(firebaseUser)
+          if (version !== authChangeVersion) return
+
           try {
             const idToken = await firebaseUser.getIdToken()
             await fetch("/api/user/refresh-token-period", {
@@ -174,7 +183,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
 
           const userRef = doc(db, "users", firebaseUser.uid)
-          const unsubscribeUser = onSnapshot(userRef, async (snap) => {
+          unsubscribeUser = onSnapshot(userRef, async (snap) => {
+            if (version !== authChangeVersion) return
             if (!snap.exists()) return
             const data = snap.data()
 
@@ -245,20 +255,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // Fetch workspaces list
             try {
               const idToken = await firebaseUser.getIdToken()
+              if (version !== authChangeVersion) return
               const wsRes = await fetch('/api/workspaces', {
                 headers: { Authorization: `Bearer ${idToken}` }
               })
               if (wsRes.ok) {
                 const wsData = await wsRes.json()
+                if (version !== authChangeVersion) return
                 setWorkspaces(Array.isArray(wsData) ? wsData : (wsData?.workspaces ?? []))
               }
             } catch (e) {
               console.error('Failed to fetch workspaces', e)
             }
           })
-
-          // keep unsubscribe reference
-          ;(unsubscribe as any)._unsubscribeUser = unsubscribeUser
         } catch (error) {
           console.error("Error fetching user data:", error)
         }
@@ -267,11 +276,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setWorkspaces([])
       }
 
-      setLoading(false)
+      if (version === authChangeVersion) setLoading(false)
     })
 
     return () => {
-      // cleanup auth listener
+      authChangeVersion += 1
+      unsubscribeUser?.()
       unsubscribe()
     }
   }, [])

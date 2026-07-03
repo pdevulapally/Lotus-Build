@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { getGitHubOauthState, randomState, requireUserUid, setGitHubOauthState } from "@/lib/server-auth"
+import { randomState, requireUserUid, setGitHubOauthState } from "@/lib/server-auth"
 import { adminDb } from "@/lib/firebase-admin"
 
 export const runtime = "nodejs"
@@ -28,8 +28,7 @@ export async function GET(req: Request) {
       )
     }
 
-    const existingState = await getGitHubOauthState(uid)
-    const state = existingState || randomState()
+    const state = randomState()
 
     await setGitHubOauthState(uid, state)
     await adminDb.collection("githubOauthStates").doc(state).set(

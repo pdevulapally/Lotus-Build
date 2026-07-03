@@ -4,11 +4,18 @@ export const MOBILE_EXPO_DEPENDENCIES = {
   "react-native": "0.85.3",
 } as const
 
+// The per-request design brief must never sit at the START of the system
+// prompt: provider prompt caching (OpenAI automatic prefix matching, Claude
+// cache_control) only hits on a stable prefix. The brief is appended AFTER the
+// static prompt via buildMobileDesignBriefSuffix.
+export function buildMobileDesignBriefSuffix(designBrief?: string) {
+  if (!designBrief) return ""
+  return `\n\n---\n\nMOBILE DESIGN BRIEF — implement every decision in this brief in a native mobile way. This is the authoritative visual specification for this build. Do not substitute defaults.\n\n${designBrief}`
+}
+
 export function buildMobileGenerationSystemPrompt({
-  designBrief,
   isFollowUp,
 }: {
-  designBrief?: string
   isFollowUp: boolean
 }) {
   if (isFollowUp) {
@@ -48,7 +55,7 @@ STREAMING FORMAT:
 ===END_FILE===`
   }
 
-  return `${designBrief ? `MOBILE DESIGN BRIEF — implement every decision in this brief in a native mobile way. This is the authoritative visual specification for this build. Do not substitute defaults.\n\n${designBrief}\n\n---\n\n` : ""}You are an expert Expo and React Native developer building a real production-quality mobile app for a real product.
+  return `You are an expert Expo and React Native developer building a real production-quality mobile app for a real product.
 
 CRITICAL PLATFORM RULES:
 - This is a MOBILE project. Generate Expo + React Native files only.

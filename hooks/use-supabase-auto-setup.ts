@@ -61,7 +61,7 @@ export interface SetupResult {
  * setup.continueSetup({ supabaseProjectId: "new-project-ref" })
  */
 export function useSupabaseAutoSetup(options: UseSupabaseAutoSetupOptions) {
-  const { getAuthHeader } = useAuth()
+  const { getOptionalAuthHeader } = useAuth()
   const [state, setState] = useState<SetupState>("idle")
   const [selectedProjects, setSelectedProjects] = useState<SupabaseProject[]>([])
   const [error, setError] = useState<string>("")
@@ -70,7 +70,7 @@ export function useSupabaseAutoSetup(options: UseSupabaseAutoSetupOptions) {
   const callOrchestratorEndpoint = useCallback(
     async (body: Record<string, unknown>) => {
       try {
-        const authHeader = await getAuthHeader()
+        const authHeader = await getOptionalAuthHeader()
         const res = await fetch("/api/integrations/supabase/auto-setup", {
           method: "POST",
           headers: {
@@ -90,7 +90,7 @@ export function useSupabaseAutoSetup(options: UseSupabaseAutoSetupOptions) {
         throw new Error(err instanceof Error ? err.message : "Unknown error")
       }
     },
-    [getAuthHeader]
+    [getOptionalAuthHeader]
   )
 
   /**

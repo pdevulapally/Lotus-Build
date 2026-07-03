@@ -403,7 +403,7 @@ export function MobilePreview({
                 src={view.sandbox.urls.web}
                 title="Mobile web preview"
                 className="h-full w-full bg-primary-foreground"
-                sandbox="allow-scripts allow-same-origin allow-forms"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
               />
             </PhoneDeviceFrame>
           </div>

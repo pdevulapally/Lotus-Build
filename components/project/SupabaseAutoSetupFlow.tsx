@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Loader2, Database, CheckCircle2, AlertCircle, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -20,6 +20,7 @@ export function SupabaseAutoSetupFlow({ open, projectId, onClose, onSetupComplet
   const [phase, setPhase] = useState<SetupPhase>("checking")
   const [selectedProject, setSelectedProject] = useState<SupabaseProject | null>(null)
   const [manualError, setManualError] = useState<string>("")
+  const hasStartedSetupRef = useRef(false)
 
   const setup = useSupabaseAutoSetup({
     projectId,
@@ -57,9 +58,15 @@ export function SupabaseAutoSetupFlow({ open, projectId, onClose, onSetupComplet
 
   // Start setup on open
   useEffect(() => {
-    if (open && phase === "checking") {
+    if (!open) {
+      hasStartedSetupRef.current = false
+      return
+    }
+
+    if (phase === "checking" && !hasStartedSetupRef.current) {
+      hasStartedSetupRef.current = true
       onStatusChange?.("in-progress")
-      setup.triggerSetup()
+      void setup.triggerSetup()
     }
   }, [open, phase, setup, onStatusChange])
 
@@ -78,8 +85,9 @@ export function SupabaseAutoSetupFlow({ open, projectId, onClose, onSetupComplet
   const handleRetry = () => {
     setManualError("")
     setPhase("checking")
+    hasStartedSetupRef.current = true
     setup.reset()
-    setup.triggerSetup()
+    void setup.triggerSetup()
   }
 
   // OAuth Phase
@@ -195,7 +203,7 @@ export function SupabaseAutoSetupFlow({ open, projectId, onClose, onSetupComplet
   if (phase === "provisioning" || phase === "selecting") {
     return (
       <Dialog open={open} onOpenChange={() => {}}>
-        <DialogContent className="border-border bg-card text-foreground sm:max-w-md" hideClose>
+        <DialogContent className="border-border bg-card text-foreground sm:max-w-md" showCloseButton={false}>
           <DialogHeader>
             <div className="flex items-center justify-center">
               <div className="rounded-full bg-accent-soft p-3">
@@ -226,7 +234,7 @@ export function SupabaseAutoSetupFlow({ open, projectId, onClose, onSetupComplet
   if (phase === "success") {
     return (
       <Dialog open={open} onOpenChange={() => {}}>
-        <DialogContent className="border-border bg-card text-foreground sm:max-w-md" hideClose>
+        <DialogContent className="border-border bg-card text-foreground sm:max-w-md" showCloseButton={false}>
           <DialogHeader>
             <div className="flex items-center justify-center">
               <div className="rounded-full bg-success-soft p-3">
@@ -307,7 +315,7 @@ export function SupabaseAutoSetupFlow({ open, projectId, onClose, onSetupComplet
   // Checking Phase (default)
   return (
     <Dialog open={open} onOpenChange={() => {}}>
-      <DialogContent className="border-border bg-card text-foreground sm:max-w-md" hideClose>
+      <DialogContent className="border-border bg-card text-foreground sm:max-w-md" showCloseButton={false}>
         <DialogHeader>
           <div className="flex items-center justify-center">
             <div className="rounded-full bg-accent-soft p-3">

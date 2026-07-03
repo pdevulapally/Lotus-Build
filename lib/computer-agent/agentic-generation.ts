@@ -127,6 +127,46 @@ const TOOLS: Anthropic.Tool[] = [
   },
 ]
 
+// Prompt caching: the request prefix is ordered tools → system → messages, so a
+// single breakpoint on the system prompt caches the static tools + system prefix
+// across every turn and every run.
+const SYSTEM_PROMPT_BLOCKS: Anthropic.TextBlockParam[] = [
+  { type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
+]
+
+// Returns a request-scoped copy of the conversation with an ephemeral cache
+// breakpoint on the final content block, so each agent turn extends and reuses
+// the previous turn's cached prefix instead of reprocessing the whole
+// conversation. The stored history is never mutated — Anthropic allows at most
+// 4 cache_control blocks per request, so markers must not accumulate.
+function withCacheBreakpoint(messages: Anthropic.MessageParam[]): Anthropic.MessageParam[] {
+  if (messages.length === 0) return messages
+  const last = messages[messages.length - 1]
+  const cacheControl: Anthropic.CacheControlEphemeral = { type: "ephemeral" }
+
+  if (typeof last.content === "string") {
+    return [
+      ...messages.slice(0, -1),
+      { ...last, content: [{ type: "text", text: last.content, cache_control: cacheControl }] },
+    ]
+  }
+
+  const blocks = last.content
+  if (!Array.isArray(blocks) || blocks.length === 0) return messages
+  const lastBlock = blocks[blocks.length - 1]
+  if (!lastBlock || typeof lastBlock !== "object") return messages
+  return [
+    ...messages.slice(0, -1),
+    {
+      ...last,
+      content: [
+        ...blocks.slice(0, -1),
+        { ...lastBlock, cache_control: cacheControl } as Anthropic.ContentBlockParam,
+      ],
+    },
+  ]
+}
+
 // Extracts a quoted string value from a key in partial streaming JSON.
 // Returns null until the full value (closing quote) has been streamed.
 function extractJsonString(partial: string, key: string): string | null {
@@ -174,9 +214,9 @@ export async function runAgenticGeneration(params: {
     const stream = client.messages.stream({
       model: MODEL,
       max_tokens: 16000,
-      system: SYSTEM_PROMPT,
+      system: SYSTEM_PROMPT_BLOCKS,
       tools: TOOLS,
-      messages: messages as Anthropic.MessageParam[],
+      messages: withCacheBreakpoint(messages as Anthropic.MessageParam[]),
     })
 
     // Stream events so we can fire UI callbacks as the model generates

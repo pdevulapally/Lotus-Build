@@ -1,6 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk"
 import OpenAI from "openai"
-import type { MessageCreateParamsNonStreaming } from "@anthropic-ai/sdk/resources/beta/messages/messages"
+import type {
+  BetaTextBlockParam,
+  MessageCreateParamsNonStreaming,
+} from "@anthropic-ai/sdk/resources/beta/messages/messages"
 import { normalizeOpenAiSdkUsage } from "@/lib/metering/pricing"
 import type { UsageMeter } from "@/lib/metering/metered-anthropic"
 
@@ -75,6 +78,34 @@ function composeSystemPrompt(
   if (!system) return base
   if (typeof system !== "string") return system
   return `${base}\n\nTask-specific instructions:\n${system}`
+}
+
+// Anthropic-path variant of composeSystemPrompt that emits cacheable blocks.
+// The base block (agent identity + memory) is byte-identical for every call in
+// a run, so one breakpoint lets all task prompts share a single cached prefix;
+// the second breakpoint covers repeated calls with the same task instructions
+// (e.g. the orchestrator loop). Prompts below the model's minimum cacheable
+// length are processed uncached — the marker is a no-op, never an error.
+function composeSystemBlocks(
+  system: MessageCreateParamsNonStreaming["system"] | undefined,
+  memory?: MemoryContext,
+): MessageCreateParamsNonStreaming["system"] {
+  if (system && typeof system !== "string") return system
+  const memBlock = buildMemoryBlock(memory)
+  const base = memBlock
+    ? `${LOTUS_BUILD_ORCHESTRATOR_AGENT.system}\n\n${memBlock}`
+    : LOTUS_BUILD_ORCHESTRATOR_AGENT.system
+  const blocks: BetaTextBlockParam[] = [
+    { type: "text", text: base, cache_control: { type: "ephemeral" } },
+  ]
+  if (system) {
+    blocks.push({
+      type: "text",
+      text: `Task-specific instructions:\n${system}`,
+      cache_control: { type: "ephemeral" },
+    })
+  }
+  return blocks
 }
 
 function isFreeBillingPlan(plan: BillingPlan) {
@@ -200,6 +231,6 @@ export async function createComputerAgentMessage(
   return anthropic.beta.messages.create({
     ...params,
     model: DEFAULT_ANTHROPIC_REASONING_MODEL,
-    system: composeSystemPrompt(params.system, options?.memory),
+    system: composeSystemBlocks(params.system, options?.memory),
   })
 }

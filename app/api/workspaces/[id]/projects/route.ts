@@ -1,21 +1,10 @@
 import { NextResponse } from "next/server"
-import { adminDb, adminAuth } from "@/lib/firebase-admin"
+import { adminDb } from "@/lib/firebase-admin"
 import { requireUserUid } from "@/lib/server-auth"
+import { serializeProjectListItemForApi } from "@/lib/project-shape"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
-
-function serializeDoc(data: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = {}
-  for (const [k, v] of Object.entries(data)) {
-    if (v && typeof v === "object" && "toDate" in v && typeof (v as { toDate: () => Date }).toDate === "function") {
-      out[k] = (v as { toDate: () => Date }).toDate().toISOString()
-    } else {
-      out[k] = v
-    }
-  }
-  return out
-}
 
 async function requireWorkspaceMember(workspaceId: string, uid: string) {
   const memberDocId = `${workspaceId}_${uid}`
@@ -36,7 +25,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     await requireWorkspaceMember(workspaceId, uid)
 
     const snap = await adminDb.collection("projects").where("workspaceId", "==", workspaceId).get()
-    const projects = snap.docs.map((d) => serializeDoc({ id: d.id, ...(d.data() as any) }))
+    const projects = snap.docs.map((d) => serializeProjectListItemForApi({ id: d.id, ...d.data() }, d.id))
 
     return NextResponse.json({ projects })
   } catch (err: unknown) {

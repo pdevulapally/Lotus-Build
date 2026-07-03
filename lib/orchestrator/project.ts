@@ -1,7 +1,7 @@
 import "server-only"
 
 import type { DocumentSnapshot } from "firebase-admin/firestore"
-import { adminDb } from "@/lib/firebase-admin"
+import { assertProjectCanEdit } from "@/lib/project-access"
 import { normalizePlatform, type ProjectPlatform } from "@/lib/projects/platform"
 
 export interface OwnedProjectRecord {
@@ -14,20 +14,13 @@ export async function loadOwnedProject(
   projectId: string,
   uid: string,
 ): Promise<OwnedProjectRecord> {
-  const snap = await adminDb.collection("projects").doc(projectId).get()
-  if (!snap.exists) {
-    throw new Error("Project not found")
-  }
-
-  const data = snap.data() as { ownerId?: string; platform?: unknown }
-  if (!data.ownerId || data.ownerId !== uid) {
-    throw new Error("Forbidden")
-  }
+  const { snap, data } = await assertProjectCanEdit(projectId, uid)
+  const project = data as { ownerId?: string; userId?: string; platform?: unknown }
 
   return {
     snap,
-    ownerId: data.ownerId,
-    platform: normalizePlatform(data.platform),
+    ownerId: project.ownerId || project.userId || "",
+    platform: normalizePlatform(project.platform),
   }
 }
 

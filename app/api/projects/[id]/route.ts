@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { adminAuth, adminDb } from "@/lib/firebase-admin"
 import { requireUserUid } from "@/lib/server-auth"
 import { assertProjectCanEdit } from "@/lib/project-access"
-import { serializeProjectForApi } from "@/lib/project-shape"
+import { serializeProjectForApi, serializePublicProjectForApi } from "@/lib/project-shape"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -55,8 +55,12 @@ export async function GET(
     if (visibility === "private" && !isOwner && !isEditor) {
       return NextResponse.json({ error: "This project is private" }, { status: 403 })
     }
-    if (canViewPublic || isOwner || isEditor) {
+    if (isOwner || isEditor) {
       const payload = serializeProjectForApi({ id: snap.id, ...data }, snap.id)
+      return NextResponse.json(payload)
+    }
+    if (canViewPublic) {
+      const payload = serializePublicProjectForApi({ id: snap.id, ...data }, snap.id)
       return NextResponse.json(payload)
     }
 

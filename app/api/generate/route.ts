@@ -26,6 +26,7 @@ import { assertProjectCanEdit } from "@/lib/project-access"
 import { assertRateLimit, RateLimitError, rateLimitResponse } from "@/lib/rate-limit"
 import { isSensitiveFilePath, normalizeRelativeFilePath } from "@/lib/security/files"
 import {
+  buildMobileDesignBriefSuffix,
   buildMobileGenerationSystemPrompt,
   MOBILE_MODEL_RELIABILITY_PROMPT,
 } from "@/lib/generation/prompts/mobile"
@@ -1229,6 +1230,8 @@ async function streamAnthropicCompletion(params: {
   client: Anthropic
   selectedModel: string
   systemPrompt: string
+  /** Per-request system content (e.g. design brief); appended after the cached static prompt. */
+  systemPromptDynamic: string
   userMessageContent: string
   existingFiles?: { path: string; content: string }[]
   controller: ReadableStreamDefaultController<Uint8Array>
@@ -1241,11 +1244,17 @@ async function streamAnthropicCompletion(params: {
 }) {
   const emitIncremental = params.platform !== "mobile"
 
-  // Only the static system prompt is eligible for cache_control — never per-user content.
-  const systemContent: TextBlockParam[] =
+  // Only the static system prompt is eligible for cache_control — never per-user
+  // content. The per-request dynamic suffix (design brief) is a separate,
+  // uncached block AFTER the breakpoint so the cached prefix stays byte-stable.
+  const systemContent: TextBlockParam[] = [
     params.promptCachePlan.cacheClaudeSystemPrompt && params.promptCachePlan.claudeCacheControl
-      ? [{ type: "text" as const, text: params.systemPrompt, cache_control: params.promptCachePlan.claudeCacheControl }]
-      : [{ type: "text" as const, text: params.systemPrompt }]
+      ? { type: "text" as const, text: params.systemPrompt, cache_control: params.promptCachePlan.claudeCacheControl }
+      : { type: "text" as const, text: params.systemPrompt },
+    ...(params.systemPromptDynamic
+      ? [{ type: "text" as const, text: params.systemPromptDynamic }]
+      : []),
+  ]
 
   const buildMessages = (priorAssistant?: string, continuationInstruction?: string): MessageParam[] => {
     const messages: MessageParam[] = [{ role: "user", content: params.userMessageContent }]
@@ -1345,6 +1354,8 @@ async function streamWithResolvedProvider(params: {
   provider: Provider
   selectedModel: string
   systemPrompt: string
+  /** Per-request system content (e.g. design brief); appended after the static prompt. */
+  systemPromptDynamic: string
   userMessageContent: string
   existingFiles?: { path: string; content: string }[]
   controller: ReadableStreamDefaultController<Uint8Array>
@@ -1355,11 +1366,18 @@ async function streamWithResolvedProvider(params: {
   temperature?: number
   promptCachePlan: PromptCachePlan
 }) {
+  // OpenAI/NVIDIA take one system string: static prefix first, dynamic suffix
+  // last — OpenAI's automatic prompt cache matches on the longest common
+  // message prefix, so the stable content must lead.
+  const fullSystemPrompt = params.systemPromptDynamic
+    ? `${params.systemPrompt}${params.systemPromptDynamic}`
+    : params.systemPrompt
+
   if (params.provider === "nvidia") {
     const validated = await generateWithNvidiaValidation({
       client: params.client as OpenAI,
       selectedModel: params.selectedModel,
-      systemPrompt: params.systemPrompt,
+      systemPrompt: fullSystemPrompt,
       userMessageContent: params.userMessageContent,
       existingFiles: params.existingFiles,
       platform: params.platform,
@@ -1372,7 +1390,7 @@ async function streamWithResolvedProvider(params: {
       assertValidFileBlockOutput(validated.finalContent)
     } catch {
       const repaired = await repairInvalidFileFormatWithOpenAI({
-        systemPrompt: params.systemPrompt,
+        systemPrompt: fullSystemPrompt,
         userMessageContent: params.userMessageContent,
         brokenContent: validated.finalContent,
         maxOutputTokens: params.maxOutputTokens,
@@ -1386,7 +1404,7 @@ async function streamWithResolvedProvider(params: {
     if (validated.remainingIssues.length > 0) {
       console.warn("NVIDIA generation still has unresolved validation issues:", validated.remainingIssues)
       const salvaged = await salvageWithOpenAI({
-        systemPrompt: params.systemPrompt,
+        systemPrompt: fullSystemPrompt,
         userMessageContent: params.userMessageContent,
         brokenContent: validated.finalContent,
         issues: validated.remainingIssues,
@@ -1408,6 +1426,7 @@ async function streamWithResolvedProvider(params: {
       client: params.client as Anthropic,
       selectedModel: params.selectedModel,
       systemPrompt: params.systemPrompt,
+      systemPromptDynamic: params.systemPromptDynamic,
       userMessageContent: params.userMessageContent,
       existingFiles: params.existingFiles,
       controller: params.controller,
@@ -1482,7 +1501,7 @@ async function streamWithResolvedProvider(params: {
   let completion
   try {
     completion = await createOpenAICompletion([
-      { role: "system", content: params.systemPrompt },
+      { role: "system", content: fullSystemPrompt },
       { role: "user", content: params.userMessageContent },
     ])
   } catch (err: any) {
@@ -1493,7 +1512,7 @@ async function streamWithResolvedProvider(params: {
         retrySeedFiles.slice(0, Math.max(2, Math.ceil(retrySeedFiles.length / 2)))
       )
       completion = await createOpenAICompletion([
-        { role: "system", content: params.systemPrompt },
+        { role: "system", content: fullSystemPrompt },
         { role: "user", content: buildFollowUpUserMessage(basePrompt, reducedFiles) },
       ])
     } else {
@@ -1517,7 +1536,7 @@ async function streamWithResolvedProvider(params: {
       output = cleanOutput
 
       const continuation = await createOpenAICompletion([
-        { role: "system", content: params.systemPrompt },
+        { role: "system", content: fullSystemPrompt },
         { role: "user", content: params.userMessageContent },
         { role: "assistant", content: output },
         { role: "user", content: buildContinuationInstruction(cutOffPath) },
@@ -1553,7 +1572,7 @@ async function streamWithResolvedProvider(params: {
   if (validation.issues.length > 0 && !params.state.closed) {
     console.warn("OpenAI generation has validation issues, attempting salvage:", validation.issues)
     const salvaged = await salvageWithOpenAI({
-      systemPrompt: params.systemPrompt,
+      systemPrompt: fullSystemPrompt,
       userMessageContent: params.userMessageContent,
       brokenContent: serializeFileBlocks(finalBlocks),
       issues: validation.issues,
@@ -1596,6 +1615,8 @@ async function runBuilderRuntime(params: {
   provider: Provider
   selectedModel: string
   systemPrompt: string
+  /** Per-request system content (e.g. design brief); appended after the static prompt. */
+  systemPromptDynamic: string
   userMessageContent: string
   existingFiles?: { path: string; content: string }[]
   controller: ReadableStreamDefaultController<Uint8Array>
@@ -1675,39 +1696,48 @@ export async function POST(req: Request) {
     return jsonError(401, "invalid_auth", "Authentication token is invalid or expired.")
   }
 
-  try {
-    await assertRateLimit({
+  // Pre-flight gates are independent reads — run them concurrently instead of
+  // paying three sequential Firestore round trips. Response precedence is
+  // unchanged: rate limit → project access → token balance. allSettled
+  // captures every rejection, so no gate can produce an unhandled rejection.
+  const normalizedProjectId = typeof projectId === "string" ? projectId.trim() : ""
+  const [rateLimitResult, projectResult, balanceResult] = await Promise.allSettled([
+    assertRateLimit({
       scope: "generate",
       key: uid,
       limit: 20,
       windowMs: 60 * 60 * 1000,
-    })
-  } catch (error) {
+    }),
+    normalizedProjectId
+      ? assertProjectCanEdit(normalizedProjectId, uid)
+      : Promise.resolve(null),
+    // Shared balance gate: resets the monthly period when lapsed, then requires
+    // a positive balance. Same gate as /api/computer/run.
+    assertTokenBalance(uid),
+  ])
+
+  if (rateLimitResult.status === "rejected") {
+    const error = rateLimitResult.reason
     if (error instanceof RateLimitError) return rateLimitResponse(error)
     throw error
   }
 
   let projectPlatform: ProjectPlatform = "web"
-  const normalizedProjectId = typeof projectId === "string" ? projectId.trim() : ""
   if (normalizedProjectId) {
-    let projectData: { platform?: unknown }
-    try {
-      const { snap } = await assertProjectCanEdit(normalizedProjectId, uid)
-      projectData = snap.data() as { platform?: unknown }
-    } catch (error) {
+    if (projectResult.status === "rejected") {
+      const error = projectResult.reason
       const message = error instanceof Error ? error.message : "Access denied"
       const status = message.includes("Project not found") ? 404 : message.includes("Forbidden") ? 403 : 500
       return Response.json({ error: status === 500 ? "Server error" : message }, { status })
     }
-
-    projectPlatform = normalizePlatform(projectData.platform)
+    if (projectResult.value) {
+      const projectData = projectResult.value.snap.data() as { platform?: unknown }
+      projectPlatform = normalizePlatform(projectData.platform)
+    }
   }
 
-  // Shared balance gate: resets the monthly period when lapsed, then requires
-  // a positive balance. Same gate as /api/computer/run.
-  try {
-    await assertTokenBalance(uid)
-  } catch (e) {
+  if (balanceResult.status === "rejected") {
+    const e = balanceResult.reason
     if (e instanceof InsufficientTokensError) {
       return new Response(JSON.stringify({ error: 'Insufficient tokens' }), { status: 402 })
     }
@@ -1717,6 +1747,15 @@ export async function POST(req: Request) {
     console.error('Token check failed', e)
     return new Response(JSON.stringify({ error: 'Server error' }), { status: 500 })
   }
+
+  const isFollowUp = Array.isArray(safeExistingFiles) && safeExistingFiles.length > 0
+
+  // The design brief is the longest pre-stream step (a full model call). Start
+  // it as soon as the auth/rate-limit/balance gates have passed so it overlaps
+  // model resolution and the idempotency reservation instead of running after
+  // them. deriveDesignBrief never rejects — it resolves "" on failure.
+  const designBriefPromise: Promise<string> =
+    isFollowUp || skipDesignBrief === true ? Promise.resolve("") : deriveDesignBrief(prompt)
 
   let resolvedModel: ResolvedModel
   try {
@@ -1728,7 +1767,6 @@ export async function POST(req: Request) {
   const { client, selectedModel, provider } = resolvedModel
 
   const maxOutputTokens = maxTokens ?? GENERATION_MAX_OUTPUT_TOKENS
-  const isFollowUp = Array.isArray(safeExistingFiles) && safeExistingFiles.length > 0
   const promptFiles = isFollowUp ? selectFollowUpFiles(safeExistingFiles || [], prompt) : []
 
   const systemPromptFollowUp = `You are an expert React developer. The user is asking for CHANGES or ADDITIONS to an existing project. You will receive the current project files.
@@ -1849,7 +1887,11 @@ Only when the app would clearly benefit from a database or backend.`
     return `\n\nCRITICAL IMPLEMENTATION CHECKLIST — verify these are in your output before generating files:\n${parts.map((p) => `⚠ ${p}`).join("\n")}`
   }
 
-  const systemPromptNew = (designBrief: string) => `${designBrief ? `DESIGN BRIEF — implement every decision in this brief exactly. This is the authoritative visual specification for this build. Do not substitute defaults.\n\n${designBrief}\n\n---\n\n` : ""}You are an expert React developer building a real production website for a real business. Every decision must serve this specific client — not a category template.
+  // Static for every request — the per-request design brief is appended AFTER
+  // this prompt (see buildWebDesignBriefSuffix). Provider prompt caching
+  // (OpenAI automatic prefix matching, Claude cache_control) only hits on a
+  // stable prefix, so variable content must never lead the system prompt.
+  const systemPromptNewStatic = `You are an expert React developer building a real production website for a real business. Every decision must serve this specific client — not a category template.
 
 PRODUCTION STANDARD (NON-NEGOTIABLE):
 - This is a real website for a real business. Build it like a specialist agency would, not like an AI filling in a template.
@@ -2024,7 +2066,14 @@ The output must be immediately recognisable as designed for this specific busine
 
 BACKEND DETECTION: If the user's request clearly implies a need for a backend, database, or persistent data (e.g. user accounts, login/signup, saving data, todos, forms that persist, dashboards with data, CRUD, API, auth), then at the very end of your response output exactly this line on its own line (after all ===END_FILE=== blocks):
 ===META: suggestsBackend=true===
-Do NOT output this for purely static sites, landing pages, or UI-only apps with no data persistence. Only when the app would clearly benefit from a database or backend.${extractCriticalChecklist(designBrief)}`
+Do NOT output this for purely static sites, landing pages, or UI-only apps with no data persistence. Only when the app would clearly benefit from a database or backend.`
+
+  // Appended after the static prompt so the prompt-cache prefix stays stable.
+  // The critical checklist stays at the very end of the system prompt.
+  function buildWebDesignBriefSuffix(designBrief: string) {
+    if (!designBrief) return ""
+    return `\n\n---\n\nDESIGN BRIEF — implement every decision in this brief exactly. This is the authoritative visual specification for this build. Do not substitute defaults.\n\n${designBrief}${extractCriticalChecklist(designBrief)}`
+  }
 
   const nvidiaReliabilityPrompt = `
 OPEN-SOURCE MODEL RELIABILITY RULES (MANDATORY):
@@ -2065,13 +2114,19 @@ OPEN-SOURCE MODEL RELIABILITY RULES (MANDATORY):
   }
 
   const isInspiration = intent === "inspiration"
-  const designBrief = isFollowUp || skipDesignBrief === true ? "" : await deriveDesignBrief(prompt)
+  const designBrief = await designBriefPromise
   const systemPrompt = projectPlatform === "mobile"
-    ? buildMobileGenerationSystemPrompt({ designBrief, isFollowUp })
-    : isFollowUp ? systemPromptFollowUp : systemPromptNew(designBrief)
+    ? buildMobileGenerationSystemPrompt({ isFollowUp })
+    : isFollowUp ? systemPromptFollowUp : systemPromptNewStatic
   const finalSystemPrompt = projectPlatform === "mobile"
     ? `${systemPrompt}\n\n${MOBILE_MODEL_RELIABILITY_PROMPT}`
     : `${systemPrompt}\n\n${nvidiaReliabilityPrompt}`
+  // Per-request content (design brief + checklist) lives in a separate suffix
+  // appended AFTER the static prompt: OpenAI's automatic prefix cache and the
+  // Claude cache_control block both stay byte-stable across requests.
+  const dynamicSystemPrompt = projectPlatform === "mobile"
+    ? buildMobileDesignBriefSuffix(designBrief)
+    : isFollowUp ? "" : buildWebDesignBriefSuffix(designBrief)
 
   // Build user message — inspiration mode prepends the reference site context.
   const inspirationMarkdown = typeof inspirationContext?.markdown === "string"
@@ -2102,6 +2157,7 @@ OPEN-SOURCE MODEL RELIABILITY RULES (MANDATORY):
           provider,
           selectedModel,
           systemPrompt: finalSystemPrompt,
+          systemPromptDynamic: dynamicSystemPrompt,
           userMessageContent,
           existingFiles: safeExistingFiles,
           controller,

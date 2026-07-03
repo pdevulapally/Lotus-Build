@@ -736,6 +736,45 @@ async function tryExtendTimeout(sandbox: Sandbox) {
   }
 }
 
+class SandboxLifecycleError extends Error {
+  constructor(message: string, public status: number) {
+    super(message)
+  }
+}
+
+async function authorizeSandboxLifecycle(req: Request): Promise<{ sandboxId: string; projectId: string }> {
+  let uid: string
+  try {
+    uid = await requireUserUid(req)
+  } catch {
+    throw new SandboxLifecycleError("Unauthorized", 401)
+  }
+
+  const body = await req.json().catch(() => {
+    throw new SandboxLifecycleError("Invalid JSON body", 400)
+  }) as { sandboxId?: unknown; projectId?: unknown }
+
+  const sandboxId = typeof body?.sandboxId === "string" && body.sandboxId.trim() ? body.sandboxId.trim() : ""
+  const projectId = typeof body?.projectId === "string" && body.projectId.trim() ? body.projectId.trim() : ""
+  if (!sandboxId) throw new SandboxLifecycleError("sandboxId required", 400)
+  if (!projectId) throw new SandboxLifecycleError("projectId required", 400)
+
+  try {
+    const { snap } = await assertProjectCanEdit(projectId, uid)
+    const project = snap.data() as { sandboxId?: unknown } | undefined
+    if (project?.sandboxId !== sandboxId) {
+      throw new SandboxLifecycleError("Sandbox does not belong to this project", 403)
+    }
+  } catch (error) {
+    if (error instanceof SandboxLifecycleError) throw error
+    const message = error instanceof Error ? error.message : "Access denied"
+    const status = message.includes("Project not found") ? 404 : message.includes("Forbidden") ? 403 : 500
+    throw new SandboxLifecycleError(status === 500 ? "Server error" : message, status)
+  }
+
+  return { sandboxId, projectId }
+}
+
 async function validateNodeModules(sandbox: Sandbox): Promise<boolean> {
   try {
     const result = await cmd(
@@ -1857,15 +1896,14 @@ export async function PATCH(req: Request) {
     return Response.json({ error: "E2B API key not configured" }, { status: 500 })
   }
 
+  let sandboxId: string
   try {
-    await requireUserUid(req)
-  } catch {
-    return Response.json({ error: "Unauthorized" }, { status: 401 })
+    ;({ sandboxId } = await authorizeSandboxLifecycle(req))
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unauthorized"
+    const status = error instanceof SandboxLifecycleError ? error.status : 401
+    return Response.json({ error: message }, { status })
   }
-
-  const body = await req.json().catch(() => null) as { sandboxId?: unknown } | null
-  const sandboxId = typeof body?.sandboxId === "string" ? body.sandboxId : ""
-  if (!sandboxId) return Response.json({ error: "sandboxId required" }, { status: 400 })
 
   const opts = {
     apiKey: process.env.E2B_API_KEY,
@@ -1889,15 +1927,14 @@ export async function DELETE(req: Request) {
     return Response.json({ error: "E2B API key not configured" }, { status: 500 })
   }
 
+  let sandboxId: string
   try {
-    await requireUserUid(req)
-  } catch {
-    return Response.json({ error: "Unauthorized" }, { status: 401 })
+    ;({ sandboxId } = await authorizeSandboxLifecycle(req))
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unauthorized"
+    const status = error instanceof SandboxLifecycleError ? error.status : 401
+    return Response.json({ error: message }, { status })
   }
-
-  const body = await req.json().catch(() => null) as { sandboxId?: unknown } | null
-  const sandboxId = typeof body?.sandboxId === "string" ? body.sandboxId : ""
-  if (!sandboxId) return Response.json({ error: "Sandbox ID required" }, { status: 400 })
 
   try {
     const opts = { apiKey: process.env.E2B_API_KEY, timeoutMs: 60_000 }

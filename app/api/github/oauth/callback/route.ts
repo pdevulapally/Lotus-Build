@@ -3,11 +3,23 @@ import { adminDb } from "@/lib/firebase-admin"
 import { setGitHubToken } from "@/lib/server-auth"
 
 export const runtime = "nodejs"
+const OAUTH_STATE_TTL_MS = 10 * 60 * 1000
 
 function getSafeReturnPath(value: string | undefined): string {
   if (!value || !value.startsWith("/") || value.startsWith("//")) return ""
   if (!value.startsWith("/computer/") && !value.startsWith("/project/") && value !== "/settings") return ""
   return value
+}
+
+function isFreshState(createdAt: unknown): boolean {
+  const date = createdAt && typeof createdAt === "object" && "toDate" in createdAt && typeof (createdAt as { toDate: () => Date }).toDate === "function"
+    ? (createdAt as { toDate: () => Date }).toDate()
+    : createdAt instanceof Date
+      ? createdAt
+      : typeof createdAt === "string" || typeof createdAt === "number"
+        ? new Date(createdAt)
+        : null
+  return !!date && !Number.isNaN(date.getTime()) && Date.now() - date.getTime() <= OAUTH_STATE_TTL_MS
 }
 
 export async function GET(req: Request) {
@@ -32,7 +44,13 @@ export async function GET(req: Request) {
     return new NextResponse("Invalid or expired state", { status: 400 })
   }
 
-  const { uid, projectId, returnTo } = (stateSnap.data() ?? {}) as {
+  const stateData = stateSnap.data() ?? {}
+  if (!isFreshState(stateData.createdAt)) {
+    await adminDb.collection("githubOauthStates").doc(state).delete().catch(() => {})
+    return new NextResponse("Invalid or expired state", { status: 400 })
+  }
+
+  const { uid, projectId, returnTo } = stateData as {
     uid?: string
     projectId?: string
     returnTo?: string

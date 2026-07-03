@@ -84,7 +84,13 @@
       "PowerShell(npx -y tsx \"C:\\\\Users\\\\Preet\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Preet-Desktop-Lotus-Build\\\\6fa5656a-0c49-4272-acf7-783926b45c56\\\\scratchpad\\\\test-pricing.ts\")",
       "PowerShell(npx -y tsx --env-file=.env.local \"C:\\\\Users\\\\Preet\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Preet-Desktop-Lotus-Build\\\\6fa5656a-0c49-4272-acf7-783926b45c56\\\\scratchpad\\\\test-meter-wrapper.ts\")",
       "PowerShell(npx -y tsx --env-file=.env.local \"C:\\\\Users\\\\Preet\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Preet-Desktop-Lotus-Build\\\\6fa5656a-0c49-4272-acf7-783926b45c56\\\\scratchpad\\\\test-ledger-live.ts\")",
-      "PowerShell(Set-Content *)"
+      "PowerShell(Set-Content *)",
+      "Bash(git -C \"C:\\\\Users\\\\Preet\\\\Desktop\\\\Lotus-Build\" status --short)",
+      "Bash(git -C \"C:\\\\Users\\\\Preet\\\\Desktop\\\\Lotus-Build\" log --oneline -10)",
+      "Bash(git *)",
+      "PowerShell(npx tsc --noEmit 2>$null | Select-Object -First 80)",
+      "PowerShell(Get-ChildItem -Directory | Select-Object -ExpandProperty Name; Write-Output '--- app ---'; Get-ChildItem app -Recurse -Filter route.ts | ForEach-Object { $_.FullName.Replace\\(\\(Get-Location\\).Path + '\\\\', ''\\) })",
+      "PowerShell($routes = Get-ChildItem app\\\\api -Recurse -Filter route.ts; foreach \\($r in $routes\\) { $c = Get-Content $r.FullName -Raw; $hasAuth = $c -match 'requireUserUid|verifyIdToken|stripe-signature|x-hub-signature|x-seed-secret|SEED_PLANS_SECRET|ORCHESTRATOR_API_KEY|assertRateLimit|checkRateLimit'; if \\(-not $hasAuth\\) { $r.FullName.Replace\\(\\(Get-Location\\).Path + '\\\\', ''\\) } })"
     ]
   }
 }

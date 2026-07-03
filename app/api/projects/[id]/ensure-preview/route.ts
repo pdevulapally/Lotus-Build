@@ -165,7 +165,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       const patchRes = await fetch(`${origin}/api/sandbox`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", ...(auth ? { Authorization: auth } : {}) },
-        body: JSON.stringify({ sandboxId: project.sandboxId }),
+        body: JSON.stringify({ projectId, sandboxId: project.sandboxId }),
       })
       if (patchRes.ok) {
         const healthy = await isPreviewResponsive(project.sandboxUrl)
@@ -230,7 +230,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     if (message === "Project not found") {
       return NextResponse.json({ error: "Project not found" }, { status: 404 })
     }
-    if (message.startsWith("Forbidden:")) {
+    if (message === "Forbidden" || message.startsWith("Forbidden:")) {
       return NextResponse.json({ error: "You do not have access to this project." }, { status: 403 })
     }
     return previewUnavailableResponse(publicPreviewError(err))

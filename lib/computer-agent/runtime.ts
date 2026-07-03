@@ -60,9 +60,9 @@ const FOLLOW_UP_INTENT_RULES = [
       /\badd\b/i,
     ],
   },
-] as const satisfies readonly Array<{
+] as const satisfies ReadonlyArray<{
   intent: Exclude<ComputerFollowUpIntent, "new_instruction">
-  patterns: readonly RegExp[]
+  patterns: ReadonlyArray<RegExp>
 }>
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -135,12 +135,9 @@ export function buildComputerRuntimeContext(
 export function createRuntimeCheckpoint(
   patch: Partial<Omit<ComputerAgentRuntimeCheckpoint, "updatedAt">>,
 ): ComputerAgentRuntimeCheckpoint {
-  const checkpoint = {
+  return normalizeComputerAgentRuntime({
     phase: patch.phase ?? "idle",
     ...patch,
     updatedAt: new Date().toISOString(),
-  }
-  return Object.fromEntries(
-    Object.entries(checkpoint).filter(([, value]) => value !== undefined),
-  ) as ComputerAgentRuntimeCheckpoint
+  })
 }

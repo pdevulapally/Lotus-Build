@@ -838,7 +838,7 @@ function SettingsContent() {
                             <div className="mb-3 flex items-center gap-2">
                               {statusDot(p.status)}
                               <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{p.prompt?.trim() || "Untitled project"}</span>
-                              <a href={`/computer/${p.id}`} className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-primary"><ExternalLink className="h-3 w-3" /> Open</a>
+                              <a href={`/project/${p.id}`} className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-primary"><ExternalLink className="h-3 w-3" /> Open</a>
                             </div>
                             <textarea
                               value={projectMemoryDrafts[p.id] ?? ""}

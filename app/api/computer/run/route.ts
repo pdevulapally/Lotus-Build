@@ -1506,6 +1506,13 @@ export async function POST(req: Request) {
   let activeDocRef: DocumentReference | null = null
   let activeRunId: string | null = null
   let meter: UsageMeter | null = null
+  // Cosmetic model calls (narrations) run concurrently with the pipeline instead
+  // of blocking it. Every task pushed here is drained in the finally block so
+  // its ledger writes and timeline events land before the instance can freeze.
+  const backgroundTasks: Promise<unknown>[] = []
+  // Serialized timeline write chain (see appendRunEvent below). Held at this
+  // scope so the finally block can drain queued writes on every return path.
+  let timelineWriteChain: Promise<void> = Promise.resolve()
 
   try {
     const uid = await requireUserUid(req)
@@ -1696,8 +1703,20 @@ export async function POST(req: Request) {
       })
     })
 
-    const appendRunEvent = async (event: ComputerTimelineEvent) =>
-      appendEvent(docRef, event, runId)
+    // appendEvent is a read-modify-write on the timeline array, so concurrent
+    // calls would drop events. All timeline writes for this run are serialized
+    // through one in-process chain: callers may enqueue without awaiting
+    // (background narrations, streaming callbacks) and ordering is preserved.
+    // A failed write never rejects the chain — later events still land.
+    const appendRunEvent = (event: ComputerTimelineEvent): Promise<void> => {
+      const write = timelineWriteChain
+        .then(() => appendEvent(docRef, event, runId))
+        .catch((err) => {
+          console.error("Timeline event write failed:", err)
+        })
+      timelineWriteChain = write
+      return write
+    }
 
     if (!(await isActiveRun(docRef, runId))) {
       return NextResponse.json({ ok: false, message: "Run already superseded" })
@@ -1953,30 +1972,34 @@ export async function POST(req: Request) {
     })
 
     if (runProfile.shouldShowDetailedNarration) {
-      const understandingNarration = await callAgent({
-        max_tokens: 200,
-        temperature: 0.3,
-        system: "You are an autonomous website builder agent. Write 2-3 sentences in first person, plain text, no markdown. State: (1) what you understand the user wants built and the specific domain or business type, (2) your immediate instinct for the visual direction or key design challenge this presents, (3) one specific thing you will do to make this feel authentic to the domain rather than generic.",
-        messages: [{
-          role: "user",
-          content: `User request: ${prompt}\n\nConversation:\n${formatConversationForOrchestrator(conversationTurns)}`
-        }]
-      }).catch(() => null)
+      // Narration is cosmetic — it runs alongside the pipeline instead of
+      // blocking the path to generation. Drained in the finally block.
+      backgroundTasks.push((async () => {
+        const understandingNarration = await callAgent({
+          max_tokens: 200,
+          temperature: 0.3,
+          system: "You are an autonomous website builder agent. Write 2-3 sentences in first person, plain text, no markdown. State: (1) what you understand the user wants built and the specific domain or business type, (2) your immediate instinct for the visual direction or key design challenge this presents, (3) one specific thing you will do to make this feel authentic to the domain rather than generic.",
+          messages: [{
+            role: "user",
+            content: `User request: ${prompt}\n\nConversation:\n${formatConversationForOrchestrator(conversationTurns)}`
+          }]
+        }).catch(() => null)
 
-      const understandingText = understandingNarration
-        ? extractTextFromAnthropicContent(understandingNarration.content)
-        : null
+        const understandingText = understandingNarration
+          ? extractTextFromAnthropicContent(understandingNarration.content)
+          : null
 
-      if (understandingText) {
-        await appendRunEvent({
-          id: crypto.randomUUID(),
-          title: "Understanding insight",
-          description: understandingText,
-          status: "complete",
-          kind: "understanding",
-          createdAt: new Date().toISOString(),
-        })
-      }
+        if (understandingText) {
+          await appendRunEvent({
+            id: crypto.randomUUID(),
+            title: "Understanding insight",
+            description: understandingText,
+            status: "complete",
+            kind: "understanding",
+            createdAt: new Date().toISOString(),
+          })
+        }
+      })())
     }
 
     let planText = orchestratorPhase.planText
@@ -2070,30 +2093,33 @@ export async function POST(req: Request) {
           },
         })
 
-        const researchNarration = await callAgent({
-          max_tokens: 200,
-          temperature: 0.3,
-          system: "You are an autonomous website builder agent narrating a research phase. First person, plain text, no markdown, 2-3 sentences. Extract design-relevant signals: what color palettes, layout patterns, typography styles, or content structures appeared across the results that are worth applying to this build. Be specific — name colors, describe layouts, mention font styles.",
-          messages: [{
-            role: "user",
-            content: `User request: ${prompt}\n\nSearch results:\n${summarizeWebEvidence(searchEvidence)}`
-          }]
-        }).catch(() => null)
+        // Cosmetic narration — runs alongside the pipeline; drained in finally.
+        backgroundTasks.push((async () => {
+          const researchNarration = await callAgent({
+            max_tokens: 200,
+            temperature: 0.3,
+            system: "You are an autonomous website builder agent narrating a research phase. First person, plain text, no markdown, 2-3 sentences. Extract design-relevant signals: what color palettes, layout patterns, typography styles, or content structures appeared across the results that are worth applying to this build. Be specific — name colors, describe layouts, mention font styles.",
+            messages: [{
+              role: "user",
+              content: `User request: ${prompt}\n\nSearch results:\n${summarizeWebEvidence(searchEvidence)}`
+            }]
+          }).catch(() => null)
 
-        const researchText = researchNarration
-          ? extractTextFromAnthropicContent(researchNarration.content)
-          : null
+          const researchText = researchNarration
+            ? extractTextFromAnthropicContent(researchNarration.content)
+            : null
 
-        if (researchText) {
-          await appendRunEvent({
-            id: crypto.randomUUID(),
-            title: "Research insight",
-            description: researchText,
-            status: "complete",
-            kind: "research",
-            createdAt: new Date().toISOString(),
-          })
-        }
+          if (researchText) {
+            await appendRunEvent({
+              id: crypto.randomUUID(),
+              title: "Research insight",
+              description: researchText,
+              status: "complete",
+              kind: "research",
+              createdAt: new Date().toISOString(),
+            })
+          }
+        })())
       } catch (err) {
         console.error("Computer Firecrawl search failed:", err)
         await appendRunEvent({
@@ -2167,30 +2193,33 @@ export async function POST(req: Request) {
           },
         })
 
-        const browserNarration = await callAgent({
-          max_tokens: 220,
-          temperature: 0.3,
-          system: "You are an autonomous website builder agent narrating a page inspection. First person, plain text, no markdown, 2-3 sentences. Extract and name specific design decisions you observed: exact color palette, heading font style, layout structure, hero treatment, spacing density, button style, background treatment. State concretely what you will carry into the build.",
-          messages: [{
-            role: "user",
-            content: `User request: ${prompt}\n\nPage: ${targetUrl}\nTitle: ${inspection.pageTitle}\n\nInspection data:\n${inspection.summary.slice(0, 1000)}`
-          }]
-        }).catch(() => null)
+        // Cosmetic narration — runs alongside the pipeline; drained in finally.
+        backgroundTasks.push((async () => {
+          const browserNarration = await callAgent({
+            max_tokens: 220,
+            temperature: 0.3,
+            system: "You are an autonomous website builder agent narrating a page inspection. First person, plain text, no markdown, 2-3 sentences. Extract and name specific design decisions you observed: exact color palette, heading font style, layout structure, hero treatment, spacing density, button style, background treatment. State concretely what you will carry into the build.",
+            messages: [{
+              role: "user",
+              content: `User request: ${prompt}\n\nPage: ${targetUrl}\nTitle: ${inspection.pageTitle}\n\nInspection data:\n${inspection.summary.slice(0, 1000)}`
+            }]
+          }).catch(() => null)
 
-        const browserText = browserNarration
-          ? extractTextFromAnthropicContent(browserNarration.content)
-          : null
+          const browserText = browserNarration
+            ? extractTextFromAnthropicContent(browserNarration.content)
+            : null
 
-        if (browserText) {
-          await appendRunEvent({
-            id: crypto.randomUUID(),
-            title: "Browser insight",
-            description: browserText,
-            status: "complete",
-            kind: "browser",
-            createdAt: new Date().toISOString(),
-          })
-        }
+          if (browserText) {
+            await appendRunEvent({
+              id: crypto.randomUUID(),
+              title: "Browser insight",
+              description: browserText,
+              status: "complete",
+              kind: "browser",
+              createdAt: new Date().toISOString(),
+            })
+          }
+        })())
       } catch (browserErr) {
         console.error("Firecrawl browser failed:", browserErr)
         const browserFailure = browserErr instanceof Error ? browserErr.message : "Firecrawl browser failed"
@@ -2487,30 +2516,33 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
     }
 
     if (runProfile.shouldShowDetailedNarration) {
-    const buildNarration = await callAgent({
-      max_tokens: 220,
-      temperature: 0.3,
-      system: "You are an autonomous design and engineering agent. Write a commit statement in first person — 3-4 sentences, no markdown. State: (1) the specific visual identity you are committing to, naming the font pair and color direction, (2) the standout layout decision for the hero or most important section, (3) what makes this site feel handcrafted for this domain rather than generic.",
-      messages: [{
-        role: "user",
-        content: `User request: ${prompt}\n\nBuild plan:\n${planText.slice(0, 800)}\n\nResearch gathered:\n${formatWebEvidenceList(usableWebEvidence).slice(0, 500)}`
-      }]
-    }).catch(() => null)
+      // Cosmetic narration — runs alongside generation; drained in finally.
+      backgroundTasks.push((async () => {
+        const buildNarration = await callAgent({
+          max_tokens: 220,
+          temperature: 0.3,
+          system: "You are an autonomous design and engineering agent. Write a commit statement in first person — 3-4 sentences, no markdown. State: (1) the specific visual identity you are committing to, naming the font pair and color direction, (2) the standout layout decision for the hero or most important section, (3) what makes this site feel handcrafted for this domain rather than generic.",
+          messages: [{
+            role: "user",
+            content: `User request: ${prompt}\n\nBuild plan:\n${planText.slice(0, 800)}\n\nResearch gathered:\n${formatWebEvidenceList(usableWebEvidence).slice(0, 500)}`
+          }]
+        }).catch(() => null)
 
-    const buildText = buildNarration
-      ? extractTextFromAnthropicContent(buildNarration.content)
-      : null
+        const buildText = buildNarration
+          ? extractTextFromAnthropicContent(buildNarration.content)
+          : null
 
-    if (buildText) {
-      await appendRunEvent({
-        id: crypto.randomUUID(),
-        title: "Build approach",
-        description: buildText,
-        status: "complete",
-        kind: "code",
-        createdAt: new Date().toISOString(),
-      })
-    }
+        if (buildText) {
+          await appendRunEvent({
+            id: crypto.randomUUID(),
+            title: "Build approach",
+            description: buildText,
+            status: "complete",
+            kind: "code",
+            createdAt: new Date().toISOString(),
+          })
+        }
+      })())
     }
 
     if (!(await isActiveRun(docRef, runId))) {
@@ -2582,8 +2614,10 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
           conversationMessages: agentConversationMessages.length ? agentConversationMessages : undefined,
           // Fired during streaming as soon as the file path is known — creates the "running"
           // UI event immediately, before the file content finishes generating.
+          // Enqueued without awaiting: the serialized timeline chain preserves
+          // ordering while the token stream is never blocked on a Firestore write.
           onFileStarted: async (path) => {
-            await appendRunEvent({
+            appendRunEvent({
               id: crypto.randomUUID(),
               title: `Generating ${path}`,
               description: undefined,
@@ -2600,7 +2634,7 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
           // to populate diff metadata. No additional UI event needed here.
           onFileWritten: async (_file) => {},
           onToolCall: async (title) => {
-            await appendRunEvent({
+            appendRunEvent({
               id: crypto.randomUUID(),
               title,
               description: undefined,
@@ -3505,6 +3539,12 @@ Format:
 
     return NextResponse.json({ error: message }, { status })
   } finally {
+    // Background narrations must finish before the meter flush so their usage
+    // records are pushed, and before the function instance can be frozen.
+    await Promise.allSettled(backgroundTasks)
+    // Queued timeline writes never reject (appendRunEvent catches), but they
+    // must land before the function instance can be frozen.
+    await timelineWriteChain
     // Ledger writes run in the background per call; make sure they land
     // before the function instance can be frozen.
     if (meter) await meter.flush()

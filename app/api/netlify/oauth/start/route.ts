@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { getUserNetlifyOauthState, randomState, requireUserUid, setUserNetlifyOauthState } from "@/lib/server-auth"
+import { randomState, requireUserUid, setUserNetlifyOauthState } from "@/lib/server-auth"
 import { adminDb } from "@/lib/firebase-admin"
 
 export const runtime = "nodejs"
@@ -28,8 +28,7 @@ export async function GET(req: Request) {
       )
     }
 
-    const existingState = await getUserNetlifyOauthState(uid)
-    const state = existingState || randomState()
+    const state = randomState()
 
     await setUserNetlifyOauthState(uid, state)
     await adminDb.collection("netlifyOauthStates").doc(state).set(
