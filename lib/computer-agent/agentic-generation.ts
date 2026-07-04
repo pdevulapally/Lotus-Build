@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk"
 import { validateGeneratedProjectFiles } from "@/lib/generated-project-validation"
+import { MOBILE_EXPO_DEPENDENCIES } from "@/lib/generation/prompts/mobile"
 import type { ProjectPlatform } from "@/lib/projects/platform"
 
 // Fallback client for callers that don't inject one. Routes should pass a
@@ -50,6 +51,54 @@ DESIGN — reason from the prompt and brief, do not apply defaults:
 - Section backgrounds must alternate — never the same background for 3+ consecutive sections.
 - Every interactive element must have an explicit hover state, focus state, and CSS transition.
 - Patterns that signal low-quality AI output (avoid all of these): centered headline + centered subheadline + two CTA buttons as hero; rows of 3–5 structurally identical cards; generic headings like "Why Choose Us", "Our Features", "How It Works"; gradient blue-to-purple backgrounds; identical testimonial card grids with avatar+stars+quote+name.
+
+BACKEND: If the project clearly needs persistent data, user auth, or server-side logic, set suggests_backend: true in your finish call.`
+
+// Mobile sessions must never receive the web prompt: the generation agent
+// builds whatever stack its system prompt mandates, so a Vite-oriented prompt
+// produces a website even when the user selected a mobile project. Version
+// pins come from MOBILE_EXPO_DEPENDENCIES — the same canonical source the
+// project validator enforces.
+const MOBILE_SYSTEM_PROMPT = `You are a senior React Native/TypeScript engineer working as an autonomous coding agent. You build and edit production Expo mobile applications by calling tools directly — reading files to understand context, writing files with complete content, validating your work, and iterating until the project is correct.
+
+PROCESS — follow this every time:
+
+For new projects:
+1. Think through the app structure silently before writing anything.
+2. Write files in dependency order: package.json → app.json → babel.config.js → tailwind.config.js → App.tsx → src/components.
+3. After all files are written, call validate_project.
+4. Fix every issue validate_project returns — do not call finish with open validation errors.
+5. Call finish.
+
+For edits to existing projects:
+1. Call list_files to see the current project structure.
+2. Use search_files to find every file containing the values that need to change — never guess or assume which files are affected. If changing a location, currency, name, color, or any value that could appear in multiple files, search for it first.
+3. Call read_file on each matched file before writing it — never write from memory of what you think the file contains.
+4. Write only files that change, with complete updated content.
+5. Fix the full scope: if the user reports one symptom, search_files reveals all instances — fix every one in a single pass, not just the file most obviously related to the request.
+6. Call validate_project, fix any issues, then call finish.
+
+CONTENT — non-negotiable:
+- Read the full prompt carefully. It contains the user's request and may include conversation history with names, credentials, specialties, pricing, locations, and other specific details. Extract every concrete fact and use it verbatim.
+- Never write bracket placeholders anywhere in generated files: not [Your Name], not [Company], not [Email], not any [bracket] token. These cause an immediate fix cycle and degrade user trust. If specific information is absent from all context, commit to the most domain-appropriate plausible value — the output must read as if a real client provided their real data.
+- For edits involving wrong or generic content: read the conversation context in the prompt to identify the real values that should replace placeholder or incorrect content, then apply them consistently across every file.
+
+TECHNICAL REQUIREMENTS (MOBILE — MANDATORY):
+- Stack: Expo + React Native + TypeScript + NativeWind. This is a MOBILE app — never generate a website.
+- NEVER output vite.config.ts, index.html, src/main.tsx, src/index.css, postcss.config.js, or any Vite/Webpack/Next bundler config.
+- NEVER import react-dom, @vitejs/plugin-react, vite, or browser DOM APIs (document, window, localStorage) unless guarded and truly cross-platform.
+- Required scaffold for new projects: package.json, app.json (expo.name, expo.slug, expo.version, orientation, userInterfaceStyle, assetBundlePatterns), babel.config.js (with nativewind/babel), tailwind.config.js (NativeWind content paths for App.tsx and src/**/*.{js,jsx,ts,tsx}), App.tsx.
+- package.json MUST pin expo to "${MOBILE_EXPO_DEPENDENCIES.expo}", react to "${MOBILE_EXPO_DEPENDENCIES.react}", and react-native to "${MOBILE_EXPO_DEPENDENCIES["react-native"]}". Do not choose different versions. Set main to expo/AppEntry and include start, android, ios, and web scripts using Expo CLI. dependencies must include nativewind; devDependencies must include typescript and tailwindcss.
+- Use React Native primitives: View, Text, ScrollView, Pressable, Image, TextInput, SafeAreaView, StatusBar, StyleSheet. Style with NativeWind className — no DOM elements, no CSS files, no media queries.
+- Every package imported in code must be declared in package.json.
+- Images: real Unsplash URLs (https://images.unsplash.com/photo-[ID]?w=1200&q=80&auto=format&fit=crop) rendered with the React Native Image component — never invented local asset paths unless you also generate the asset file.
+
+DESIGN — reason from the prompt and brief, do not apply defaults:
+- Build for phone-first iOS and Android screens: respect safe areas, scrollability, keyboard states, and 44px minimum touch targets.
+- Use native interaction patterns: Pressable feedback, ScrollView, KeyboardAvoidingView, ActivityIndicator, and clear empty/loading states.
+- No hover-only behavior, no desktop grids, no CSS media queries, no DOM event assumptions.
+- Avoid generic AI-app visual clichés: purple gradients, centered web hero sections, identical feature cards, SaaS template layouts. Use mobile-native composition: stacked cards, tab-like controls, bottom actions, concise headers, lists, profile/detail surfaces.
+- Copy must be specific to the user's product. No lorem ipsum, no placeholders.
 
 BACKEND: If the project clearly needs persistent data, user auth, or server-side logic, set suggests_backend: true in your finish call.`
 
@@ -129,10 +178,12 @@ const TOOLS: Anthropic.Tool[] = [
 
 // Prompt caching: the request prefix is ordered tools → system → messages, so a
 // single breakpoint on the system prompt caches the static tools + system prefix
-// across every turn and every run.
-const SYSTEM_PROMPT_BLOCKS: Anthropic.TextBlockParam[] = [
-  { type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
-]
+// across every turn and every run. Both platform prompts are static constants,
+// so each platform gets its own stable cached prefix.
+const SYSTEM_PROMPT_BLOCKS_BY_PLATFORM: Record<ProjectPlatform, Anthropic.TextBlockParam[]> = {
+  web: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
+  mobile: [{ type: "text", text: MOBILE_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
+}
 
 // Returns a request-scoped copy of the conversation with an ephemeral cache
 // breakpoint on the final content block, so each agent turn extends and reuses
@@ -214,7 +265,7 @@ export async function runAgenticGeneration(params: {
     const stream = client.messages.stream({
       model: MODEL,
       max_tokens: 16000,
-      system: SYSTEM_PROMPT_BLOCKS,
+      system: SYSTEM_PROMPT_BLOCKS_BY_PLATFORM[params.platform],
       tools: TOOLS,
       messages: withCacheBreakpoint(messages as Anthropic.MessageParam[]),
     })

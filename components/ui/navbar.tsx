@@ -24,9 +24,10 @@ import {
   Settings,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useSettingsDialog } from "@/components/settings/settings-dialog"
 
 const navLinks = [
-  { href: "/#features", label: "Product" },
+  { href: "/#product", label: "Product" },
   { href: "/teams", label: "Teams" },
   { href: "/pricing", label: "Pricing" },
   { href: "/help", label: "Help" },
@@ -41,6 +42,7 @@ type NavbarProps = {
 
 export function Navbar({ variant = "default" }: NavbarProps) {
   const router = useRouter()
+  const { openSettings } = useSettingsDialog()
   const { user, userData, loading, signOut } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
@@ -212,7 +214,7 @@ export function Navbar({ variant = "default" }: NavbarProps) {
                       className={accountMenuItemClass}
                       onClick={() => {
                         setIsOpen(false)
-                        router.push("/settings")
+                        openSettings()
                       }}
                     >
                       <Settings className="mr-2 h-4 w-4" />

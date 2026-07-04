@@ -1,22 +1,14 @@
 .shell {
   min-height: 100dvh;
-  background: oklch(0.18 0 0);
+  background: var(--background);
   overscroll-behavior: none;
 }
 
 .shell :global(main),
 .shell :global(main > div) {
-  background: oklch(0.18 0 0);
+  background: var(--background);
 }
 
 .shell :global([class*="overflow-y-auto"]) {
   overscroll-behavior: contain;
-}
-
-.shell :global(video[src*="hf_20260328_115001_bcdaa3b4-03de-47e7-ad63-ae3e392c32d4"]) {
-  bottom: auto !important;
-  height: 100dvh !important;
-  backface-visibility: hidden;
-  contain: paint;
-  transform: translateZ(0);
 }

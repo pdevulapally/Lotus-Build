@@ -111,7 +111,7 @@ function safeJsonResponse(decision: SafetyDecision) {
   )
 }
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   if (req.method !== "POST" || !PROTECTED_AI_PATHS.has(req.nextUrl.pathname)) {
     return NextResponse.next()
   }

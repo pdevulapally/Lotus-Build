@@ -5,8 +5,15 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Navbar } from "@/components/ui/navbar"
 import { FooterSection } from "@/components/sections/footer-section"
-import { ArrowLeft, Check, Loader2, ShieldCheck } from "lucide-react"
+import { ArrowLeft, Check, CreditCard, Loader2, ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { useAuth } from "@/contexts/auth-context"
 import {
   PLAN_DISPLAY,
@@ -26,6 +33,16 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
+// Persisted just before redirecting to Stripe Checkout so a cancelled payment
+// can offer a real retry of the exact plan/tier the user attempted.
+const CHECKOUT_ATTEMPT_KEY = "lotus_checkout_attempt"
+
+type CheckoutAttempt = {
+  priceId: string
+  quantity: number
+  planName: string
+}
+
 export default function PricingPage() {
   const router = useRouter()
   const { user, userData, loading: authLoading } = useAuth()
@@ -33,11 +50,40 @@ export default function PricingPage() {
   const [loading, setLoading] = useState(true)
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null)
   const [selectedTierByPlanId, setSelectedTierByPlanId] = useState<Record<string, number>>({})
+  const [checkoutCancelledOpen, setCheckoutCancelledOpen] = useState(false)
+  const [cancelledAttempt, setCancelledAttempt] = useState<CheckoutAttempt | null>(null)
 
   useEffect(() => {
     try {
       const ref = new URLSearchParams(window.location.search).get("ref")?.trim()
       if (ref) window.localStorage.setItem("lotus_ref", ref)
+    } catch {}
+  }, [])
+
+  // Stripe redirects back here with ?checkout=cancelled when the user aborts
+  // Checkout. Surface it as a modal with a real retry of the attempted plan,
+  // then strip the param so a refresh doesn't re-trigger the dialog.
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get("checkout") !== "cancelled") return
+
+      const raw = window.sessionStorage.getItem(CHECKOUT_ATTEMPT_KEY)
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<CheckoutAttempt> | null
+        if (parsed && typeof parsed.priceId === "string" && parsed.priceId) {
+          setCancelledAttempt({
+            priceId: parsed.priceId,
+            quantity: Number(parsed.quantity) >= 1 ? Number(parsed.quantity) : 1,
+            planName: typeof parsed.planName === "string" ? parsed.planName : "",
+          })
+        }
+      }
+      setCheckoutCancelledOpen(true)
+
+      params.delete("checkout")
+      const query = params.toString()
+      window.history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}`)
     } catch {}
   }, [])
 
@@ -69,7 +115,7 @@ export default function PricingPage() {
     }
   }
 
-  const handleSubscribe = async (priceId: string, quantity = 1) => {
+  const handleSubscribe = async (priceId: string, quantity = 1, planName = "") => {
     if (!user) { router.push("/login?redirect=/pricing"); return }
     setCheckoutLoading(priceId)
     try {
@@ -86,13 +132,34 @@ export default function PricingPage() {
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || "Checkout failed")
-      if (data.url) window.location.href = data.url
+      if (data.url) {
+        // Remembered so ?checkout=cancelled can offer a retry of this exact attempt.
+        try {
+          window.sessionStorage.setItem(CHECKOUT_ATTEMPT_KEY, JSON.stringify({ priceId, quantity, planName }))
+        } catch {}
+        window.location.href = data.url
+      }
       else throw new Error("No checkout URL")
     } catch (e) {
       console.error(e)
       setCheckoutLoading(null)
       alert(e instanceof Error ? e.message : "Checkout failed")
     }
+  }
+
+  const handleCancelledDialogChange = (open: boolean) => {
+    setCheckoutCancelledOpen(open)
+    if (!open) {
+      setCancelledAttempt(null)
+      try { window.sessionStorage.removeItem(CHECKOUT_ATTEMPT_KEY) } catch {}
+    }
+  }
+
+  // Dialog stays open while retrying so the button can show its busy state;
+  // a successful retry navigates away to Stripe Checkout.
+  const handleRetryCheckout = () => {
+    if (!cancelledAttempt || checkoutLoading) return
+    void handleSubscribe(cancelledAttempt.priceId, cancelledAttempt.quantity, cancelledAttempt.planName)
   }
 
   const displayPlans = plans.length > 0 ? plans : DEFAULT_PLANS_FALLBACK
@@ -354,7 +421,7 @@ export default function PricingPage() {
                             ? "bg-background text-foreground hover:bg-background/90"
                             : "bg-foreground text-background hover:bg-foreground/85"
                         )}
-                        onClick={() => handleSubscribe(effPriceId!, effQty)}
+                        onClick={() => handleSubscribe(effPriceId!, effQty, plan.name)}
                       >
                         {checkoutLoading === effPriceId ? <Loader2 className="h-4 w-4 animate-spin" /> : `Subscribe to ${plan.name}`}
                       </Button>
@@ -438,6 +505,60 @@ export default function PricingPage() {
         </div>
 
       </div>
+
+      {/* ── Checkout cancelled dialog ─────────────────────────────── */}
+      <Dialog open={checkoutCancelledOpen} onOpenChange={handleCancelledDialogChange}>
+        <DialogContent className="max-w-md rounded-2xl border-border bg-card p-8 sm:p-10">
+          <DialogHeader className="items-center space-y-3 text-center sm:text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-muted">
+              <CreditCard className="h-7 w-7 text-foreground" strokeWidth={1.75} />
+            </div>
+            <DialogTitle className="text-[20px] font-semibold tracking-tight text-foreground">
+              {cancelledAttempt?.planName
+                ? `Payment for ${cancelledAttempt.planName} was unsuccessful`
+                : "Payment was unsuccessful"}
+            </DialogTitle>
+            <DialogDescription className="text-[13.5px] leading-relaxed text-muted-foreground">
+              {cancelledAttempt?.planName
+                ? `The payment for the ${cancelledAttempt.planName} plan couldn't be completed. You haven't been charged.`
+                : "The payment couldn't be completed. You haven't been charged."}
+            </DialogDescription>
+          </DialogHeader>
+          {cancelledAttempt ? (
+            <div className="mt-2 grid grid-cols-2 gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 rounded-full border-border bg-transparent text-[13px] font-medium hover:bg-muted"
+                onClick={() => handleCancelledDialogChange(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={!!checkoutLoading}
+                className="h-11 rounded-full bg-foreground text-[13px] font-medium text-background transition-all hover:bg-foreground/85 active:scale-[0.99]"
+                onClick={handleRetryCheckout}
+              >
+                {checkoutLoading === cancelledAttempt.priceId
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : "Retry"}
+              </Button>
+            </div>
+          ) : (
+            <div className="mt-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 w-full rounded-full border-border bg-transparent text-[13px] font-medium hover:bg-muted"
+                onClick={() => handleCancelledDialogChange(false)}
+              >
+                Close
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <FooterSection />
     </main>

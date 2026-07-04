@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import Link from "next/link"
-import { AnimatePresence, motion } from "framer-motion"
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
 import { BookOpen, Check, ChevronDown, ChevronRight, Copy, ExternalLink, FileCode, Folder, FolderOpen, Globe2, Home, Laptop, Loader2, Monitor, RotateCcw, ShieldAlert, Wrench } from "lucide-react"
 import Editor, { DiffEditor } from "@monaco-editor/react"
 import { MobilePreview } from "@/components/computer/mobile-preview"
@@ -432,6 +432,7 @@ function CodeTreeNode({
   fileStatuses?: Map<string, DiffStatus>
 }) {
   const [open, setOpen] = useState(depth < 2)
+  const shouldReduceMotion = useReducedMotion()
   const isSelected = node.type === "file" && node.path === selectedPath
 
   if (node.type === "folder") {
@@ -440,6 +441,8 @@ function CodeTreeNode({
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-label={`${open ? "Collapse" : "Expand"} ${node.name}`}
           className="flex w-full items-center gap-1.5 rounded-md py-[4px] pr-2 text-[12px] text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
           style={{ paddingLeft: `${depth * 14 + 8}px` }}
         >
@@ -457,7 +460,7 @@ function CodeTreeNode({
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.13, ease: "easeInOut" }}
+              transition={{ duration: shouldReduceMotion ? 0 : 0.13, ease: "easeInOut" }}
               className="overflow-hidden"
             >
               {node.children.map((child) => (
@@ -483,6 +486,7 @@ function CodeTreeNode({
     <button
       type="button"
       onClick={() => onSelect(node.path)}
+      aria-current={isSelected ? "true" : undefined}
       className={cn(
         "flex w-full items-center gap-1.5 rounded-md py-[4px] pr-2 text-[12px] transition-colors",
         isSelected
@@ -529,7 +533,7 @@ const EDITOR_OPTIONS = {
 
 function ComputerCodePanel({
   files,
-  codeTheme = "dark",
+  codeTheme = "light",
   projectId,
   getAuthHeader,
 }: {
@@ -657,6 +661,7 @@ function ComputerCodePanel({
               <button
                 type="button"
                 onClick={() => isDiffMode && handleDiffToggle()}
+                aria-pressed={!isDiffMode}
                 className={cn(
                   "flex h-5 flex-1 items-center justify-center rounded-full text-[11px] font-semibold transition-all",
                   !isDiffMode ? "bg-card/80 text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
@@ -668,6 +673,7 @@ function ComputerCodePanel({
                 type="button"
                 onClick={() => !isDiffMode && handleDiffToggle()}
                 disabled={diffLoading}
+                aria-pressed={isDiffMode}
                 className={cn(
                   "flex h-5 flex-1 items-center justify-center gap-1 rounded-full text-[11px] font-semibold transition-all disabled:opacity-50",
                   isDiffMode ? "bg-card/80 text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
@@ -681,7 +687,7 @@ function ComputerCodePanel({
         )}
 
         {/* File list */}
-        <div className="min-h-0 flex-1 overflow-y-auto p-1.5 [scrollbar-width:thin]">
+        <div className="min-h-0 flex-1 overflow-y-auto p-1.5 [scrollbar-width:thin]" aria-label="Generated files">
           {tree.length > 0 ? (
             <div className="space-y-px">
               {tree.map((node) => (
@@ -708,7 +714,7 @@ function ComputerCodePanel({
       </div>
 
       {/* Code / Diff viewer */}
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden" aria-label="Selected file viewer">
         {selectedFile ? (
           <>
             {/* File header */}
@@ -753,7 +759,7 @@ function ComputerCodePanel({
             {/* Editor */}
             <div className="min-h-0 flex-1">
               {isDiffMode && diffError && (
-                <div className="flex h-full items-center justify-center">
+                <div className="flex h-full items-center justify-center" role="status">
                   <div className="text-center">
                     <p className="text-[13px] font-medium text-destructive">Could not load diff</p>
                     <p className="mt-1 text-[12px] text-muted-foreground">{diffError}</p>
@@ -797,7 +803,7 @@ function ComputerCodePanel({
                 />
               )}
               {isDiffMode && diffLoading && (
-                <div className="flex h-full items-center justify-center gap-2 text-muted-foreground">
+                <div className="flex h-full items-center justify-center gap-2 text-muted-foreground" role="status">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   <span className="text-[12px]">Loading diff…</span>
                 </div>
@@ -899,6 +905,7 @@ export function WorkspaceTabBar({
           <span className="shrink-0 select-none text-[12px] text-foreground/40">/</span>
           <input
             ref={inputRef}
+            aria-label="Preview path"
             value={urlPath.replace(/^\//, "")}
             onChange={(e) => setUrlPath("/" + e.target.value)}
             onKeyDown={(e) => {
@@ -959,7 +966,7 @@ export function WorkspaceContent({
   previewSrc,
   iframeReloadNonce = 0,
   files = [],
-  codeTheme = "dark",
+  codeTheme = "light",
 }: {
   session: ComputerSessionResponse
   status: ComputerSessionStatus
@@ -1169,7 +1176,7 @@ function PreviewPane({
 
 export function LoadingShell() {
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-background dark:bg-[oklch(0.18_0.012_60)]">
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-background">
       <header className="lotus-glass shrink-0 px-4 py-3">
         <div className="flex h-10 items-center gap-3">
           <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
@@ -1177,7 +1184,7 @@ export function LoadingShell() {
         </div>
       </header>
       <div className="flex flex-1 gap-0 overflow-hidden">
-        <div className="hidden w-[380px] shrink-0 animate-pulse border-r border-border/80 bg-secondary/20 dark:bg-[oklch(0.18_0.012_60)] sm:block" />
+        <div className="hidden w-[380px] shrink-0 animate-pulse border-r border-border/80 bg-card sm:block" />
         <div className="flex-1 animate-pulse bg-muted/35 p-3">
           <div className="lotus-glass-panel h-full rounded-lg border border-border/70" />
         </div>
@@ -1188,7 +1195,7 @@ export function LoadingShell() {
 
 export function ErrorState({ message }: { message: string }) {
   return (
-    <div className="flex h-[100dvh] items-center justify-center bg-background px-4 dark:bg-[oklch(0.18_0.012_60)]">
+    <div className="flex h-[100dvh] items-center justify-center bg-background px-4">
       <div className="w-full max-w-md text-center">
         <ShieldAlert className="mx-auto mb-4 h-8 w-8 text-muted-foreground" />
         <h1 className="text-[15px] font-semibold text-foreground">Session not found</h1>

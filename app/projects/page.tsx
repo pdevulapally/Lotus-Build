@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react"
+import { Suspense, useCallback, useEffect, useId, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { LotusLogo } from "@/components/ui/lotus-logo"
@@ -18,14 +18,24 @@ import {
   Gift,
   Copy,
   Check,
+  CheckCircle2,
   Share2,
   ChevronDown,
+  Loader2,
   Lock,
   Plus,
 } from "lucide-react"
 
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import { CreateWorkspaceModal } from "@/components/workspaces/create-workspace-modal"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { useAuth } from "@/contexts/auth-context"
 import {
   DropdownMenu,
@@ -40,6 +50,7 @@ import { cn } from "@/lib/utils"
 import { db } from "@/lib/firebase"
 import { planIdForDisplay } from "@/lib/plans"
 import { useProjectList } from "@/hooks/use-project-list"
+import { useSettingsDialog } from "@/components/settings/settings-dialog"
 
 /* ─── types ─────────────────────────────────────────────────────────────── */
 
@@ -62,15 +73,17 @@ type ProjectSummary = {
 /* ─── helpers ────────────────────────────────────────────────────────────── */
 
 const sidebarActionClass =
-  "inline-flex items-center justify-center rounded-lg text-foreground/55 transition-colors hover:bg-foreground/10 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-foreground/25"
+  "inline-flex items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/25"
 
 
 const accountMenuItemClass =
   "h-10 cursor-pointer rounded-xl px-3 text-[13px] text-foreground focus:bg-muted focus:text-foreground"
 
 const RECENT_BUILDS_LIMIT = 6
-const PROJECTS_BACKGROUND_VIDEO_SRC =
-  "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260328_115001_bcdaa3b4-03de-47e7-ad63-ae3e392c32d4.mp4"
+const PROJECTS_MAIN_ID = "projects-main"
+const PROJECTS_HEADING_ID = "projects-main-heading"
+const PROJECTS_MOBILE_SIDEBAR_ID = "projects-mobile-sidebar"
+const PROJECTS_DESKTOP_SIDEBAR_ID = "projects-desktop-sidebar"
 
 function projectTitle(prompt: string, max = 42): string {
   const t = (prompt || "").trim()
@@ -85,6 +98,15 @@ const PROJECT_STATUS_META: Record<ProjectStatus, { dot: string; label: string }>
   error: { dot: "bg-destructive", label: "Needs attention" },
 }
 
+function projectKindLabel(kind?: ProjectSummary["kind"]): string {
+  return kind === "computer" ? "Computer agent" : "Website build"
+}
+
+function projectAccessibleSummary(project: ProjectSummary, max = 72): string {
+  const status = PROJECT_STATUS_META[project.status] ?? PROJECT_STATUS_META.pending
+  return `${projectTitle(project.prompt, max)}. ${projectKindLabel(project.kind)}. ${status.label}.`
+}
+
 /* ─── TaskRow ─────────────────────────────────────────────────────────────── */
 
 function TaskRow({
@@ -97,20 +119,22 @@ function TaskRow({
   onDelete: (e: React.MouseEvent) => void
 }) {
   const status = PROJECT_STATUS_META[p.status] ?? PROJECT_STATUS_META.pending
+  const title = projectTitle(p.prompt, 34)
 
   return (
-    <div className="group/row relative px-1">
+    <div className="group/row relative px-1" role="listitem">
       <button
         type="button"
         onClick={onNavigate}
+        aria-label={`Open ${projectAccessibleSummary(p, 34)}`}
         className={cn(
           "flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 pr-9 text-left",
-          "transition-colors hover:bg-muted"
+          "transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30"
         )}
       >
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[13px] font-medium leading-snug text-foreground/90 group-hover/row:text-foreground">
-            {projectTitle(p.prompt, 34)}
+            {title}
           </span>
           <span className="mt-0.5 block truncate text-[11px] leading-snug text-muted-foreground">
             {p.kind === "computer" ? "Computer agent" : "Website build"} · {status.label}
@@ -122,16 +146,16 @@ function TaskRow({
       <button
         type="button"
         onClick={onDelete}
-        aria-label="Delete"
+        aria-label={`Delete ${title}`}
         className={cn(
           "absolute right-1.5 top-1/2 -translate-y-1/2",
           "flex h-7 w-7 items-center justify-center rounded-lg",
           "text-muted-foreground/40 opacity-0 transition-all",
           "hover:bg-destructive/10 hover:text-destructive",
-          "group-hover/row:opacity-100 focus:opacity-100"
+          "group-hover/row:opacity-100 focus:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/25"
         )}
       >
-        <Trash2 className="h-3.5 w-3.5" />
+        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
       </button>
     </div>
   )
@@ -148,14 +172,15 @@ function SearchBar({
 }) {
   return (
     <div className="relative mx-3 mb-3">
-      <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/55" />
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/55" aria-hidden="true" />
       <input
-        type="text"
+        type="search"
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
+        aria-label="Search saved builds"
         placeholder="Search builds…"
         className={cn(
-          "lotus-glass-control h-9 w-full rounded-full border border-border/55 pl-8 pr-8",
+          "h-9 w-full rounded-full border border-border bg-background pl-8 pr-8 shadow-sm",
           "text-[13px] text-foreground placeholder:text-muted-foreground/50",
           "outline-none transition-colors focus:border-border-strong focus:ring-0"
         )}
@@ -164,9 +189,10 @@ function SearchBar({
         <button
           type="button"
           onClick={() => onChange("")}
-          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/55 hover:text-foreground"
+          aria-label="Clear build search"
+          className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground/55 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30"
         >
-          <X className="h-3 w-3" />
+          <X className="h-3 w-3" aria-hidden="true" />
         </button>
       )}
     </div>
@@ -190,18 +216,34 @@ function FullBuildsPanel({
   scope: "user" | "team"
   onOpenBuild: (build: ProjectSummary) => void
 }) {
+  const headingId = useId()
+  const searchTerm = search.trim()
+  const resultSummary = loading
+    ? "Loading saved builds"
+    : searchTerm
+      ? `${builds.length} saved ${builds.length === 1 ? "build" : "builds"} match "${searchTerm}"`
+      : `${builds.length} saved ${builds.length === 1 ? "build" : "builds"} available`
   const title = scope === "team" ? "Team build directory" : "Build directory"
 
   return (
-    <div className="lotus-glass-panel mt-5 overflow-hidden rounded-2xl border border-border/55">
-      <div className="flex items-center justify-between gap-4 border-b border-border/45 px-4 py-3.5 sm:px-5">
+    <section
+      aria-labelledby={headingId}
+      className="mt-8 overflow-hidden rounded-lg border border-border bg-card shadow-[0_24px_84px_-64px_var(--foreground)]"
+    >
+      <p className="sr-only" role="status" aria-live="polite">
+        {resultSummary}
+      </p>
+      <div className="flex items-center justify-between gap-4 border-b border-border bg-muted px-4 py-3.5 sm:px-5">
         <div className="min-w-0">
-          <p className="text-[13px] font-semibold text-foreground">{title}</p>
+          <h2 id={headingId} className="text-[13px] font-semibold text-foreground">{title}</h2>
           <p className="mt-0.5 text-[12px] text-muted-foreground">
             Search your saved builds and reopen the one you need.
           </p>
         </div>
-        <span className="shrink-0 rounded-full bg-muted/70 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+        <span
+          className="shrink-0 rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-medium text-accent-soft-foreground"
+          aria-label={resultSummary}
+        >
           {builds.length}
         </span>
       </div>
@@ -210,9 +252,12 @@ function FullBuildsPanel({
         <SearchBar value={search} onChange={onSearchChange} />
       </div>
 
-      <div className="max-h-[24rem] overflow-y-auto p-2 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
+      <div
+        className="max-h-[24rem] overflow-y-auto p-2 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]"
+        aria-busy={loading}
+      >
         {loading ? (
-          <div className="space-y-2 p-2">
+          <div className="space-y-2 p-2" aria-hidden="true">
             {Array.from({ length: 3 }).map((_, i) => (
               <div
                 key={i}
@@ -231,40 +276,42 @@ function FullBuildsPanel({
             </p>
           </div>
         ) : (
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-2 sm:grid-cols-2" role="list" aria-label={resultSummary}>
             {builds.map((build) => {
               const status = PROJECT_STATUS_META[build.status] ?? PROJECT_STATUS_META.pending
               const title = projectTitle(build.prompt, 72)
 
               return (
-                <button
-                  key={build.id}
-                  type="button"
-                  onClick={() => onOpenBuild(build)}
-                  className="group flex min-h-[7.25rem] flex-col rounded-xl border border-border/55 bg-card/78 shadow-sm backdrop-blur-xl p-3.5 text-left transition-colors hover:border-border-strong hover:bg-muted/60"
-                >
+                <div key={build.id} role="listitem">
+                  <button
+                    type="button"
+                    onClick={() => onOpenBuild(build)}
+                    aria-label={`Open ${projectAccessibleSummary(build)}`}
+                    className="group flex min-h-[7.25rem] w-full flex-col rounded-lg border border-border bg-card p-3.5 text-left shadow-sm transition-colors hover:border-border-strong hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30"
+                  >
                   <div className="flex items-start justify-between gap-3">
                     <span className="min-w-0 flex-1 text-[13.5px] font-semibold leading-snug text-foreground">
                       {title}
                     </span>
-                    <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                    <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
                   </div>
                   <p className="mt-2 line-clamp-2 text-[12px] leading-5 text-muted-foreground">
                     {(build.prompt || "").trim() || "Untitled build"}
                   </p>
                   <div className="mt-auto flex items-center justify-between gap-3 pt-3 text-[11px] text-muted-foreground">
                     <span>{build.kind === "computer" ? "Computer agent" : "Website build"}</span>
-                    <span className="rounded-full bg-muted/70 px-2 py-0.5 text-[10.5px] font-medium text-muted-foreground">
+                    <span className="rounded-full bg-slate-soft px-2 py-0.5 text-[10.5px] font-medium text-slate-soft-foreground">
                       {status.label}
                     </span>
                   </div>
-                </button>
+                  </button>
+                </div>
               )
             })}
           </div>
         )}
       </div>
-    </div>
+    </section>
   )
 }
 
@@ -309,6 +356,9 @@ function Sidebar({
   isPaidUser: boolean
   onCreateWorkspace: () => void
 }) {
+  const { openSettings } = useSettingsDialog()
+  const recentBuildsHeadingId = useId()
+  const scopeToggleLabelId = useId()
   const initials = user?.displayName
     ? user.displayName.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
     : user?.email?.slice(0, 1).toUpperCase() ?? "U"
@@ -317,6 +367,8 @@ function Sidebar({
   const selectedWorkspaceInitial = selectedWorkspaceName.charAt(0).toUpperCase()
   const recentBuilds = filtered.slice(0, RECENT_BUILDS_LIMIT)
   const hiddenBuildCount = Math.max(0, filtered.length - recentBuilds.length)
+  const recentBuildsLabel = scope === "team" ? "Recent team builds" : "Recent builds"
+  const accountName = user?.displayName ?? user?.email?.split("@")[0] ?? "User"
   const handleWorkspaceSelect = async (workspaceId: string) => {
     await switchWorkspace(workspaceId)
     if (isTeamsPlan) setScope("team")
@@ -325,11 +377,11 @@ function Sidebar({
   }
 
   return (
-    <div className="dark flex h-full flex-col bg-[oklch(0.18_0_0)]">
+    <div className="flex h-full flex-col border-r border-border bg-card">
 
       {/* ── Logo row ── */}
-      <div className="flex h-16 shrink-0 items-center justify-between border-b border-foreground/10 px-4">
-        <Link href="/" onClick={onClose} className="flex items-center gap-2">
+      <div className="flex h-16 shrink-0 items-center justify-between border-b border-border px-4">
+        <Link href="/" onClick={onClose} className="flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30" aria-label="Go to Lotus home">
           <LotusLogo size={28} />
           <span className="font-display text-[16px] font-semibold tracking-tight text-foreground/90">
             Lotus.build
@@ -350,9 +402,10 @@ function Sidebar({
             <button
               type="button"
               onClick={onClose}
+              aria-label="Close sidebar"
               className={cn(sidebarActionClass, "h-8 w-8")}
             >
-              <X className="h-3.5 w-3.5" />
+              <X className="h-3.5 w-3.5" aria-hidden="true" />
             </button>
           )}
         </div>
@@ -365,21 +418,21 @@ function Sidebar({
             <button
               type="button"
               className={cn(
-                "group flex h-11 w-full items-center gap-2.5 rounded-2xl border border-foreground/15 bg-foreground/10 px-3 shadow-sm backdrop-blur-md",
-                "text-left transition-colors hover:border-foreground/25 hover:bg-foreground/15"
+                "group flex h-11 w-full items-center gap-2.5 rounded-2xl border border-border bg-secondary px-3 shadow-sm",
+                "text-left transition-colors hover:border-border-strong hover:bg-muted"
               )}
-              aria-label="Switch workspace"
+              aria-label={`Switch workspace. Current workspace: ${selectedWorkspaceName}`}
             >
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-foreground/20 text-[11px] font-semibold text-foreground/90">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[11px] font-semibold text-accent-soft-foreground">
                 {selectedWorkspaceInitial}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13px] font-semibold text-foreground/90">
+                <span className="block truncate text-[13px] font-semibold text-foreground">
                   {selectedWorkspaceName}
                 </span>
                 <span className="block text-[11px] text-muted-foreground">Workspace</span>
               </span>
-              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" aria-hidden="true" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -394,6 +447,7 @@ function Sidebar({
             {/* Current workspace */}
             <DropdownMenuItem
               disabled
+              aria-label={`Current workspace: ${selectedWorkspaceName}`}
               className="flex cursor-default items-center gap-2.5 rounded-xl px-2.5 py-2.5 opacity-100 focus:bg-muted"
             >
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-foreground text-[11px] font-semibold text-background">
@@ -402,7 +456,7 @@ function Sidebar({
               <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
                 {selectedWorkspaceName}
               </span>
-              <Check className="h-3.5 w-3.5 shrink-0 text-foreground" />
+              <Check className="h-3.5 w-3.5 shrink-0 text-foreground" aria-hidden="true" />
             </DropdownMenuItem>
 
             {isPaidUser ? (
@@ -456,20 +510,23 @@ function Sidebar({
       {/* ── Team / personal scope toggle ── */}
       {isTeamsPlan && (
         <div className="px-3 pb-3">
-          <div className="lotus-glass-control grid grid-cols-2 rounded-2xl border p-1">
+          <div className="lotus-glass-control grid grid-cols-2 rounded-2xl border p-1" role="group" aria-labelledby={scopeToggleLabelId}>
+            <span id={scopeToggleLabelId} className="sr-only">Build scope</span>
             {(["user", "team"] as const).map((id) => (
               <button
                 key={id}
                 type="button"
                 onClick={() => setScope(id)}
+                aria-pressed={scope === id}
+                aria-label={id === "team" ? "Show team builds" : "Show my builds"}
                 className={cn(
-                  "flex h-8 items-center justify-center gap-1.5 rounded-full text-xs font-medium transition-colors",
+                  "flex h-8 items-center justify-center gap-1.5 rounded-full text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30",
                   scope === id
                     ? "bg-foreground text-background"
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                {id === "team" && <Users className="h-3.5 w-3.5" />}
+                {id === "team" && <Users className="h-3.5 w-3.5" aria-hidden="true" />}
                 {id === "team" ? "Team" : "Mine"}
               </button>
             ))}
@@ -477,12 +534,12 @@ function Sidebar({
         </div>
       )}
 
-      <div className="mx-3 mb-3 border-t border-foreground/10" />
+      <div className="mx-3 mb-3 border-t border-border" />
 
       {/* ── Section header ── */}
       <div className="mb-2 flex items-center justify-between px-4">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-          {scope === "team" ? "Recent team builds" : "Recent builds"}
+        <span id={recentBuildsHeadingId} className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+          {recentBuildsLabel}
         </span>
         <span className="text-[11px] text-muted-foreground/75">
           {recentBuilds.length}{hiddenBuildCount ? `/${filtered.length}` : ""}
@@ -490,9 +547,18 @@ function Sidebar({
       </div>
 
       {/* ── Task list ── */}
-      <div className="flex-1 overflow-y-auto pb-2 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
+      <div
+        className="flex-1 overflow-y-auto pb-2 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]"
+        aria-labelledby={recentBuildsHeadingId}
+        aria-busy={projectsLoading}
+      >
+        <p className="sr-only" role="status" aria-live="polite">
+          {projectsLoading
+            ? `Loading ${recentBuildsLabel.toLowerCase()}`
+            : `${recentBuilds.length} ${recentBuildsLabel.toLowerCase()} shown`}
+        </p>
         {projectsLoading ? (
-          <div className="space-y-2 px-3 pt-1">
+          <div className="space-y-2 px-3 pt-1" aria-hidden="true">
             {Array.from({ length: 8 }).map((_, i) => (
               <div
                 key={i}
@@ -509,7 +575,7 @@ function Sidebar({
             </p>
           </div>
         ) : (
-          <div className="space-y-0.5 px-2">
+          <div className="space-y-0.5 px-2" role="list" aria-label={recentBuildsLabel}>
             {recentBuilds.map((p) => (
               <TaskRow
                 key={p.id}
@@ -535,31 +601,33 @@ function Sidebar({
         <button
           type="button"
           onClick={onShare}
+          aria-label="Invite a friend. You both get 500 credits."
           className={cn(
-            "group flex w-full items-center gap-2.5 rounded-2xl border border-foreground/15 bg-foreground/10 px-3 py-3 backdrop-blur-md",
-            "text-left transition-colors hover:border-foreground/25 hover:bg-foreground/15"
+            "group flex w-full items-center gap-2.5 rounded-2xl border border-border bg-secondary px-3 py-3",
+            "text-left transition-colors hover:border-border-strong hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30"
           )}
         >
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground/10">
-            <Gift className="h-3.5 w-3.5 text-foreground/70" />
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-card">
+            <Gift className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[12px] font-medium text-foreground/90">Invite a friend</p>
+            <p className="truncate text-[12px] font-medium text-foreground">Invite a friend</p>
             <p className="truncate text-[11px] text-muted-foreground">You both get 500 credits</p>
           </div>
-          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
         </button>
       </div>
 
       {/* ── User row ── */}
-      <div className="shrink-0 border-t border-foreground/10 bg-foreground/5 px-3 py-3">
+      <div className="shrink-0 border-t border-border bg-secondary px-3 py-3">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               type="button"
+              aria-label={`Open account menu for ${accountName}. ${stats.planName} plan.`}
               className={cn(
                 "flex w-full items-center gap-2.5 rounded-2xl border border-transparent px-2 py-2",
-                "transition-colors hover:border-foreground/15 hover:bg-foreground/10"
+                "transition-colors hover:border-border hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30"
               )}
             >
               <Avatar className="h-8 w-8 shrink-0 rounded-full">
@@ -568,19 +636,19 @@ function Sidebar({
                   alt=""
                   className="rounded-full object-cover"
                 />
-                <AvatarFallback className="rounded-full bg-foreground/20 text-[10px] font-semibold text-foreground/90">
+                <AvatarFallback className="rounded-full bg-accent-soft text-[10px] font-semibold text-accent-soft-foreground">
                   {initials}
                 </AvatarFallback>
               </Avatar>
               <div className="min-w-0 flex-1 text-left">
-                <p className="truncate text-[13px] font-medium leading-tight text-foreground/90">
-                  {user?.displayName ?? user?.email?.split("@")[0] ?? "User"}
+                <p className="truncate text-[13px] font-medium leading-tight text-foreground">
+                  {accountName}
                 </p>
                 <p className="truncate text-[11px] leading-tight text-muted-foreground">
                   {stats.planName} plan
                 </p>
               </div>
-              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
             </button>
           </DropdownMenuTrigger>
 
@@ -599,7 +667,7 @@ function Sidebar({
             </DropdownMenuItem>
             <DropdownMenuItem
               className={accountMenuItemClass}
-              onClick={() => router.push("/settings")}
+              onClick={() => openSettings()}
             >
               <Settings className="mr-2 h-3.5 w-3.5" />
               Settings
@@ -634,6 +702,9 @@ function ReferralDialog({
   referralCount: number
   creditsEarned: number
 }) {
+  const dialogTitleId = useId()
+  const dialogDescriptionId = useId()
+  const copyStatusId = useId()
   const [copied, setCopied] = useState(false)
   const [canNativeShare, setCanNativeShare] = useState(false)
 
@@ -690,26 +761,27 @@ function ReferralDialog({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Invite a friend"
+        aria-labelledby={dialogTitleId}
+        aria-describedby={dialogDescriptionId}
         className="lotus-glass-strong relative z-10 max-h-[calc(100dvh-1.5rem)] w-full max-w-[36rem] overflow-y-auto rounded-2xl border border-border/60 p-4 shadow-xl sm:max-h-[calc(100dvh-3rem)] sm:p-6"
       >
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close"
-          className="lotus-glass-control absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full border border-border/55 text-muted-foreground transition-colors hover:border-border-strong hover:bg-muted/60 hover:text-foreground"
+          aria-label="Close invite dialog"
+          className="lotus-glass-control absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full border border-border/55 text-muted-foreground transition-colors hover:border-border-strong hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30"
         >
-          <X className="h-3.5 w-3.5" />
+          <X className="h-3.5 w-3.5" aria-hidden="true" />
         </button>
 
         <div className="pr-10">
           <p className="mb-3 inline-flex rounded-full bg-muted/70 px-3 py-1 text-[11px] font-medium text-muted-foreground">
             500 credits each
           </p>
-          <h2 className="text-[22px] font-semibold tracking-[-0.035em] text-foreground sm:text-[26px]">
+          <h2 id={dialogTitleId} className="text-[22px] font-semibold tracking-[-0.035em] text-foreground sm:text-[26px]">
             Invite friends, earn credits
           </h2>
-          <p className="mt-2 max-w-[30rem] text-[13.5px] leading-6 text-muted-foreground sm:text-[14px]">
+          <p id={dialogDescriptionId} className="mt-2 max-w-[30rem] text-[13.5px] leading-6 text-muted-foreground sm:text-[14px]">
             Share your link. When a friend joins a paid plan, you both receive{" "}
             <span className="font-medium text-foreground">500 credits</span>.
           </p>
@@ -746,18 +818,23 @@ function ReferralDialog({
               type="button"
               onClick={handleCopy}
               disabled={!link}
+              aria-label="Copy referral link"
+              aria-describedby={copyStatusId}
               className={cn(
                 "inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full px-5 text-[13px] font-semibold",
-                "transition-all active:scale-[0.97] disabled:opacity-50",
+                "transition-all active:scale-[0.97] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30",
                 copied
                   ? "bg-success-soft text-success-soft-foreground"
                   : "bg-foreground text-background hover:bg-foreground/85"
               )}
             >
-              {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+              {copied ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <Copy className="h-3.5 w-3.5" aria-hidden="true" />}
               {copied ? "Copied" : "Copy"}
             </button>
           </div>
+          <p id={copyStatusId} className="sr-only" role="status" aria-live="polite">
+            {copied ? "Referral link copied." : "Referral link ready to copy."}
+          </p>
         </div>
 
         {canNativeShare && (
@@ -768,10 +845,10 @@ function ReferralDialog({
             className={cn(
               "lotus-glass-control mt-2.5 flex h-11 w-full items-center justify-center gap-2 rounded-full",
               "border px-4",
-              "text-[13px] font-medium text-foreground transition-colors hover:border-border-strong hover:bg-muted/60 disabled:opacity-50"
+              "text-[13px] font-medium text-foreground transition-colors hover:border-border-strong hover:bg-muted/60 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30"
             )}
           >
-            <Share2 className="h-3.5 w-3.5" />
+            <Share2 className="h-3.5 w-3.5" aria-hidden="true" />
             Share link
           </button>
         )}
@@ -817,6 +894,7 @@ function OnboardingBanner() {
 export default function ProjectsPage() {
   const router = useRouter()
   const { user, userData, workspaces, currentWorkspace, switchWorkspace, signOut } = useAuth()
+  const { openSettings } = useSettingsDialog()
 
   const isTeamsPlan = !!userData?.planId && planIdForDisplay(userData.planId) === "team"
   const isPaidUser = !!userData?.planId && userData.planId !== "free"
@@ -826,6 +904,33 @@ export default function ProjectsPage() {
   const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(false)
   const [referralOpen, setReferralOpen] = useState(false)
   const [createModalOpen, setCreateModalOpen] = useState(false)
+  const [checkoutSuccessOpen, setCheckoutSuccessOpen] = useState(false)
+  const [confirmTimedOut, setConfirmTimedOut] = useState(false)
+
+  // Stripe redirects here with ?checkout=success after payment. Open the
+  // confirmation dialog, strip the param so refresh doesn't re-trigger it, and
+  // clear the retry payload the pricing page stored for the cancelled path.
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get("checkout") !== "success") return
+      setCheckoutSuccessOpen(true)
+      try { window.sessionStorage.removeItem("lotus_checkout_attempt") } catch {}
+      params.delete("checkout")
+      const query = params.toString()
+      window.history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}`)
+    } catch {}
+  }, [])
+
+  // The user usually lands back before the Stripe webhook has written the new
+  // plan to their user doc. The auth context's onSnapshot listener flips
+  // userData to the paid plan in real time; if that hasn't happened after 30s,
+  // degrade to an honest "payment received, activating shortly" state.
+  useEffect(() => {
+    if (!checkoutSuccessOpen || isPaidUser) return
+    const timer = setTimeout(() => setConfirmTimedOut(true), 30_000)
+    return () => clearTimeout(timer)
+  }, [checkoutSuccessOpen, isPaidUser])
 
   useEffect(() => {
     if (!isTeamsPlan && scope === "team") setScope("user")
@@ -859,6 +964,27 @@ export default function ProjectsPage() {
     return { planName }
   }, [userData])
 
+  // Live subscription details for the checkout-success dialog. All values come
+  // from the user doc the Stripe webhook writes to, so the dialog updates
+  // reactively the moment the plan activates — nothing is hardcoded.
+  const checkoutSuccessInfo = useMemo(() => {
+    const planKey = userData?.planId ? planIdForDisplay(userData.planId) : null
+    const planName = userData?.planName
+      || (planKey ? planKey.charAt(0).toUpperCase() + planKey.slice(1) : "")
+    const credits = Math.max(
+      Number(userData?.tokensLimit ?? 0),
+      Number(userData?.tokenUsage?.used ?? 0) + Number(userData?.tokenUsage?.remaining ?? 0),
+    )
+    const periodEnd = userData?.tokenUsage?.periodEnd
+    const renewsOn = periodEnd ? new Date(periodEnd).toLocaleDateString() : ""
+    return { planName, credits, renewsOn }
+  }, [userData])
+
+  const handleCheckoutSuccessChange = (open: boolean) => {
+    setCheckoutSuccessOpen(open)
+    if (!open) setConfirmTimedOut(false)
+  }
+
   const handleDeleteProject = async (e: React.MouseEvent, projectId: string, kind?: string) => {
     e.preventDefault()
     e.stopPropagation()
@@ -868,13 +994,6 @@ export default function ProjectsPage() {
       console.error(`Failed to delete ${kind || "project"}:`, err)
     }
   }
-
-  const greeting = (() => {
-    const h = new Date().getHours()
-    if (h < 12) return "Good morning"
-    if (h < 17) return "Good afternoon"
-    return "Good evening"
-  })()
 
   const firstName = user?.displayName?.split(" ")[0] ?? ""
 
@@ -903,7 +1022,13 @@ export default function ProjectsPage() {
 
   return (
     <ProtectedRoute>
-      <div className="flex h-[100dvh] overflow-hidden bg-background dark:bg-[oklch(0.18_0_0)]">
+      <div className="flex h-[100dvh] overflow-hidden bg-background">
+        <a
+          href={`#${PROJECTS_MAIN_ID}`}
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[80] focus:rounded-full focus:border focus:border-border-strong focus:bg-card focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-foreground focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-border-strong/30"
+        >
+          Skip to main content
+        </a>
 
         {/* ── Mobile overlay ── */}
         <div
@@ -917,6 +1042,11 @@ export default function ProjectsPage() {
 
         {/* ── Mobile drawer ── */}
         <div
+          id={PROJECTS_MOBILE_SIDEBAR_ID}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Project navigation"
+          aria-hidden={!mobileSidebarOpen}
           className={cn(
             "fixed inset-y-0 left-0 z-50 w-[min(21.5rem,calc(100vw-1rem))]",
             "border-r border-foreground/10 shadow-lg",
@@ -924,39 +1054,51 @@ export default function ProjectsPage() {
             mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
           )}
         >
-          <Sidebar
-            {...sidebarProps}
-            onClose={() => setMobileSidebarOpen(false)}
-            onToggle={() => setMobileSidebarOpen(false)}
-          />
+          {mobileSidebarOpen && (
+            <Sidebar
+              {...sidebarProps}
+              onClose={() => setMobileSidebarOpen(false)}
+              onToggle={() => setMobileSidebarOpen(false)}
+            />
+          )}
         </div>
 
         {/* ── Desktop sidebar ── */}
         <aside
+          id={PROJECTS_DESKTOP_SIDEBAR_ID}
+          aria-label="Project navigation"
           className={cn(
             "hidden shrink-0 transition-[width] duration-200 ease-in-out lg:block",
             desktopSidebarCollapsed ? "lg:w-0 lg:overflow-hidden" : "lg:w-[280px]"
           )}
         >
-          <div className="relative h-full after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:z-10 after:w-8 after:translate-x-full after:bg-gradient-to-r after:from-[oklch(0.18_0_0)] after:to-transparent">
-            <Sidebar {...sidebarProps} onToggle={() => setDesktopSidebarCollapsed(true)} />
-          </div>
+          {!desktopSidebarCollapsed && (
+            <div className="relative h-full">
+              <Sidebar {...sidebarProps} onToggle={() => setDesktopSidebarCollapsed(true)} />
+            </div>
+          )}
         </aside>
 
         {/* ── Main content ── */}
-        <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-background dark:bg-[oklch(0.18_0_0)]">
+        <main
+          id={PROJECTS_MAIN_ID}
+          aria-labelledby={PROJECTS_HEADING_ID}
+          className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-background"
+        >
 
           {/* ── Mobile top bar ── */}
-          <header className="dark lotus-glass-strong relative z-10 flex h-14 shrink-0 items-center gap-3 border-b border-foreground/10 px-3 lg:hidden">
+          <header className="relative z-10 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-card px-3 lg:hidden">
             <button
               type="button"
               onClick={() => setMobileSidebarOpen(true)}
               aria-label="Open sidebar"
+              aria-controls={PROJECTS_MOBILE_SIDEBAR_ID}
+              aria-expanded={mobileSidebarOpen}
               className={cn(sidebarActionClass, "h-9 w-9")}
             >
-              <PanelLeft className="h-4 w-4" />
+              <PanelLeft className="h-4 w-4" aria-hidden="true" />
             </button>
-            <Link href="/" className="flex min-w-0 items-center gap-2">
+            <Link href="/" className="flex min-w-0 items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30" aria-label="Go to Lotus home">
               <LotusLogo size={24} />
               <span className="truncate font-display text-[16px] font-semibold tracking-tight text-foreground/90">
                 Lotus.build
@@ -970,6 +1112,8 @@ export default function ProjectsPage() {
               type="button"
               onClick={() => setDesktopSidebarCollapsed(false)}
               aria-label="Show sidebar"
+              aria-controls={PROJECTS_DESKTOP_SIDEBAR_ID}
+              aria-expanded={!desktopSidebarCollapsed}
               className={cn(
                 "absolute left-4 top-4 z-20 hidden lg:flex",
                 "h-9 w-9 items-center justify-center rounded-lg",
@@ -977,7 +1121,7 @@ export default function ProjectsPage() {
                 "transition-colors hover:border-border-strong hover:bg-muted hover:text-foreground"
               )}
             >
-              <PanelLeft className="h-4 w-4" />
+              <PanelLeft className="h-4 w-4" aria-hidden="true" />
             </button>
           )}
 
@@ -985,31 +1129,7 @@ export default function ProjectsPage() {
           <div className="relative z-10 flex min-h-0 flex-1">
             <div className="relative min-h-0 w-full flex-1 overflow-hidden md:rounded-t-[1.125rem] lg:rounded-t-[1.25rem]">
               <div className="h-full overflow-y-auto [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
-                <div className="dark relative isolate flex min-h-[calc(100dvh+12rem)] w-full flex-col items-center justify-start overflow-hidden border-t border-foreground/10 bg-[oklch(0.18_0_0)] px-5 pb-24 md:rounded-t-[1.125rem] sm:px-8 sm:pb-28 lg:rounded-t-[1.25rem]">
-                  <video
-                    className="pointer-events-none absolute inset-0 z-0 h-full w-full rounded-t-[inherit] object-cover object-center brightness-[1.18] contrast-[1.08] saturate-[1.18]"
-                    src={PROJECTS_BACKGROUND_VIDEO_SRC}
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                    preload="auto"
-                    disableRemotePlayback
-                  />
-                  <div
-                    className="pointer-events-none absolute inset-0 z-[1] rounded-t-[inherit]"
-                    style={{
-                      background:
-                        "radial-gradient(circle at 50% 42%, transparent 0%, transparent 42%, color-mix(in oklch, var(--background) 36%, transparent) 100%)",
-                    }}
-                  />
-                  <div
-                    className="pointer-events-none absolute inset-0 z-[2] rounded-t-[inherit]"
-                    style={{
-                      background:
-                        "linear-gradient(to bottom, color-mix(in oklch, var(--background) 34%, transparent) 0%, color-mix(in oklch, var(--background) 10%, transparent) 34%, color-mix(in oklch, var(--background) 14%, transparent) 62%, color-mix(in oklch, var(--background) 58%, transparent) 100%)",
-                    }}
-                  />
+                <div className="relative isolate flex min-h-[calc(100dvh+8rem)] w-full flex-col items-center justify-start overflow-hidden border-t border-border bg-secondary px-5 pb-20 md:rounded-t-[1.125rem] sm:px-8 sm:pb-24 lg:rounded-t-[1.25rem]">
 
                   <div className="relative z-10 w-full max-w-[60rem]">
                     <div className="mx-auto flex min-h-[calc(100dvh-10rem)] w-full max-w-[44rem] flex-col justify-center py-10 sm:min-h-[calc(100dvh-9rem)] sm:py-12 md:py-14 lg:py-16">
@@ -1017,30 +1137,28 @@ export default function ProjectsPage() {
                         <OnboardingBanner />
                       </Suspense>
 
-                      <div className="mb-8 flex justify-center">
-                        <div className="inline-flex items-center gap-2.5 rounded-full border border-foreground/20 bg-foreground/12 px-3.5 py-1.5 text-[12px] shadow-sm backdrop-blur-sm">
-                          <span className="font-medium text-foreground/90">{stats.planName} workspace</span>
-                          <span className="h-3 w-px bg-foreground/25" />
-                          <Link href="/pricing" className="font-semibold text-foreground transition-colors hover:text-foreground/70">
+                      <div className="mb-7 flex justify-center">
+                        <div className="inline-flex items-center gap-2.5 rounded-full border border-border bg-card px-3.5 py-1.5 text-[12px] shadow-sm">
+                          <span className="font-medium text-foreground">{stats.planName} workspace</span>
+                          <span className="h-3 w-px bg-border" />
+                          <Link href="/pricing" className="font-semibold text-accent-soft-foreground transition-colors hover:text-accent">
                             Upgrade
                           </Link>
                         </div>
                       </div>
 
                       <div className="mb-8 text-center md:mb-10">
-                        <h1 className="text-[2rem] font-semibold tracking-[-0.055em] text-foreground drop-shadow-[0_2px_24px_rgba(0,0,0,0.55)] sm:text-[2.8rem]">
-                          <span className="font-semibold">{greeting}</span>
-                          {firstName ? `, ${firstName}` : ""}
+                        <h1 id={PROJECTS_HEADING_ID} className="mx-auto max-w-3xl font-display text-4xl font-medium leading-[1.04] text-foreground sm:text-5xl lg:text-6xl">
+                          {firstName ? `What can I build for you, ${firstName}?` : "What can I build for you?"}
                         </h1>
-                        <p className="mx-auto mt-4 max-w-[30rem] text-[14px] leading-7 text-foreground/80 drop-shadow-[0_1px_8px_rgba(0,0,0,0.45)] sm:mt-5">
-                          Describe what you want to build. Lotus turns the brief into a focused workspace.
+                        <p className="mx-auto mt-5 max-w-[34rem] text-[14px] leading-7 text-muted-foreground sm:mt-6 sm:text-base">
+                          Describe the site or app you need. Lotus turns the brief into a live workspace you can keep refining.
                         </p>
                       </div>
 
                       <AnimatedAIInput
-                        placeholder="Describe the app, website, or flow you want to create..."
-                        wrapperClassName="border-foreground/18 bg-background/82 shadow-[0_28px_90px_-56px_rgba(0,0,0,0.95)] backdrop-blur-2xl supports-[backdrop-filter]:bg-background/68 [&_textarea]:min-h-[76px] [&_.inline-flex.rounded-lg.bg-background]:rounded-full [&_.inline-flex.rounded-lg.bg-background]:bg-foreground/10 [&_.inline-flex.rounded-lg.bg-background]:ring-foreground/15 [&_.inline-flex.rounded-lg.bg-background_button]:rounded-full [&_.inline-flex.rounded-lg.bg-background_button.bg-foreground]:bg-foreground [&_.inline-flex.rounded-lg.bg-background_button.text-muted-foreground]:text-foreground/65 [&_button]:rounded-full [&_button:hover]:bg-foreground/10 [&_button:hover]:text-foreground [&_button.bg-muted]:bg-foreground/10 [&_button.bg-muted]:text-foreground/55 [&_button.bg-primary]:bg-foreground [&_button.bg-primary]:text-background [&_button.bg-primary:hover]:bg-foreground/90"
-                        footerHintsClassName="text-foreground/65 [&_kbd]:border-foreground/25 [&_kbd]:bg-foreground/10 [&_kbd]:text-foreground/90"
+                        placeholder="Build a refined site for..."
+                        wrapperClassName="rounded-2xl border-border-strong bg-card shadow-[0_32px_100px_-72px_var(--foreground)] [&_textarea]:min-h-[88px] [&_button]:rounded-full [&_button.bg-primary]:bg-accent [&_button.bg-primary]:text-accent-foreground [&_button.bg-primary:hover]:bg-accent/90"
                       />
                     </div>
 
@@ -1071,6 +1189,102 @@ export default function ProjectsPage() {
           open={createModalOpen}
           onClose={() => setCreateModalOpen(false)}
         />
+
+        {/* ── Checkout success dialog ── */}
+        <Dialog open={checkoutSuccessOpen} onOpenChange={handleCheckoutSuccessChange}>
+          <DialogContent className="max-w-md rounded-2xl border-border bg-card p-8 sm:p-10">
+            {isPaidUser ? (
+              <>
+                <DialogHeader className="items-center space-y-3 text-center sm:text-center">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-success/15">
+                    <CheckCircle2 className="h-7 w-7 text-success" strokeWidth={1.75} />
+                  </div>
+                  <DialogTitle className="text-[20px] font-semibold tracking-tight text-foreground">
+                    {checkoutSuccessInfo.planName
+                      ? `You're on ${checkoutSuccessInfo.planName}`
+                      : "Your subscription is active"}
+                  </DialogTitle>
+                  <DialogDescription className="text-[13.5px] leading-relaxed text-muted-foreground">
+                    Payment confirmed — your plan is active and your credits are ready to use.
+                  </DialogDescription>
+                </DialogHeader>
+                {checkoutSuccessInfo.credits > 0 && (
+                  <div className="mt-1 rounded-xl bg-muted/50 px-4 py-3 text-center">
+                    <p className="text-[12.5px] text-muted-foreground">
+                      <span className="font-semibold tabular-nums text-foreground">
+                        {checkoutSuccessInfo.credits.toLocaleString()}
+                      </span>{" "}
+                      credits / month
+                      {checkoutSuccessInfo.renewsOn && <> · renews {checkoutSuccessInfo.renewsOn}</>}
+                    </p>
+                  </div>
+                )}
+                <div className="mt-2 grid grid-cols-2 gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-11 w-full rounded-full border-border bg-transparent text-[13px] font-medium hover:bg-muted"
+                    onClick={() => { handleCheckoutSuccessChange(false); openSettings() }}
+                  >
+                    Manage plan
+                  </Button>
+                  <Button
+                    type="button"
+                    className="h-11 rounded-full bg-foreground text-[13px] font-medium text-background transition-all hover:bg-foreground/85 active:scale-[0.99]"
+                    onClick={() => handleCheckoutSuccessChange(false)}
+                  >
+                    Start building
+                  </Button>
+                </div>
+              </>
+            ) : !confirmTimedOut ? (
+              <>
+                <DialogHeader className="items-center space-y-3 text-center sm:text-center">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-muted">
+                    <Loader2 className="h-7 w-7 animate-spin text-foreground" strokeWidth={1.75} />
+                  </div>
+                  <DialogTitle className="text-[20px] font-semibold tracking-tight text-foreground">
+                    Confirming your subscription…
+                  </DialogTitle>
+                  <DialogDescription className="text-[13.5px] leading-relaxed text-muted-foreground">
+                    Your payment went through — we're activating your plan now. This usually takes a few seconds.
+                  </DialogDescription>
+                </DialogHeader>
+              </>
+            ) : (
+              <>
+                <DialogHeader className="items-center space-y-3 text-center sm:text-center">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-success/15">
+                    <CheckCircle2 className="h-7 w-7 text-success" strokeWidth={1.75} />
+                  </div>
+                  <DialogTitle className="text-[20px] font-semibold tracking-tight text-foreground">
+                    Payment received
+                  </DialogTitle>
+                  <DialogDescription className="text-[13.5px] leading-relaxed text-muted-foreground">
+                    Your plan is taking a little longer than usual to activate. You can keep building — your credits will appear automatically.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="mt-2 grid grid-cols-2 gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-11 w-full rounded-full border-border bg-transparent text-[13px] font-medium hover:bg-muted"
+                    onClick={() => { handleCheckoutSuccessChange(false); openSettings() }}
+                  >
+                    View settings
+                  </Button>
+                  <Button
+                    type="button"
+                    className="h-11 rounded-full bg-foreground text-[13px] font-medium text-background transition-all hover:bg-foreground/85 active:scale-[0.99]"
+                    onClick={() => handleCheckoutSuccessChange(false)}
+                  >
+                    Start building
+                  </Button>
+                </div>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </ProtectedRoute>
   )

@@ -489,6 +489,11 @@
   video[autoplay] {
     animation: none !important;
   }
+
+  .animate-shimmer {
+    animation: none !important;
+    background-position: 0 0 !important;
+  }
 }
 
 @media (forced-colors: active) {

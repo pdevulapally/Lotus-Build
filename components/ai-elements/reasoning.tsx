@@ -8,7 +8,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
-import { TextShimmer } from "@/components/prompt-kit/text-shimmer"
+import { Shimmer } from "@/components/ai-elements/shimmer"
 import { cn } from "@/lib/utils"
 
 type ReasoningContextValue = {
@@ -227,9 +227,9 @@ export function ReasoningTrigger({
         <Brain className="h-3.5 w-3.5 shrink-0 text-muted-foreground/75" />
       )}
       {isStreaming ? (
-        <TextShimmer className="text-[13px] font-medium">
+        <Shimmer className="text-[13px] font-medium">
           {title}
-        </TextShimmer>
+        </Shimmer>
       ) : (
         <span className="min-w-0 truncate text-[13px] font-medium text-muted-foreground">
           {title}

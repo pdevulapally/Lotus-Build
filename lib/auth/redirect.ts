@@ -1,5 +1,15 @@
 const DEFAULT_AUTH_REDIRECT = "/projects"
-const LOCAL_ORIGIN = "https://lotus.build"
+
+// Parsing base for relative redirect candidates. Sourced from the environment
+// with no fallback: a missing or invalid NEXT_PUBLIC_APP_URL fails the build
+// loudly instead of silently validating against the wrong origin. The URL is
+// never requested — it exists so `new URL()` can resolve relative paths and so
+// escapes that change the origin are detected.
+const configuredAppUrl = process.env.NEXT_PUBLIC_APP_URL?.trim()
+if (!configuredAppUrl) {
+  throw new Error("NEXT_PUBLIC_APP_URL is not set — required by getSafeRedirectPath")
+}
+const APP_ORIGIN = new URL(configuredAppUrl).origin
 
 export function getSafeRedirectPath(
   value: string | null | undefined,
@@ -14,8 +24,8 @@ export function getSafeRedirectPath(
   }
 
   try {
-    const parsed = new URL(candidate, LOCAL_ORIGIN)
-    if (parsed.origin !== LOCAL_ORIGIN) return fallback
+    const parsed = new URL(candidate, APP_ORIGIN)
+    if (parsed.origin !== APP_ORIGIN) return fallback
     const next = `${parsed.pathname}${parsed.search}${parsed.hash}` || fallback
     if (next === "/login" || next.startsWith("/login?")) return fallback
     if (next === "/signup" || next.startsWith("/signup?")) return fallback

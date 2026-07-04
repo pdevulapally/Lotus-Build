@@ -5,7 +5,7 @@ import { ArrowLeft } from "lucide-react"
 
 import type { Message, PlanningStatus, ProjectBlueprint, ProjectCreationMode } from "@/lib/projects/types"
 import { CreationBlueprintPanel } from "@/components/project/creation-blueprint-panel"
-import { TextShimmer } from "@/components/prompt-kit/text-shimmer"
+import { Shimmer } from "@/components/ai-elements/shimmer"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { buildGuidedAnswerDraft, getGuidedAnswerSet, getPlanningStudioStage, slugify } from "@/lib/project-blueprint"
@@ -117,7 +117,7 @@ function SuggestedReplies(props: {
       </div>
       {isLoadingOptions ? (
         <div className="py-3 text-sm text-muted-foreground">
-          <TextShimmer>Thinking through some useful choices...</TextShimmer>
+          <Shimmer>Thinking through some useful choices...</Shimmer>
         </div>
       ) : (
         <div className="space-y-3">
@@ -313,7 +313,7 @@ function ConversationThread(props: {
           <div className="mx-auto w-full max-w-3xl px-4 sm:px-6">
             {isDraftingPlan ? (
               <div className="space-y-1">
-                <TextShimmer className="text-sm font-medium text-foreground">Drafting your plan in chat</TextShimmer>
+                <Shimmer className="text-sm font-medium text-foreground">Drafting your plan in chat</Shimmer>
                 <p className="text-xs text-muted-foreground">Converting your confirmed answers into a version-one implementation plan.</p>
               </div>
             ) : (

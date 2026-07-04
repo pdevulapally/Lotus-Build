@@ -2,6 +2,7 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Manrope } from "next/font/google"
 import { AuthProvider } from "@/contexts/auth-context"
+import { SettingsDialogProvider } from "@/components/settings/settings-dialog"
 import { ConsentAnalytics } from "@/components/consent-analytics"
 import "./globals.css"
 
@@ -148,7 +149,9 @@ export default function RootLayout({
       </head>
       <body className={`${manrope.variable} font-sans antialiased bg-background text-foreground overflow-x-hidden`}>
         <AuthProvider>
-          {children}
+          <SettingsDialogProvider>
+            {children}
+          </SettingsDialogProvider>
         </AuthProvider>
         <ConsentAnalytics />
       </body>

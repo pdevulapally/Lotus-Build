@@ -1,12 +1,13 @@
 "use client"
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { doc, onSnapshot, updateDoc } from "firebase/firestore"
 import { AnimatePresence, motion } from "framer-motion"
 import {
   AlertTriangle,
+  ArrowLeft,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
@@ -339,7 +340,7 @@ function getDeployErrorMessage(value: unknown) {
     return "Netlify is not connected. Starting Netlify connection..."
   }
   if (/vercel not connected/i.test(message)) {
-    return "Vercel is not connected for this project. Add a Vercel token in project integrations, then deploy again."
+    return "Vercel is not connected for this project. Paste a Vercel access token below to connect and deploy."
   }
   return message
 }
@@ -354,6 +355,58 @@ function formatSyncedAt(value: unknown) {
 
 // ─── Deploy + integrations ────────────────────────────────────────────────────
 
+// Recovery panel shown when a Vercel deploy fails because no token is stored.
+// Saves via POST /api/vercel/save-token (owner-only, encrypted at rest), then
+// the page-level handler automatically retries the deploy.
+function VercelConnectPanel({
+  tokenInput,
+  busy,
+  error,
+  onTokenChange,
+  onSave,
+}: {
+  tokenInput: string
+  busy: boolean
+  error: string | null
+  onTokenChange: (value: string) => void
+  onSave: () => void
+}) {
+  return (
+    <div className="space-y-2">
+      <label className="block">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Vercel token</span>
+        <input
+          type="password"
+          value={tokenInput}
+          onChange={(event) => onTokenChange(event.target.value)}
+          placeholder="Paste your Vercel access token"
+          autoComplete="off"
+          className="mt-1 h-10 w-full rounded-lg border border-border bg-card px-3 text-[13px] text-foreground outline-none placeholder:text-muted-foreground/55 focus:border-border-strong"
+        />
+      </label>
+      {error && <p className="text-[11px] leading-relaxed text-destructive">{error}</p>}
+      <button
+        type="button"
+        onClick={onSave}
+        disabled={busy || !tokenInput.trim()}
+        className="lotus-glass-control flex w-full items-center justify-center gap-2 rounded-full border py-2.5 text-[12px] font-semibold text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <KeyRound className="h-3.5 w-3.5" />}
+        Save &amp; retry deploy
+      </button>
+      <a
+        href="https://vercel.com/account/tokens"
+        target="_blank"
+        rel="noreferrer"
+        className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <span>Create a token in your Vercel account</span>
+        <ExternalLink className="h-3 w-3" />
+      </a>
+    </div>
+  )
+}
+
 function DeployButton({
   projectId,
   open,
@@ -361,7 +414,14 @@ function DeployButton({
   deploymentLinks,
   onOpenChange,
   onDeploy,
+  onReset,
   headless = false,
+  vercelConnected,
+  vercelTokenInput,
+  vercelTokenBusy,
+  vercelTokenError,
+  onVercelTokenChange,
+  onSaveVercelToken,
 }: {
   projectId?: string
   open: boolean
@@ -369,11 +429,21 @@ function DeployButton({
   deploymentLinks?: Partial<Record<DeployProvider, DeploymentLink>>
   onOpenChange: (open: boolean) => void
   onDeploy: (provider: DeployProvider) => void
+  onReset: () => void
   headless?: boolean
+  vercelConnected: boolean | null
+  vercelTokenInput: string
+  vercelTokenBusy: boolean
+  vercelTokenError: string | null
+  onVercelTokenChange: (value: string) => void
+  onSaveVercelToken: () => void
 }) {
+  const panelTitleId = useId()
+  const panelDescriptionId = useId()
   if (!projectId) return null
   const visibleStateSiteUrl = state.siteUrl || (state.provider ? deploymentLinks?.[state.provider]?.siteUrl ?? null : null)
   const hasStoredDeployments = Boolean(deploymentLinks?.netlify?.siteUrl || deploymentLinks?.vercel?.siteUrl)
+  const needsVercelToken = state.provider === "vercel" && state.step === "Needs connection"
 
   return (
     <div className={cn("relative", headless && !open && "hidden")}>
@@ -402,7 +472,15 @@ function DeployButton({
         <div className={cn(
           "lotus-glass-strong z-30 hidden w-[460px] max-w-[calc(100vw-2rem)] rounded-2xl border p-4 sm:block",
           headless ? "fixed right-6 top-16" : "absolute right-0 top-11",
-        )}>
+        )}
+          role="dialog"
+          aria-labelledby={panelTitleId}
+          aria-describedby={panelDescriptionId}
+        >
+          <h2 id={panelTitleId} className="sr-only">Deploy project</h2>
+          <p id={panelDescriptionId} className="sr-only">
+            Choose a hosting platform, review deploy progress, or open the live site.
+          </p>
 
           {/* ── Success state ─────────────────────────────────────── */}
           {!state.busy && visibleStateSiteUrl && !state.error && (
@@ -472,6 +550,15 @@ function DeployButton({
                   <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{state.error}</p>
                 </div>
               </div>
+              {needsVercelToken && (
+                <VercelConnectPanel
+                  tokenInput={vercelTokenInput}
+                  busy={vercelTokenBusy}
+                  error={vercelTokenError}
+                  onTokenChange={onVercelTokenChange}
+                  onSave={onSaveVercelToken}
+                />
+              )}
               <DeployTerminal logs={state.logs} currentStep={state.step} />
             </div>
           )}
@@ -521,7 +608,12 @@ function DeployButton({
                 </button>
                 <button type="button" onClick={() => onDeploy("vercel")} disabled={state.busy}
                   className="lotus-glass-control rounded-[1.65rem] border px-3 py-3 text-left transition-all hover:border-border-strong hover:bg-muted disabled:opacity-40">
-                  <p className="text-[12px] font-semibold text-foreground">Vercel</p>
+                  <div className="flex items-start justify-between gap-1">
+                    <p className="text-[12px] font-semibold text-foreground">Vercel</p>
+                    {vercelConnected === true && (
+                      <span className="rounded-full bg-success/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-success">Connected</span>
+                    )}
+                  </div>
                   <p className="mt-1 text-[11px] leading-snug text-muted-foreground">Fast and reliable. Great for React & Next.js apps.</p>
                 </button>
               </div>
@@ -529,11 +621,20 @@ function DeployButton({
           )}
 
           {/* ── Retry button (error state) ────────────────────────── */}
-          {!state.busy && state.error && state.provider && (
+          {!state.busy && state.error && state.provider && !needsVercelToken && (
             <button type="button" onClick={() => onDeploy(state.provider!)}
               className="lotus-glass-control mt-3 flex w-full items-center justify-center gap-2 rounded-full border py-2.5 text-[12px] font-semibold text-foreground transition-colors hover:bg-muted">
               <Rocket className="h-3.5 w-3.5" />
               Try again
+            </button>
+          )}
+
+          {/* ── Back to provider selection (any error state) ─────── */}
+          {!state.busy && state.error && (
+            <button type="button" onClick={onReset}
+              className="mt-2.5 flex w-full items-center justify-center gap-1.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground">
+              <ArrowLeft className="h-3 w-3" />
+              Choose a different platform
             </button>
           )}
         </div>
@@ -574,7 +675,7 @@ function IntegrationCard({
       <div className="flex min-w-0 items-start gap-3">
         <div className={cn(
           "flex h-12 w-12 shrink-0 items-center justify-center rounded-lg",
-          iconBg ?? "bg-foreground/8 dark:bg-foreground/10",
+          iconBg ?? "bg-muted text-muted-foreground",
         )}>
           {icon}
         </div>
@@ -743,6 +844,8 @@ function IntegrationsButton({
     },
   }
   const SectionIcon = sectionMeta[activeSection].Icon
+  const dialogTitleId = useId()
+  const dialogDescriptionId = useId()
 
   if (!projectId) return null
 
@@ -772,14 +875,22 @@ function IntegrationsButton({
           <div
             className="fixed inset-0 z-40 bg-foreground/35 backdrop-blur-[2px]"
             onClick={() => onOpenChange(false)}
+            aria-hidden="true"
           />
 
-          <div className="fixed inset-x-3 bottom-3 z-50 flex max-h-[92dvh] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl sm:inset-auto sm:left-1/2 sm:top-1/2 sm:max-h-[85vh] sm:w-[980px] sm:max-w-[calc(100vw-2rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:flex-row">
-            <aside className="shrink-0 border-b border-border bg-card sm:flex sm:w-[248px] sm:flex-col sm:border-b-0 sm:border-r">
+          <div
+            className="fixed inset-x-3 bottom-3 z-50 flex max-h-[92dvh] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl sm:inset-auto sm:left-1/2 sm:top-1/2 sm:max-h-[85vh] sm:w-[980px] sm:max-w-[calc(100vw-2rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:flex-row"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={dialogTitleId}
+            aria-describedby={dialogDescriptionId}
+          >
+            <aside className="shrink-0 border-b border-border bg-card sm:flex sm:w-[248px] sm:flex-col sm:border-b-0 sm:border-r" aria-label="Connector sections">
               <div className="border-b border-border p-3">
                 <label className="flex h-10 items-center gap-2 rounded-lg border border-border bg-background px-3 text-sm text-muted-foreground focus-within:border-border-strong focus-within:bg-card">
                   <Search className="h-4 w-4 shrink-0" />
                   <input
+                    aria-label="Search connectors"
                     value={connectorSearch}
                     onFocus={() => setActiveSection("integrations")}
                     onChange={(event) => {
@@ -792,7 +903,7 @@ function IntegrationsButton({
                 </label>
               </div>
 
-              <div className="flex border-b border-border sm:hidden">
+              <div className="flex border-b border-border sm:hidden" role="tablist" aria-label="Connector dialog sections">
                 {([
                   { id: "integrations" as const, label: "Connectors" },
                   { id: "env" as const, label: "Secrets" },
@@ -801,6 +912,8 @@ function IntegrationsButton({
                     key={item.id}
                     type="button"
                     onClick={() => setActiveSection(item.id)}
+                    role="tab"
+                    aria-selected={activeSection === item.id}
                     className={cn(
                       "flex-1 border-b-2 py-3 text-[13px] font-medium transition-colors",
                       activeSection === item.id
@@ -823,6 +936,7 @@ function IntegrationsButton({
                         setActiveSection("integrations")
                         setActiveConnectorFilter(filter.id)
                       }}
+                      aria-pressed={activeSection === "integrations" && activeConnectorFilter === filter.id}
                       className={cn(
                         "flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[13px] transition-colors",
                         activeSection === "integrations" && activeConnectorFilter === filter.id
@@ -840,6 +954,7 @@ function IntegrationsButton({
                   <button
                     type="button"
                     onClick={() => setActiveSection("env")}
+                    aria-pressed={activeSection === "env"}
                     className={cn(
                       "flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[13px] transition-colors",
                       activeSection === "env"
@@ -862,10 +977,10 @@ function IntegrationsButton({
                 <div className="flex min-w-0 items-center gap-2.5">
                   <SectionIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <div className="min-w-0">
-                    <p className="truncate text-[15px] font-semibold text-foreground">
+                    <h2 id={dialogTitleId} className="truncate text-[15px] font-semibold text-foreground">
                       {sectionMeta[activeSection].label}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">
+                    </h2>
+                    <p id={dialogDescriptionId} className="text-[11px] text-muted-foreground">
                       {sectionMeta[activeSection].detail}
                     </p>
                   </div>
@@ -874,7 +989,7 @@ function IntegrationsButton({
                   type="button"
                   onClick={() => onOpenChange(false)}
                   aria-label="Close connectors"
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -882,7 +997,7 @@ function IntegrationsButton({
 
               <div className="min-h-0 flex-1 overflow-y-auto p-5 [scrollbar-width:thin] sm:p-6">
                 {message && (
-                  <p className="mb-4 rounded-lg border border-border bg-card px-3 py-2 text-[12px] leading-relaxed text-muted-foreground">{message}</p>
+                  <p role="status" className="mb-4 rounded-lg border border-border bg-card px-3 py-2 text-[12px] leading-relaxed text-muted-foreground">{message}</p>
                 )}
 
                 {activeSection === "integrations" && (
@@ -909,6 +1024,7 @@ function IntegrationsButton({
                             key={filter.id}
                             type="button"
                             onClick={() => setActiveConnectorFilter(filter.id)}
+                            aria-pressed={activeConnectorFilter === filter.id}
                             className={cn(
                               "shrink-0 rounded-lg border px-3 py-1.5 text-[12px] font-medium transition-colors",
                               activeConnectorFilter === filter.id
@@ -988,12 +1104,14 @@ function IntegrationsButton({
                         <p className="mb-2 text-[13px] font-semibold text-foreground">Add secret</p>
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto]">
                           <input
+                            aria-label="New secret key"
                             value={newEnvKey}
                             onChange={(event) => setNewEnvKey(event.target.value)}
                             placeholder="KEY"
                             className="h-10 min-w-0 rounded-lg border border-border bg-card px-3 text-[13px] text-foreground outline-none placeholder:text-muted-foreground/55 focus:border-border-strong"
                           />
                           <input
+                            aria-label="New secret value"
                             value={newEnvValue}
                             onChange={(event) => setNewEnvValue(event.target.value)}
                             placeholder="Value"
@@ -1044,27 +1162,49 @@ function MobileDeploySheet({
   deploymentLinks,
   onClose,
   onDeploy,
+  onReset,
+  vercelConnected,
+  vercelTokenInput,
+  vercelTokenBusy,
+  vercelTokenError,
+  onVercelTokenChange,
+  onSaveVercelToken,
 }: {
   open: boolean
   state: DeployState
   deploymentLinks?: Partial<Record<DeployProvider, DeploymentLink>>
   onClose: () => void
   onDeploy: (provider: DeployProvider) => void
+  onReset: () => void
+  vercelConnected: boolean | null
+  vercelTokenInput: string
+  vercelTokenBusy: boolean
+  vercelTokenError: string | null
+  onVercelTokenChange: (value: string) => void
+  onSaveVercelToken: () => void
 }) {
+  const sheetTitleId = useId()
+  const sheetDescriptionId = useId()
   if (!open) return null
   const visibleStateSiteUrl = state.siteUrl || (state.provider ? deploymentLinks?.[state.provider]?.siteUrl ?? null : null)
   const hasStoredDeployments = Boolean(deploymentLinks?.netlify?.siteUrl || deploymentLinks?.vercel?.siteUrl)
+  const needsVercelToken = state.provider === "vercel" && state.step === "Needs connection"
 
   return (
-    <div className="lotus-glass-strong fixed inset-x-3 bottom-[5.6rem] z-50 max-h-[min(72dvh,36rem)] overflow-y-auto rounded-[1.45rem] border border-border/60 p-4 [scrollbar-width:thin] sm:hidden">
+    <div
+      className="lotus-glass-strong fixed inset-x-3 bottom-[5.6rem] z-50 max-h-[min(72dvh,36rem)] overflow-y-auto rounded-[1.45rem] border border-border/60 p-4 [scrollbar-width:thin] sm:hidden"
+      role="dialog"
+      aria-labelledby={sheetTitleId}
+      aria-describedby={sheetDescriptionId}
+    >
       {/* Header */}
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
-          <p className="text-[14px] font-semibold text-foreground">Get your website online</p>
-          <p className="mt-0.5 text-[12px] leading-relaxed text-muted-foreground">Your site goes live in seconds.</p>
+          <h2 id={sheetTitleId} className="text-[14px] font-semibold text-foreground">Get your website online</h2>
+          <p id={sheetDescriptionId} className="mt-0.5 text-[12px] leading-relaxed text-muted-foreground">Your site goes live in seconds.</p>
         </div>
-        <button type="button" onClick={onClose}
-          className="lotus-glass-control flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+        <button type="button" onClick={onClose} aria-label="Close deploy panel"
+          className="lotus-glass-control flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35">
           <span className="text-base leading-none">×</span>
         </button>
       </div>
@@ -1112,14 +1252,28 @@ function MobileDeploySheet({
               <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">{state.error}</p>
             </div>
           </div>
+          {needsVercelToken && (
+            <VercelConnectPanel
+              tokenInput={vercelTokenInput}
+              busy={vercelTokenBusy}
+              error={vercelTokenError}
+              onTokenChange={onVercelTokenChange}
+              onSave={onSaveVercelToken}
+            />
+          )}
           <DeployTerminal logs={state.logs} currentStep={state.step} />
-          {state.provider && (
+          {state.provider && !needsVercelToken && (
             <button type="button" onClick={() => onDeploy(state.provider!)}
               className="lotus-glass-control flex w-full items-center justify-center gap-2 rounded-full border py-3 text-[12px] font-semibold text-foreground transition-colors hover:bg-muted">
               <Rocket className="h-4 w-4" />
               Try again
             </button>
           )}
+          <button type="button" onClick={onReset}
+            className="flex w-full items-center justify-center gap-1.5 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground">
+            <ArrowLeft className="h-3 w-3" />
+            Choose a different platform
+          </button>
         </div>
       )}
 
@@ -1164,7 +1318,12 @@ function MobileDeploySheet({
             <button type="button" onClick={() => onDeploy("vercel")} disabled={state.busy}
               className="lotus-glass-control flex w-full items-center justify-between rounded-[1.75rem] border px-4 py-3.5 text-left transition-all hover:border-border-strong hover:bg-muted disabled:opacity-40">
               <div>
-                <p className="text-[13px] font-semibold text-foreground">Vercel</p>
+                <div className="flex items-center gap-2">
+                  <span className="text-[13px] font-semibold text-foreground">Vercel</span>
+                  {vercelConnected === true && (
+                    <span className="rounded-full bg-success/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-success">Connected</span>
+                  )}
+                </div>
                 <p className="mt-0.5 text-[12px] text-muted-foreground">Fast and reliable. Great for React apps.</p>
               </div>
               <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -1197,6 +1356,11 @@ export default function ComputerPage() {
   const [editingMsgIndex,   setEditingMsgIndex]   = useState<number | null>(null)
   const [editText,          setEditText]          = useState("")
   const [deployOpen,        setDeployOpen]        = useState(false)
+  const [vercelConnected,   setVercelConnected]   = useState<boolean | null>(null)
+  const [vercelTokenInput,  setVercelTokenInput]  = useState("")
+  const [vercelTokenBusy,   setVercelTokenBusy]   = useState(false)
+  const [vercelTokenError,  setVercelTokenError]  = useState<string | null>(null)
+  const vercelPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [historyOpen,       setHistoryOpen]       = useState(false)
   const [deployState,       setDeployState]       = useState<DeployState>(INITIAL_DEPLOY_STATE)
   const [integrationsOpen,  setIntegrationsOpen]  = useState(false)
@@ -1217,7 +1381,7 @@ export default function ComputerPage() {
   const [runtimeError,      setRuntimeError]      = useState<{ message: string; stack: string } | null>(null)
   const [fixingError,       setFixingError]       = useState(false)
   const [stoppedSessionIds, setStoppedSessionIds] = useState<Set<string>>(() => new Set(readStoppedComputerSessions()))
-  const [computerTheme,     setComputerTheme]     = useState<ComputerTheme>("dark")
+  const [computerTheme,     setComputerTheme]     = useState<ComputerTheme>("light")
   const hasStartedRef = useRef(false)
   const runAbortRef = useRef<AbortController | null>(null)
   const previousPreviewUrlRef = useRef<string | null | undefined>(undefined)
@@ -1242,8 +1406,7 @@ export default function ComputerPage() {
       return
     }
 
-    const prefersLight = window.matchMedia?.("(prefers-color-scheme: light)").matches ?? false
-    setComputerTheme(prefersLight ? "light" : "dark")
+    setComputerTheme("light")
   }, [])
 
   const handleThemeToggle = useCallback(() => {
@@ -1874,8 +2037,98 @@ export default function ComputerPage() {
     window.location.href = data.url
   }, [getOptionalAuthHeader, session?.id, session?.projectId])
 
+  const stopVercelPolling = useCallback(() => {
+    if (vercelPollRef.current) {
+      clearInterval(vercelPollRef.current)
+      vercelPollRef.current = null
+    }
+  }, [])
+
+  // Polls GET /api/vercel/deploy/{deploymentId} after the deploy stream ends.
+  // The route returns { state } passed through from Vercel (readyState/status);
+  // READY / ERROR / CANCELED are terminal.
+  const startVercelDeploymentPolling = useCallback((deploymentId: string, projectId: string) => {
+    stopVercelPolling()
+    const poll = async () => {
+      try {
+        const auth = await getOptionalAuthHeader()
+        const res = await fetch(
+          `/api/vercel/deploy/${encodeURIComponent(deploymentId)}?projectId=${encodeURIComponent(projectId)}`,
+          { headers: auth }
+        )
+        const data = await res.json().catch(() => null) as {
+          state?: string | null
+          siteUrl?: string | null
+          deployUrl?: string | null
+          error?: string
+        } | null
+        if (!data) return
+        const state = typeof data.state === "string" ? data.state.toUpperCase() : ""
+        if (!state) return
+
+        if (state === "READY") {
+          stopVercelPolling()
+          setDeployState((current) => current.provider === "vercel"
+            ? {
+                ...current,
+                step: "Ready",
+                error: null,
+                siteUrl: data.siteUrl || data.deployUrl || current.siteUrl,
+              }
+            : current)
+        } else if (state === "ERROR" || state === "CANCELED") {
+          stopVercelPolling()
+          setDeployState((current) => current.provider === "vercel"
+            ? {
+                ...current,
+                step: "Failed",
+                error: state === "CANCELED"
+                  ? "Vercel deployment was canceled."
+                  : "Vercel reported a deployment error. Check the Vercel dashboard for build logs.",
+              }
+            : current)
+        } else {
+          // QUEUED / INITIALIZING / BUILDING — keep the progress display honest.
+          setDeployState((current) => current.provider === "vercel"
+            ? { ...current, step: "Building on Vercel…" }
+            : current)
+        }
+      } catch {
+        // Transient poll failure — keep the interval running.
+      }
+    }
+    void poll()
+    vercelPollRef.current = setInterval(poll, 5000)
+  }, [getOptionalAuthHeader, stopVercelPolling])
+
+  // No leaked timers: stop polling when the deploy UI closes and on unmount.
+  useEffect(() => {
+    if (!deployOpen) stopVercelPolling()
+  }, [deployOpen, stopVercelPolling])
+  useEffect(() => () => stopVercelPolling(), [stopVercelPolling])
+
+  // Connection indicator for the deploy UI — same status route the pre-511cd10
+  // page used. Refreshed each time the deploy UI opens.
+  useEffect(() => {
+    if (!deployOpen || !session?.projectId) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const auth = await getOptionalAuthHeader()
+        const res = await fetch(`/api/vercel/status?projectId=${encodeURIComponent(session.projectId!)}`, { headers: auth })
+        const json = await res.json().catch(() => null) as { connected?: boolean } | null
+        if (!cancelled) setVercelConnected(!!json?.connected)
+      } catch {
+        if (!cancelled) setVercelConnected(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [deployOpen, session?.projectId, getOptionalAuthHeader])
+
   const handleDeploy = useCallback(async (provider: DeployProvider) => {
     if (!session?.projectId || deployState.busy) return
+    stopVercelPolling()
+    setVercelTokenError(null)
     const existingSiteUrl = provider === "netlify"
       ? projectIntegration?.netlifySiteUrl ?? null
       : projectIntegration?.vercelSiteUrl ?? projectIntegration?.vercelDeployUrl ?? null
@@ -1914,6 +2167,7 @@ export default function ComputerPage() {
       const decoder = new TextDecoder()
       let buffer = ""
       let failedWithNetlifyConnection = false
+      let vercelDeploymentId: string | null = null
 
       while (true) {
         const { value, done } = await reader.read()
@@ -1934,6 +2188,7 @@ export default function ComputerPage() {
             error?: string
             siteUrl?: string
             adminUrl?: string
+            deploymentId?: string
           }
           try {
             payload = JSON.parse(line)
@@ -1954,14 +2209,18 @@ export default function ComputerPage() {
 
           if (payload.type === "error") {
             failedWithNetlifyConnection = provider === "netlify" && /netlify not connected/i.test(String(payload.error || ""))
+            const failedWithVercelConnection = provider === "vercel" && /vercel not connected/i.test(String(payload.error || ""))
             setDeployState((current) => ({
               ...current,
               error: getDeployErrorMessage(payload.error),
-              step: failedWithNetlifyConnection ? "Needs connection" : "Failed",
+              step: failedWithNetlifyConnection || failedWithVercelConnection ? "Needs connection" : "Failed",
             }))
           }
 
           if (payload.type === "success") {
+            if (payload.deploymentId) {
+              vercelDeploymentId = payload.deploymentId
+            }
             setDeployState((current) => ({
               ...current,
               step: "Ready",
@@ -1976,16 +2235,64 @@ export default function ComputerPage() {
       if (failedWithNetlifyConnection) {
         await startNetlifyConnection()
       }
+
+      if (provider === "vercel" && vercelDeploymentId) {
+        startVercelDeploymentPolling(vercelDeploymentId, session.projectId)
+      }
     } catch (err) {
+      // The not-connected signal can arrive here too (e.g. when the response
+      // body is unavailable and the raw NDJSON text is thrown) — it must still
+      // put the modal into the recovery state, not a dead-end "Failed".
+      const message = err instanceof Error ? err.message : "Deploy failed"
+      const needsConnection =
+        (provider === "vercel" && /vercel not connected/i.test(message)) ||
+        (provider === "netlify" && /netlify not connected/i.test(message))
       setDeployState((current) => ({
         ...current,
-        error: getDeployErrorMessage(err instanceof Error ? err.message : "Deploy failed"),
-        step: "Failed",
+        error: getDeployErrorMessage(message),
+        step: needsConnection ? "Needs connection" : "Failed",
       }))
     } finally {
       setDeployState((current) => ({ ...current, busy: false }))
     }
-  }, [deployState.busy, getOptionalAuthHeader, projectIntegration?.netlifyAdminUrl, projectIntegration?.netlifySiteUrl, projectIntegration?.vercelDeployUrl, projectIntegration?.vercelDeploymentId, projectIntegration?.vercelSiteUrl, session?.projectId, startNetlifyConnection])
+  }, [deployState.busy, getOptionalAuthHeader, projectIntegration?.netlifyAdminUrl, projectIntegration?.netlifySiteUrl, projectIntegration?.vercelDeployUrl, projectIntegration?.vercelDeploymentId, projectIntegration?.vercelSiteUrl, session?.projectId, startNetlifyConnection, startVercelDeploymentPolling, stopVercelPolling])
+
+  // Restores the connect flow removed in 511cd10: saves the token through
+  // POST /api/vercel/save-token ({ projectId, token } — owner-only, encrypted
+  // at rest), then automatically retries the Vercel deploy.
+  const handleSaveVercelToken = useCallback(async () => {
+    if (!session?.projectId || vercelTokenBusy || !vercelTokenInput.trim()) return
+    setVercelTokenBusy(true)
+    setVercelTokenError(null)
+    try {
+      const auth = await getOptionalAuthHeader()
+      const res = await fetch("/api/vercel/save-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...auth },
+        body: JSON.stringify({ projectId: session.projectId, token: vercelTokenInput.trim() }),
+      })
+      const data = await res.json().catch(() => ({})) as { success?: boolean; error?: string }
+      if (!res.ok || data.success !== true) {
+        throw new Error(data.error || "Failed to save the Vercel token")
+      }
+      setVercelConnected(true)
+      setVercelTokenInput("")
+      setDeployState((current) => ({ ...current, error: null, step: "" }))
+      await handleDeploy("vercel")
+    } catch (err) {
+      setVercelTokenError(err instanceof Error ? err.message : "Failed to save the Vercel token")
+    } finally {
+      setVercelTokenBusy(false)
+    }
+  }, [getOptionalAuthHeader, handleDeploy, session?.projectId, vercelTokenBusy, vercelTokenInput])
+
+  // Returns the deploy UI to the provider selection screen from any error or
+  // recovery state, so users can switch platform instead of being stuck.
+  const handleDeployReset = useCallback(() => {
+    stopVercelPolling()
+    setVercelTokenError(null)
+    setDeployState(INITIAL_DEPLOY_STATE)
+  }, [stopVercelPolling])
 
   const handleGithubSync = useCallback(async () => {
     if (!session?.projectId || integrationBusy) return
@@ -2242,9 +2549,16 @@ export default function ComputerPage() {
     <div
       className={cn(
         "relative flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground",
-        computerTheme === "dark" && "dark bg-[oklch(0.18_0_0)]",
+        computerTheme === "dark" && "dark",
       )}
     >
+      <a
+        href="#computer-main"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-[100] focus:rounded-full focus:bg-card focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-foreground focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring/40"
+      >
+        Skip to workspace
+      </a>
+
       {/* ── App shell ── */}
       <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">
 
@@ -2357,6 +2671,13 @@ export default function ComputerPage() {
           if (open) setIntegrationsOpen(false)
         }}
         onDeploy={handleDeploy}
+        onReset={handleDeployReset}
+        vercelConnected={vercelConnected}
+        vercelTokenInput={vercelTokenInput}
+        vercelTokenBusy={vercelTokenBusy}
+        vercelTokenError={vercelTokenError}
+        onVercelTokenChange={setVercelTokenInput}
+        onSaveVercelToken={handleSaveVercelToken}
       />
 
       <VersionHistoryPanel
@@ -2377,11 +2698,17 @@ export default function ComputerPage() {
       />
 
       {/* ── Body ── */}
-      <div className="relative flex min-h-0 w-full flex-1 overflow-hidden">
+      <main
+        id="computer-main"
+        className="relative flex min-h-0 w-full flex-1 overflow-hidden"
+        aria-label="Computer build workspace"
+      >
 
         {/* ── Chat panel ── */}
-        <div className={cn(
-          "flex w-full shrink-0 flex-col overflow-hidden bg-[color-mix(in_oklch,var(--background)_76%,transparent)] backdrop-blur-2xl transition-[width] duration-200 ease-in-out",
+        <aside
+          aria-label="Agent conversation"
+          className={cn(
+          "flex w-full shrink-0 flex-col overflow-hidden bg-card backdrop-blur-2xl transition-[width] duration-200 ease-in-out",
           desktopChatCollapsed
             ? "sm:w-0 sm:overflow-hidden"
             : "sm:w-[32%] md:w-[31%] lg:w-[340px] xl:w-[370px] 2xl:w-[400px]",
@@ -2433,19 +2760,21 @@ export default function ComputerPage() {
               isLoading={isRunning} onStop={handleStop} onSubmit={handleRun}
               placeholder="Message the agent..."
               disabled={isBuildTokenBlocked}
-              wrapperClassName="lotus-glass-control border-border/60"
+              wrapperClassName="lotus-glass-control !border-border-strong shadow-sm shadow-foreground/5"
             />
           </div>
-        </div>
+        </aside>
 
         {/* ── Workspace panel ── */}
-        <div className={cn(
-          "lotus-glass-strong m-2 flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border/50 shadow-[0_28px_90px_-64px_rgba(0,0,0,0.9)]",
+        <section
+          aria-label="Workspace preview and files"
+          className={cn(
+          "lotus-glass-strong m-2 flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border/50 shadow-xl shadow-foreground/5",
           mobileView !== "workspace" && "hidden sm:flex"
         )}>
           {/* Workspace content — fills panel edge to edge */}
           <div className="relative min-h-0 flex-1">
-            <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[color-mix(in_oklch,var(--background)_88%,transparent)]">
+            <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
               <WorkspaceTabBar
                 activeTab={activeTab}
                 previewUrl={session.previewUrl}
@@ -2454,6 +2783,9 @@ export default function ComputerPage() {
               />
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
+                id="computer-workspace-panel"
+                role="tabpanel"
+                aria-labelledby={`workspace-tab-${activeTab}`}
                 key={activeTab}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -2494,21 +2826,22 @@ export default function ComputerPage() {
             </AnimatePresence>
             </div>
           </div>
-        </div>
+        </section>
 
-      </div>
+      </main>
       </div>
 
       {/* ── Mobile view switcher ── */}
       <nav
         aria-label="Switch between chat and preview"
-        className="lotus-glass-strong absolute inset-x-3 z-20 mx-auto max-w-xs rounded-full border border-border/50 px-1 py-1 shadow-[0_22px_70px_-42px_rgba(0,0,0,0.9)] sm:hidden"
+        className="lotus-glass-strong absolute inset-x-3 z-20 mx-auto max-w-xs rounded-full border !border-border-strong px-1 py-1 shadow-xl shadow-foreground/10 focus-within:ring-2 focus-within:ring-border-strong/25 sm:hidden"
         style={{ bottom: "max(0.875rem, env(safe-area-inset-bottom))" }}
       >
         <div className="grid grid-cols-2 gap-1">
           <button
             type="button"
             aria-current={mobileView === "feed" ? "page" : undefined}
+            aria-pressed={mobileView === "feed"}
             onClick={() => setMobileView("feed")}
             className={cn(
               "flex h-10 items-center justify-center gap-1.5 rounded-full text-[12.5px] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -2523,6 +2856,7 @@ export default function ComputerPage() {
           <button
             type="button"
             aria-current={mobileView === "workspace" ? "page" : undefined}
+            aria-pressed={mobileView === "workspace"}
             onClick={() => { setMobileView("workspace"); setActiveTab("preview") }}
             className={cn(
               "flex h-10 items-center justify-center gap-1.5 rounded-full text-[12.5px] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -2548,6 +2882,13 @@ export default function ComputerPage() {
         deploymentLinks={getProjectDeploymentLinks(projectIntegration)}
         onClose={() => setDeployOpen(false)}
         onDeploy={handleDeploy}
+        onReset={handleDeployReset}
+        vercelConnected={vercelConnected}
+        vercelTokenInput={vercelTokenInput}
+        vercelTokenBusy={vercelTokenBusy}
+        vercelTokenError={vercelTokenError}
+        onVercelTokenChange={setVercelTokenInput}
+        onSaveVercelToken={handleSaveVercelToken}
       />
     </div>
   )

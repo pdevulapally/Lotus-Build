@@ -242,6 +242,18 @@ TECHNICAL QUALITY REQUIREMENTS — mandatory for all frontend generation:
 - If a build brief is provided above, it is the authoritative design specification. Do not override it with personal defaults.
 `.trim()
 
+const MOBILE_TECHNICAL_REQUIREMENTS = `
+TECHNICAL QUALITY REQUIREMENTS — mandatory for all mobile generation:
+- This is an Expo + React Native + TypeScript mobile app. NEVER generate Vite, index.html, react-dom, CSS files, or any web bundler config.
+- Production-grade: safe areas respected, scrollable content, touch targets ≥44px, keyboard handled with KeyboardAvoidingView, clear loading/empty states.
+- Implement the design brief exactly as specified — colors, fonts, sections, and standout element are non-negotiable, translated into mobile-native composition.
+- Use NativeWind className styling on React Native primitives (View, Text, ScrollView, Pressable, Image, TextInput). No DOM elements, no CSS media queries.
+- Copy must be written specifically for this business and audience. Zero lorem ipsum. Zero placeholder text. Write like a real brand, not a template.
+- Images: use real Unsplash URLs https://images.unsplash.com/photo-[ID]?w=1200&q=80&auto=format&fit=crop with the React Native Image component — choose IDs that genuinely match the content.
+- Components split by responsibility. Clean semantic React Native, named exports, no unused imports.
+- If a build brief is provided above, it is the authoritative design specification. Do not override it with personal defaults.
+`.trim()
+
 async function appendEvent(
   docRef: DocumentReference,
   event: ComputerTimelineEvent,
@@ -1446,10 +1458,14 @@ function buildAgentGenerationPrompt(params: {
   runtimeContext?: string
   intent?: AgentWebIntent
   isEdit?: boolean
+  platform: ProjectPlatform
 }) {
   const hasWebEvidence = params.webEvidence.length > 0
   const isInspiration = params.intent === "inspiration"
   const hasPlan = params.planText.trim().length > 0
+  const isMobile = params.platform === "mobile"
+  const stackLabel = isMobile ? "React Native (Expo + NativeWind)" : "React/Tailwind"
+  const technicalRequirements = isMobile ? MOBILE_TECHNICAL_REQUIREMENTS : FRONTEND_TECHNICAL_REQUIREMENTS
 
   const contextSections = [
     hasPlan
@@ -1477,7 +1493,7 @@ function buildAgentGenerationPrompt(params: {
     ? isInspiration
       ? `INSPIRATION RULES:
 - Use the captured DOM, sections, style hints, and text content as creative direction — not a verbatim copy.
-- Adapt the visual direction into a fresh React/Tailwind implementation.
+- Adapt the visual direction into a fresh ${stackLabel} implementation.
 - Reuse real image URLs from the evidence where suitable. Do not invent broken image paths.
 - Do not add sections that were not present in the reference.`.trim()
       : `REFERENCE RULES:
@@ -1495,11 +1511,11 @@ function buildAgentGenerationPrompt(params: {
 User request:
 ${params.prompt}
 
-${contextSections.length ? `${contextSections.join("\n\n")}\n\n` : ""}${FRONTEND_TECHNICAL_REQUIREMENTS}
+${contextSections.length ? `${contextSections.join("\n\n")}\n\n` : ""}${technicalRequirements}
 
 ${evidenceDirective}
 
-If the request is to recreate or draw inspiration from a website, build a frontend-only React/Tailwind implementation with responsive layout and local-only interactions. Do not reproduce backend behaviour, authentication, payments, private data, or third-party scripts unless explicitly asked.`
+If the request is to recreate or draw inspiration from a website, build a frontend-only ${stackLabel} interpretation with ${isMobile ? "mobile-native layout" : "responsive layout"} and local-only interactions. Do not reproduce backend behaviour, authentication, payments, private data, or third-party scripts unless explicitly asked.`
 }
 
 export async function POST(req: Request) {
@@ -2342,7 +2358,7 @@ export async function POST(req: Request) {
         const planResponse = await callAgent({
           max_tokens: 800,
           temperature: 0.2,
-          system: `You are a senior design director and frontend architect creating a build brief for a website or web application.
+          system: `You are a senior design director and frontend architect creating a build brief for ${projectPlatform === "mobile" ? "an Expo + React Native mobile application. Every layout, navigation, and interaction decision must be mobile-native (phone-first screens, safe areas, touch targets) — never web page patterns" : "a website or web application"}.
 
 For simple edits (text change, color tweak, single component fix, minor layout adjustment): output exactly SKIP_PLAN.
 
@@ -2578,6 +2594,7 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
       runtimeContext,
       intent: webPlan.intent,
       isEdit: projectFiles.length > 0,
+      platform: projectPlatform,
     })
     let generatedFiles: GeneratedFile[] = []
 

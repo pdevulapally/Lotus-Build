@@ -4,7 +4,7 @@ import { useState } from "react"
 import { motion } from "framer-motion"
 import { User, Bot, Edit2, Copy, Check, Lightbulb, FileCode, FolderOpen } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { TextShimmer } from "@/components/prompt-kit/text-shimmer"
+import { Shimmer } from "@/components/ai-elements/shimmer"
 import { toast } from "@/hooks/use-toast"
 import type { Message, GeneratedFile } from "@/lib/projects/types"
 import { formatMessageTime } from "@/lib/projects/utils"
@@ -184,7 +184,7 @@ export function ChatMessage({
             <div className="p-4 sm:p-5">
               <div className="space-y-2">
                 {message.isStreaming ? (
-                  <TextShimmer className="text-xs sm:text-sm text-foreground leading-6">{message.content}</TextShimmer>
+                  <Shimmer className="text-xs sm:text-sm text-foreground leading-6">{message.content}</Shimmer>
                 ) : (
                   <p className="text-xs sm:text-sm whitespace-pre-wrap text-foreground leading-6">{message.content}</p>
                 )}

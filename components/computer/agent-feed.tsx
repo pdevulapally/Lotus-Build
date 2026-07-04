@@ -22,7 +22,7 @@ import {
   Pencil,
   RotateCcw,
 } from "lucide-react"
-import { TextShimmer } from "@/components/prompt-kit/text-shimmer"
+import { Shimmer } from "@/components/ai-elements/shimmer"
 import { lineDiff, countDiffStats, type DiffOp } from "@/components/project/edit-tool"
 import { BashTool } from "@/components/project/bash-tool"
 import { SearchTool, type SearchResult } from "@/components/project/search-tool"
@@ -327,9 +327,9 @@ function FeedFileItem({
       >
         <FileCode2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
         {isPending || isRunning ? (
-          <TextShimmer className="min-w-0 flex-1 text-xs font-semibold">
+          <Shimmer className="min-w-0 flex-1 text-xs font-semibold">
             {label}
-          </TextShimmer>
+          </Shimmer>
         ) : (
           <span className="min-w-0 flex-1 truncate text-xs font-semibold text-muted-foreground">{label}</span>
         )}
@@ -479,7 +479,7 @@ function FeedItem({
     return (
       <div className="flex items-center gap-2.5 py-1.5">
         <FileCode2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40" />
-        <TextShimmer className="text-xs font-medium">Generating code…</TextShimmer>
+        <Shimmer className="text-xs font-medium">Generating code…</Shimmer>
       </div>
     )
   }
@@ -520,9 +520,9 @@ function FeedItem({
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-foreground/20" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-foreground/50" />
             </span>
-            <TextShimmer className="text-[13.5px] font-semibold">
+            <Shimmer className="text-[13.5px] font-semibold">
               {title}
-            </TextShimmer>
+            </Shimmer>
           </div>
         ) : (
           <p
@@ -606,6 +606,7 @@ function UserMessageBubble({
           <div className="overflow-hidden rounded-2xl bg-foreground shadow-sm">
             <textarea
               ref={ref} value={editText} onChange={(e) => onEditChange(e.target.value)}
+              aria-label="Edit message"
               rows={Math.max(2, editText.split("\n").length)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onEditSubmit(index) }
@@ -615,8 +616,8 @@ function UserMessageBubble({
             />
           </div>
           <div className="mt-1.5 flex items-center justify-end gap-2">
-            <button type="button" onClick={onEditCancel} className="rounded-md px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35">Cancel</button>
-            <button type="button" onClick={() => onEditSubmit(index)} className="rounded-full bg-foreground px-2.5 py-1 text-[11px] font-medium text-background shadow-sm transition-colors hover:bg-foreground/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40">Submit</button>
+            <button type="button" onClick={onEditCancel} className="min-h-6 rounded-md px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35">Cancel</button>
+            <button type="button" onClick={() => onEditSubmit(index)} className="min-h-6 rounded-full bg-foreground px-2.5 py-1 text-[11px] font-medium text-background shadow-sm transition-colors hover:bg-foreground/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40">Submit</button>
           </div>
         </div>
       </div>
@@ -637,10 +638,10 @@ function UserMessageBubble({
             await navigator.clipboard?.writeText(content).catch(() => undefined)
             setCopied(true)
             window.setTimeout(() => setCopied(false), 1200)
-          }} aria-label="Copy message" className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35">
+          }} aria-label="Copy message" className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35">
             {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
           </button>
-          <button type="button" onClick={() => onEditStart(index, content)} aria-label="Edit message" className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35">
+          <button type="button" onClick={() => onEditStart(index, content)} aria-label="Edit message" className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35">
             <Pencil className="h-3.5 w-3.5" />
           </button>
           {showRestoreButton && restoreState !== "restoring" && (
@@ -648,7 +649,7 @@ function UserMessageBubble({
               type="button"
               onClick={() => { setRestoreError(null); setRestoreState("confirming") }}
               aria-label="Restore project to this checkpoint"
-              className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
+              className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
             >
               <RotateCcw className="h-3.5 w-3.5" />
             </button>
@@ -808,7 +809,7 @@ export function AgentFeed({
       <AnimatePresence initial={false}>
         {isStarting && (
           <motion.div key="optimistic" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }} className="py-2">
-            <TextShimmer className="text-[13px] font-medium">Starting...</TextShimmer>
+            <Shimmer className="text-[13px] font-medium">Starting...</Shimmer>
           </motion.div>
         )}
       </AnimatePresence>
@@ -855,9 +856,9 @@ export function AgentFeed({
       <AnimatePresence>
         {showGlobalThinking && (
           <motion.div initial={{ opacity: 0, y: 3 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }} className="py-2.5">
-            <TextShimmer className="text-[13px] font-medium">
+            <Shimmer className="text-[13px] font-medium">
               {progress?.label ?? "Working..."}
-            </TextShimmer>
+            </Shimmer>
             {progress?.description && (
               <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground/70">
                 {progress.description}

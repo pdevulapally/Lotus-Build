@@ -462,10 +462,10 @@ export function AnimatedAIInput({
       <div
         className={cn(
           "group/composer relative overflow-hidden rounded-xl border transition-[border-color,box-shadow] duration-200",
-          "border-border/80 bg-card shadow-sm",
-          "hover:border-border",
-          "focus-within:border-border-strong focus-within:ring-2 focus-within:ring-border/30",
-          isSlimChat && "rounded-2xl border-border/55 bg-card/70 shadow-sm",
+          "border-border bg-card shadow-sm",
+          "hover:border-border-strong",
+          "focus-within:border-border-strong focus-within:ring-2 focus-within:ring-border-strong/25",
+          isSlimChat && "rounded-2xl border-border bg-card shadow-sm",
           disabled && "pointer-events-none opacity-55",
           wrapperClassName,
         )}
@@ -487,7 +487,7 @@ export function AnimatedAIInput({
                     type="button"
                     onClick={contextBadge.onClear}
                     aria-label="Clear context"
-                    className="rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -501,6 +501,7 @@ export function AnimatedAIInput({
           <textarea
             ref={textareaRef}
             value={value}
+            aria-label={mode === "chat" ? "Message the agent" : "Describe the site or app you want to build"}
             placeholder={placeholder}
             disabled={disabled}
             onKeyDown={handleKeyDown}

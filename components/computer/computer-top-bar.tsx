@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { AnimatePresence, motion } from "framer-motion"
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
 import {
   Globe,
   Check,
@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/sheet"
 import * as SheetPrimitive from "@radix-ui/react-dialog"
 import { useProjectList } from "@/hooks/use-project-list"
+import { useSettingsDialog } from "@/components/settings/settings-dialog"
 
 function buildTitle(prompt: string, max = 34): string {
   const t = (prompt || "").trim()
@@ -194,6 +195,7 @@ export function ComputerTopBar({
 }) {
   const router = useRouter()
   const { user, userData, workspaces, currentWorkspace, switchWorkspace, signOut } = useAuth()
+  const { openSettings } = useSettingsDialog()
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -212,6 +214,7 @@ export function ComputerTopBar({
     : userData?.email?.slice(0, 1).toUpperCase() ?? "U"
 
   const otherWorkspaces = workspaces.filter((w) => w.id !== currentWorkspace?.id)
+  const shouldReduceMotion = useReducedMotion()
 
   const handleSwitchWorkspace = async (workspaceId: string) => {
     await switchWorkspace(workspaceId)
@@ -223,7 +226,7 @@ export function ComputerTopBar({
 
   return (
     <>
-      <header className="lotus-glass relative z-30 shrink-0">
+      <header className="lotus-glass relative z-30 shrink-0" aria-label="Computer workspace header">
         <div className="relative flex h-[52px] w-full items-center">
           {onToggleChatPanel && (
             <button
@@ -629,11 +632,12 @@ export function ComputerTopBar({
                         <ItemIcon><Copy className="h-3.5 w-3.5" /></ItemIcon>
                         Copy session ID
                       </DropdownMenuItem>
-                      <DropdownMenuItem asChild className="h-9 gap-2.5 rounded-xl px-2.5 text-[13px] focus:bg-muted/60">
-                        <Link href="/settings">
-                          <ItemIcon><LayoutPanelLeft className="h-3.5 w-3.5" /></ItemIcon>
-                          Settings
-                        </Link>
+                      <DropdownMenuItem
+                        className="h-9 gap-2.5 rounded-xl px-2.5 text-[13px] focus:bg-muted/60"
+                        onSelect={() => openSettings()}
+                      >
+                        <ItemIcon><LayoutPanelLeft className="h-3.5 w-3.5" /></ItemIcon>
+                        Settings
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="h-9 gap-2.5 rounded-xl px-2.5 text-[13px] text-destructive focus:bg-destructive/8 focus:text-destructive"
@@ -658,7 +662,11 @@ export function ComputerTopBar({
             {/* Tab group — always visible on desktop */}
             <div className="hidden items-center gap-2.5 sm:flex">
               {onTabChange && (
-                <div className="lotus-glass-control flex items-center rounded-full border p-0.5">
+                <div
+                  className="lotus-glass-control flex items-center rounded-full border !border-border-strong p-0.5 shadow-sm shadow-foreground/5 focus-within:ring-2 focus-within:ring-border-strong/25"
+                  role="tablist"
+                  aria-label="Workspace views"
+                >
                   {([
                     { id: "preview" as WorkspaceTab, label: "Preview", show: true },
                     { id: "browser" as WorkspaceTab, label: "Browser", show: !!hasBrowser },
@@ -671,6 +679,10 @@ export function ComputerTopBar({
                         key={tab.id}
                         type="button"
                         onClick={() => onTabChange(tab.id)}
+                        role="tab"
+                        id={`workspace-tab-${tab.id}`}
+                        aria-selected={activeTab === tab.id}
+                        aria-controls="computer-workspace-panel"
                         className={cn(
                           "inline-flex h-6 items-center rounded-full px-2.5 text-[12px] font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35",
                           activeTab === tab.id
@@ -693,7 +705,7 @@ export function ComputerTopBar({
                 onClick={onThemeToggle}
                 aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
                 title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-                className="lotus-glass-control inline-flex h-8 w-8 items-center justify-center rounded-full border text-muted-foreground transition-all hover:border-border/80 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
+                className="lotus-glass-control inline-flex h-8 w-8 items-center justify-center rounded-full border !border-border-strong text-muted-foreground shadow-sm shadow-foreground/5 transition-all hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/25"
               >
                 {theme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
               </button>
@@ -703,7 +715,7 @@ export function ComputerTopBar({
                 onClick={onOpenIntegrations}
                 disabled={!session.projectId}
                 aria-label="Connectors"
-                className="lotus-glass-control hidden h-8 items-center gap-1.5 rounded-full border px-3 text-[12px] font-medium text-muted-foreground transition-all hover:border-border/80 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35 disabled:pointer-events-none disabled:opacity-30 sm:inline-flex"
+                className="lotus-glass-control hidden h-8 items-center gap-1.5 rounded-full border !border-border-strong px-3 text-[12px] font-medium text-muted-foreground shadow-sm shadow-foreground/5 transition-all hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/25 disabled:pointer-events-none disabled:opacity-30 sm:inline-flex"
               >
                 <KeyRound className="h-3.5 w-3.5" />
                 Connectors
@@ -715,7 +727,7 @@ export function ComputerTopBar({
                   onClick={onOpenHistory}
                   disabled={!session.projectId}
                   aria-label="Version history"
-                  className="lotus-glass-control hidden h-8 items-center gap-1.5 rounded-full border px-3 text-[12px] font-medium text-muted-foreground transition-all hover:border-border/80 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35 disabled:pointer-events-none disabled:opacity-30 sm:inline-flex"
+                  className="lotus-glass-control hidden h-8 items-center gap-1.5 rounded-full border !border-border-strong px-3 text-[12px] font-medium text-muted-foreground shadow-sm shadow-foreground/5 transition-all hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/25 disabled:pointer-events-none disabled:opacity-30 sm:inline-flex"
                 >
                   <History className="h-3.5 w-3.5" />
                   History
@@ -730,7 +742,7 @@ export function ComputerTopBar({
                 }}
                 disabled={!session.projectId}
                 aria-label="Share"
-                className="lotus-glass-control hidden h-8 items-center gap-1.5 rounded-full border px-3 text-[12px] font-medium text-muted-foreground transition-all hover:border-border/80 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35 disabled:pointer-events-none disabled:opacity-30 sm:inline-flex"
+                className="lotus-glass-control hidden h-8 items-center gap-1.5 rounded-full border !border-border-strong px-3 text-[12px] font-medium text-muted-foreground shadow-sm shadow-foreground/5 transition-all hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/25 disabled:pointer-events-none disabled:opacity-30 sm:inline-flex"
               >
                 <Share2 className="h-3.5 w-3.5" />
                 Share
@@ -751,8 +763,9 @@ export function ComputerTopBar({
 
         {/* Animated progress bar — scans across header bottom when agent is active */}
         <AnimatePresence>
-          {isActive && (
+          {isActive && !shouldReduceMotion && (
             <motion.div
+              aria-hidden="true"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -818,7 +831,7 @@ export function ComputerTopBar({
                     className="lotus-glass-control group flex h-11 w-full items-center gap-2.5 rounded-2xl border px-3 text-left shadow-sm transition-all hover:border-border-strong hover:bg-muted"
                     aria-label="Switch workspace"
                   >
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-foreground text-[11px] font-semibold text-background shadow-sm">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[11px] font-semibold text-accent-soft-foreground shadow-sm">
                       {selectedWorkspaceInitial}
                     </span>
                     <span className="min-w-0 flex-1">
@@ -835,7 +848,7 @@ export function ComputerTopBar({
                     Workspaces
                   </div>
                   <DropdownMenuItem disabled className="flex cursor-default items-center gap-2.5 rounded-xl px-2.5 py-2.5 opacity-100 focus:bg-muted">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-foreground text-[11px] font-semibold text-background">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[11px] font-semibold text-accent-soft-foreground">
                       {selectedWorkspaceInitial}
                     </span>
                     <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
@@ -894,7 +907,7 @@ export function ComputerTopBar({
             </div>
 
             {/* Recent builds list */}
-            <div className="flex-1 overflow-y-auto pb-2 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
+            <nav aria-label="Recent builds" className="flex-1 overflow-y-auto pb-2 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
               {sidebarProjectsLoading ? (
                 <div className="space-y-2 px-3 pt-1">
                   {Array.from({ length: 4 }).map((_, i) => (
@@ -928,7 +941,7 @@ export function ComputerTopBar({
                   ))}
                 </div>
               )}
-            </div>
+            </nav>
 
             {/* User row */}
             <div className="lotus-glass-inset shrink-0 border-t border-border/35 px-3 py-3">
@@ -937,7 +950,7 @@ export function ComputerTopBar({
                   <button type="button" className="lotus-glass-control flex w-full items-center gap-2.5 rounded-2xl border border-transparent px-2 py-2 transition-all hover:border-border/60 hover:bg-muted">
                     <Avatar className="h-8 w-8 shrink-0 rounded-full">
                       <AvatarImage src={userData?.photoURL ?? undefined} className="rounded-full object-cover" />
-                      <AvatarFallback className="rounded-full bg-foreground text-[10px] font-semibold text-background">
+                      <AvatarFallback className="rounded-full bg-accent-soft text-[10px] font-semibold text-accent-soft-foreground">
                         {userInitials}
                       </AvatarFallback>
                     </Avatar>
@@ -955,7 +968,7 @@ export function ComputerTopBar({
                     <CreditCard className="mr-2 h-3.5 w-3.5" />
                     Billing &amp; Plans
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="h-10 cursor-pointer rounded-xl px-3 text-[13px] text-foreground focus:bg-muted" onSelect={() => router.push("/settings")}>
+                  <DropdownMenuItem className="h-10 cursor-pointer rounded-xl px-3 text-[13px] text-foreground focus:bg-muted" onSelect={() => openSettings()}>
                     <Settings className="mr-2 h-3.5 w-3.5" />
                     Settings
                   </DropdownMenuItem>
