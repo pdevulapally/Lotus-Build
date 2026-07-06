@@ -529,7 +529,7 @@ export function AnimatedAIInput({
         >
           <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {mode === "create" && !compact && (
-              <div className="inline-flex shrink-0 items-center rounded-lg bg-background p-0.5 ring-1 ring-border/60">
+              <div className="inline-flex shrink-0 items-center rounded-full bg-background p-0.5 ring-1 ring-border/60">
                 {PLATFORM_OPTIONS.map((option) => (
                   <button
                     key={option.id}

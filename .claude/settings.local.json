@@ -101,7 +101,26 @@
       "PowerShell(\"SUPABASE SURVIVORS: \" + \\(\\(Get-ChildItem -LiteralPath \"app/api/supabase\"\\).Name -join \", \"\\); \"INTEGRATIONS/SUPABASE \\(untouched\\): \" + \\(\\(Get-ChildItem -LiteralPath \"app/api/integrations/supabase\"\\).Name -join \", \"\\); \"migrations exists: $\\(Test-Path -LiteralPath 'app/api/migrations'\\)\"; \"clone exists: $\\(Test-Path -LiteralPath 'app/api/clone'\\)\")",
       "PowerShell(npx tsc --noEmit 2>&1 | Select-Object -Last 6; Write-Host \"EXIT_CODE=$LASTEXITCODE\")",
       "PowerShell(\\(Get-Content \"app\\\\projects\\\\page.tsx\" | Measure-Object -Line\\).Lines)",
-      "PowerShell(\\(Get-Content \"app\\\\settings\\\\page.tsx\" | Measure-Object -Line\\).Lines)"
+      "PowerShell(\\(Get-Content \"app\\\\settings\\\\page.tsx\" | Measure-Object -Line\\).Lines)",
+      "Bash(grep -E '\\\\.\\(ts|tsx|js|jsx\\)$')",
+      "Bash(xargs wc -l)",
+      "Bash(xargs grep -l \"verifyIdToken\\\\|Authorization\")",
+      "Bash(grep -v -E \"node_modules|\\\\.lock$|package-lock\")",
+      "Bash(grep -rn \"SmartReasoningDisplay\\\\|AgentTimelineDemo\\\\|export.*AgentTimeline\" components/ai-elements/reasoning.tsx components/prompt-kit/*.ts components/prompt-kit/*.tsx)",
+      "Bash(grep -rln \"AgentTimeline\" app components lib)",
+      "Bash(grep -rln \"components/ui/skeleton\" --include=\"*.tsx\" --include=\"*.ts\" app components lib contexts hooks)",
+      "Bash(grep -rln \"components/ui/tooltip\" --include=\"*.tsx\" --include=\"*.ts\" app components lib contexts hooks)",
+      "Bash(grep -rln \"project/file-tree\\\\|ProjectFileTree\" --include=\"*.tsx\" --include=\"*.ts\" app components lib)",
+      "Bash(xargs -n1 basename)",
+      "Bash(git grep *)",
+      "Bash(npm run *)",
+      "Skill(run)",
+      "Bash(ls .claude/skills)",
+      "Bash(find . -maxdepth 3 -iname \"SKILL.md\")",
+      "Bash(curl -s http://localhost:3000/ -o /tmp/home.html -w \"HTTP %{http_code}\\\\n\")",
+      "Read(//tmp/**)",
+      "Bash(npx --no-install playwright --version)",
+      "Read(//c//**)"
     ]
   }
 }
