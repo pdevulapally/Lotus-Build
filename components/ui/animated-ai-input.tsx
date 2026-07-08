@@ -461,11 +461,11 @@ export function AnimatedAIInput({
     <div className={cn("w-full", mode === "create" ? "mx-auto max-w-2xl" : "max-w-none")}>
       <div
         className={cn(
-          "group/composer relative overflow-hidden rounded-xl border transition-[border-color,box-shadow] duration-200",
-          "border-border bg-card shadow-sm",
+          "composer-shell group/composer relative overflow-hidden rounded-xl border transition-[border-color,box-shadow] duration-200",
+          "border-border bg-card",
           "hover:border-border-strong",
-          "focus-within:border-border-strong focus-within:ring-2 focus-within:ring-border-strong/25",
-          isSlimChat && "rounded-2xl border-border bg-card shadow-sm",
+          "focus-within:border-border-strong",
+          isSlimChat && "rounded-2xl border-border bg-card",
           disabled && "pointer-events-none opacity-55",
           wrapperClassName,
         )}

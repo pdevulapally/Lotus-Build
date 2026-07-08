@@ -120,7 +120,14 @@
       "Bash(curl -s http://localhost:3000/ -o /tmp/home.html -w \"HTTP %{http_code}\\\\n\")",
       "Read(//tmp/**)",
       "Bash(npx --no-install playwright --version)",
-      "Read(//c//**)"
+      "Read(//c//**)",
+      "Bash(grep -o '@utility animate-in{[^}]*}\\\\|@utility in-\\\\*\\\\|\\\\.animate-in\\\\b[^,{]*{[^}]*}' node_modules/tw-animate-css/dist/tw-animate.css)",
+      "Bash(command -v chromium-cli)",
+      "Bash(npx --no-install chromium-cli --help)",
+      "Bash(timeout 60 bash -c 'until curl -sf http://localhost:3000 >/dev/null 2>&1; do sleep 1; done')",
+      "Bash(netstat -ano)",
+      "PowerShell(Get-NetTCPConnection *)",
+      "PowerShell(Get-Process *)"
     ]
   }
 }

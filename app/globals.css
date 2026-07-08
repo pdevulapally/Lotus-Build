@@ -514,6 +514,38 @@
   font-family: "Instrument Sans", var(--font-manrope), system-ui, sans-serif;
 }
 
+.font-editorial {
+  font-family: "Instrument Serif", Georgia, serif;
+  font-style: italic;
+}
+
+/* Hero: single soft spotlight tone positioned over the composer */
+.hero-glow {
+  background: radial-gradient(closest-side, color-mix(in oklch, var(--accent) 26%, transparent), transparent 70%);
+  filter: blur(36px);
+}
+
+/* Composer chrome: quiet bevel at rest, accent-tinted glow on focus */
+.composer-shell {
+  box-shadow:
+    0 1px 0 0 color-mix(in oklch, var(--foreground) 5%, transparent) inset,
+    0 24px 60px -46px color-mix(in oklch, var(--foreground) 32%, transparent);
+  transition: box-shadow 220ms ease, border-color 220ms ease;
+}
+
+.composer-shell:hover {
+  box-shadow:
+    0 1px 0 0 color-mix(in oklch, var(--foreground) 5%, transparent) inset,
+    0 28px 70px -44px color-mix(in oklch, var(--foreground) 38%, transparent);
+}
+
+.composer-shell:focus-within {
+  box-shadow:
+    0 1px 0 0 color-mix(in oklch, var(--foreground) 5%, transparent) inset,
+    0 0 0 1px color-mix(in oklch, var(--accent) 38%, transparent),
+    0 30px 80px -40px color-mix(in oklch, var(--accent) 42%, transparent);
+}
+
 /* Hide scrollbar for Chrome, Safari and Opera */
 .scrollbar-hidden::-webkit-scrollbar,
 html::-webkit-scrollbar {

@@ -180,7 +180,7 @@ function SearchBar({
         aria-label="Search saved builds"
         placeholder="Search builds…"
         className={cn(
-          "h-9 w-full rounded-full border border-border bg-background pl-8 pr-8 shadow-sm",
+          "lotus-glass-control h-9 w-full rounded-full border pl-8 pr-8",
           "text-[13px] text-foreground placeholder:text-muted-foreground/50",
           "outline-none transition-colors focus:border-border-strong focus:ring-0"
         )}
@@ -228,12 +228,12 @@ function FullBuildsPanel({
   return (
     <section
       aria-labelledby={headingId}
-      className="mt-8 overflow-hidden rounded-lg border border-border bg-card shadow-[0_24px_84px_-64px_var(--foreground)]"
+      className="lotus-glass-panel mt-8 overflow-hidden rounded-2xl border border-border/55"
     >
       <p className="sr-only" role="status" aria-live="polite">
         {resultSummary}
       </p>
-      <div className="flex items-center justify-between gap-4 border-b border-border bg-muted px-4 py-3.5 sm:px-5">
+      <div className="flex items-center justify-between gap-4 border-b border-border/55 px-4 py-3.5 sm:px-5">
         <div className="min-w-0">
           <h2 id={headingId} className="text-[13px] font-semibold text-foreground">{title}</h2>
           <p className="mt-0.5 text-[12px] text-muted-foreground">
@@ -287,7 +287,7 @@ function FullBuildsPanel({
                     type="button"
                     onClick={() => onOpenBuild(build)}
                     aria-label={`Open ${projectAccessibleSummary(build)}`}
-                    className="group flex min-h-[7.25rem] w-full flex-col rounded-lg border border-border bg-card p-3.5 text-left shadow-sm transition-colors hover:border-border-strong hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30"
+                    className="lotus-glass-control group flex min-h-[7.25rem] w-full flex-col rounded-2xl border p-3.5 text-left transition-[border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30"
                   >
                   <div className="flex items-start justify-between gap-3">
                     <span className="min-w-0 flex-1 text-[13.5px] font-semibold leading-snug text-foreground">
@@ -418,8 +418,8 @@ function Sidebar({
             <button
               type="button"
               className={cn(
-                "group flex h-11 w-full items-center gap-2.5 rounded-2xl border border-border bg-secondary px-3 shadow-sm",
-                "text-left transition-colors hover:border-border-strong hover:bg-muted"
+                "lotus-glass-control group flex h-11 w-full items-center gap-2.5 rounded-2xl border px-3",
+                "text-left transition-colors hover:border-border-strong"
               )}
               aria-label={`Switch workspace. Current workspace: ${selectedWorkspaceName}`}
             >
@@ -603,8 +603,8 @@ function Sidebar({
           onClick={onShare}
           aria-label="Invite a friend. You both get 500 credits."
           className={cn(
-            "group flex w-full items-center gap-2.5 rounded-2xl border border-border bg-secondary px-3 py-3",
-            "text-left transition-colors hover:border-border-strong hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30"
+            "lotus-glass-control group flex w-full items-center gap-2.5 rounded-2xl border px-3 py-3",
+            "text-left transition-colors hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30"
           )}
         >
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-card">
@@ -619,7 +619,7 @@ function Sidebar({
       </div>
 
       {/* ── User row ── */}
-      <div className="shrink-0 border-t border-border bg-secondary px-3 py-3">
+      <div className="lotus-glass-panel shrink-0 border-t border-border/55 px-3 py-3">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -1129,7 +1129,7 @@ export default function ProjectsPage() {
           <div className="relative z-10 flex min-h-0 flex-1">
             <div className="relative min-h-0 w-full flex-1 overflow-hidden md:rounded-t-[1.125rem] lg:rounded-t-[1.25rem]">
               <div className="h-full overflow-y-auto [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
-                <div className="relative isolate flex min-h-[calc(100dvh+8rem)] w-full flex-col items-center justify-start overflow-hidden border-t border-border bg-secondary px-5 pb-20 md:rounded-t-[1.125rem] sm:px-8 sm:pb-24 lg:rounded-t-[1.25rem]">
+                <div className="relative isolate flex min-h-[calc(100dvh+8rem)] w-full flex-col items-center justify-start overflow-hidden border-t border-border bg-background px-5 pb-20 md:rounded-t-[1.125rem] sm:px-8 sm:pb-24 lg:rounded-t-[1.25rem]">
 
                   <div className="relative z-10 w-full max-w-[60rem]">
                     <div className="mx-auto flex min-h-[calc(100dvh-10rem)] w-full max-w-[44rem] flex-col justify-center py-10 sm:min-h-[calc(100dvh-9rem)] sm:py-12 md:py-14 lg:py-16">
@@ -1137,8 +1137,8 @@ export default function ProjectsPage() {
                         <OnboardingBanner />
                       </Suspense>
 
-                      <div className="mb-7 flex justify-center">
-                        <div className="inline-flex items-center gap-2.5 rounded-full border border-border bg-card px-3.5 py-1.5 text-[12px] shadow-sm">
+                      <div className="animate-in fade-in slide-in-from-bottom-2 fill-mode-both mb-7 flex justify-center duration-700">
+                        <div className="lotus-glass-control inline-flex items-center gap-2.5 rounded-full border px-3.5 py-1.5 text-[12px]">
                           <span className="font-medium text-foreground">{stats.planName} workspace</span>
                           <span className="h-3 w-px bg-border" />
                           <Link href="/pricing" className="font-semibold text-accent-soft-foreground transition-colors hover:text-accent">
@@ -1148,18 +1148,31 @@ export default function ProjectsPage() {
                       </div>
 
                       <div className="mb-8 text-center md:mb-10">
-                        <h1 id={PROJECTS_HEADING_ID} className="mx-auto max-w-3xl font-display text-4xl font-medium leading-[1.04] text-foreground sm:text-5xl lg:text-6xl">
-                          {firstName ? `What can I build for you, ${firstName}?` : "What can I build for you?"}
+                        <h1
+                          id={PROJECTS_HEADING_ID}
+                          className="animate-in fade-in slide-in-from-bottom-3 fill-mode-both mx-auto max-w-3xl text-4xl font-medium leading-[1.05] text-foreground duration-700 sm:text-5xl lg:text-6xl"
+                          style={{ animationDelay: "80ms" }}
+                        >
+                          What can I <span className="font-editorial font-normal">build</span> for you{firstName ? `, ${firstName}` : ""}?
                         </h1>
-                        <p className="mx-auto mt-5 max-w-[34rem] text-[14px] leading-7 text-muted-foreground sm:mt-6 sm:text-base">
+                        <p
+                          className="animate-in fade-in slide-in-from-bottom-3 fill-mode-both mx-auto mt-5 max-w-[34rem] text-[14px] leading-7 text-muted-foreground duration-700 sm:mt-6 sm:text-base"
+                          style={{ animationDelay: "140ms" }}
+                        >
                           Describe the site or app you need. Lotus turns the brief into a live workspace you can keep refining.
                         </p>
                       </div>
 
-                      <AnimatedAIInput
-                        placeholder="Build a refined site for..."
-                        wrapperClassName="rounded-2xl border-border-strong bg-card shadow-[0_32px_100px_-72px_var(--foreground)] [&_textarea]:min-h-[88px] [&_button]:rounded-full [&_button.bg-primary]:bg-accent [&_button.bg-primary]:text-accent-foreground [&_button.bg-primary:hover]:bg-accent/90"
-                      />
+                      <div
+                        className="animate-in fade-in slide-in-from-bottom-4 fill-mode-both relative duration-700"
+                        style={{ animationDelay: "200ms" }}
+                      >
+                        <div aria-hidden="true" className="hero-glow pointer-events-none absolute inset-x-8 -top-8 -z-10 h-28" />
+                        <AnimatedAIInput
+                          placeholder="Build a refined site for..."
+                          wrapperClassName="rounded-2xl border-border-strong/70 bg-card [&_textarea]:min-h-[88px] [&_button]:rounded-full [&_button.bg-primary]:bg-accent [&_button.bg-primary]:text-accent-foreground [&_button.bg-primary:hover]:bg-accent/90"
+                        />
+                      </div>
                     </div>
 
                     <FullBuildsPanel

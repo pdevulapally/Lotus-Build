@@ -161,27 +161,39 @@ export default function Home() {
       <CreateAfterLogin />
 
       <main className="relative min-h-screen overflow-x-clip bg-background text-foreground">
-        <section className="relative overflow-hidden border-b border-border bg-secondary px-4 pb-14 sm:px-6 sm:pb-20 lg:px-8">
+        <section className="relative overflow-hidden border-b border-border bg-background px-4 pb-16 sm:px-6 sm:pb-24 lg:px-8">
           <Navbar variant="hero" />
 
-          <section className="mx-auto max-w-5xl pt-16 text-center sm:pt-20 lg:pt-24">
-            <p className="text-sm font-medium text-accent-soft-foreground">
+          <section className="relative mx-auto max-w-5xl pt-16 text-center sm:pt-20 lg:pt-24">
+            <p
+              className="animate-in fade-in slide-in-from-bottom-2 fill-mode-both font-mono text-[11px] font-medium uppercase tracking-[0.22em] text-muted-foreground duration-700"
+            >
               Lotus.build
             </p>
 
-            <h1 className="mx-auto mt-5 max-w-3xl font-display text-4xl font-medium leading-[1.04] text-foreground sm:text-5xl lg:text-6xl">
-              What can I build for you?
+            <h1
+              className="animate-in fade-in slide-in-from-bottom-3 fill-mode-both mx-auto mt-5 max-w-3xl text-4xl font-medium leading-[1.05] text-foreground duration-700 sm:text-5xl lg:text-6xl"
+              style={{ animationDelay: "80ms" }}
+            >
+              What can I <span className="font-editorial font-normal">build</span> for you?
             </h1>
 
-            <p className="mx-auto mt-6 max-w-2xl text-base leading-7 text-muted-foreground sm:text-xl sm:leading-8">
+            <p
+              className="animate-in fade-in slide-in-from-bottom-3 fill-mode-both mx-auto mt-6 max-w-2xl text-base leading-7 text-muted-foreground duration-700 sm:text-xl sm:leading-8"
+              style={{ animationDelay: "140ms" }}
+            >
               Describe the site or app you need. Lotus turns the brief into a
               live preview you can keep refining.
             </p>
 
-            <section className="mx-auto mt-10 max-w-3xl">
+            <section
+              className="animate-in fade-in slide-in-from-bottom-4 fill-mode-both relative mx-auto mt-10 max-w-3xl duration-700"
+              style={{ animationDelay: "200ms" }}
+            >
+              <div aria-hidden="true" className="hero-glow pointer-events-none absolute inset-x-8 -top-8 -z-10 h-28" />
               <AnimatedAIInput
                 placeholder="Build a refined site for..."
-                wrapperClassName="rounded-lg border-border-strong bg-card shadow-[0_30px_110px_-78px_var(--foreground)] [&_textarea]:min-h-[88px] [&_button]:rounded-full [&_button.bg-primary]:bg-accent [&_button.bg-primary]:text-accent-foreground [&_button.bg-primary:hover]:bg-accent/90"
+                wrapperClassName="rounded-2xl border-border-strong/70 bg-card [&_textarea]:min-h-[88px] [&_button]:rounded-full [&_button.bg-primary]:bg-accent [&_button.bg-primary]:text-accent-foreground [&_button.bg-primary:hover]:bg-accent/90"
               />
             </section>
           </section>
