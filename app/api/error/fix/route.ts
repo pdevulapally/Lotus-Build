@@ -293,6 +293,9 @@ export async function POST(req: Request) {
 
     let originalFiles: ProjectFile[] = []
     if (Array.isArray(body.files) && body.files.length > 0) {
+      if (projectId) {
+        await assertProjectCanEdit(projectId, uid)
+      }
       originalFiles = sanitizeProjectFilesForRepair(body.files)
     } else {
       if (!projectId) return NextResponse.json({ error: "Missing projectId" }, { status: 400 })
