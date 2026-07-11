@@ -160,7 +160,7 @@ function QuestionPrompt({
   const optionRowBase = "w-full text-left rounded-xl px-2.5 py-2 flex items-center gap-2 -mx-1 transition-colors hover:bg-muted/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
   const badgeBase = "h-5 min-w-5 px-1 rounded-full inline-flex items-center justify-center text-xs font-semibold border shrink-0"
   const badgeOff = "bg-muted/45 text-muted-foreground border-border/55"
-  const badgeOn = "bg-foreground text-background border-foreground"
+  const badgeOn = "bg-foreground/12 text-foreground border-foreground/30"
 
   return (
     <div className={cn("space-y-2 bg-card/78 px-3 py-2.5 backdrop-blur-xl", className)}>
@@ -238,7 +238,7 @@ function QuestionPrompt({
           type="button"
           onClick={handleSubmit}
           disabled={!canSubmit}
-          className="h-6 rounded-full bg-foreground px-2.5 text-xs font-semibold text-background transition-all hover:bg-foreground/85 active:scale-[0.98] disabled:opacity-40 disabled:hover:bg-foreground disabled:active:scale-100"
+          className="h-6 rounded-full border border-border-strong bg-muted px-2.5 text-xs font-semibold text-foreground transition-all hover:bg-muted/70 active:scale-[0.98] disabled:opacity-40 disabled:hover:bg-muted disabled:active:scale-100"
         >
           {primaryLabel}
         </button>

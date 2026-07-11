@@ -407,6 +407,213 @@ function VercelConnectPanel({
   )
 }
 
+// Shared body for the Deploy panel — one visual language for both the desktop
+// popover and the mobile sheet, so the two surfaces can't drift out of sync.
+function DeployPanelBody({
+  state,
+  deploymentLinks,
+  onDeploy,
+  onReset,
+  vercelConnected,
+  vercelTokenInput,
+  vercelTokenBusy,
+  vercelTokenError,
+  onVercelTokenChange,
+  onSaveVercelToken,
+}: {
+  state: DeployState
+  deploymentLinks?: Partial<Record<DeployProvider, DeploymentLink>>
+  onDeploy: (provider: DeployProvider) => void
+  onReset: () => void
+  vercelConnected: boolean | null
+  vercelTokenInput: string
+  vercelTokenBusy: boolean
+  vercelTokenError: string | null
+  onVercelTokenChange: (value: string) => void
+  onSaveVercelToken: () => void
+}) {
+  const visibleStateSiteUrl = state.siteUrl || (state.provider ? deploymentLinks?.[state.provider]?.siteUrl ?? null : null)
+  const hasStoredDeployments = Boolean(deploymentLinks?.netlify?.siteUrl || deploymentLinks?.vercel?.siteUrl)
+  const needsVercelToken = state.provider === "vercel" && state.step === "Needs connection"
+
+  const vercelOption = (
+    <details className="group">
+      <summary className="cursor-pointer list-none text-center text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
+        Advanced: connect a Vercel account instead
+      </summary>
+      <button
+        type="button"
+        onClick={() => onDeploy("vercel")}
+        disabled={state.busy}
+        className="mt-2 flex w-full items-center justify-between rounded-2xl border border-border bg-card px-3.5 py-3 text-left transition-colors hover:border-border-strong hover:bg-muted disabled:opacity-40"
+      >
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-[12px] font-semibold text-foreground">Vercel</span>
+            {vercelConnected === true && (
+              <span className="rounded-full bg-success/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-success">Connected</span>
+            )}
+          </div>
+          <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">Great for React &amp; Next.js apps.</p>
+        </div>
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+      </button>
+    </details>
+  )
+
+  // ── Success ──────────────────────────────────────────────────────────
+  if (!state.busy && visibleStateSiteUrl && !state.error) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
+          <p className="text-[13px] font-semibold text-foreground">Your site is live</p>
+        </div>
+        <a
+          href={visibleStateSiteUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="flex w-full items-center justify-center gap-2 rounded-full bg-success py-3 text-[13px] font-semibold text-success-foreground transition-colors hover:bg-success/90"
+        >
+          <Globe className="h-4 w-4" />
+          <span>Open your site</span>
+          <ExternalLink className="h-3.5 w-3.5 opacity-70" />
+        </a>
+        {state.adminUrl && (
+          <a href={state.adminUrl} target="_blank" rel="noreferrer"
+            className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground">
+            <span>View build details on {state.provider ? getDeployProviderLabel(state.provider) : "dashboard"}</span>
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        )}
+        <DeployTerminal logs={state.logs} currentStep={state.step} />
+        <div className="border-t border-border pt-3">
+          <details className="group">
+            <summary className="cursor-pointer list-none text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
+              Also publish to another host
+            </summary>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              {(["netlify", "vercel"] as DeployProvider[]).map((provider) => (
+                <button key={provider} type="button" onClick={() => onDeploy(provider)}
+                  disabled={state.busy}
+                  className="rounded-full border border-border bg-card px-3 py-2 text-left text-[11px] font-semibold text-muted-foreground transition-colors hover:border-border-strong hover:bg-muted hover:text-foreground disabled:opacity-40">
+                  {getDeployProviderLabel(provider)}
+                </button>
+              ))}
+            </div>
+          </details>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Deploying ────────────────────────────────────────────────────────
+  if (state.busy) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2.5">
+          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-foreground" />
+          <div className="min-w-0">
+            <p className="text-[13px] font-semibold text-foreground">
+              Publishing to {state.provider ? getDeployProviderLabel(state.provider) : "your host"}…
+            </p>
+            {state.step && (
+              <p className="mt-0.5 text-[11px] text-muted-foreground">{state.step}</p>
+            )}
+          </div>
+        </div>
+        <DeployTerminal logs={state.logs} currentStep={state.step} />
+      </div>
+    )
+  }
+
+  // ── Error (includes the "needs a Vercel token" recovery state) ───────
+  if (state.error) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-start gap-2">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+          <div className="min-w-0">
+            <p className="text-[13px] font-semibold text-foreground">
+              {needsVercelToken ? "Connect your Vercel account" : "Couldn't publish your site"}
+            </p>
+            <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{state.error}</p>
+          </div>
+        </div>
+        {needsVercelToken && (
+          <VercelConnectPanel
+            tokenInput={vercelTokenInput}
+            busy={vercelTokenBusy}
+            error={vercelTokenError}
+            onTokenChange={onVercelTokenChange}
+            onSave={onSaveVercelToken}
+          />
+        )}
+        <DeployTerminal logs={state.logs} currentStep={state.step} />
+        {state.provider && !needsVercelToken && (
+          <button type="button" onClick={() => onDeploy(state.provider!)}
+            className="flex w-full items-center justify-center gap-2 rounded-full border border-border bg-card py-2.5 text-[12px] font-semibold text-foreground transition-colors hover:bg-muted">
+            <Rocket className="h-3.5 w-3.5" />
+            Try again
+          </button>
+        )}
+        <button type="button" onClick={onReset}
+          className="flex w-full items-center justify-center gap-1.5 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground">
+          <ArrowLeft className="h-3 w-3" />
+          Start over
+        </button>
+      </div>
+    )
+  }
+
+  // ── Idle: one obvious action, everything else tucked away ────────────
+  return (
+    <div className="space-y-3">
+      <div>
+        <p className="text-[13px] font-semibold text-foreground">Publish your site</p>
+        <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+          Puts your site online with a working link. No technical setup required.
+        </p>
+      </div>
+
+      {hasStoredDeployments && (
+        <div className="space-y-1.5">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Your live sites</p>
+          {(["netlify", "vercel"] as DeployProvider[]).map((provider) => {
+            const link = deploymentLinks?.[provider]
+            if (!link?.siteUrl) return null
+            return (
+              <a key={provider} href={link.siteUrl} target="_blank" rel="noreferrer"
+                className="flex items-center justify-between gap-2 rounded-full border border-success/30 bg-success/5 px-3 py-2.5 text-[11px] font-semibold text-foreground transition-colors hover:bg-success/10">
+                <div className="flex items-center gap-2">
+                  <Globe className="h-3 w-3 text-success" />
+                  <span>{getDeployProviderLabel(provider)} site</span>
+                </div>
+                <div className="flex items-center gap-1 text-success">
+                  <span className="text-[10px] font-medium">Live</span>
+                  <ExternalLink className="h-3 w-3" />
+                </div>
+              </a>
+            )
+          })}
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => onDeploy("netlify")}
+        disabled={state.busy}
+        className="flex w-full items-center justify-center gap-2 rounded-full bg-accent py-3 text-[13px] font-semibold text-accent-foreground transition-colors hover:bg-accent/90 disabled:opacity-50"
+      >
+        <Rocket className="h-3.5 w-3.5" />
+        Publish site
+      </button>
+
+      {vercelOption}
+    </div>
+  )
+}
+
 function DeployButton({
   projectId,
   open,
@@ -441,9 +648,6 @@ function DeployButton({
   const panelTitleId = useId()
   const panelDescriptionId = useId()
   if (!projectId) return null
-  const visibleStateSiteUrl = state.siteUrl || (state.provider ? deploymentLinks?.[state.provider]?.siteUrl ?? null : null)
-  const hasStoredDeployments = Boolean(deploymentLinks?.netlify?.siteUrl || deploymentLinks?.vercel?.siteUrl)
-  const needsVercelToken = state.provider === "vercel" && state.step === "Needs connection"
 
   return (
     <div className={cn("relative", headless && !open && "hidden")}>
@@ -456,9 +660,7 @@ function DeployButton({
         aria-expanded={open}
         className={cn(
           "group inline-flex h-8 items-center justify-center gap-1.5 rounded-full px-3 text-[12px] font-semibold transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:h-9 sm:px-3 sm:text-[13px]",
-          open
-            ? "bg-foreground text-background shadow-sm"
-            : "bg-foreground text-background shadow-sm hover:bg-foreground/85 sm:hover:shadow-md"
+          "bg-accent text-accent-foreground shadow-sm hover:bg-accent/85"
         )}
       >
         {state.busy
@@ -470,173 +672,44 @@ function DeployButton({
 
       {open && (
         <div className={cn(
-          "lotus-glass-strong z-30 hidden w-[460px] max-w-[calc(100vw-2rem)] rounded-2xl border p-4 sm:block",
+          "z-30 hidden w-[420px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-border bg-popover shadow-2xl sm:flex",
           headless ? "fixed right-6 top-16" : "absolute right-0 top-11",
         )}
           role="dialog"
           aria-labelledby={panelTitleId}
           aria-describedby={panelDescriptionId}
         >
-          <h2 id={panelTitleId} className="sr-only">Deploy project</h2>
+          <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
+            <h2 id={panelTitleId} className="flex items-center gap-2 text-[13px] font-semibold text-foreground">
+              <Rocket className="h-3.5 w-3.5 text-muted-foreground" />
+              Deploy
+            </h2>
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              aria-label="Close deploy panel"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
           <p id={panelDescriptionId} className="sr-only">
             Choose a hosting platform, review deploy progress, or open the live site.
           </p>
-
-          {/* ── Success state ─────────────────────────────────────── */}
-          {!state.busy && visibleStateSiteUrl && !state.error && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
-                <p className="text-[13px] font-semibold text-foreground">Your website is live!</p>
-              </div>
-              <a
-                href={visibleStateSiteUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="flex w-full items-center justify-center gap-2 rounded-full bg-success py-3 text-[13px] font-bold text-success-foreground transition-all hover:bg-success/90 active:scale-[0.98]"
-              >
-                <Globe className="h-4 w-4" />
-                <span>Visit your website</span>
-                <ExternalLink className="h-3.5 w-3.5 opacity-70" />
-              </a>
-              {state.adminUrl && (
-                <a href={state.adminUrl} target="_blank" rel="noreferrer"
-                  className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground">
-                  <span>View on {state.provider ? getDeployProviderLabel(state.provider) : "dashboard"}</span>
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              )}
-              <DeployTerminal logs={state.logs} currentStep={state.step} />
-              <div className="border-t border-border pt-3">
-                <p className="mb-2 text-[11px] font-medium text-muted-foreground">Also publish to another platform</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {(["netlify", "vercel"] as DeployProvider[]).map((provider) => (
-                    <button key={provider} type="button" onClick={() => onDeploy(provider)}
-                      disabled={state.busy}
-                      className="lotus-glass-control rounded-full border px-3 py-2 text-left text-[11px] font-semibold text-muted-foreground transition-colors hover:border-border-strong hover:bg-muted hover:text-foreground disabled:opacity-40">
-                      {getDeployProviderLabel(provider)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── Deploying state ───────────────────────────────────── */}
-          {state.busy && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2.5">
-                <Loader2 className="h-4 w-4 shrink-0 animate-spin text-foreground" />
-                <div className="min-w-0">
-                  <p className="text-[13px] font-semibold text-foreground">
-                    Publishing to {state.provider ? getDeployProviderLabel(state.provider) : "your host"}…
-                  </p>
-                  {state.step && (
-                    <p className="mt-0.5 text-[11px] text-muted-foreground">{state.step}</p>
-                  )}
-                </div>
-              </div>
-              <DeployTerminal logs={state.logs} currentStep={state.step} />
-            </div>
-          )}
-
-          {/* ── Error state ───────────────────────────────────────── */}
-          {!state.busy && state.error && (
-            <div className="space-y-3">
-              <div className="flex items-start gap-2">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-                <div className="min-w-0">
-                  <p className="text-[13px] font-semibold text-foreground">Couldn't publish your website</p>
-                  <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{state.error}</p>
-                </div>
-              </div>
-              {needsVercelToken && (
-                <VercelConnectPanel
-                  tokenInput={vercelTokenInput}
-                  busy={vercelTokenBusy}
-                  error={vercelTokenError}
-                  onTokenChange={onVercelTokenChange}
-                  onSave={onSaveVercelToken}
-                />
-              )}
-              <DeployTerminal logs={state.logs} currentStep={state.step} />
-            </div>
-          )}
-
-          {/* ── Provider selection (default) ──────────────────────── */}
-          {!state.busy && !state.step && !state.error && (
-            <div className="space-y-3">
-              <div>
-                <p className="text-[13px] font-semibold text-foreground">Get your website online</p>
-                <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
-                  Pick a platform and your site goes live in seconds — no technical setup needed.
-                </p>
-              </div>
-
-              {hasStoredDeployments && (
-                <div className="space-y-1.5">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Your live sites</p>
-                  {(["netlify", "vercel"] as DeployProvider[]).map((provider) => {
-                    const link = deploymentLinks?.[provider]
-                    if (!link?.siteUrl) return null
-                    return (
-                      <a key={provider} href={link.siteUrl} target="_blank" rel="noreferrer"
-                        className="flex items-center justify-between gap-2 rounded-full border border-success/30 bg-success/5 px-3 py-2.5 text-[11px] font-semibold text-foreground transition-colors hover:bg-success/10">
-                        <div className="flex items-center gap-2">
-                          <Globe className="h-3 w-3 text-success" />
-                          <span>{getDeployProviderLabel(provider)} site</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-success">
-                          <span className="text-[10px] font-medium">Live</span>
-                          <ExternalLink className="h-3 w-3" />
-                        </div>
-                      </a>
-                    )
-                  })}
-                  <p className="pt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Publish to a new platform</p>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => onDeploy("netlify")} disabled={state.busy}
-              className="lotus-glass-control group relative rounded-[1.65rem] border px-3 py-3 text-left transition-all hover:border-border-strong hover:bg-muted disabled:opacity-40">
-                  <div className="flex items-start justify-between gap-1">
-                    <p className="text-[12px] font-semibold text-foreground">Netlify</p>
-                    <span className="rounded-full bg-success/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-success">Free</span>
-                  </div>
-                  <p className="mt-1 text-[11px] leading-snug text-muted-foreground">No credit card needed. Best for most websites.</p>
-                </button>
-                <button type="button" onClick={() => onDeploy("vercel")} disabled={state.busy}
-                  className="lotus-glass-control rounded-[1.65rem] border px-3 py-3 text-left transition-all hover:border-border-strong hover:bg-muted disabled:opacity-40">
-                  <div className="flex items-start justify-between gap-1">
-                    <p className="text-[12px] font-semibold text-foreground">Vercel</p>
-                    {vercelConnected === true && (
-                      <span className="rounded-full bg-success/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-success">Connected</span>
-                    )}
-                  </div>
-                  <p className="mt-1 text-[11px] leading-snug text-muted-foreground">Fast and reliable. Great for React & Next.js apps.</p>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ── Retry button (error state) ────────────────────────── */}
-          {!state.busy && state.error && state.provider && !needsVercelToken && (
-            <button type="button" onClick={() => onDeploy(state.provider!)}
-              className="lotus-glass-control mt-3 flex w-full items-center justify-center gap-2 rounded-full border py-2.5 text-[12px] font-semibold text-foreground transition-colors hover:bg-muted">
-              <Rocket className="h-3.5 w-3.5" />
-              Try again
-            </button>
-          )}
-
-          {/* ── Back to provider selection (any error state) ─────── */}
-          {!state.busy && state.error && (
-            <button type="button" onClick={onReset}
-              className="mt-2.5 flex w-full items-center justify-center gap-1.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground">
-              <ArrowLeft className="h-3 w-3" />
-              Choose a different platform
-            </button>
-          )}
+          <div className="p-4">
+            <DeployPanelBody
+              state={state}
+              deploymentLinks={deploymentLinks}
+              onDeploy={onDeploy}
+              onReset={onReset}
+              vercelConnected={vercelConnected}
+              vercelTokenInput={vercelTokenInput}
+              vercelTokenBusy={vercelTokenBusy}
+              vercelTokenError={vercelTokenError}
+              onVercelTokenChange={onVercelTokenChange}
+              onSaveVercelToken={onSaveVercelToken}
+            />
+          </div>
         </div>
       )}
     </div>
@@ -714,7 +787,7 @@ function IntegrationCard({
           "h-9 shrink-0 rounded-lg px-4 text-[12px] font-semibold transition-colors active:scale-[0.98] disabled:opacity-50 sm:min-w-[112px]",
           connected
             ? "border border-border bg-card text-foreground hover:bg-muted"
-            : "bg-foreground text-background hover:bg-foreground/85",
+            : "bg-accent text-accent-foreground hover:bg-accent/85",
         )}
       >
         {actionBusy ? (
@@ -1139,7 +1212,7 @@ function IntegrationsButton({
                           type="button"
                           onClick={onEnvSave}
                           disabled={busy !== null}
-                          className="mt-2 h-10 w-full rounded-lg bg-foreground px-3 text-[13px] font-semibold text-background transition-colors hover:bg-foreground/85 disabled:opacity-50"
+                          className="mt-2 h-10 w-full rounded-lg bg-accent px-3 text-[13px] font-semibold text-accent-foreground transition-colors hover:bg-accent/85 disabled:opacity-50"
                         >
                           {busy === "env" ? "Saving..." : "Save and update preview"}
                         </button>
@@ -1186,151 +1259,41 @@ function MobileDeploySheet({
   const sheetTitleId = useId()
   const sheetDescriptionId = useId()
   if (!open) return null
-  const visibleStateSiteUrl = state.siteUrl || (state.provider ? deploymentLinks?.[state.provider]?.siteUrl ?? null : null)
-  const hasStoredDeployments = Boolean(deploymentLinks?.netlify?.siteUrl || deploymentLinks?.vercel?.siteUrl)
-  const needsVercelToken = state.provider === "vercel" && state.step === "Needs connection"
 
   return (
     <div
-      className="lotus-glass-strong fixed inset-x-3 bottom-[5.6rem] z-50 max-h-[min(72dvh,36rem)] overflow-y-auto rounded-[1.45rem] border border-border/60 p-4 [scrollbar-width:thin] sm:hidden"
+      className="fixed inset-x-3 bottom-[5.6rem] z-50 flex max-h-[min(72dvh,36rem)] flex-col overflow-hidden rounded-[1.45rem] border border-border bg-popover shadow-2xl sm:hidden"
       role="dialog"
       aria-labelledby={sheetTitleId}
       aria-describedby={sheetDescriptionId}
     >
-      {/* Header */}
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div>
-          <h2 id={sheetTitleId} className="text-[14px] font-semibold text-foreground">Get your website online</h2>
-          <p id={sheetDescriptionId} className="mt-0.5 text-[12px] leading-relaxed text-muted-foreground">Your site goes live in seconds.</p>
-        </div>
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
+        <h2 id={sheetTitleId} className="flex items-center gap-2 text-[14px] font-semibold text-foreground">
+          <Rocket className="h-4 w-4 text-muted-foreground" />
+          Deploy
+        </h2>
         <button type="button" onClick={onClose} aria-label="Close deploy panel"
-          className="lotus-glass-control flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35">
-          <span className="text-base leading-none">×</span>
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35">
+          <X className="h-4 w-4" />
         </button>
       </div>
-
-      {/* Success state */}
-      {!state.busy && visibleStateSiteUrl && !state.error && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-success" />
-            <p className="text-[13px] font-semibold text-foreground">Your website is live!</p>
-          </div>
-          <a href={visibleStateSiteUrl} target="_blank" rel="noreferrer"
-            className="flex w-full items-center justify-center gap-2 rounded-full bg-success py-3.5 text-[13px] font-bold text-success-foreground transition-colors hover:bg-success/90">
-            <Globe className="h-4 w-4" />
-            Visit your website
-            <ExternalLink className="h-3.5 w-3.5 opacity-70" />
-          </a>
-          <DeployTerminal logs={state.logs} currentStep={state.step} />
-        </div>
-      )}
-
-      {/* Deploying state */}
-      {state.busy && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-                <Loader2 className="h-5 w-5 shrink-0 animate-spin text-foreground" />
-            <div>
-              <p className="text-[13px] font-semibold text-foreground">
-                Publishing to {state.provider ? getDeployProviderLabel(state.provider) : "your host"}…
-              </p>
-              {state.step && <p className="mt-0.5 text-[12px] text-muted-foreground">{state.step}</p>}
-            </div>
-          </div>
-          <DeployTerminal logs={state.logs} currentStep={state.step} />
-        </div>
-      )}
-
-      {/* Error state */}
-      {!state.busy && state.error && (
-        <div className="space-y-3">
-          <div className="flex items-start gap-2">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-            <div>
-              <p className="text-[13px] font-semibold text-foreground">Couldn't publish your website</p>
-              <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">{state.error}</p>
-            </div>
-          </div>
-          {needsVercelToken && (
-            <VercelConnectPanel
-              tokenInput={vercelTokenInput}
-              busy={vercelTokenBusy}
-              error={vercelTokenError}
-              onTokenChange={onVercelTokenChange}
-              onSave={onSaveVercelToken}
-            />
-          )}
-          <DeployTerminal logs={state.logs} currentStep={state.step} />
-          {state.provider && !needsVercelToken && (
-            <button type="button" onClick={() => onDeploy(state.provider!)}
-              className="lotus-glass-control flex w-full items-center justify-center gap-2 rounded-full border py-3 text-[12px] font-semibold text-foreground transition-colors hover:bg-muted">
-              <Rocket className="h-4 w-4" />
-              Try again
-            </button>
-          )}
-          <button type="button" onClick={onReset}
-            className="flex w-full items-center justify-center gap-1.5 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground">
-            <ArrowLeft className="h-3 w-3" />
-            Choose a different platform
-          </button>
-        </div>
-      )}
-
-      {/* Provider selection (default) */}
-      {!state.busy && !state.step && !state.error && (
-        <div className="space-y-3">
-          {hasStoredDeployments && (
-            <div className="space-y-2">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Your live sites</p>
-              {(["netlify", "vercel"] as DeployProvider[]).map((provider) => {
-                const link = deploymentLinks?.[provider]
-                if (!link?.siteUrl) return null
-                return (
-                  <a key={provider} href={link.siteUrl} target="_blank" rel="noreferrer"
-                    className="flex items-center justify-between gap-2 rounded-full border border-success/30 bg-success/5 px-4 py-3 text-[12px] font-semibold text-foreground transition-colors hover:bg-success/10">
-                    <div className="flex items-center gap-2">
-                      <Globe className="h-3.5 w-3.5 text-success" />
-                      <span>{getDeployProviderLabel(provider)} site</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-success">
-                      <span className="text-[10px] font-medium">Live</span>
-                      <ExternalLink className="h-3 w-3" />
-                    </div>
-                  </a>
-                )
-              })}
-              <p className="pt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Deploy to a new platform</p>
-            </div>
-          )}
-          <div className="space-y-2">
-            <button type="button" onClick={() => onDeploy("netlify")} disabled={state.busy}
-              className="lotus-glass-control flex w-full items-center justify-between rounded-[1.75rem] border px-4 py-3.5 text-left transition-all hover:border-border-strong hover:bg-muted disabled:opacity-40">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[13px] font-semibold text-foreground">Netlify</span>
-                  <span className="rounded-full bg-success/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-success">Free</span>
-                </div>
-                <p className="mt-0.5 text-[12px] text-muted-foreground">No credit card. Best for most websites.</p>
-              </div>
-              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-            </button>
-            <button type="button" onClick={() => onDeploy("vercel")} disabled={state.busy}
-              className="lotus-glass-control flex w-full items-center justify-between rounded-[1.75rem] border px-4 py-3.5 text-left transition-all hover:border-border-strong hover:bg-muted disabled:opacity-40">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[13px] font-semibold text-foreground">Vercel</span>
-                  {vercelConnected === true && (
-                    <span className="rounded-full bg-success/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-success">Connected</span>
-                  )}
-                </div>
-                <p className="mt-0.5 text-[12px] text-muted-foreground">Fast and reliable. Great for React apps.</p>
-              </div>
-              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-            </button>
-          </div>
-        </div>
-      )}
+      <p id={sheetDescriptionId} className="sr-only">
+        Choose a hosting platform, review deploy progress, or open the live site.
+      </p>
+      <div className="min-h-0 overflow-y-auto p-4 [scrollbar-width:thin]">
+        <DeployPanelBody
+          state={state}
+          deploymentLinks={deploymentLinks}
+          onDeploy={onDeploy}
+          onReset={onReset}
+          vercelConnected={vercelConnected}
+          vercelTokenInput={vercelTokenInput}
+          vercelTokenBusy={vercelTokenBusy}
+          vercelTokenError={vercelTokenError}
+          onVercelTokenChange={onVercelTokenChange}
+          onSaveVercelToken={onSaveVercelToken}
+        />
+      </div>
     </div>
   )
 }

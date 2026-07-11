@@ -542,7 +542,7 @@ export function AnimatedAIInput({
                     className={cn(
                       "rounded-full px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
                       selectedPlatform === option.id
-                        ? "bg-foreground text-background"
+                        ? "bg-accent text-accent-foreground"
                         : "text-muted-foreground hover:text-foreground",
                     )}
                   >
@@ -599,7 +599,7 @@ export function AnimatedAIInput({
               <ToolbarPill
                 onClick={visualEditToggle.onToggle}
                 className={cn(
-                  visualEditToggle.active && "bg-foreground text-background hover:bg-foreground/85 hover:text-background",
+                  visualEditToggle.active && "bg-accent text-accent-foreground hover:bg-accent/85 hover:text-accent-foreground",
                 )}
               >
                 {visualEditToggle.active ? "Visual edit on" : "Visual edit"}
@@ -713,10 +713,10 @@ export function AnimatedAIInput({
                   ? "h-9 gap-1.5 px-3.5 text-xs"
                   : "h-9 w-9",
                 canStop
-                  ? "bg-foreground text-background hover:bg-foreground/90"
+                  ? "bg-accent text-accent-foreground hover:bg-accent/90"
                   : canSubmit
                     ? isSlimChat
-                      ? "bg-foreground text-background hover:bg-foreground/90"
+                      ? "bg-accent text-accent-foreground hover:bg-accent/90"
                       : "bg-primary text-primary-foreground hover:bg-primary/90"
                     : "bg-muted text-muted-foreground",
               )}

@@ -318,7 +318,7 @@ export function MobilePreview({
             <p className="text-sm text-foreground">{view.message}</p>
             <Link
               href="/pricing"
-              className="inline-flex h-10 items-center justify-center rounded-full bg-foreground px-4 text-sm font-semibold text-background shadow-sm transition hover:bg-foreground/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+              className="inline-flex h-10 items-center justify-center rounded-full bg-accent px-4 text-sm font-semibold text-accent-foreground shadow-sm transition hover:bg-accent/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             >
               View plans
             </Link>

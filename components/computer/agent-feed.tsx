@@ -205,7 +205,7 @@ function SupabaseQuestionCard({ onSetup, onDecline }: { onSetup: () => void; onD
                 try { await onSetup() } finally { setSetting(false) }
               }}
               disabled={setting}
-              className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1.5 text-[12px] font-semibold text-background shadow-sm transition-all hover:bg-foreground/85 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border-strong bg-muted px-3 py-1.5 text-[12px] font-semibold text-foreground shadow-sm transition-all hover:bg-muted/70 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50"
             >
               {setting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Database className="h-3 w-3" />}
               {setting ? "Setting up..." : "Set up Supabase"}
@@ -271,7 +271,7 @@ function PlanTool({ event, onApprovePlan }: { event: ComputerTimelineEvent; onAp
             type="button"
             onClick={handleApprove}
             disabled={isApproving}
-            className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1.5 text-xs font-semibold text-background shadow-sm transition-colors hover:bg-foreground/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-60"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border-strong bg-muted px-3 py-1.5 text-xs font-semibold text-foreground shadow-sm transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-60"
           >
             <Check className="h-3.5 w-3.5 shrink-0" />
             {isApproving ? "Starting build…" : "Approve and build"}
@@ -603,7 +603,7 @@ function UserMessageBubble({
     return (
       <div className="flex justify-end pb-4">
         <div className="w-full max-w-[min(84%,42rem)]">
-          <div className="overflow-hidden rounded-2xl bg-foreground shadow-sm">
+          <div className="overflow-hidden rounded-2xl bg-muted shadow-sm">
             <textarea
               ref={ref} value={editText} onChange={(e) => onEditChange(e.target.value)}
               aria-label="Edit message"
@@ -612,12 +612,12 @@ function UserMessageBubble({
                 if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onEditSubmit(index) }
                 if (e.key === "Escape") onEditCancel()
               }}
-              className="w-full resize-none bg-transparent px-3.5 py-2.5 text-[13px] leading-relaxed text-background outline-none placeholder:text-background/50"
+              className="w-full resize-none bg-transparent px-3.5 py-2.5 text-[13px] leading-relaxed text-foreground outline-none placeholder:text-foreground/50"
             />
           </div>
           <div className="mt-1.5 flex items-center justify-end gap-2">
             <button type="button" onClick={onEditCancel} className="min-h-6 rounded-md px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35">Cancel</button>
-            <button type="button" onClick={() => onEditSubmit(index)} className="min-h-6 rounded-full bg-foreground px-2.5 py-1 text-[11px] font-medium text-background shadow-sm transition-colors hover:bg-foreground/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40">Submit</button>
+            <button type="button" onClick={() => onEditSubmit(index)} className="min-h-6 rounded-full border border-border-strong bg-muted px-2.5 py-1 text-[11px] font-medium text-foreground shadow-sm transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40">Submit</button>
           </div>
         </div>
       </div>
@@ -628,8 +628,8 @@ function UserMessageBubble({
     <>
     <div className="group flex w-full justify-end pb-4">
       <div className="flex w-fit max-w-[min(84%,42rem)] min-w-0 flex-col items-end">
-        <div className="max-w-full rounded-2xl bg-foreground px-3.5 py-2.5 text-right shadow-sm ring-1 ring-foreground/10">
-          <p className="whitespace-pre-wrap break-words text-left text-[14px] font-medium leading-relaxed text-background [overflow-wrap:anywhere]">{content}</p>
+        <div className="max-w-full rounded-2xl bg-muted px-3.5 py-2.5 text-right shadow-sm">
+          <p className="whitespace-pre-wrap break-words text-left text-[14px] font-medium leading-relaxed text-foreground [overflow-wrap:anywhere]">{content}</p>
         </div>
 
         {/* Action row — copy, edit, restore */}
@@ -698,7 +698,7 @@ function UserMessageBubble({
             type="button"
             disabled={restoreState === "restoring"}
             onClick={handleConfirmRestore}
-            className="inline-flex h-9 items-center justify-center gap-2 rounded-full bg-foreground px-4 text-[13px] font-semibold text-background transition-colors hover:bg-foreground/85 disabled:opacity-70"
+            className="inline-flex h-9 items-center justify-center gap-2 rounded-full border border-border-strong bg-muted px-4 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted/70 disabled:opacity-70"
           >
             {restoreState === "restoring" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             {restoreState === "restoring" ? "Restoring…" : "Restore"}

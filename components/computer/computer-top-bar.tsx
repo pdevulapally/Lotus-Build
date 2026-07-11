@@ -752,7 +752,7 @@ export function ComputerTopBar({
                 type="button"
                 onClick={onOpenDeploy}
                 disabled={!session.projectId}
-                className="inline-flex h-8 items-center gap-1.5 rounded-full bg-foreground px-3.5 text-[12px] font-semibold text-background shadow-sm transition-all hover:bg-foreground/85 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-30"
+                className="inline-flex h-8 items-center gap-1.5 rounded-full bg-accent px-3.5 text-[12px] font-semibold text-accent-foreground shadow-sm transition-all hover:bg-accent/85 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-30"
               >
                 <Globe className="h-3.5 w-3.5" />
                 Deploy

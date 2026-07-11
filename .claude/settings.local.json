@@ -141,7 +141,13 @@
       "Bash(curl -s http://localhost:3000/)",
       "Bash(curl -s http://localhost:3000/ -o /tmp_home.html)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/)",
-      "Bash(curl -s \"http://localhost:3000/_next/static/chunks/%5Broot-of-the-server%5D__1yh6lo7._.css\")"
+      "Bash(curl -s \"http://localhost:3000/_next/static/chunks/%5Broot-of-the-server%5D__1yh6lo7._.css\")",
+      "Bash(npx --no-install chromium-cli --version)",
+      "Bash(echo \"exit:$?\")",
+      "Bash(timeout 45 bash -c 'until curl -sf http://localhost:3000 >/dev/null 2>&1; do sleep 1; done')",
+      "Bash(curl -s -o /dev/null -w \"home:%{http_code}\\\\n\" http://localhost:3000/)",
+      "Bash(npx playwright *)",
+      "Bash(awk 'NR==1795 || NR==1794 {print \"L1794:\" $0}' \"app/api/generate/route.ts\")"
     ]
   }
 }

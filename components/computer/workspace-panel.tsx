@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react"
 import Link from "next/link"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
 import { BookOpen, Check, ChevronDown, ChevronRight, Copy, ExternalLink, FileCode, Folder, FolderOpen, Globe2, Home, Laptop, Loader2, Monitor, RotateCcw, ShieldAlert, Wrench } from "lucide-react"
-import Editor, { DiffEditor } from "@monaco-editor/react"
+import Editor, { DiffEditor, type Monaco } from "@monaco-editor/react"
 import { MobilePreview } from "@/components/computer/mobile-preview"
 import { TextShimmer } from "@/components/prompt-kit/text-shimmer"
 import { normalizePlatform } from "@/lib/projects/platform"
@@ -360,7 +360,7 @@ function RuntimeErrorCard({
           type="button"
           onClick={onFix}
           disabled={fixing}
-          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-foreground px-3 py-2 text-[12px] font-semibold text-background shadow-sm transition-colors hover:bg-foreground/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-60"
+          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-accent px-3 py-2 text-[12px] font-semibold text-accent-foreground shadow-sm transition-colors hover:bg-accent/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-60"
         >
           <Wrench className="h-3.5 w-3.5" />
           {fixing ? "Fixing..." : "Fix with AI"}
@@ -531,6 +531,52 @@ const EDITOR_OPTIONS = {
   lineDecorationsWidth: 8,
 }
 
+// Resolves a CSS custom property (oklch/color-mix, etc.) to a "#rrggbb" string
+// by letting the browser compute it, instead of hardcoding hex values here —
+// this is how the editor chrome stays in sync with the app's design tokens.
+function resolveCssVarToHex(varName: string, dark: boolean): string {
+  const probe = document.createElement("div")
+  probe.style.cssText = "position:fixed;top:-9999px;left:-9999px;pointer-events:none;"
+  if (dark) probe.classList.add("dark")
+  probe.style.color = `var(${varName})`
+  document.body.appendChild(probe)
+  const rgb = getComputedStyle(probe).color
+  document.body.removeChild(probe)
+  const channels = rgb.match(/[\d.]+/g)
+  if (!channels) return dark ? "#1e1e1e" : "#ffffff"
+  const [r, g, b] = channels.map(Number)
+  return `#${[r, g, b].map((c) => Math.round(c).toString(16).padStart(2, "0")).join("")}`
+}
+
+let monacoThemesDefined = false
+
+function defineLotusMonacoThemes(monaco: Monaco) {
+  if (monacoThemesDefined) return
+  monacoThemesDefined = true
+  for (const dark of [false, true]) {
+    const color = (varName: string) => resolveCssVarToHex(varName, dark)
+    monaco.editor.defineTheme(dark ? "lotus-dark" : "lotus-light", {
+      base: dark ? "vs-dark" : "vs",
+      inherit: true,
+      rules: [],
+      colors: {
+        "editor.background": color("--card"),
+        "editor.foreground": color("--foreground"),
+        "editorLineNumber.foreground": color("--muted-foreground"),
+        "editorLineNumber.activeForeground": color("--foreground"),
+        "editor.lineHighlightBackground": color("--muted"),
+        "editorGutter.background": color("--card"),
+        "editorCursor.foreground": color("--accent"),
+        "editor.selectionBackground": color("--accent-soft"),
+        "editorWidget.background": color("--popover"),
+        "editorWidget.border": color("--border"),
+        "scrollbarSlider.background": color("--border-strong"),
+        "scrollbarSlider.hoverBackground": color("--muted-foreground"),
+      },
+    })
+  }
+}
+
 function ComputerCodePanel({
   files,
   codeTheme = "light",
@@ -568,7 +614,7 @@ function ComputerCodePanel({
   const selectedFile = files.find((f) => f.path === selectedPath) ?? (files.length > 0 ? files[0] : null)
   const language = selectedFile ? getLanguageFromPath(selectedFile.path) : "plaintext"
   const totalKb = (files.reduce((acc, f) => acc + f.content.length, 0) / 1024).toFixed(1)
-  const monacoTheme = codeTheme === "dark" ? "vs-dark" : "vs"
+  const monacoTheme = codeTheme === "dark" ? "lotus-dark" : "lotus-light"
 
   const fileStatuses = isDiffMode
     ? new Map(
@@ -790,6 +836,7 @@ function ComputerCodePanel({
                   original={prevContent}
                   modified={selectedFile.content}
                   theme={monacoTheme}
+                  beforeMount={defineLotusMonacoThemes}
                   loading={
                     <div className="flex h-full items-center justify-center">
                       <Loader2 className="h-4 w-4 animate-spin text-muted-foreground/50" />
@@ -814,6 +861,7 @@ function ComputerCodePanel({
                   language={language}
                   value={selectedFile.content}
                   theme={monacoTheme}
+                  beforeMount={defineLotusMonacoThemes}
                   loading={
                     <div className="flex h-full items-center justify-center">
                       <Loader2 className="h-4 w-4 animate-spin text-muted-foreground/50" />

@@ -41,7 +41,14 @@ export default function Home() {
     )
   }
 
-  if (user) return <ProjectsWorkspace />
+  if (user) {
+    return (
+      <>
+        <CreateAfterLogin />
+        <ProjectsWorkspace />
+      </>
+    )
+  }
 
   return (
     <LenisProvider>
