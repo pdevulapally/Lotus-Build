@@ -23,15 +23,15 @@ export function TokenLimitDialog({
 }: TokenLimitDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md border-zinc-200 bg-white">
+      <DialogContent className="max-w-md border-border bg-card">
         <DialogHeader>
           <DialogTitle className="text-foreground">You&apos;re out of credits</DialogTitle>
-          <DialogDescription className="text-zinc-600">
+          <DialogDescription className="text-muted-foreground">
             {description}
           </DialogDescription>
         </DialogHeader>
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" className="border-zinc-300 text-zinc-700" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="outline" className="border-border-strong text-foreground" onClick={() => onOpenChange(false)}>
             Close
           </Button>
           <Link href="/pricing">

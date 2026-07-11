@@ -120,9 +120,9 @@ export default function TermsPage() {
       <Navbar />
 
       {/* â”€â”€ Hero header â”€â”€ */}
-      <div className="border-b border-zinc-200 bg-white">
+      <div className="border-b border-border bg-white">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-zinc-500">
+          <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-muted-foreground">
             <Scale className="h-3.5 w-3.5" />
             <span>Legal</span>
             <ChevronRight className="h-3 w-3" />
@@ -131,20 +131,20 @@ export default function TermsPage() {
           <h1 className="mt-4 text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
             Terms of Service
           </h1>
-          <p className="mt-3 max-w-2xl text-base leading-relaxed text-zinc-600">
+          <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted-foreground">
             Please read these terms carefully before using Lotus.build. By accessing or using our
             service you agree to be bound by these terms.
           </p>
-          <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-zinc-500">
+          <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
             <span>
-              <span className="font-medium text-zinc-700">Effective:</span> {EFFECTIVE_DATE}
+              <span className="font-medium text-foreground">Effective:</span> {EFFECTIVE_DATE}
             </span>
-            <span className="hidden sm:inline text-zinc-300">|</span>
+            <span className="hidden sm:inline text-muted-foreground">|</span>
             <span>
-              <span className="font-medium text-zinc-700">Last updated:</span> {LAST_UPDATED}
+              <span className="font-medium text-foreground">Last updated:</span> {LAST_UPDATED}
             </span>
-            <span className="hidden sm:inline text-zinc-300">|</span>
-            <Link href="/privacy" className="inline-flex items-center gap-1 font-medium text-zinc-700 underline-offset-2 hover:underline">
+            <span className="hidden sm:inline text-muted-foreground">|</span>
+            <Link href="/privacy" className="inline-flex items-center gap-1 font-medium text-foreground underline-offset-2 hover:underline">
               Privacy Policy <ExternalLink className="h-3 w-3" />
             </Link>
           </div>
@@ -158,7 +158,7 @@ export default function TermsPage() {
           {/* â”€â”€ Sidebar â”€â”€ */}
           <aside className="hidden lg:block w-56 xl:w-64 shrink-0">
             <div className="sticky top-24">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-400">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                 On this page
               </p>
               <nav className="space-y-0.5">
@@ -171,16 +171,16 @@ export default function TermsPage() {
                       "block w-full text-left rounded-lg px-3 py-1.5 text-sm transition-colors",
                       active === id
                         ? "bg-accent text-accent-foreground font-medium"
-                        : "text-zinc-500 hover:bg-zinc-100 hover:text-foreground"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
                     )}
                   >
                     {label}
                   </button>
                 ))}
               </nav>
-              <div className="mt-8 rounded-xl border border-zinc-200 bg-white p-4">
-                <p className="text-xs font-semibold text-zinc-700">Questions?</p>
-                <p className="mt-1 text-xs text-zinc-500">Our team is happy to help.</p>
+              <div className="mt-8 rounded-xl border border-border bg-white p-4">
+                <p className="text-xs font-semibold text-foreground">Questions?</p>
+                <p className="mt-1 text-xs text-muted-foreground">Our team is happy to help.</p>
                 <a
                   href="mailto:arpkwebsitedevelopment@gmail.com"
                   className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-foreground underline-offset-2 hover:underline"
@@ -192,7 +192,7 @@ export default function TermsPage() {
           </aside>
 
           {/* â”€â”€ Article â”€â”€ */}
-          <article className="min-w-0 flex-1 text-sm leading-7 text-zinc-700">
+          <article className="min-w-0 flex-1 text-sm leading-7 text-foreground">
 
             {/* 1. Acceptance */}
             <SectionAnchor id="acceptance" />
@@ -241,7 +241,7 @@ export default function TermsPage() {
                 "API access for programmatic interaction with Lotus.build capabilities",
               ].map((item) => (
                 <li key={item} className="flex items-start gap-2.5">
-                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-400" />
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground" />
                   <span>{item}</span>
                 </li>
               ))}
@@ -264,7 +264,7 @@ export default function TermsPage() {
                 "Not be located in a country subject to a United Kingdom, European Union, or United States government embargo",
               ].map((item) => (
                 <li key={item} className="flex items-start gap-2.5">
-                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-400" />
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground" />
                   <span>{item}</span>
                 </li>
               ))}
@@ -290,7 +290,7 @@ export default function TermsPage() {
                 "Notify us immediately at arpkwebsitedevelopment@gmail.com if you suspect any unauthorised access to your account",
               ].map((item) => (
                 <li key={item} className="flex items-start gap-2.5">
-                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-400" />
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground" />
                   <span>{item}</span>
                 </li>
               ))}
@@ -310,7 +310,7 @@ export default function TermsPage() {
               third-party payment processor. By providing payment information, you authorise us to
               charge you for the applicable fees.
             </p>
-            <p className="mt-4 font-medium text-zinc-800">Pricing</p>
+            <p className="mt-4 font-medium text-foreground">Pricing</p>
             <p className="mt-2">
               Current pricing is available at{" "}
               <Link href="/pricing" className="font-medium text-foreground underline-offset-2 hover:underline">
@@ -320,14 +320,14 @@ export default function TermsPage() {
               You are responsible for any value-added tax (VAT), goods and services tax (GST), or
               other applicable taxes in your jurisdiction.
             </p>
-            <p className="mt-4 font-medium text-zinc-800">Subscriptions</p>
+            <p className="mt-4 font-medium text-foreground">Subscriptions</p>
             <p className="mt-2">
               Subscriptions are billed on a recurring basis (monthly or annually) as selected at
               the time of purchase. Your subscription will automatically renew at the end of each
               billing period unless you cancel it before the renewal date. You can cancel your
               subscription at any time through your account settings.
             </p>
-            <p className="mt-4 font-medium text-zinc-800">Refunds</p>
+            <p className="mt-4 font-medium text-foreground">Refunds</p>
             <p className="mt-2">
               Token purchases and subscription fees are generally non-refundable. If you believe
               you have been charged in error or wish to request a refund, please contact{" "}
@@ -338,7 +338,7 @@ export default function TermsPage() {
               at our sole discretion. For users in the European Union and United Kingdom, your
               statutory consumer rights are not affected.
             </p>
-            <p className="mt-4 font-medium text-zinc-800">Price Changes</p>
+            <p className="mt-4 font-medium text-foreground">Price Changes</p>
             <p className="mt-2">
               We reserve the right to change our pricing at any time. For existing subscribers, we
               will provide at least 30 days&rsquo; notice before any price change takes effect. Your
@@ -370,7 +370,7 @@ export default function TermsPage() {
                 "AI providers may update or change their underlying models, which may affect the quality or characteristics of generated output.",
               ].map((item) => (
                 <li key={item} className="flex items-start gap-2.5">
-                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-400" />
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground" />
                   <span>{item}</span>
                 </li>
               ))}
@@ -384,7 +384,7 @@ export default function TermsPage() {
             {/* 7. IP */}
             <SectionAnchor id="ip" />
             <SectionTitle>7. Intellectual Property</SectionTitle>
-            <p className="font-medium text-zinc-800">Our Intellectual Property</p>
+            <p className="font-medium text-foreground">Our Intellectual Property</p>
             <p className="mt-2">
               The Service and its original content (excluding user-provided content and AI-generated
               output), features, functionality, branding, trademarks, logos, and software are and
@@ -392,7 +392,7 @@ export default function TermsPage() {
               modify, distribute, sell, or lease any part of the Service or its underlying
               technology without our express written permission.
             </p>
-            <p className="mt-4 font-medium text-zinc-800">User Content</p>
+            <p className="mt-4 font-medium text-foreground">User Content</p>
             <p className="mt-2">
               You retain all rights to the content, data, and materials you upload or input into
               the Service (&ldquo;User Content&rdquo;). By submitting User Content, you grant
@@ -400,7 +400,7 @@ export default function TermsPage() {
               and transmit your User Content solely to the extent necessary to provide the Service
               to you.
             </p>
-            <p className="mt-4 font-medium text-zinc-800">AI-Generated Output</p>
+            <p className="mt-4 font-medium text-foreground">AI-Generated Output</p>
             <p className="mt-2">
               Subject to these Terms and applicable law, you own the code, designs, and other
               content generated by the Service in response to your prompts (&ldquo;Generated
@@ -409,7 +409,7 @@ export default function TermsPage() {
               intellectual property claims. You accept sole responsibility for any IP issues
               arising from your use of Generated Output.
             </p>
-            <p className="mt-4 font-medium text-zinc-800">Feedback</p>
+            <p className="mt-4 font-medium text-foreground">Feedback</p>
             <p className="mt-2">
               If you provide us with feedback, suggestions, or ideas about the Service
               (&ldquo;Feedback&rdquo;), you grant us an irrevocable, perpetual, worldwide,
@@ -439,7 +439,7 @@ export default function TermsPage() {
                 "Use the Service in any application where AI errors could cause death, personal injury, or catastrophic damage without appropriate human oversight",
               ].map((item) => (
                 <li key={item} className="flex items-start gap-2.5">
-                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-400" />
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground" />
                   <span>{item}</span>
                 </li>
               ))}
@@ -467,9 +467,9 @@ export default function TermsPage() {
                 { name: "Vercel & Netlify", desc: "Application deployment and hosting" },
                 { name: "E2B", desc: "Sandboxed code execution environments" },
               ].map(({ name, desc }) => (
-                <div key={name} className="rounded-lg border border-zinc-200 bg-white p-3">
-                  <p className="text-sm font-medium text-zinc-800">{name}</p>
-                  <p className="mt-0.5 text-xs text-zinc-500">{desc}</p>
+                <div key={name} className="rounded-lg border border-border bg-white p-3">
+                  <p className="text-sm font-medium text-foreground">{name}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{desc}</p>
                 </div>
               ))}
             </div>
@@ -555,7 +555,7 @@ export default function TermsPage() {
                 "The Service will be compatible with your systems, software, or devices",
               ].map((item) => (
                 <li key={item} className="flex items-start gap-2.5">
-                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-400" />
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground" />
                   <span>{item}</span>
                 </li>
               ))}
@@ -583,7 +583,7 @@ export default function TermsPage() {
                 "Damages arising from unauthorised access to your account or data",
               ].map((item) => (
                 <li key={item} className="flex items-start gap-2.5">
-                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-400" />
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground" />
                   <span>{item}</span>
                 </li>
               ))}
@@ -625,7 +625,7 @@ export default function TermsPage() {
                 "Any actual or alleged infringement of any intellectual property or other right of any person or entity",
               ].map((item) => (
                 <li key={item} className="flex items-start gap-2.5">
-                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-400" />
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground" />
                   <span>{item}</span>
                 </li>
               ))}
@@ -634,13 +634,13 @@ export default function TermsPage() {
             {/* 15. Termination */}
             <SectionAnchor id="termination" />
             <SectionTitle>15. Termination</SectionTitle>
-            <p className="font-medium text-zinc-800">By You</p>
+            <p className="font-medium text-foreground">By You</p>
             <p className="mt-2">
               You may stop using the Service at any time and may delete your account through your
               account settings. Upon deletion, we will process your data deletion request in
               accordance with our Privacy Policy.
             </p>
-            <p className="mt-4 font-medium text-zinc-800">By Us</p>
+            <p className="mt-4 font-medium text-foreground">By Us</p>
             <p className="mt-2">
               We may suspend or terminate your account and access to the Service immediately, with
               or without notice, if we reasonably believe you have materially breached these Terms,
@@ -648,7 +648,7 @@ export default function TermsPage() {
               our sole discretion. We will generally attempt to provide advance notice where
               practicable, except where we determine that immediate action is necessary.
             </p>
-            <p className="mt-4 font-medium text-zinc-800">Effect of Termination</p>
+            <p className="mt-4 font-medium text-foreground">Effect of Termination</p>
             <p className="mt-2">
               Upon termination: (a) your licence to use the Service ceases immediately; (b) any
               outstanding fees become immediately payable; (c) we may delete your account data in
@@ -670,7 +670,7 @@ export default function TermsPage() {
               Subject to the paragraph below regarding EU/UK consumers, any dispute shall be
               subject to the exclusive jurisdiction of the courts of England and Wales.
             </p>
-            <p className="mt-4 font-medium text-zinc-800">EU/UK Consumer Rights</p>
+            <p className="mt-4 font-medium text-foreground">EU/UK Consumer Rights</p>
             <p className="mt-2">
               If you are a consumer resident in the European Union or United Kingdom, nothing in
               these Terms affects your statutory rights under applicable consumer protection law,
@@ -704,18 +704,18 @@ export default function TermsPage() {
             <p>
               If you have any questions about these Terms or the Service, please contact us:
             </p>
-            <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-5 space-y-2 text-sm">
-              <p><span className="font-medium text-zinc-700">Email:</span>{" "}
+            <div className="mt-4 rounded-xl border border-border bg-white p-5 space-y-2 text-sm">
+              <p><span className="font-medium text-foreground">Email:</span>{" "}
                 <a href="mailto:arpkwebsitedevelopment@gmail.com" className="text-foreground underline-offset-2 hover:underline">
                   arpkwebsitedevelopment@gmail.com
                 </a>
               </p>
-              <p><span className="font-medium text-zinc-700">Website:</span>{" "}
+              <p><span className="font-medium text-foreground">Website:</span>{" "}
                 <a href="https://lotus-build.vercel.app" target="_blank" rel="noopener noreferrer" className="text-foreground underline-offset-2 hover:underline">
                   https://lotus-build.vercel.app
                 </a>
               </p>
-              <p><span className="font-medium text-zinc-700">Help centre:</span>{" "}
+              <p><span className="font-medium text-foreground">Help centre:</span>{" "}
                 <Link href="/help" className="text-foreground underline-offset-2 hover:underline">
                   https://lotus-build.vercel.app/help
                 </Link>
@@ -723,11 +723,11 @@ export default function TermsPage() {
             </div>
 
             {/* Divider */}
-            <div className="mt-14 border-t border-zinc-200 pt-6 text-xs text-zinc-400 space-y-1">
+            <div className="mt-14 border-t border-border pt-6 text-xs text-muted-foreground space-y-1">
               <p>These Terms of Service were last updated on {LAST_UPDATED}.</p>
               <p>
                 See also:{" "}
-                <Link href="/privacy" className="underline-offset-2 hover:underline hover:text-zinc-600">
+                <Link href="/privacy" className="underline-offset-2 hover:underline hover:text-foreground">
                   Privacy Policy
                 </Link>
               </p>

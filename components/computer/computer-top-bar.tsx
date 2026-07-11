@@ -218,7 +218,7 @@ export function ComputerTopBar({
 
   const handleSwitchWorkspace = async (workspaceId: string) => {
     await switchWorkspace(workspaceId)
-    router.push("/projects")
+    router.push("/")
   }
 
   const isActive = session.status === "running" || session.status === "planning"
@@ -861,7 +861,7 @@ export function ComputerTopBar({
                       {otherWorkspaces.map((ws) => (
                         <DropdownMenuItem
                           key={ws.id}
-                          onSelect={() => void (async () => { await switchWorkspace(ws.id); setSidebarOpen(false); router.push("/projects") })()}
+                          onSelect={() => void (async () => { await switchWorkspace(ws.id); setSidebarOpen(false); router.push("/") })()}
                           className="flex cursor-pointer items-center gap-2.5 rounded-xl px-2.5 py-2.5 focus:bg-muted"
                         >
                           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground">

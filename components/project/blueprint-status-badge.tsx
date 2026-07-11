@@ -5,16 +5,16 @@ import { cn } from "@/lib/utils"
 
 const itemStatusStyles: Record<BlueprintItemStatus, string> = {
   confirmed: "border-emerald-200 bg-emerald-50 text-emerald-800",
-  suggested: "border-zinc-200 bg-zinc-100 text-zinc-700",
-  unknown: "border-zinc-300 bg-zinc-100 text-zinc-700",
+  suggested: "border-border bg-muted text-foreground",
+  unknown: "border-border-strong bg-muted text-foreground",
 }
 
 const planningStatusStyles: Record<PlanningStatus, string> = {
-  draft: "border-zinc-200 bg-zinc-100 text-zinc-700",
-  "needs-input": "border-zinc-300 bg-zinc-100 text-zinc-700",
-  "plan-generated": "border-zinc-200 bg-zinc-100 text-zinc-700",
+  draft: "border-border bg-muted text-foreground",
+  "needs-input": "border-border-strong bg-muted text-foreground",
+  "plan-generated": "border-border bg-muted text-foreground",
   approved: "border-emerald-200 bg-emerald-50 text-emerald-800",
-  skipped: "border-zinc-200 bg-zinc-100 text-zinc-700",
+  skipped: "border-border bg-muted text-foreground",
 }
 
 export function BlueprintStatusBadge(props: {

@@ -362,36 +362,36 @@ export function WebsiteSettingsPanel({ projectId, initialSettings, projectName, 
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5">
+      <section className="rounded-2xl border border-border bg-card p-5">
         <h3 className="text-sm font-semibold text-foreground">General</h3>
         <div className="mt-4 grid gap-4">
           <div>
-            <Label className="text-zinc-700">Site Name</Label>
-            <Input value={settings.siteName || ""} onChange={(e) => update("siteName", e.target.value)} className="mt-1 border-zinc-200 bg-white" />
+            <Label className="text-muted-foreground">Site Name</Label>
+            <Input value={settings.siteName || ""} onChange={(e) => update("siteName", e.target.value)} className="mt-1 border-border bg-card" />
           </div>
         </div>
       </section>
 
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5">
+      <section className="rounded-2xl border border-border bg-card p-5">
         <h3 className="text-sm font-semibold text-foreground">GitHub</h3>
-        <p className="mt-1 text-xs text-zinc-500">Connect once, then publish your full project files to GitHub in one click.</p>
-        <div className="mt-4 flex items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5">
-          <span className="text-sm text-zinc-700">Account</span>
-          <span className="inline-flex items-center rounded-full border border-zinc-300 bg-white px-2.5 py-1 text-xs text-zinc-700">
+        <p className="mt-1 text-xs text-muted-foreground">Connect once, then publish your full project files to GitHub in one click.</p>
+        <div className="mt-4 flex items-center justify-between rounded-xl border border-border bg-muted px-3 py-2.5">
+          <span className="text-sm text-muted-foreground">Account</span>
+          <span className="inline-flex items-center rounded-full border border-border-strong bg-card px-2.5 py-1 text-xs text-muted-foreground">
             {githubConnected ? "CONNECTED" : "NOT CONNECTED"}
           </span>
         </div>
         {githubIntegration?.repoFullName ? (
-          <div className="mt-3 rounded-xl border border-zinc-200 bg-white px-3 py-2.5">
-            <p className="text-[11px] uppercase tracking-wider text-zinc-500">Linked Repository</p>
-            <p className="mt-1 text-sm text-zinc-800">{githubIntegration.repoFullName}</p>
-            {githubSyncedLabel ? <p className="mt-1 text-xs text-zinc-500">{githubSyncedLabel}</p> : null}
+          <div className="mt-3 rounded-xl border border-border bg-card px-3 py-2.5">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Linked Repository</p>
+            <p className="mt-1 text-sm text-foreground">{githubIntegration.repoFullName}</p>
+            {githubSyncedLabel ? <p className="mt-1 text-xs text-muted-foreground">{githubSyncedLabel}</p> : null}
             {githubIntegration.repoUrl ? (
               <a
                 href={githubIntegration.repoUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="mt-2 inline-flex items-center gap-1 text-xs text-zinc-700 underline underline-offset-2"
+                className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground underline underline-offset-2"
               >
                 Open Repository
                 <ExternalLink className="h-3.5 w-3.5" />
@@ -415,7 +415,7 @@ export function WebsiteSettingsPanel({ projectId, initialSettings, projectName, 
               variant="outline"
               onClick={handleDisconnectGitHub}
               disabled={githubLoading || githubSyncing}
-              className="border-zinc-300 text-zinc-700"
+              className="border-border-strong text-muted-foreground"
             >
               Disconnect GitHub
             </Button>
@@ -430,29 +430,29 @@ export function WebsiteSettingsPanel({ projectId, initialSettings, projectName, 
         ) : null}
       </section>
 
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5">
+      <section className="rounded-2xl border border-border bg-card p-5">
         <h3 className="text-sm font-semibold text-foreground">Stripe</h3>
         <div className="mt-4 grid gap-4">
           <div>
-            <Label className="text-zinc-700">Publishable Key</Label>
-            <Input value={getEnv("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY")} onChange={(e) => setEnv("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", e.target.value)} className="mt-1 border-zinc-200 bg-white" />
+            <Label className="text-muted-foreground">Publishable Key</Label>
+            <Input value={getEnv("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY")} onChange={(e) => setEnv("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", e.target.value)} className="mt-1 border-border bg-card" />
           </div>
           <div>
-            <Label className="text-zinc-700">Secret Key</Label>
-            <Input type="password" value={getEnv("STRIPE_SECRET_KEY")} onChange={(e) => setEnv("STRIPE_SECRET_KEY", e.target.value)} className="mt-1 border-zinc-200 bg-white" />
+            <Label className="text-muted-foreground">Secret Key</Label>
+            <Input type="password" value={getEnv("STRIPE_SECRET_KEY")} onChange={(e) => setEnv("STRIPE_SECRET_KEY", e.target.value)} className="mt-1 border-border bg-card" />
           </div>
           <div>
-            <Label className="text-zinc-700">Webhook Secret</Label>
-            <Input type="password" value={getEnv("STRIPE_WEBHOOK_SECRET")} onChange={(e) => setEnv("STRIPE_WEBHOOK_SECRET", e.target.value)} className="mt-1 border-zinc-200 bg-white" />
+            <Label className="text-muted-foreground">Webhook Secret</Label>
+            <Input type="password" value={getEnv("STRIPE_WEBHOOK_SECRET")} onChange={(e) => setEnv("STRIPE_WEBHOOK_SECRET", e.target.value)} className="mt-1 border-border bg-card" />
           </div>
         </div>
       </section>
 
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5">
+      <section className="rounded-2xl border border-border bg-card p-5">
         <h3 className="text-sm font-semibold text-foreground">Database</h3>
-        <div className="mt-4 flex items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5">
-          <span className="text-sm text-zinc-700">Supabase</span>
-          <span className="inline-flex items-center gap-1 rounded-full border border-zinc-300 bg-white px-2.5 py-1 text-xs text-zinc-700">
+        <div className="mt-4 flex items-center justify-between rounded-xl border border-border bg-muted px-3 py-2.5">
+          <span className="text-sm text-muted-foreground">Supabase</span>
+          <span className="inline-flex items-center gap-1 rounded-full border border-border-strong bg-card px-2.5 py-1 text-xs text-muted-foreground">
             <Globe className="h-3 w-3" />
             {databaseConnected ? "CONNECTED" : supabaseAccountConnected ? "ACCOUNT CONNECTED" : "NOT CONNECTED"}
           </span>
@@ -476,51 +476,51 @@ export function WebsiteSettingsPanel({ projectId, initialSettings, projectName, 
           </div>
         )}
         {databaseIntegration?.projectRef ? (
-          <div className="mt-3 rounded-xl border border-zinc-200 bg-white px-3 py-2.5">
-            <p className="text-[11px] uppercase tracking-wider text-zinc-500">Project Ref</p>
-            <p className="mt-1 text-sm text-zinc-800">{databaseIntegration.projectRef}</p>
+          <div className="mt-3 rounded-xl border border-border bg-card px-3 py-2.5">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Project Ref</p>
+            <p className="mt-1 text-sm text-foreground">{databaseIntegration.projectRef}</p>
           </div>
         ) : null}
         {databaseIntegration?.projectUrl ? (
-          <div className="mt-3 rounded-xl border border-zinc-200 bg-white px-3 py-2.5">
-            <p className="text-[11px] uppercase tracking-wider text-zinc-500">Endpoint</p>
-            <p className="mt-1 truncate text-sm text-zinc-800">{databaseIntegration.projectUrl}</p>
+          <div className="mt-3 rounded-xl border border-border bg-card px-3 py-2.5">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Endpoint</p>
+            <p className="mt-1 truncate text-sm text-foreground">{databaseIntegration.projectUrl}</p>
           </div>
         ) : null}
       </section>
 
       <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
-        <section className="rounded-2xl border border-zinc-200 bg-white">
+        <section className="rounded-2xl border border-border bg-card">
           <CollapsibleTrigger className="flex w-full items-center justify-between px-5 py-4 text-left">
             <div>
               <h3 className="text-sm font-semibold text-foreground">Advanced</h3>
-              <p className="text-xs text-zinc-500">Environment Variables</p>
+              <p className="text-xs text-muted-foreground">Environment Variables</p>
             </div>
-            <ChevronDown className={`h-4 w-4 text-zinc-500 transition-transform ${advancedOpen ? "rotate-180" : ""}`} />
+            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${advancedOpen ? "rotate-180" : ""}`} />
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <div className="border-t border-zinc-200 px-5 py-4">
+            <div className="border-t border-border px-5 py-4">
               <div className="space-y-3">
-                {envVars.length === 0 && <p className="text-xs text-zinc-500">No advanced variables added yet.</p>}
+                {envVars.length === 0 && <p className="text-xs text-muted-foreground">No advanced variables added yet.</p>}
                 {envVars.map((envVar, index) => (
                   <div key={index} className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto]">
                     <Input
                       value={envVar.key}
                       onChange={(e) => updateEnvVar(index, "key", e.target.value)}
-                      className="border-zinc-200 bg-white"
+                      className="border-border bg-card"
                     />
                     <Input
                       value={envVar.value}
                       onChange={(e) => updateEnvVar(index, "value", e.target.value)}
-                      className="border-zinc-200 bg-white"
+                      className="border-border bg-card"
                     />
-                    <Button type="button" variant="outline" className="border-zinc-300 text-zinc-700" onClick={() => removeEnvVar(index)}>
+                    <Button type="button" variant="outline" className="border-border-strong text-muted-foreground" onClick={() => removeEnvVar(index)}>
                       Remove
                     </Button>
                   </div>
                 ))}
               </div>
-              <Button type="button" variant="outline" className="mt-3 border-zinc-300 text-zinc-700" onClick={addEnvVar}>
+              <Button type="button" variant="outline" className="mt-3 border-border-strong text-muted-foreground" onClick={addEnvVar}>
                 Add Variable
               </Button>
             </div>

@@ -735,7 +735,21 @@ async function getNvidiaModels(): Promise<string[]> {
   }
 }
 
-async function resolveModel(model: string, requestedProvider?: Provider): Promise<ResolvedModel> {
+// Free-tier ceiling: a strong open coding model, dynamically substituted
+// server-side so no client-supplied model/provider can reach a paid provider.
+const FREE_TIER_DEFAULT_MODEL = "qwen/qwen2.5-coder-32b-instruct"
+
+async function resolveModel(model: string, requestedProvider: Provider | undefined, isPaidUser: boolean): Promise<ResolvedModel> {
+  if (!isPaidUser) {
+    const nvidiaModels = await getNvidiaModels()
+    const target = nvidiaModels.includes(model) ? model : FREE_TIER_DEFAULT_MODEL
+    return {
+      client: nvidia,
+      selectedModel: target,
+      provider: "nvidia" as const,
+    }
+  }
+
   if (requestedProvider === "openai") {
     if (!OPENAI_MODEL_MAP[model]) {
       throw new GenerateHttpError(400, "unsupported_model", "The requested OpenAI model is not supported.")
@@ -1757,9 +1771,12 @@ export async function POST(req: Request) {
   const designBriefPromise: Promise<string> =
     isFollowUp || skipDesignBrief === true ? Promise.resolve("") : deriveDesignBrief(prompt)
 
+  // Reuses the plan already fetched by assertTokenBalance — no extra read.
+  const isPaidUser = balanceResult.value.planId !== "free"
+
   let resolvedModel: ResolvedModel
   try {
-    resolvedModel = await resolveModel(requestedModelName, requestedProvider)
+    resolvedModel = await resolveModel(requestedModelName, requestedProvider, isPaidUser)
   } catch (err) {
     const info = publicGenerationError(err)
     return jsonError(info.status, info.code, info.message)

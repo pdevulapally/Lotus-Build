@@ -75,7 +75,7 @@ function ApprovalFooter({
 
   return (
     <div className="flex items-center justify-between gap-2 border-t border-border bg-muted px-2.5 py-2">
-      <span className="inline-flex items-center gap-1.5 text-xs text-zinc-500">
+      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
         {status}
         {decision === "approved" && isPending && (
           <span className="inline-flex gap-0.5">
@@ -93,7 +93,7 @@ function ApprovalFooter({
               setDecision("rejected")
               onReject?.()
             }}
-            className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-white px-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-muted"
+            className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-card px-2 text-xs font-medium text-foreground transition-colors hover:bg-muted"
           >
             <X className="h-3 w-3" />
             {rejectLabel}
@@ -169,13 +169,13 @@ export const EditTool = React.memo(function EditTool({
         )}
       >
         <div className="flex min-w-0 items-center gap-1.5">
-          <FileCode2 className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
+          <FileCode2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           {isPending || isWaiting ? (
-            <TextShimmer className="truncate bg-gradient-to-r from-zinc-500 via-zinc-950 to-zinc-500 text-xs font-medium">
+            <TextShimmer className="truncate bg-gradient-to-r from-muted-foreground via-foreground to-muted-foreground text-xs font-medium">
               {headerLabel}
             </TextShimmer>
           ) : (
-            <span className="truncate text-xs text-zinc-500">{headerLabel}</span>
+            <span className="truncate text-xs text-muted-foreground">{headerLabel}</span>
           )}
         </div>
         {stats && !isPending && !isWaiting && (stats.added > 0 || stats.removed > 0) && (
@@ -187,7 +187,7 @@ export const EditTool = React.memo(function EditTool({
       </div>
 
       {diffOps && diffOps.length > 0 && (
-        <div className="max-h-80 overflow-auto bg-white font-mono text-[12px] leading-[1.55] [scrollbar-width:thin]">
+        <div className="max-h-80 overflow-auto bg-card font-mono text-[12px] leading-[1.55] [scrollbar-width:thin]">
           {diffOps.map((op, i) => (
             <div
               key={i}
@@ -195,7 +195,7 @@ export const EditTool = React.memo(function EditTool({
                 "flex min-w-max items-start",
                 op.type === "add" && "bg-emerald-50 text-emerald-900",
                 op.type === "remove" && "bg-red-50 text-red-900",
-                op.type === "context" && "text-zinc-600"
+                op.type === "context" && "text-muted-foreground"
               )}
             >
               <span
@@ -203,7 +203,7 @@ export const EditTool = React.memo(function EditTool({
                   "w-5 shrink-0 select-none text-center",
                   op.type === "add" && "text-emerald-600",
                   op.type === "remove" && "text-red-500",
-                  op.type === "context" && "text-zinc-300"
+                  op.type === "context" && "text-muted-foreground"
                 )}
               >
                 {op.type === "add" ? "+" : op.type === "remove" ? "-" : " "}

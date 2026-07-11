@@ -15,11 +15,11 @@ function SummaryRow(props: { label: string; value?: string; muted?: boolean; mul
 
   return (
     <div className="py-3">
-      <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">{label}</p>
+      <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
       <p
         className={cn(
           "mt-1 text-sm leading-6",
-          muted ? "text-zinc-500" : "text-foreground",
+          muted ? "text-muted-foreground" : "text-foreground",
           multiline && "whitespace-pre-wrap"
         )}
       >
@@ -113,29 +113,29 @@ export function CreationBlueprintPanel(props: {
       : "A living version-one plan shaped by the conversation."
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white">
-      <div className="border-b border-zinc-100 px-5 pb-4 pt-5">
+    <section className="overflow-hidden rounded-2xl border border-border bg-card">
+      <div className="border-b border-border px-5 pb-4 pt-5">
         <h2 className="text-base font-semibold tracking-tight text-foreground">Version-one build plan</h2>
-        <p className="mt-1 text-sm leading-6 text-zinc-500">{introCopy}</p>
+        <p className="mt-1 text-sm leading-6 text-muted-foreground">{introCopy}</p>
       </div>
 
-      <div className="divide-y divide-zinc-100 px-5 py-1">
+      <div className="divide-y divide-border px-5 py-1">
         {visibleItems.map((item) => (
           <SummaryRow key={`${item.label}-${item.value}`} label={item.label} value={item.value} muted={item.muted} />
         ))}
       </div>
 
-      <div className="border-t border-zinc-100 px-5 py-4">
-        <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Implementation sequence</p>
+      <div className="border-t border-border px-5 py-4">
+        <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Implementation sequence</p>
         <ol className="mt-3 space-y-3">
           {planSteps.map((step, index) => (
             <li key={step.title} className="flex gap-3">
-              <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[10px] font-semibold text-zinc-500">
+              <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
                 {index + 1}
               </div>
               <div>
-                <p className="text-xs font-semibold text-zinc-700">{step.title}</p>
-                <p className="mt-0.5 text-sm leading-6 text-zinc-600">{step.detail}</p>
+                <p className="text-xs font-semibold text-foreground">{step.title}</p>
+                <p className="mt-0.5 text-sm leading-6 text-muted-foreground">{step.detail}</p>
               </div>
             </li>
           ))}
@@ -143,9 +143,9 @@ export function CreationBlueprintPanel(props: {
       </div>
 
       {blockingMessage ? (
-        <div className="border-t border-zinc-100 px-5 py-3">
-          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Needs your input</p>
-          <p className="mt-1 text-sm leading-6 text-zinc-700">{blockingMessage}</p>
+        <div className="border-t border-border px-5 py-3">
+          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Needs your input</p>
+          <p className="mt-1 text-sm leading-6 text-foreground">{blockingMessage}</p>
         </div>
       ) : null}
     </section>

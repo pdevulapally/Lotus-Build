@@ -1,4 +1,4 @@
-const DEFAULT_AUTH_REDIRECT = "/projects"
+const DEFAULT_AUTH_REDIRECT = "/"
 
 // Parsing base for relative redirect candidates. Sourced from the environment
 // with no fallback: a missing or invalid NEXT_PUBLIC_APP_URL fails the build

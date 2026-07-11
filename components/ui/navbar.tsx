@@ -82,8 +82,8 @@ export function Navbar({ variant = "default" }: NavbarProps) {
     <header className={headerClass}>
       <nav
         className={cn(
-          "mx-auto grid h-14 w-full max-w-6xl grid-cols-[1fr_auto] items-center gap-3 rounded-full border border-border/60 bg-background/80 px-3.5 text-foreground shadow-[0_8px_30px_-12px_rgba(0,0,0,0.25)] backdrop-blur-xl sm:px-5 md:grid-cols-[1fr_auto_1fr]",
-          variant === "hero" && "bg-background/78 shadow-[0_10px_36px_-14px_rgba(0,0,0,0.32)]"
+          "nav-glass mx-auto grid h-14 w-full max-w-6xl grid-cols-[1fr_auto] items-center gap-3 rounded-full border border-border/60 bg-background/80 px-3.5 text-foreground backdrop-blur-xl sm:px-5 md:grid-cols-[1fr_auto_1fr]",
+          variant === "hero" && "bg-background/70"
         )}
       >
         <Link href="/" className="flex min-w-0 items-center gap-2.5 md:justify-self-start">
@@ -98,7 +98,7 @@ export function Navbar({ variant = "default" }: NavbarProps) {
             <Link
               key={link.href}
               href={link.href}
-              className="rounded-full px-3.5 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45"
+              className="rounded-full px-3.5 py-1.5 text-[13px] font-medium text-secondary-foreground transition-colors hover:bg-accent-soft hover:text-accent-soft-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/55"
             >
               {link.label}
             </Link>
@@ -111,8 +111,8 @@ export function Navbar({ variant = "default" }: NavbarProps) {
           ) : user && userData ? (
             <>
               <Link
-                href="/projects"
-                className="hidden h-9 items-center rounded-full bg-foreground px-4 text-[13px] font-medium text-background transition-colors hover:bg-foreground/88 sm:inline-flex"
+                href="/"
+                className="hidden h-9 items-center rounded-full bg-accent px-4 text-[13px] font-semibold text-accent-foreground transition-colors hover:bg-accent/88 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:inline-flex"
               >
                 Projects
               </Link>
@@ -190,7 +190,7 @@ export function Navbar({ variant = "default" }: NavbarProps) {
                           </span>
                         </div>
                         <div className="h-1.5 overflow-hidden rounded-full bg-border/70">
-                          <div className="h-full rounded-full bg-foreground transition-all" style={{ width: `${tokenPercentage}%` }} />
+                          <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${tokenPercentage}%` }} />
                         </div>
                       </div>
                     </div>
@@ -203,7 +203,7 @@ export function Navbar({ variant = "default" }: NavbarProps) {
                       className={accountMenuItemClass}
                       onClick={() => {
                         setIsOpen(false)
-                        router.push("/projects")
+                        router.push("/")
                       }}
                     >
                       <LayoutDashboard className="mr-2 h-4 w-4" />
@@ -239,7 +239,7 @@ export function Navbar({ variant = "default" }: NavbarProps) {
           ) : (
             <Link
               href="/login"
-              className="inline-flex h-9 items-center rounded-full bg-foreground px-4 text-[13px] font-medium text-background transition-colors hover:bg-foreground/88"
+              className="inline-flex h-9 items-center rounded-full bg-accent px-4 text-[13px] font-semibold text-accent-foreground transition-colors hover:bg-accent/88 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               Sign in
             </Link>
@@ -278,7 +278,7 @@ export function Navbar({ variant = "default" }: NavbarProps) {
                       </Link>
                     ))}
                     <Link
-                      href={user ? "/projects" : "/login"}
+                      href={user ? "/" : "/login"}
                       className="flex items-center justify-between py-4 text-2xl font-medium tracking-[-0.03em] text-foreground transition-colors hover:text-muted-foreground"
                     >
                       {user ? "Projects" : "Sign in"}

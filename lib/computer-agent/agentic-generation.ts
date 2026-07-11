@@ -229,6 +229,8 @@ function extractJsonString(partial: string, key: string): string | null {
 export async function runAgenticGeneration(params: {
   /** Pass a metered client so every generation turn is billed to the user. */
   client?: Anthropic
+  /** Defaults to MODEL (claude-sonnet-4-6). Pass a cheaper model for degraded/free-tier runs. */
+  model?: string
   prompt: string
   existingFiles: AgenticFile[]
   platform: ProjectPlatform
@@ -242,6 +244,7 @@ export async function runAgenticGeneration(params: {
   onToolCall?: (title: string) => Promise<void>
 }): Promise<{ files: AgenticFile[]; suggestsBackend: boolean }> {
   const client = params.client ?? defaultClient
+  const model = params.model ?? MODEL
   const fileStore = new Map<string, string>()
   for (const f of params.existingFiles) {
     fileStore.set(f.path, f.content)
@@ -263,7 +266,7 @@ export async function runAgenticGeneration(params: {
     const streamNotified = new Set<string>() // block ids already callback'd during streaming
 
     const stream = client.messages.stream({
-      model: MODEL,
+      model,
       max_tokens: 16000,
       system: SYSTEM_PROMPT_BLOCKS_BY_PLATFORM[params.platform],
       tools: TOOLS,

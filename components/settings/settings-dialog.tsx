@@ -290,7 +290,7 @@ function ContributionCalendar({ items, loading, onNavigate }: { items: Contribut
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">Project builds, edits, and computer-agent activity across the last year.</p>
         </div>
-        <Link href="/projects" onClick={onNavigate} className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
+        <Link href="/" onClick={onNavigate} className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
           View projects
         </Link>
       </div>
@@ -850,7 +850,7 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
                       )}
                     </SettingsRow>
                     <SettingsRow label="All projects" description="Open the full projects index.">
-                      <Link href="/projects" onClick={closeDialog} className="text-sm font-medium text-primary underline underline-offset-4 hover:text-primary/80">Open projects</Link>
+                      <Link href="/" onClick={closeDialog} className="text-sm font-medium text-primary underline underline-offset-4 hover:text-primary/80">Open projects</Link>
                     </SettingsRow>
                   </SettingsSection>
                 </>

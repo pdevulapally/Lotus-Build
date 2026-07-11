@@ -119,10 +119,10 @@ function CategoryRow({
   const Icon = category.icon
 
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden">
+    <div className="lotus-glass-control rounded-xl border overflow-hidden">
       <div className="flex items-center gap-3 px-4 py-3.5">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
-          <Icon className="h-4 w-4 text-foreground" />
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-card">
+          <Icon className="h-4 w-4 text-muted-foreground" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
@@ -153,7 +153,7 @@ function CategoryRow({
         </div>
       </div>
       {open && (
-        <div className="border-t border-border bg-muted px-4 py-3">
+        <div className="lotus-glass-inset border-t border-border px-4 py-3">
           <p className="text-xs leading-relaxed text-muted-foreground">{category.description}</p>
         </div>
       )}
@@ -193,23 +193,23 @@ function PreferencesModal({
     <div className="fixed inset-0 z-[200] flex items-end justify-center sm:items-center p-4">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-foreground/40 backdrop-blur-sm"
+        className="absolute inset-0 bg-foreground/35 backdrop-blur-md"
         onClick={onClose}
         aria-hidden
       />
 
       {/* Panel */}
       <div
-        className="relative z-10 w-full max-w-lg rounded-2xl border border-border bg-card shadow-2xl animate-in slide-in-from-bottom-4 duration-300"
+        className="lotus-glass-strong relative z-10 w-full max-w-lg rounded-2xl border border-border/60 shadow-2xl animate-in slide-in-from-bottom-4 duration-300"
         role="dialog"
         aria-modal
         aria-labelledby="cookie-prefs-title"
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+        <div className="flex items-center justify-between border-b border-border/55 px-5 py-4">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-foreground">
-              <Cookie className="h-4 w-4 text-background" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-card">
+              <Cookie className="h-4 w-4 text-muted-foreground" />
             </div>
             <div>
               <p id="cookie-prefs-title" className="text-sm font-semibold text-foreground">
@@ -247,7 +247,7 @@ function PreferencesModal({
         </div>
 
         {/* Footer */}
-        <div className="flex flex-col-reverse gap-2 border-t border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col-reverse gap-2 border-t border-border/55 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-muted-foreground">
             Read our{" "}
             <Link href="/privacy" className="underline-offset-2 hover:underline hover:text-foreground">
@@ -258,7 +258,7 @@ function PreferencesModal({
             <button
               type="button"
               onClick={() => onSave(false, false)}
-              className="flex-1 sm:flex-none rounded-xl border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="lotus-glass-control flex-1 sm:flex-none rounded-full border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-border-strong"
             >
               Reject all
             </button>
@@ -313,14 +313,14 @@ export function CookieBanner() {
       <div
         role="region"
         aria-label="Cookie consent"
-        className="fixed bottom-4 left-1/2 z-[150] w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 animate-in slide-in-from-bottom-4 duration-500"
+        className="fixed bottom-4 right-4 z-[150] w-[calc(100%-2rem)] max-w-[22rem] animate-in slide-in-from-bottom-4 duration-500"
       >
-        <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-lg">
-          <div className="px-5 py-4">
-            <div className="flex items-start gap-3.5">
+        <div className="lotus-glass-strong overflow-hidden rounded-2xl border border-border/60 shadow-xl">
+          <div className="p-4">
+            <div className="flex items-start gap-3">
               {/* Icon */}
-              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-foreground">
-                <Cookie className="h-4.5 w-4.5 text-background" style={{ width: 18, height: 18 }} />
+              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-card">
+                <Cookie className="h-4.5 w-4.5 text-muted-foreground" style={{ width: 18, height: 18 }} />
               </div>
 
               {/* Text */}
@@ -329,8 +329,7 @@ export function CookieBanner() {
                   We use cookies
                 </p>
                 <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                  We use essential cookies to keep the site working and optional analytics cookies
-                  to understand how you use it — no ad trackers, ever.{" "}
+                  Essential cookies keep the site working. Optional analytics help us improve it — no ad trackers, ever.{" "}
                   <Link
                     href="/privacy#cookies"
                     className="font-medium text-foreground underline-offset-2 hover:underline"
@@ -342,26 +341,28 @@ export function CookieBanner() {
             </div>
 
             {/* Buttons */}
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={handleAcceptAll}
-                className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background transition-colors hover:bg-foreground/90 active:scale-[0.98]"
-              >
-                <Check className="h-3.5 w-3.5" />
-                Accept all
-              </button>
-              <button
-                type="button"
-                onClick={handleRejectAll}
-                className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted hover:text-foreground"
-              >
-                Reject non-essential
-              </button>
+            <div className="mt-3.5 flex flex-col gap-2">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleAcceptAll}
+                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background transition-colors hover:bg-foreground/90 active:scale-[0.98]"
+                >
+                  <Check className="h-3.5 w-3.5" />
+                  Accept all
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRejectAll}
+                  className="lotus-glass-control flex-1 rounded-full border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-border-strong"
+                >
+                  Reject
+                </button>
+              </div>
               <button
                 type="button"
                 onClick={() => setShowPrefs(true)}
-                className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="self-center text-xs font-medium text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
               >
                 Manage preferences
               </button>

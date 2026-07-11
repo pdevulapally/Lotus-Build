@@ -78,7 +78,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 function SubTitle({ children }: { children: React.ReactNode }) {
   return (
-    <p className="mt-5 mb-2 font-semibold text-zinc-800">{children}</p>
+    <p className="mt-5 mb-2 font-semibold text-foreground">{children}</p>
   )
 }
 
@@ -108,21 +108,21 @@ function Callout({
 
 function DataTable({ rows }: { rows: { category: string; examples: string; purpose: string }[] }) {
   return (
-    <div className="my-4 overflow-x-auto rounded-xl border border-zinc-200">
+    <div className="my-4 overflow-x-auto rounded-xl border border-border">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-zinc-200 bg-zinc-50 text-left">
-            <th className="px-4 py-3 font-semibold text-zinc-700 w-1/4">Category</th>
-            <th className="px-4 py-3 font-semibold text-zinc-700 w-2/5">Examples</th>
-            <th className="px-4 py-3 font-semibold text-zinc-700">Purpose</th>
+          <tr className="border-b border-border bg-muted text-left">
+            <th className="px-4 py-3 font-semibold text-foreground w-1/4">Category</th>
+            <th className="px-4 py-3 font-semibold text-foreground w-2/5">Examples</th>
+            <th className="px-4 py-3 font-semibold text-foreground">Purpose</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row, i) => (
-            <tr key={row.category} className={cn("border-b border-zinc-100 last:border-0", i % 2 === 0 ? "bg-white" : "bg-zinc-50/50")}>
-              <td className="px-4 py-3 font-medium text-zinc-800 align-top">{row.category}</td>
-              <td className="px-4 py-3 text-zinc-600 align-top">{row.examples}</td>
-              <td className="px-4 py-3 text-zinc-600 align-top">{row.purpose}</td>
+            <tr key={row.category} className={cn("border-b border-border last:border-0", i % 2 === 0 ? "bg-white" : "bg-muted/50")}>
+              <td className="px-4 py-3 font-medium text-foreground align-top">{row.category}</td>
+              <td className="px-4 py-3 text-muted-foreground align-top">{row.examples}</td>
+              <td className="px-4 py-3 text-muted-foreground align-top">{row.purpose}</td>
             </tr>
           ))}
         </tbody>
@@ -133,9 +133,9 @@ function DataTable({ rows }: { rows: { category: string; examples: string; purpo
 
 function RightCard({ right, desc }: { right: string; desc: string }) {
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-4">
-      <p className="text-sm font-semibold text-zinc-800">{right}</p>
-      <p className="mt-1 text-xs leading-relaxed text-zinc-500">{desc}</p>
+    <div className="rounded-xl border border-border bg-white p-4">
+      <p className="text-sm font-semibold text-foreground">{right}</p>
+      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{desc}</p>
     </div>
   )
 }
@@ -156,9 +156,9 @@ export default function PrivacyPage() {
       <Navbar />
 
       {/* â”€â”€ Hero header â”€â”€ */}
-      <div className="border-b border-zinc-200 bg-white">
+      <div className="border-b border-border bg-white">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-zinc-500">
+          <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-muted-foreground">
             <Shield className="h-3.5 w-3.5" />
             <span>Legal</span>
             <ChevronRight className="h-3 w-3" />
@@ -167,20 +167,20 @@ export default function PrivacyPage() {
           <h1 className="mt-4 text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
             Privacy Policy
           </h1>
-          <p className="mt-3 max-w-2xl text-base leading-relaxed text-zinc-600">
+          <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted-foreground">
             We take your privacy seriously. This policy explains what data we collect, why we
             collect it, and how we keep it safe â€” in plain language.
           </p>
-          <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-zinc-500">
+          <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
             <span>
-              <span className="font-medium text-zinc-700">Effective:</span> {EFFECTIVE_DATE}
+              <span className="font-medium text-foreground">Effective:</span> {EFFECTIVE_DATE}
             </span>
-            <span className="hidden sm:inline text-zinc-300">|</span>
+            <span className="hidden sm:inline text-muted-foreground">|</span>
             <span>
-              <span className="font-medium text-zinc-700">Last updated:</span> {LAST_UPDATED}
+              <span className="font-medium text-foreground">Last updated:</span> {LAST_UPDATED}
             </span>
-            <span className="hidden sm:inline text-zinc-300">|</span>
-            <Link href="/terms" className="inline-flex items-center gap-1 font-medium text-zinc-700 underline-offset-2 hover:underline">
+            <span className="hidden sm:inline text-muted-foreground">|</span>
+            <Link href="/terms" className="inline-flex items-center gap-1 font-medium text-foreground underline-offset-2 hover:underline">
               Terms of Service <ExternalLink className="h-3 w-3" />
             </Link>
           </div>
@@ -198,7 +198,7 @@ export default function PrivacyPage() {
           {/* â”€â”€ Sidebar â”€â”€ */}
           <aside className="hidden lg:block w-56 xl:w-64 shrink-0">
             <div className="sticky top-24">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-400">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                 On this page
               </p>
               <nav className="space-y-0.5">
@@ -211,16 +211,16 @@ export default function PrivacyPage() {
                       "block w-full text-left rounded-lg px-3 py-1.5 text-sm transition-colors",
                       active === id
                         ? "bg-accent text-accent-foreground font-medium"
-                        : "text-zinc-500 hover:bg-zinc-100 hover:text-foreground"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
                     )}
                   >
                     {label}
                   </button>
                 ))}
               </nav>
-              <div className="mt-8 rounded-xl border border-zinc-200 bg-white p-4">
-                <p className="text-xs font-semibold text-zinc-700">Data requests</p>
-                <p className="mt-1 text-xs text-zinc-500">Exercise your rights or ask questions.</p>
+              <div className="mt-8 rounded-xl border border-border bg-white p-4">
+                <p className="text-xs font-semibold text-foreground">Data requests</p>
+                <p className="mt-1 text-xs text-muted-foreground">Exercise your rights or ask questions.</p>
                 <a
                   href="mailto:arpkwebsitedevelopment@gmail.com"
                   className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-foreground underline-offset-2 hover:underline"
@@ -232,7 +232,7 @@ export default function PrivacyPage() {
           </aside>
 
           {/* â”€â”€ Article â”€â”€ */}
-          <article className="min-w-0 flex-1 text-sm leading-7 text-zinc-700">
+          <article className="min-w-0 flex-1 text-sm leading-7 text-foreground">
 
             {/* 1. Overview */}
             <SectionAnchor id="overview" />
@@ -265,14 +265,14 @@ export default function PrivacyPage() {
               General Data Protection Regulation (EU GDPR), the data controller responsible for
               your personal data is:
             </p>
-            <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-5 space-y-1.5 text-sm">
-              <p><span className="font-medium text-zinc-700">Organisation:</span> Lotus.build</p>
+            <div className="mt-4 rounded-xl border border-border bg-white p-5 space-y-1.5 text-sm">
+              <p><span className="font-medium text-foreground">Organisation:</span> Lotus.build</p>
               <p>
-                <span className="font-medium text-zinc-700">Website:</span>{" "}
+                <span className="font-medium text-foreground">Website:</span>{" "}
                 <a href="https://lotus-build.vercel.app" className="underline-offset-2 hover:underline">https://lotus-build.vercel.app</a>
               </p>
               <p>
-                <span className="font-medium text-zinc-700">Contact:</span>{" "}
+                <span className="font-medium text-foreground">Contact:</span>{" "}
                 <a href="mailto:arpkwebsitedevelopment@gmail.com" className="underline-offset-2 hover:underline">arpkwebsitedevelopment@gmail.com</a>
               </p>
             </div>
@@ -355,7 +355,7 @@ export default function PrivacyPage() {
                 "Google (Firebase Auth): email address, name, and profile picture if you sign in with Google",
               ].map((item) => (
                 <li key={item} className="flex items-start gap-2.5">
-                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-400" />
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground" />
                   <span>{item}</span>
                 </li>
               ))}
@@ -379,7 +379,7 @@ export default function PrivacyPage() {
                 "Responding to legal requests from authorities as required by law",
               ].map((item) => (
                 <li key={item} className="flex items-start gap-2.5">
-                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-400" />
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground" />
                   <span>{item}</span>
                 </li>
               ))}
@@ -416,9 +416,9 @@ export default function PrivacyPage() {
                   desc: "Processing for optional communications (marketing emails), certain cookies, and any use of your data for AI model training. You may withdraw consent at any time.",
                 },
               ].map(({ basis, desc }) => (
-                <div key={basis} className="rounded-xl border border-zinc-200 bg-white p-4">
-                  <p className="font-semibold text-zinc-800">{basis}</p>
-                  <p className="mt-1 text-xs text-zinc-500 leading-relaxed">{desc}</p>
+                <div key={basis} className="rounded-xl border border-border bg-white p-4">
+                  <p className="font-semibold text-foreground">{basis}</p>
+                  <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{desc}</p>
                 </div>
               ))}
             </div>
@@ -435,13 +435,13 @@ export default function PrivacyPage() {
               We use carefully selected third-party service providers who process data on our
               behalf under Data Processing Agreements:
             </p>
-            <div className="mt-3 overflow-x-auto rounded-xl border border-zinc-200">
+            <div className="mt-3 overflow-x-auto rounded-xl border border-border">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-zinc-200 bg-zinc-50 text-left">
-                    <th className="px-4 py-3 font-semibold text-zinc-700">Provider</th>
-                    <th className="px-4 py-3 font-semibold text-zinc-700">Purpose</th>
-                    <th className="px-4 py-3 font-semibold text-zinc-700">Location</th>
+                  <tr className="border-b border-border bg-muted text-left">
+                    <th className="px-4 py-3 font-semibold text-foreground">Provider</th>
+                    <th className="px-4 py-3 font-semibold text-foreground">Purpose</th>
+                    <th className="px-4 py-3 font-semibold text-foreground">Location</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -453,10 +453,10 @@ export default function PrivacyPage() {
                     { p: "E2B", purpose: "Sandboxed code execution", loc: "USA" },
                     { p: "Vercel", purpose: "Application hosting & CDN", loc: "USA/Global" },
                   ].map((row) => (
-                    <tr key={row.p} className="border-b border-zinc-100 last:border-0">
-                      <td className="px-4 py-3 font-medium text-zinc-800">{row.p}</td>
-                      <td className="px-4 py-3 text-zinc-600">{row.purpose}</td>
-                      <td className="px-4 py-3 text-zinc-600">{row.loc}</td>
+                    <tr key={row.p} className="border-b border-border last:border-0">
+                      <td className="px-4 py-3 font-medium text-foreground">{row.p}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{row.purpose}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{row.loc}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -494,7 +494,7 @@ export default function PrivacyPage() {
                 "Anonymised analytics data: may be retained indefinitely as it cannot be used to identify you",
               ].map((item) => (
                 <li key={item} className="flex items-start gap-2.5">
-                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-400" />
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground" />
                   <span>{item}</span>
                 </li>
               ))}
@@ -573,7 +573,7 @@ export default function PrivacyPage() {
                 "Transfers to service providers certified under applicable frameworks",
               ].map((item) => (
                 <li key={item} className="flex items-start gap-2.5">
-                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-400" />
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground" />
                   <span>{item}</span>
                 </li>
               ))}
@@ -604,7 +604,7 @@ export default function PrivacyPage() {
                 "Regular security monitoring and logging",
               ].map((item) => (
                 <li key={item} className="flex items-start gap-2.5">
-                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-400" />
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground" />
                   <span>{item}</span>
                 </li>
               ))}
@@ -631,13 +631,13 @@ export default function PrivacyPage() {
               are small text files stored on your device.
             </p>
             <SubTitle>Types of cookies we use</SubTitle>
-            <div className="mt-3 overflow-x-auto rounded-xl border border-zinc-200">
+            <div className="mt-3 overflow-x-auto rounded-xl border border-border">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-zinc-200 bg-zinc-50 text-left">
-                    <th className="px-4 py-3 font-semibold text-zinc-700">Type</th>
-                    <th className="px-4 py-3 font-semibold text-zinc-700">Purpose</th>
-                    <th className="px-4 py-3 font-semibold text-zinc-700">Duration</th>
+                  <tr className="border-b border-border bg-muted text-left">
+                    <th className="px-4 py-3 font-semibold text-foreground">Type</th>
+                    <th className="px-4 py-3 font-semibold text-foreground">Purpose</th>
+                    <th className="px-4 py-3 font-semibold text-foreground">Duration</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -646,10 +646,10 @@ export default function PrivacyPage() {
                     { type: "Functional / Preference", purpose: "Remembering your settings, theme preferences, and UI state.", dur: "Up to 1 year" },
                     { type: "Analytics", purpose: "Understanding how users navigate and use the Service to improve it.", dur: "Up to 2 years" },
                   ].map((row) => (
-                    <tr key={row.type} className="border-b border-zinc-100 last:border-0">
-                      <td className="px-4 py-3 font-medium text-zinc-800 align-top">{row.type}</td>
-                      <td className="px-4 py-3 text-zinc-600 align-top">{row.purpose}</td>
-                      <td className="px-4 py-3 text-zinc-600 align-top">{row.dur}</td>
+                    <tr key={row.type} className="border-b border-border last:border-0">
+                      <td className="px-4 py-3 font-medium text-foreground align-top">{row.type}</td>
+                      <td className="px-4 py-3 text-muted-foreground align-top">{row.purpose}</td>
+                      <td className="px-4 py-3 text-muted-foreground align-top">{row.dur}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -681,7 +681,7 @@ export default function PrivacyPage() {
                 "We store anonymised metadata about AI usage (such as token counts and latency) for billing and service improvement purposes.",
               ].map((item) => (
                 <li key={item} className="flex items-start gap-2.5">
-                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-400" />
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground" />
                   <span>{item}</span>
                 </li>
               ))}
@@ -742,7 +742,7 @@ export default function PrivacyPage() {
               an authorised agent to submit requests on your behalf.
             </p>
             <p className="mt-4">
-              <strong className="font-medium text-zinc-800">
+              <strong className="font-medium text-foreground">
                 Categories of personal information collected in the past 12 months:
               </strong>{" "}
               Identifiers (email, IP address); commercial information (purchase history); internet
@@ -772,13 +772,13 @@ export default function PrivacyPage() {
               For any questions, concerns, or requests relating to your personal data or this
               Privacy Policy, please contact us:
             </p>
-            <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-5 space-y-2 text-sm">
-              <p><span className="font-medium text-zinc-700">Email:</span>{" "}
+            <div className="mt-4 rounded-xl border border-border bg-white p-5 space-y-2 text-sm">
+              <p><span className="font-medium text-foreground">Email:</span>{" "}
                 <a href="mailto:arpkwebsitedevelopment@gmail.com" className="text-foreground underline-offset-2 hover:underline">
                   arpkwebsitedevelopment@gmail.com
                 </a>
               </p>
-              <p><span className="font-medium text-zinc-700">Website:</span>{" "}
+              <p><span className="font-medium text-foreground">Website:</span>{" "}
                 <a href="https://lotus-build.vercel.app" target="_blank" rel="noopener noreferrer" className="text-foreground underline-offset-2 hover:underline">
                   https://lotus-build.vercel.app
                 </a>
@@ -806,11 +806,11 @@ export default function PrivacyPage() {
             </p>
 
             {/* Divider */}
-            <div className="mt-14 border-t border-zinc-200 pt-6 text-xs text-zinc-400 space-y-1">
+            <div className="mt-14 border-t border-border pt-6 text-xs text-muted-foreground space-y-1">
               <p>This Privacy Policy was last updated on {LAST_UPDATED}.</p>
               <p>
                 See also:{" "}
-                <Link href="/terms" className="underline-offset-2 hover:underline hover:text-zinc-600">
+                <Link href="/terms" className="underline-offset-2 hover:underline hover:text-foreground">
                   Terms of Service
                 </Link>
               </p>

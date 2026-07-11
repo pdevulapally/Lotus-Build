@@ -80,15 +80,21 @@ function linearToSrgb(value: number) {
     : 1.055 * Math.pow(clamped, 1 / 2.4) - 0.055
 }
 
+// All three parsers below produce sRGB-gamma channel values (0-1). They must
+// be handed to THREE.Color via `.setRGB(..., THREE.SRGBColorSpace)` rather
+// than `new THREE.Color(r, g, b)`: that float constructor assumes values are
+// already in the linear working color space and applies no conversion, so
+// gamma-encoded input was silently rendering too bright/desaturated.
 function colorFromRgb(cssColor: string) {
   const match = cssColor.match(/rgba?\(\s*([0-9.]+)\s+([0-9.]+)\s+([0-9.]+)/i)
     ?? cssColor.match(/rgba?\(\s*([0-9.]+),\s*([0-9.]+),\s*([0-9.]+)/i)
   if (!match) return null
 
-  return new THREE.Color(
+  return new THREE.Color().setRGB(
     Number.parseFloat(match[1] ?? "0") / 255,
     Number.parseFloat(match[2] ?? "0") / 255,
-    Number.parseFloat(match[3] ?? "0") / 255
+    Number.parseFloat(match[3] ?? "0") / 255,
+    THREE.SRGBColorSpace
   )
 }
 
@@ -101,10 +107,11 @@ function colorFromSrgb(cssColor: string) {
   const toChannel = (value: string) =>
     value.endsWith("%") ? Number.parseFloat(value) / 100 : Number.parseFloat(value)
 
-  return new THREE.Color(
+  return new THREE.Color().setRGB(
     toChannel(match[1] ?? "0"),
     toChannel(match[2] ?? "0"),
-    toChannel(match[3] ?? "0")
+    toChannel(match[3] ?? "0"),
+    THREE.SRGBColorSpace
   )
 }
 
@@ -132,23 +139,49 @@ function colorFromOklch(cssColor: string) {
   const g = -1.2684380046 * lCube + 2.6097574011 * mCube - 0.3413193965 * sCube
   const blue = -0.0041960863 * lCube - 0.7034186147 * mCube + 1.707614701 * sCube
 
-  return new THREE.Color(linearToSrgb(r), linearToSrgb(g), linearToSrgb(blue))
+  return new THREE.Color().setRGB(
+    linearToSrgb(r), linearToSrgb(g), linearToSrgb(blue), THREE.SRGBColorSpace
+  )
+}
+
+function colorFromRgbTriplet(raw: string) {
+  const match = raw.match(/^([\d.]+)\s+([\d.]+)\s+([\d.]+)$/)
+  if (!match) return null
+
+  return new THREE.Color().setRGB(
+    Number.parseFloat(match[1]) / 255,
+    Number.parseFloat(match[2]) / 255,
+    Number.parseFloat(match[3]) / 255,
+    THREE.SRGBColorSpace
+  )
 }
 
 function resolveCssColor(color: string): THREE.Color {
-  const probe = document.createElement("span")
-  probe.style.color = color
-  probe.style.position = "absolute"
-  probe.style.pointerEvents = "none"
-  probe.style.opacity = "0"
-  document.body.appendChild(probe)
-  const computed = getComputedStyle(probe).color
-  document.body.removeChild(probe)
+  const varMatch = color.match(/^var\((--[\w-]+)\)$/)
+  if (!varMatch) {
+    return (
+      colorFromOklch(color)
+      ?? colorFromRgb(color)
+      ?? colorFromSrgb(color)
+      ?? new THREE.Color(0x2e3440)
+    )
+  }
 
+  const rootStyle = getComputedStyle(document.documentElement)
+
+  // Prefer the token's plain "R G B" (0-255) companion property, e.g.
+  // "--primary-rgb: 0 113 227", already defined in globals.css for exactly
+  // this kind of JS consumer. It sidesteps both the computed `color`
+  // property's inconsistent cross-browser serialization and any manual
+  // color-space math entirely.
+  const rgbTriplet = colorFromRgbTriplet(rootStyle.getPropertyValue(`${varMatch[1]}-rgb`).trim())
+  if (rgbTriplet) return rgbTriplet
+
+  const raw = rootStyle.getPropertyValue(varMatch[1]).trim()
   return (
-    colorFromRgb(computed)
-    ?? colorFromSrgb(computed)
-    ?? colorFromOklch(computed)
+    colorFromOklch(raw)
+    ?? colorFromRgb(raw)
+    ?? colorFromSrgb(raw)
     ?? new THREE.Color(0x2e3440)
   )
 }

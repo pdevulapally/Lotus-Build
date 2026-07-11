@@ -7,7 +7,7 @@ const OAUTH_STATE_TTL_MS = 10 * 60 * 1000
 
 function getSafeReturnPath(value: string | undefined): string {
   if (!value || !value.startsWith("/") || value.startsWith("//")) return ""
-  if (!value.startsWith("/computer/") && !value.startsWith("/project/") && value !== "/projects") return ""
+  if (!value.startsWith("/computer/") && !value.startsWith("/project/") && value !== "/") return ""
   return value
 }
 
@@ -86,7 +86,7 @@ export async function GET(req: Request) {
   await adminDb.collection("netlifyOauthStates").doc(state).delete().catch(() => {})
 
   const redirectTo = new URL(process.env.NEXT_PUBLIC_APP_URL || url.origin)
-  redirectTo.pathname = getSafeReturnPath(returnTo) || (projectId ? `/project/${projectId}` : "/projects")
+  redirectTo.pathname = getSafeReturnPath(returnTo) || (projectId ? `/project/${projectId}` : "/")
   redirectTo.searchParams.set("netlify", "connected")
 
   return NextResponse.redirect(redirectTo.toString())

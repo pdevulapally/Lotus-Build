@@ -76,7 +76,7 @@ export function CreateWorkspaceModal({ open, onClose }: CreateWorkspaceModalProp
 
   const handleGoToWorkspace = () => {
     handleClose()
-    router.push(`/projects?onboarding=true${newWorkspaceId ? `&workspace=${newWorkspaceId}` : ""}`)
+    router.push(`/?onboarding=true${newWorkspaceId ? `&workspace=${newWorkspaceId}` : ""}`)
   }
 
   if (!open) return null

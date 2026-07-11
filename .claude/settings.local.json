@@ -127,7 +127,21 @@
       "Bash(timeout 60 bash -c 'until curl -sf http://localhost:3000 >/dev/null 2>&1; do sleep 1; done')",
       "Bash(netstat -ano)",
       "PowerShell(Get-NetTCPConnection *)",
-      "PowerShell(Get-Process *)"
+      "PowerShell(Get-Process *)",
+      "Bash(grep -n \"/api/generate\\\\|fetch\\(\\\\`\\\\${baseUrl}\" app/api/computer/run/route.ts)",
+      "Bash(grep -v \"generate-options\\\\|generate/route.ts\\\\|generate\\\\\\\\\\\\\\\\route\")",
+      "Bash(grep -rn '\\\\${.*}/api/generate\\\\b\\\\|`/api/generate' --include=\"*.ts\" --include=\"*.tsx\" .)",
+      "Bash(printenv)",
+      "Bash(grep -o \"^NVIDIA_API_KEY=.\\\\{0,6\\\\}\\\\|^NGC_API_KEY=.\\\\{0,6\\\\}\" .env.local)",
+      "Bash(ls -la .env*)",
+      "Bash(grep -nE \"\\(bg|text|border|from|to|via|ring|divide|placeholder|fill|stroke\\)-\\(zinc|gray|slate|neutral\\)-[0-9]{2,3}\" app/privacy/page.tsx app/terms/page.tsx components/project/agent-timeline-panel.tsx components/project/browser-navigator.tsx)",
+      "Bash(echo \"EXIT:$?\")",
+      "Skill(artifact-design)",
+      "Artifact",
+      "Bash(curl -s http://localhost:3000/)",
+      "Bash(curl -s http://localhost:3000/ -o /tmp_home.html)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/)",
+      "Bash(curl -s \"http://localhost:3000/_next/static/chunks/%5Broot-of-the-server%5D__1yh6lo7._.css\")"
     ]
   }
 }

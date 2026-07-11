@@ -175,7 +175,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       workspaceId: wsRef.id,
       workspaceType,
-      companyDashboardUrl: workspaceType === "company" ? `/projects?workspace=${wsRef.id}&view=company` : null,
+      companyDashboardUrl: workspaceType === "company" ? `/?workspace=${wsRef.id}&view=company` : null,
     })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Request failed"

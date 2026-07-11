@@ -5,37 +5,37 @@
 
 :root {
   --background: oklch(0.982 0 0);
-  --foreground: oklch(0.18 0 0);
-  --card: oklch(0.982 0 0);
-  --card-foreground: oklch(0.19 0 0);
-  --popover: oklch(1.0000 0 0);
-  --popover-foreground: oklch(0.267 0 0);
-  --primary: oklch(0.265 0.018 250);
-  --primary-rgb: 46 52 64;
-  --primary-foreground: oklch(0.982 0 0);
-  --secondary: oklch(0.925 0 0);
-  --secondary-foreground: oklch(0.433 0 0);
-  --muted: oklch(0.934 0 0);
-  --muted-foreground: oklch(0.46 0 0);
-  --accent: oklch(0.265 0.018 250);
-  --accent-foreground: oklch(0.982 0 0);
+  --foreground: oklch(0.22 0 0);
+  --card: oklch(0.995 0 0);
+  --card-foreground: oklch(0.22 0 0);
+  --popover: oklch(0.995 0 0);
+  --popover-foreground: oklch(0.22 0 0);
+  --primary: oklch(0.56 0.19 255);
+  --primary-rgb: 0 113 227;
+  --primary-foreground: oklch(0.99 0.004 247);
+  --secondary: oklch(0.94 0 0);
+  --secondary-foreground: oklch(0.34 0 0);
+  --muted: oklch(0.95 0 0);
+  --muted-foreground: oklch(0.49 0 0);
+  --accent: oklch(0.59 0.21 255);
+  --accent-foreground: oklch(0.99 0.004 247);
   --destructive: oklch(0.52 0.17 25);
   --destructive-foreground: oklch(1.0000 0 0);
-  --border: oklch(0.885 0 0);
-  --input: oklch(0.74 0 0);
-  --ring: oklch(0.38 0.022 250);
+  --border: oklch(0.88 0 0);
+  --input: oklch(0.78 0 0);
+  --ring: oklch(0.59 0.21 255);
   --chart-1: oklch(0.38 0.022 250);
   --chart-2: oklch(0.6898 0.1581 290.4107);
   --chart-3: oklch(0.8816 0.0276 93.1280);
   --chart-4: oklch(0.8822 0.0403 298.1792);
   --chart-5: oklch(0.48 0 0);
-  --sidebar: oklch(0.966 0 0);
-  --sidebar-foreground: oklch(0.359 0 0);
-  --sidebar-primary: oklch(0.265 0.018 250);
-  --sidebar-primary-foreground: oklch(0.982 0 0);
-  --sidebar-accent: oklch(0.925 0 0);
-  --sidebar-accent-foreground: oklch(0.3250 0 0);
-  --sidebar-border: oklch(0.9401 0 0);
+  --sidebar: oklch(0.965 0 0);
+  --sidebar-foreground: oklch(0.34 0 0);
+  --sidebar-primary: oklch(0.56 0.19 255);
+  --sidebar-primary-foreground: oklch(0.99 0.004 247);
+  --sidebar-accent: oklch(0.93 0 0);
+  --sidebar-accent-foreground: oklch(0.32 0 0);
+  --sidebar-border: oklch(0.89 0 0);
   --sidebar-ring: oklch(0.7731 0 0);
   --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
@@ -63,7 +63,6 @@
   --accent-soft-foreground: color-mix(in oklch, var(--primary) 72%, var(--foreground));
   --surface-raised: var(--card);
   --surface-inset: var(--muted);
-  --brand-glow: color-mix(in oklch, var(--primary) 22%, var(--background));
   --slate: var(--foreground);
   --slate-mid: var(--muted-foreground);
   --slate-soft: var(--muted);
@@ -81,42 +80,45 @@
   --success-foreground: var(--primary-foreground);
   --success-soft: color-mix(in oklch, var(--success) 12%, var(--card));
   --success-soft-foreground: color-mix(in oklch, var(--success) 68%, var(--foreground));
+  --glass-surface: color-mix(in oklch, var(--card) 70%, transparent);
+  --glass-highlight: color-mix(in oklch, var(--card) 82%, transparent);
+  --glass-shadow: color-mix(in oklch, var(--foreground) 20%, transparent);
 }
 
 .dark {
-  --background: oklch(0.268 0 0);
-  --foreground: oklch(0.92 0 0);
-  --card: oklch(0.268 0 0);
-  --card-foreground: oklch(0.982 0 0);
-  --popover: oklch(0.309 0 0);
-  --popover-foreground: oklch(0.921 0 0);
-  --primary: oklch(0.82 0 0);
-  --primary-rgb: 218 216 209;
-  --primary-foreground: oklch(0.18 0 0);
-  --secondary: oklch(0.982 0 0);
-  --secondary-foreground: oklch(0.309 0 0);
-  --muted: oklch(0.221 0 0);
-  --muted-foreground: oklch(0.82 0 0);
-  --accent: oklch(0.213 0 0);
-  --accent-foreground: oklch(0.966 0 0);
+  --background: oklch(0.19 0 0);
+  --foreground: oklch(0.94 0 0);
+  --card: oklch(0.23 0 0);
+  --card-foreground: oklch(0.94 0 0);
+  --popover: oklch(0.24 0 0);
+  --popover-foreground: oklch(0.94 0 0);
+  --primary: oklch(0.68 0.17 252);
+  --primary-rgb: 64 156 255;
+  --primary-foreground: oklch(0.16 0.035 255);
+  --secondary: oklch(0.28 0 0);
+  --secondary-foreground: oklch(0.9 0 0);
+  --muted: oklch(0.25 0 0);
+  --muted-foreground: oklch(0.76 0 0);
+  --accent: oklch(0.68 0.17 252);
+  --accent-foreground: oklch(0.16 0.035 255);
   --destructive: oklch(0.6368 0.2078 25.3313);
   --destructive-foreground: oklch(1.0000 0 0);
-  --border: oklch(0.362 0 0);
-  --input: oklch(0.434 0 0);
-  --ring: oklch(0.82 0 0);
+  --border: oklch(0.36 0 0);
+  --input: oklch(0.43 0 0);
+  --ring: oklch(0.68 0.17 252);
   --chart-1: oklch(0.62 0.01 250);
   --chart-2: oklch(0.6898 0.1581 290.4107);
   --chart-3: oklch(0.2130 0.0078 95.4245);
   --chart-4: oklch(0.3074 0.0516 289.3230);
   --chart-5: oklch(0.74 0 0);
-  --sidebar: oklch(0.236 0 0);
-  --sidebar-foreground: oklch(0.807 0 0);
-  --sidebar-primary: oklch(0.3250 0 0);
-  --sidebar-primary-foreground: oklch(0.9881 0 0);
-  --sidebar-accent: oklch(0.168 0 0);
-  --sidebar-accent-foreground: oklch(0.807 0 0);
-  --sidebar-border: oklch(0.9401 0 0);
-  --sidebar-ring: oklch(0.7731 0 0);
+  --sidebar: oklch(0.21 0 0);
+  --sidebar-foreground: oklch(0.86 0 0);
+  --sidebar-primary: oklch(0.68 0.17 252);
+  --sidebar-primary-foreground: oklch(0.16 0.035 255);
+  --sidebar-accent: oklch(0.27 0 0);
+  --sidebar-accent-foreground: oklch(0.9 0 0);
+  --sidebar-border: oklch(0.34 0 0);
+  --sidebar-ring: oklch(0.68 0.17 252);
   --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
@@ -142,7 +144,6 @@
   --accent-soft-foreground: color-mix(in oklch, var(--primary) 78%, var(--foreground));
   --surface-raised: var(--card);
   --surface-inset: var(--muted);
-  --brand-glow: color-mix(in oklch, var(--primary) 28%, var(--background));
   --slate: var(--foreground);
   --slate-mid: var(--muted-foreground);
   --slate-soft: var(--muted);
@@ -191,7 +192,6 @@
   --color-accent-soft-foreground:   var(--accent-soft-foreground);
   --color-surface-raised:           var(--surface-raised);
   --color-surface-inset:            var(--surface-inset);
-  --color-brand-glow:               var(--brand-glow);
   --color-slate:                    var(--slate);
   --color-slate-mid:                var(--slate-mid);
   --color-slate-soft:               var(--slate-soft);
@@ -519,10 +519,99 @@
   font-style: italic;
 }
 
-/* Hero: single soft spotlight tone positioned over the composer */
-.hero-glow {
-  background: radial-gradient(closest-side, color-mix(in oklch, var(--accent) 26%, transparent), transparent 70%);
-  filter: blur(36px);
+.liquid-composer {
+  isolation: isolate;
+  border-color: color-mix(in oklch, var(--border-strong) 55%, var(--border));
+  border-top-color: color-mix(in oklch, var(--card) 90%, var(--foreground));
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in oklch, var(--card) 54%, transparent),
+      color-mix(in oklch, var(--card) 42%, transparent) 48%,
+      color-mix(in oklch, var(--card) 34%, transparent)
+    );
+  box-shadow:
+    0 1px 0 color-mix(in oklch, var(--card) 92%, transparent) inset,
+    1px 0 0 color-mix(in oklch, var(--card) 42%, transparent) inset,
+    0 -1px 0 color-mix(in oklch, var(--foreground) 10%, transparent) inset,
+    0 30px 70px -38px color-mix(in oklch, var(--foreground) 22%, transparent),
+    0 16px 36px -30px var(--glass-shadow);
+  backdrop-filter: blur(24px) saturate(165%) contrast(108%);
+  -webkit-backdrop-filter: blur(24px) saturate(165%) contrast(108%);
+}
+
+.liquid-composer::before {
+  position: absolute;
+  top: -70%;
+  left: -18%;
+  z-index: 0;
+  width: 42%;
+  aspect-ratio: 1;
+  border-radius: 9999px;
+  content: "";
+  background: color-mix(in oklch, var(--glass-highlight) 72%, transparent);
+  filter: blur(18px);
+  opacity: 0.58;
+  pointer-events: none;
+}
+
+.liquid-composer > * {
+  position: relative;
+  z-index: 1;
+}
+
+.liquid-composer::after {
+  position: absolute;
+  inset: 0 10% auto;
+  z-index: 2;
+  height: 1px;
+  content: "";
+  background: linear-gradient(90deg, transparent, var(--glass-highlight), transparent);
+  opacity: 0.95;
+  pointer-events: none;
+}
+
+.nav-glass {
+  box-shadow: 0 12px 42px -22px var(--glass-shadow), 0 1px 0 var(--glass-highlight) inset;
+}
+
+.workspace-root {
+  background: var(--background);
+}
+
+.workspace-sidebar {
+  background: color-mix(in oklch, var(--card) 38%, transparent);
+  box-shadow:
+    0 1px 0 color-mix(in oklch, var(--card) 92%, transparent) inset,
+    0 24px 60px -34px var(--glass-shadow);
+  backdrop-filter: blur(28px) saturate(125%);
+  -webkit-backdrop-filter: blur(28px) saturate(125%);
+}
+
+.workspace-sidebar::before {
+  position: absolute;
+  inset: 0 12% auto;
+  height: 1px;
+  content: "";
+  background: linear-gradient(90deg, transparent, var(--glass-highlight), transparent);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .workspace-sidebar {
+    background: var(--card);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .liquid-composer::before { animation: glass-specular 12s ease-in-out infinite alternate; }
+}
+
+@keyframes glass-specular {
+  50% { transform: translate3d(120%, 38%, 0) scale(1.18); }
+  100% { transform: translate3d(250%, 8%, 0) scale(0.92); }
 }
 
 /* Composer chrome: quiet bevel at rest, accent-tinted glow on focus */
@@ -544,6 +633,33 @@
     0 1px 0 0 color-mix(in oklch, var(--foreground) 5%, transparent) inset,
     0 0 0 1px color-mix(in oklch, var(--accent) 38%, transparent),
     0 30px 80px -40px color-mix(in oklch, var(--accent) 42%, transparent);
+}
+
+.liquid-composer:hover {
+  border-color: color-mix(in oklch, var(--border-strong) 75%, var(--border));
+  box-shadow:
+    0 1px 0 color-mix(in oklch, var(--card) 94%, transparent) inset,
+    1px 0 0 color-mix(in oklch, var(--card) 46%, transparent) inset,
+    0 -1px 0 color-mix(in oklch, var(--foreground) 12%, transparent) inset,
+    0 34px 78px -38px color-mix(in oklch, var(--foreground) 26%, transparent),
+    0 18px 40px -30px var(--glass-shadow);
+}
+
+.liquid-composer:focus-within {
+  border-color: color-mix(in oklch, var(--accent) 72%, var(--border));
+  box-shadow:
+    0 1px 0 color-mix(in oklch, var(--card) 96%, transparent) inset,
+    0 0 0 3px color-mix(in oklch, var(--accent) 18%, transparent),
+    0 30px 76px -36px color-mix(in oklch, var(--accent) 48%, transparent),
+    0 18px 40px -30px var(--glass-shadow);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .liquid-composer {
+    background: var(--card);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }
 
 /* Hide scrollbar for Chrome, Safari and Opera */

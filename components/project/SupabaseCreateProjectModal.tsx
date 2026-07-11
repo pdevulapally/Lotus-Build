@@ -52,7 +52,7 @@ export function SupabaseCreateProjectModal({ open, loading, error, regions = [],
 
   return (
     <Dialog open={open} onOpenChange={(next) => (!next ? handleClose() : null)}>
-      <DialogContent className="border-zinc-200 bg-white text-foreground sm:max-w-md">
+      <DialogContent className="border-border bg-card text-foreground sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center justify-center">
             <div className="rounded-full bg-green-50 p-3">
@@ -73,7 +73,7 @@ export function SupabaseCreateProjectModal({ open, loading, error, regions = [],
           ) : null}
 
           <div className="space-y-1.5">
-            <Label htmlFor="project-name" className="text-xs font-medium text-zinc-700">
+            <Label htmlFor="project-name" className="text-xs font-medium text-foreground">
               Project Name
             </Label>
             <Input
@@ -83,13 +83,13 @@ export function SupabaseCreateProjectModal({ open, loading, error, regions = [],
               value={projectName}
               onChange={(e) => setProjectName(e.target.value)}
               disabled={isCreating}
-              className="border-zinc-200 text-sm"
+              className="border-input text-sm"
             />
           </div>
 
           <div className="rounded-2xl border border-border bg-card px-4 py-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">What happens next</p>
-            <ol className="mt-3 space-y-2 text-sm leading-6 text-zinc-700">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">What happens next</p>
+            <ol className="mt-3 space-y-2 text-sm leading-6 text-foreground">
               <li>1. We create the Supabase project in your account.</li>
               <li>2. We link it to this website.</li>
               <li>3. If the app needs backend setup, we continue automatically.</li>
@@ -97,11 +97,11 @@ export function SupabaseCreateProjectModal({ open, loading, error, regions = [],
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="region" className="text-xs font-medium text-zinc-700">
+            <Label htmlFor="region" className="text-xs font-medium text-foreground">
               Region
             </Label>
             <Select value={region} onValueChange={setRegion} disabled={isCreating}>
-              <SelectTrigger id="region" className="border-zinc-200 text-sm">
+              <SelectTrigger id="region" className="border-input text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -115,7 +115,7 @@ export function SupabaseCreateProjectModal({ open, loading, error, regions = [],
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="db-password" className="text-xs font-medium text-zinc-700">
+            <Label htmlFor="db-password" className="text-xs font-medium text-foreground">
               Database Password
             </Label>
             <Input
@@ -125,9 +125,9 @@ export function SupabaseCreateProjectModal({ open, loading, error, regions = [],
               value={dbPassword}
               onChange={(e) => setDbPassword(e.target.value)}
               disabled={isCreating}
-              className="border-zinc-200 text-sm"
+              className="border-input text-sm"
             />
-            <p className="text-[11px] text-zinc-500">
+            <p className="text-[11px] text-muted-foreground">
               This will be used to access your database. Store it securely.
             </p>
           </div>
@@ -137,7 +137,7 @@ export function SupabaseCreateProjectModal({ open, loading, error, regions = [],
               type="button"
               variant="outline"
               onClick={handleClose}
-              className="flex-1 border-zinc-300"
+              className="flex-1 border-border-strong"
               disabled={isCreating}
             >
               Cancel

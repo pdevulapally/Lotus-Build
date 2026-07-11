@@ -100,7 +100,7 @@ export function Terminal({
     <Ctx.Provider value={{ output, isStreaming, onClear, autoScroll, scrollRef }}>
       <div
         className={cn(
-          "flex flex-col overflow-hidden rounded-xl border border-zinc-700/60 bg-[#0d0d0d] font-mono",
+          "flex flex-col overflow-hidden rounded-xl border border-border bg-[#0d0d0d] font-mono",
           className
         )}
       >
@@ -120,7 +120,7 @@ export function TerminalHeader({
   return (
     <div
       className={cn(
-        "flex items-center justify-between gap-2 border-b border-zinc-700/60 bg-zinc-900/80 px-3 py-2",
+        "flex items-center justify-between gap-2 border-b border-border bg-card/80 px-3 py-2",
         className
       )}
     >
@@ -137,7 +137,7 @@ export function TerminalTitle({
   className?: string
 }) {
   return (
-    <span className={cn("text-[10px] font-bold uppercase tracking-wider text-zinc-400", className)}>
+    <span className={cn("text-[10px] font-bold uppercase tracking-wider text-muted-foreground", className)}>
       {children}
     </span>
   )
@@ -153,7 +153,7 @@ export function TerminalStatus({ className }: { className?: string }) {
           <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
         </>
       ) : (
-        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-zinc-600" />
+        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-muted-foreground" />
       )}
     </span>
   )
@@ -188,7 +188,7 @@ export function TerminalCopyButton({
       type="button"
       onClick={handleCopy}
       className={cn(
-        "inline-flex h-5 w-5 items-center justify-center rounded text-zinc-600 transition-colors hover:bg-zinc-800 hover:text-zinc-300",
+        "inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
         className
       )}
       aria-label="Copy output"
@@ -206,7 +206,7 @@ export function TerminalClearButton({ className }: { className?: string }) {
       type="button"
       onClick={onClear}
       className={cn(
-        "inline-flex h-5 w-5 items-center justify-center rounded text-zinc-600 transition-colors hover:bg-zinc-800 hover:text-zinc-300",
+        "inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
         className
       )}
       aria-label="Clear terminal"
@@ -228,18 +228,18 @@ export function TerminalContent({ className }: { className?: string }) {
   return (
     <div
       ref={scrollRef}
-      className={cn("flex-1 overflow-auto p-3 text-[11px] leading-relaxed text-zinc-400", className)}
+      className={cn("flex-1 overflow-auto p-3 text-[11px] leading-relaxed text-muted-foreground", className)}
       style={{ scrollbarWidth: "thin", scrollbarColor: "#3f3f46 transparent" }}
     >
       {output ? (
         <>
           {renderAnsi(output)}
           {isStreaming && (
-            <span className="ml-0.5 inline-block h-[11px] w-1.5 animate-pulse bg-zinc-400 align-text-bottom" />
+            <span className="ml-0.5 inline-block h-[11px] w-1.5 animate-pulse bg-muted-foreground align-text-bottom" />
           )}
         </>
       ) : (
-        <span className="text-[11px] text-zinc-600">Waiting for output...</span>
+        <span className="text-[11px] text-muted-foreground">Waiting for output...</span>
       )}
     </div>
   )

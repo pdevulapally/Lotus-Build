@@ -6,7 +6,7 @@ export const runtime = "nodejs"
 
 function getSafeReturnPath(value: string | null): string {
   if (!value || !value.startsWith("/") || value.startsWith("//")) return ""
-  if (!value.startsWith("/computer/") && !value.startsWith("/project/") && value !== "/projects") return ""
+  if (!value.startsWith("/computer/") && !value.startsWith("/project/") && value !== "/") return ""
   return value
 }
 

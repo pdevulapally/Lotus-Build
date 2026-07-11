@@ -165,21 +165,21 @@ export function VisualEditDesignPanel({
   return (
     <div
       className={cn(
-        "flex h-full flex-col overflow-hidden border-l border-zinc-200 bg-background text-foreground",
+        "flex h-full flex-col overflow-hidden border-l border-border bg-background text-foreground",
         className
       )}
     >
-      <div className="shrink-0 border-b border-zinc-200 bg-white px-4 py-3">
+      <div className="shrink-0 border-b border-border bg-card px-4 py-3">
         <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 min-w-0">
-            <Type className="h-4 w-4 shrink-0 text-zinc-500" />
+            <Type className="h-4 w-4 shrink-0 text-muted-foreground" />
             <span className="truncate text-sm font-medium text-foreground">{description || "Element"}</span>
         </div>
         <Button
           type="button"
           variant="ghost"
           size="icon"
-            className="h-7 w-7 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800"
+            className="h-7 w-7 text-muted-foreground hover:bg-muted hover:text-foreground"
           onClick={onClose}
           aria-label="Close panel"
         >
@@ -190,8 +190,8 @@ export function VisualEditDesignPanel({
 
       <div className="flex-1 space-y-5 overflow-y-auto p-4">
         {/* Content */}
-        <section className="rounded-2xl border border-zinc-200 bg-white p-3.5">
-          <h3 className="mb-2 text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+        <section className="rounded-2xl border border-border bg-card p-3.5">
+          <h3 className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Content
           </h3>
           <Textarea
@@ -199,22 +199,22 @@ export function VisualEditDesignPanel({
             onChange={handleContentChange}
             onBlur={handleContentBlur}
             placeholder="Edit text..."
-            className="min-h-[90px] resize-none border-zinc-200 bg-muted text-sm text-foreground focus-visible:ring-zinc-300"
+            className="min-h-[90px] resize-none border-border bg-muted text-sm text-foreground focus-visible:ring-border-strong"
           />
         </section>
 
         {/* Typography */}
-        <section className="rounded-2xl border border-zinc-200 bg-white p-3.5">
-          <h3 className="mb-2 text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+        <section className="rounded-2xl border border-border bg-card p-3.5">
+          <h3 className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Typography
           </h3>
           <div className="space-y-2">
             <div>
-              <label className="mb-0.5 block text-[10px] text-zinc-500">Font</label>
+              <label className="mb-0.5 block text-[10px] text-muted-foreground">Font</label>
               <select
                 value={fontFamily || "Default"}
                 onChange={(e) => updateStyle("fontFamily", e.target.value === "Default" ? "" : e.target.value)}
-                className="h-9 w-full rounded-lg border border-zinc-200 bg-muted px-2 text-xs text-zinc-800"
+                className="h-9 w-full rounded-lg border border-border bg-muted px-2 text-xs text-foreground"
               >
                 {fontFamily && !FONT_FAMILIES.includes(fontFamily) && (
                   <option value={fontFamily}>{fontFamily.split(",")[0]?.trim() || fontFamily}</option>
@@ -226,11 +226,11 @@ export function VisualEditDesignPanel({
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="mb-0.5 block text-[10px] text-zinc-500">Weight</label>
+                <label className="mb-0.5 block text-[10px] text-muted-foreground">Weight</label>
                 <select
                   value={fontWeight || "Default"}
                   onChange={(e) => updateStyle("fontWeight", e.target.value === "Default" ? "" : e.target.value)}
-                  className="h-9 w-full rounded-lg border border-zinc-200 bg-muted px-2 text-xs text-zinc-800"
+                  className="h-9 w-full rounded-lg border border-border bg-muted px-2 text-xs text-foreground"
                 >
                   {fontWeight && !FONT_WEIGHTS.includes(fontWeight) && (
                     <option value={fontWeight}>{fontWeight}</option>
@@ -241,25 +241,25 @@ export function VisualEditDesignPanel({
                 </select>
               </div>
               <div>
-                <label className="mb-0.5 block text-[10px] text-zinc-500">Size</label>
+                <label className="mb-0.5 block text-[10px] text-muted-foreground">Size</label>
                 <div className="relative">
                   <Input
                     value={fontSize}
                     onChange={(e) => updateStyle("fontSize", e.target.value)}
                     onFocus={() => setShowFontSizeOptions(true)}
                     placeholder="Choose or type a size"
-                    className="h-9 border-zinc-200 bg-muted pr-8 text-xs"
+                    className="h-9 border-border bg-muted pr-8 text-xs"
                   />
                   <button
                     type="button"
                     onClick={() => setShowFontSizeOptions((prev) => !prev)}
-                    className="absolute inset-y-0 right-0 inline-flex w-8 items-center justify-center text-zinc-500"
+                    className="absolute inset-y-0 right-0 inline-flex w-8 items-center justify-center text-muted-foreground"
                     aria-label="Open font size options"
                   >
                     <ChevronDown className="h-3.5 w-3.5" />
                   </button>
                   {showFontSizeOptions ? (
-                    <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-44 overflow-y-auto rounded-lg border border-zinc-200 bg-white py-1 shadow-lg">
+                    <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-44 overflow-y-auto rounded-lg border border-border bg-card py-1 shadow-lg">
                       {FONT_SIZE_SUGGESTIONS.map((size) => (
                         <button
                           key={size}
@@ -269,7 +269,7 @@ export function VisualEditDesignPanel({
                             updateStyle("fontSize", size)
                             setShowFontSizeOptions(false)
                           }}
-                          className="flex w-full items-center px-3 py-1.5 text-left text-xs text-zinc-700 hover:bg-zinc-100"
+                          className="flex w-full items-center px-3 py-1.5 text-left text-xs text-foreground hover:bg-muted"
                         >
                           {size}
                         </button>
@@ -281,26 +281,26 @@ export function VisualEditDesignPanel({
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="mb-0.5 block text-[10px] text-zinc-500">Line height</label>
+                <label className="mb-0.5 block text-[10px] text-muted-foreground">Line height</label>
                 <Input
                   value={lineHeight}
                   onChange={(e) => updateStyle("lineHeight", e.target.value)}
                   placeholder="e.g. 1.5"
-                  className="h-9 border-zinc-200 bg-muted text-xs"
+                  className="h-9 border-border bg-muted text-xs"
                 />
               </div>
               <div>
-                <label className="mb-0.5 block text-[10px] text-zinc-500">Letter spacing</label>
+                <label className="mb-0.5 block text-[10px] text-muted-foreground">Letter spacing</label>
                 <Input
                   value={letterSpacing}
                   onChange={(e) => updateStyle("letterSpacing", e.target.value)}
                   placeholder="e.g. 0.05em"
-                  className="h-9 border-zinc-200 bg-muted text-xs"
+                  className="h-9 border-border bg-muted text-xs"
                 />
               </div>
             </div>
             <div>
-              <label className="mb-1 block text-[10px] text-zinc-500">Alignment</label>
+              <label className="mb-1 block text-[10px] text-muted-foreground">Alignment</label>
               <div className="flex gap-0.5">
                 {ALIGNMENTS.map(({ value, icon: Icon }) => (
                   <button
@@ -310,8 +310,8 @@ export function VisualEditDesignPanel({
                     className={cn(
                       "h-8 w-8 flex items-center justify-center rounded border transition-colors",
                       textAlign === value
-                        ? "border-zinc-900 bg-accent text-accent-foreground"
-                        : "border-zinc-200 bg-muted text-zinc-500 hover:bg-zinc-100"
+                        ? "border-foreground bg-accent text-accent-foreground"
+                        : "border-border bg-muted text-muted-foreground hover:bg-muted"
                     )}
                     title={value}
                   >
@@ -326,7 +326,7 @@ export function VisualEditDesignPanel({
                 onClick={() => updateStyle("fontStyle", fontStyle === "italic" ? "" : "italic")}
                 className={cn(
                   "h-8 px-2 text-xs font-medium rounded border",
-                  fontStyle === "italic" ? "border-zinc-900 bg-accent text-accent-foreground" : "border-zinc-200 bg-muted text-zinc-700"
+                  fontStyle === "italic" ? "border-foreground bg-accent text-accent-foreground" : "border-border bg-muted text-foreground"
                 )}
               >
                 I
@@ -336,7 +336,7 @@ export function VisualEditDesignPanel({
                 onClick={() => updateStyle("textDecoration", textDecoration.includes("underline") ? "" : "underline")}
                 className={cn(
                   "h-8 px-2 text-xs font-medium rounded border",
-                  textDecoration.includes("underline") ? "border-zinc-900 bg-accent text-accent-foreground" : "border-zinc-200 bg-muted text-zinc-700"
+                  textDecoration.includes("underline") ? "border-foreground bg-accent text-accent-foreground" : "border-border bg-muted text-foreground"
                 )}
               >
                 U
@@ -346,18 +346,18 @@ export function VisualEditDesignPanel({
                 onClick={() => updateStyle("textDecoration", textDecoration.includes("line-through") ? "" : "line-through")}
                 className={cn(
                   "h-8 px-2 text-xs font-medium rounded border",
-                  textDecoration.includes("line-through") ? "border-zinc-900 bg-accent text-accent-foreground" : "border-zinc-200 bg-muted text-zinc-700"
+                  textDecoration.includes("line-through") ? "border-foreground bg-accent text-accent-foreground" : "border-border bg-muted text-foreground"
                 )}
               >
                 S
               </button>
             </div>
             <div>
-              <label className="mb-0.5 block text-[10px] text-zinc-500">Text transform</label>
+              <label className="mb-0.5 block text-[10px] text-muted-foreground">Text transform</label>
               <select
                 value={textTransform}
                 onChange={(e) => updateStyle("textTransform", e.target.value)}
-                className="h-9 w-full rounded-lg border border-zinc-200 bg-muted px-2 text-xs text-zinc-800"
+                className="h-9 w-full rounded-lg border border-border bg-muted px-2 text-xs text-foreground"
               >
                 {TEXT_TRANSFORMS.map((t) => (
                   <option key={t} value={t}>{t}</option>
@@ -368,8 +368,8 @@ export function VisualEditDesignPanel({
         </section>
 
         {/* Color */}
-        <section className="rounded-2xl border border-zinc-200 bg-white p-3.5">
-          <h3 className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+        <section className="rounded-2xl border border-border bg-card p-3.5">
+          <h3 className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             <Palette className="w-3.5 h-3.5" />
             Color
           </h3>
@@ -378,20 +378,20 @@ export function VisualEditDesignPanel({
               type="color"
               value={colorHex}
               onChange={(e) => updateStyle("color", e.target.value)}
-              className="h-8 w-8 cursor-pointer rounded border border-zinc-200 bg-white"
+              className="h-8 w-8 cursor-pointer rounded border border-border bg-card"
             />
             <Input
               value={color}
               onChange={(e) => updateStyle("color", e.target.value)}
               placeholder="e.g. #c92a2a or rgb(201,42,42)"
-              className="h-9 flex-1 border-zinc-200 bg-muted font-mono text-xs"
+              className="h-9 flex-1 border-border bg-muted font-mono text-xs"
             />
           </div>
         </section>
 
         {/* Background */}
-        <section className="rounded-2xl border border-zinc-200 bg-white p-3.5">
-          <h3 className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+        <section className="rounded-2xl border border-border bg-card p-3.5">
+          <h3 className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Background
           </h3>
           <div className="flex items-center gap-2">
@@ -399,102 +399,102 @@ export function VisualEditDesignPanel({
               type="color"
               value={bgHex}
               onChange={(e) => updateStyle("backgroundColor", e.target.value)}
-              className="h-8 w-8 cursor-pointer rounded border border-zinc-200 bg-white"
+              className="h-8 w-8 cursor-pointer rounded border border-border bg-card"
             />
             <Input
               value={backgroundColor}
               onChange={(e) => updateStyle("backgroundColor", e.target.value)}
               placeholder="transparent or #..."
-              className="h-9 flex-1 border-zinc-200 bg-muted font-mono text-xs"
+              className="h-9 flex-1 border-border bg-muted font-mono text-xs"
             />
           </div>
         </section>
 
         {/* Opacity */}
-        <section className="rounded-2xl border border-zinc-200 bg-white p-3.5">
-          <h3 className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+        <section className="rounded-2xl border border-border bg-card p-3.5">
+          <h3 className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Opacity
           </h3>
           <Input
             value={opacity}
             onChange={(e) => updateStyle("opacity", e.target.value)}
             placeholder="e.g. 1 or 0.8"
-            className="h-9 border-zinc-200 bg-muted text-xs"
+            className="h-9 border-border bg-muted text-xs"
           />
         </section>
 
         {/* Border */}
-        <section className="rounded-2xl border border-zinc-200 bg-white p-3.5">
-          <h3 className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+        <section className="rounded-2xl border border-border bg-card p-3.5">
+          <h3 className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Border
           </h3>
           <div className="space-y-2">
             <div>
-              <label className="mb-0.5 block text-[10px] text-zinc-500">Width</label>
+              <label className="mb-0.5 block text-[10px] text-muted-foreground">Width</label>
               <Input
                 value={borderWidth}
                 onChange={(e) => updateStyle("borderWidth", e.target.value)}
                 placeholder="e.g. 1px"
-                className="h-9 border-zinc-200 bg-muted text-xs"
+                className="h-9 border-border bg-muted text-xs"
               />
             </div>
             <div>
-              <label className="mb-0.5 block text-[10px] text-zinc-500">Color</label>
+              <label className="mb-0.5 block text-[10px] text-muted-foreground">Color</label>
               <Input
                 value={borderColor}
                 onChange={(e) => updateStyle("borderColor", e.target.value)}
                 placeholder="e.g. #ccc"
-                className="h-9 border-zinc-200 bg-muted font-mono text-xs"
+                className="h-9 border-border bg-muted font-mono text-xs"
               />
             </div>
             <div>
-              <label className="mb-0.5 block text-[10px] text-zinc-500">Radius</label>
+              <label className="mb-0.5 block text-[10px] text-muted-foreground">Radius</label>
               <Input
                 value={borderRadius}
                 onChange={(e) => updateStyle("borderRadius", e.target.value)}
                 placeholder="e.g. 0.5rem"
-                className="h-9 border-zinc-200 bg-muted text-xs"
+                className="h-9 border-border bg-muted text-xs"
               />
             </div>
           </div>
         </section>
 
         {/* Box shadow */}
-        <section className="rounded-2xl border border-zinc-200 bg-white p-3.5">
-          <h3 className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+        <section className="rounded-2xl border border-border bg-card p-3.5">
+          <h3 className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Box shadow
           </h3>
           <Input
             value={boxShadow}
             onChange={(e) => updateStyle("boxShadow", e.target.value)}
             placeholder="e.g. 0 1px 3px rgba(0,0,0,0.2)"
-            className="h-9 border-zinc-200 bg-muted font-mono text-xs"
+            className="h-9 border-border bg-muted font-mono text-xs"
           />
         </section>
 
         {/* Layout */}
-        <section className="rounded-2xl border border-zinc-200 bg-white p-3.5">
-          <h3 className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+        <section className="rounded-2xl border border-border bg-card p-3.5">
+          <h3 className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             <Layout className="w-3.5 h-3.5" />
             Layout
           </h3>
           <div className="space-y-2">
             <div>
-              <label className="mb-0.5 block text-[10px] text-zinc-500">Padding</label>
+              <label className="mb-0.5 block text-[10px] text-muted-foreground">Padding</label>
               <Input
                 value={padding}
                 onChange={(e) => updateStyle("padding", e.target.value)}
                 placeholder="e.g. 1rem 0.5rem"
-                className="h-9 border-zinc-200 bg-muted text-xs"
+                className="h-9 border-border bg-muted text-xs"
               />
             </div>
             <div>
-              <label className="mb-0.5 block text-[10px] text-zinc-500">Margin</label>
+              <label className="mb-0.5 block text-[10px] text-muted-foreground">Margin</label>
               <Input
                 value={margin}
                 onChange={(e) => updateStyle("margin", e.target.value)}
                 placeholder="e.g. 0 1rem"
-                className="h-9 border-zinc-200 bg-muted text-xs"
+                className="h-9 border-border bg-muted text-xs"
               />
             </div>
           </div>

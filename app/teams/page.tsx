@@ -54,7 +54,7 @@ export default function TeamsPage() {
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
                 <Link
-                  href="/projects"
+                  href="/"
                   className="inline-flex min-h-11 items-center rounded-full bg-foreground px-5 text-sm font-semibold text-background transition hover:bg-foreground/85"
                 >
                   Open workspace
@@ -124,7 +124,7 @@ export default function TeamsPage() {
             </h2>
           </div>
           <Link
-            href="/projects"
+            href="/"
             className="inline-flex min-h-11 items-center justify-center rounded-full bg-foreground px-5 text-sm font-semibold text-background transition hover:bg-foreground/85"
           >
             Start building

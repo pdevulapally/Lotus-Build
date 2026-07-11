@@ -122,7 +122,7 @@ export function BrowserNavigator({
   return (
     <div
       className={cn(
-        "border-b border-zinc-800/80 bg-gradient-to-b from-zinc-950 to-zinc-900 text-xs text-zinc-300",
+        "border-b border-border bg-gradient-to-b from-secondary to-secondary text-xs text-secondary-foreground",
         className
       )}
     >
@@ -134,7 +134,7 @@ export function BrowserNavigator({
             variant="ghost"
             className={cn(
               "h-8 w-8 p-0 rounded-md transition-all duration-200",
-              historyIndex > 0 ? "text-zinc-300 hover:bg-accent/90/60" : "text-zinc-600 cursor-not-allowed opacity-50"
+              historyIndex > 0 ? "text-secondary-foreground hover:bg-accent/90/60" : "text-muted-foreground cursor-not-allowed opacity-50"
             )}
             onClick={handleBack}
             disabled={historyIndex === 0}
@@ -149,8 +149,8 @@ export function BrowserNavigator({
             className={cn(
               "h-8 w-8 p-0 rounded-md transition-all duration-200",
               historyIndex < navigationHistory.length - 1
-                ? "text-zinc-300 hover:bg-accent/90/60"
-                : "text-zinc-600 cursor-not-allowed opacity-50"
+                ? "text-secondary-foreground hover:bg-accent/90/60"
+                : "text-muted-foreground cursor-not-allowed opacity-50"
             )}
             onClick={handleForward}
             disabled={historyIndex === navigationHistory.length - 1}
@@ -164,7 +164,7 @@ export function BrowserNavigator({
             variant="ghost"
             className={cn(
               "h-8 w-8 p-0 rounded-md transition-all duration-200",
-              isLoading ? "text-primary animate-spin" : "text-zinc-300 hover:bg-accent/90/60"
+              isLoading ? "text-primary animate-spin" : "text-secondary-foreground hover:bg-accent/90/60"
             )}
             onClick={onRefresh}
             disabled={isLoading}
@@ -178,13 +178,13 @@ export function BrowserNavigator({
           <div
             className={cn(
               "flex-1 flex items-center gap-2 px-3 h-8 rounded-lg",
-              "bg-zinc-800/50 border border-zinc-700/50",
-              "hover:bg-accent/90 hover:border-zinc-600/70 transition-all",
-              isEditing && "bg-zinc-800 border-primary/50 ring-1 ring-primary/20"
+              "bg-muted/50 border border-input/50",
+              "hover:bg-accent/90 hover:border-input/70 transition-all",
+              isEditing && "bg-card border-primary/50 ring-1 ring-primary/20"
             )}
             onClick={() => setIsEditing(true)}
           >
-            <div className="flex items-center gap-1 text-zinc-500 shrink-0">
+            <div className="flex items-center gap-1 text-muted-foreground shrink-0">
               <div className="w-2 h-2 rounded-full bg-primary/50" />
               <span className="text-[10px] font-semibold">site</span>
             </div>
@@ -205,23 +205,23 @@ export function BrowserNavigator({
                   }
                 }}
                 autoFocus
-                className="flex-1 min-w-0 bg-transparent outline-none text-zinc-200 text-xs placeholder:text-zinc-500"
+                className="flex-1 min-w-0 bg-transparent outline-none text-foreground text-xs placeholder:text-muted-foreground"
                 placeholder="Enter path..."
               />
             ) : (
               <div className="flex-1 min-w-0 flex items-center gap-1.5">
-                <span className="text-zinc-400 text-[11px]">/</span>
+                <span className="text-muted-foreground text-[11px]">/</span>
                 <div className="flex items-center gap-1 flex-1 min-w-0 overflow-x-auto scrollbar-hidden">
                   {pathParts.length > 0 ? (
                     pathParts.map((part, idx) => (
                       <React.Fragment key={idx}>
-                        {idx > 0 && <span className="text-zinc-600 shrink-0">/</span>}
+                        {idx > 0 && <span className="text-muted-foreground shrink-0">/</span>}
                         <span
                           className={cn(
                             "text-xs px-1.5 py-0.5 rounded transition-all cursor-pointer shrink-0",
                             idx === pathParts.length - 1
                               ? "bg-primary/15 text-primary font-medium"
-                              : "text-zinc-300 hover:bg-accent/90/50"
+                              : "text-muted-foreground hover:bg-accent/90/50"
                           )}
                           onClick={() => {
                             const newPath = "/" + pathParts.slice(0, idx + 1).join("/")
@@ -233,7 +233,7 @@ export function BrowserNavigator({
                       </React.Fragment>
                     ))
                   ) : (
-                    <span className="text-zinc-500 text-xs">home</span>
+                    <span className="text-muted-foreground text-xs">home</span>
                   )}
                 </div>
               </div>
@@ -253,7 +253,7 @@ export function BrowserNavigator({
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="flex items-center gap-1.5 px-2 py-1.5 rounded-md hover:bg-accent/90/60 transition-all text-zinc-400 hover:text-zinc-200"
+                className="flex items-center gap-1.5 px-2 py-1.5 rounded-md hover:bg-accent/90/60 transition-all text-muted-foreground hover:text-foreground"
                 title="Select device preview"
               >
                 <CurrentDeviceIcon className="w-3.5 h-3.5" />
@@ -262,7 +262,7 @@ export function BrowserNavigator({
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="end"
-              className="bg-zinc-900 border-zinc-800 text-zinc-100 min-w-[120px]"
+              className="bg-popover border-border text-popover-foreground min-w-[120px]"
               sideOffset={4}
             >
               {(Object.keys(deviceConfigs) as DeviceType[]).map((device) => {
@@ -275,14 +275,14 @@ export function BrowserNavigator({
                     key={device}
                     className={cn(
                       "flex items-center gap-2 px-2 py-1.5 text-xs cursor-pointer",
-                      isActive ? "bg-primary/20 text-primary" : "text-zinc-300 hover:bg-accent/90 hover:text-zinc-100"
+                      isActive ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-accent/90 hover:text-popover-foreground"
                     )}
                     onClick={() => onDeviceChange?.(device)}
                   >
                     <Icon className="w-3.5 h-3.5" />
                     <div className="flex-1">
                       <div>{config.label}</div>
-                      <div className="text-[10px] text-zinc-500">
+                      <div className="text-[10px] text-muted-foreground">
                         {config.width} x {config.height}
                       </div>
                     </div>
@@ -294,7 +294,7 @@ export function BrowserNavigator({
 
           <button
             type="button"
-            className="p-1.5 rounded-md hover:bg-accent/90/60 transition-all text-zinc-400 hover:text-zinc-200"
+            className="p-1.5 rounded-md hover:bg-accent/90/60 transition-all text-muted-foreground hover:text-foreground"
             onClick={() => handleNavigate("/")}
             title="Home"
           >

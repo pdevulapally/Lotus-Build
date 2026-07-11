@@ -74,10 +74,10 @@ export function ResponsivePreview({
   return (
     <div 
       ref={containerRef}
-      className={cn("flex-1 flex items-start justify-center p-6 pt-8 overflow-auto bg-zinc-950/50", className)}
+      className={cn("flex-1 flex items-start justify-center p-6 pt-8 overflow-auto bg-muted/50", className)}
     >
       <div
-        className="bg-white rounded-lg shadow-xl border border-zinc-800 overflow-hidden transition-all duration-300"
+        className="bg-card rounded-lg shadow-xl border border-border-strong overflow-hidden transition-all duration-300"
         style={{
           width: Math.min(currentConfig.width, currentConfig.maxWidth || currentConfig.width),
           height: currentConfig.height,

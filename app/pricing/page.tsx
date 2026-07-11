@@ -126,7 +126,7 @@ export default function PricingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           idToken, priceId, quantity,
-          successUrl: `${baseUrl}/projects?checkout=success`,
+          successUrl: `${baseUrl}/?checkout=success`,
           cancelUrl:  `${baseUrl}/pricing?checkout=cancelled`,
         }),
       })
@@ -401,7 +401,7 @@ export default function PricingPage() {
                   {/* CTA */}
                   <div className="px-6 pb-6 pt-1">
                     {isFree ? (
-                      <Link href="/projects" className="block w-full">
+                      <Link href="/" className="block w-full">
                         <Button variant="outline" className="h-11 w-full rounded-full border-border bg-transparent text-[13px] font-medium hover:bg-muted">
                           Start free
                         </Button>

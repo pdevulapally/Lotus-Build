@@ -42,7 +42,7 @@ export function CreationStudioActions(props: {
             variant="outline"
             onClick={onRefine}
             disabled={disabled}
-            className="w-full rounded-lg border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+            className="w-full rounded-lg border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted"
           >
             Refine plan
           </Button>
@@ -58,7 +58,7 @@ export function CreationStudioActions(props: {
         </Button>
       ) : null}
 
-      <p className="text-xs leading-5 text-zinc-500">
+      <p className="text-xs leading-5 text-muted-foreground">
         {stage === "plan"
           ? "Make any last changes, then build from the approved plan."
           : planReady
@@ -72,7 +72,7 @@ export function CreationStudioActions(props: {
         type="button"
         onClick={onSkip}
         disabled={disabled}
-        className="text-xs text-zinc-400 underline underline-offset-4 hover:text-zinc-700 disabled:opacity-50"
+        className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground disabled:opacity-50"
       >
         Skip and build now
       </button>

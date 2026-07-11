@@ -211,8 +211,14 @@ export type TokenBalance = {
  * Verifies the user has tokens available, resetting the monthly period first
  * when it has lapsed. Throws InsufficientTokensError (map to HTTP 402) or
  * MeteringUserNotFoundError (map to 404).
+ *
+ * `allowExhausted` opts out of the InsufficientTokensError throw so a caller
+ * can run a degraded (e.g. cheaper-model, queued) path instead of a hard
+ * block once a plan's balance hits zero — recordUsageAndDebit still caps the
+ * real charge at the live remaining balance either way, so this never lets
+ * usage go negative.
  */
-export async function assertTokenBalance(uid: string): Promise<TokenBalance> {
+export async function assertTokenBalance(uid: string, opts?: { allowExhausted?: boolean }): Promise<TokenBalance> {
   const userRef = adminDb.collection("users").doc(uid)
   const userSnap = await userRef.get()
   if (!userSnap.exists) throw new MeteringUserNotFoundError()
@@ -237,7 +243,7 @@ export async function assertTokenBalance(uid: string): Promise<TokenBalance> {
     })
   }
 
-  if (remaining <= 0) throw new InsufficientTokensError()
+  if (remaining <= 0 && !opts?.allowExhausted) throw new InsufficientTokensError()
 
   return { remaining, planId: balance.planId, planTokensPerMonth: balance.planTokensPerMonth }
 }

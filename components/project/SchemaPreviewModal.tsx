@@ -27,7 +27,7 @@ export function SchemaPreviewModal({
 }: Props) {
   return (
     <Dialog open={open} onOpenChange={(next) => (!next ? onClose() : null)}>
-      <DialogContent className="border-zinc-200 bg-white text-foreground sm:max-w-2xl">
+      <DialogContent className="border-border bg-card text-foreground sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Database schema ready</DialogTitle>
           <DialogDescription>
@@ -36,26 +36,26 @@ export function SchemaPreviewModal({
         </DialogHeader>
 
         {generating ? (
-          <div className="flex items-center text-sm text-zinc-600">
+          <div className="flex items-center text-sm text-muted-foreground">
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             Generating schema...
           </div>
         ) : (
           <>
             <div>
-              <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">Tables detected</p>
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Tables detected</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {tables.map((t) => (
-                  <span key={t} className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs text-zinc-700">
+                  <span key={t} className="rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground">
                     {t}
                   </span>
                 ))}
-                {tables.length === 0 ? <span className="text-xs text-zinc-500">No tables detected</span> : null}
+                {tables.length === 0 ? <span className="text-xs text-muted-foreground">No tables detected</span> : null}
               </div>
             </div>
-            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
-              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-500">View SQL</p>
-              <pre className="max-h-[260px] overflow-auto whitespace-pre-wrap text-xs text-zinc-800">{sql}</pre>
+            <div className="rounded-xl border border-border bg-muted p-3">
+              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">View SQL</p>
+              <pre className="max-h-[260px] overflow-auto whitespace-pre-wrap text-xs text-foreground">{sql}</pre>
             </div>
           </>
         )}
@@ -63,7 +63,7 @@ export function SchemaPreviewModal({
         {error ? <p className="text-xs text-red-600">{error}</p> : null}
 
         <DialogFooter className="gap-2">
-          <Button type="button" variant="outline" onClick={onClose} className="border-zinc-300">
+          <Button type="button" variant="outline" onClick={onClose} className="border-border-strong">
             Cancel
           </Button>
           <Button type="button" onClick={onPush} disabled={!sql || generating || pushing} className="bg-accent text-accent-foreground hover:bg-accent/90">

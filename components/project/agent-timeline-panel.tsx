@@ -27,7 +27,7 @@ function getAgentTimelineSummary(steps: AgentTimelineItem[]) {
 function LiveDot() {
   return (
     <div className="relative flex h-1.5 w-1.5">
-      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-zinc-900 opacity-20" />
+      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-foreground opacity-20" />
       <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
     </div>
   )
@@ -93,16 +93,16 @@ function AgentRunHeader({
     <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
       {/* Top row */}
       <div className="flex items-center justify-between px-4 pt-3.5">
-        <div className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5">
+        <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-2 py-0.5">
           <LiveDot />
-          <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-zinc-500">
+          <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
             Live run
           </span>
         </div>
 
-        <div className="inline-flex items-center gap-1.5 text-zinc-400">
+        <div className="inline-flex items-center gap-1.5 text-muted-foreground">
           <FilesIcon />
-          <span className="text-[10px] font-semibold text-zinc-400">
+          <span className="text-[10px] font-semibold text-muted-foreground">
             {generatedFileCount} files
           </span>
         </div>
@@ -110,13 +110,13 @@ function AgentRunHeader({
 
       {/* Current step name + mono detail */}
       <div className="px-4 pt-3">
-        <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-400">
+        <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
           Currently
         </p>
 
         {activeStep ? (
-          <TextShimmer 
-            className="bg-gradient-to-r from-zinc-400 via-zinc-950 to-zinc-400 text-[15px] font-semibold leading-snug tracking-tight"
+          <TextShimmer
+            className="bg-gradient-to-r from-muted-foreground via-foreground to-muted-foreground text-[15px] font-semibold leading-snug tracking-tight"
             duration={3.2}
           >
             {activeStep.title}
@@ -128,7 +128,7 @@ function AgentRunHeader({
         )}
 
         {(currentGeneratingFile ?? activeStep?.detail) && (
-          <p className="mt-1 truncate font-mono text-[10px] text-zinc-400">
+          <p className="mt-1 truncate font-mono text-[10px] text-muted-foreground">
             {currentGeneratingFile ?? activeStep?.detail}
           </p>
         )}
@@ -137,15 +137,15 @@ function AgentRunHeader({
       {/* Progress */}
       <div className="mt-3 border-t border-border px-4 py-3 bg-card/50">
         <div className="mb-1.5 flex items-center justify-between">
-          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-400">
+          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
             Progress
           </span>
-          <span className="font-mono text-[10px] font-semibold tabular-nums text-zinc-500">
+          <span className="font-mono text-[10px] font-semibold tabular-nums text-muted-foreground">
             {currentCount} / {total}
           </span>
         </div>
 
-        <div className="h-[2px] w-full overflow-hidden rounded-full bg-zinc-100">
+        <div className="h-[2px] w-full overflow-hidden rounded-full bg-muted">
           <div
             className="h-full rounded-full bg-primary transition-all duration-1000 ease-in-out"
             style={{ width: `${pct}%` }}
@@ -181,37 +181,37 @@ function TimelineStep({
         ) : isActive ? (
           <LiveDot />
         ) : (
-          <div className="h-1 w-1 rounded-full bg-zinc-300" />
+          <div className="h-1 w-1 rounded-full bg-border-strong" />
         )}
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <div className="flex items-baseline gap-x-2">
           {isActive ? (
-            <TextShimmer 
-              className="bg-gradient-to-r from-zinc-400 via-zinc-950 to-zinc-400 text-[14px] font-medium" 
+            <TextShimmer
+              className="bg-gradient-to-r from-muted-foreground via-foreground to-muted-foreground text-[14px] font-medium"
               duration={3.2}
             >
               {step.title}
             </TextShimmer>
           ) : (
-            <span className={cn("text-[14px] leading-relaxed", isComplete ? "text-zinc-800" : "text-zinc-400")}>
+            <span className={cn("text-[14px] leading-relaxed", isComplete ? "text-foreground" : "text-muted-foreground")}>
               {step.title}
             </span>
           )}
           {isComplete && (
-            <span className="text-[11px] font-medium text-zinc-300">Done</span>
+            <span className="text-[11px] font-medium text-muted-foreground/70">Done</span>
           )}
         </div>
 
         {step.description && (
-          <p className={cn("text-[11.5px] leading-relaxed", isComplete ? "text-zinc-500" : "text-zinc-300")}>
+          <p className={cn("text-[11.5px] leading-relaxed", isComplete ? "text-muted-foreground" : "text-muted-foreground/70")}>
             {step.description}
           </p>
         )}
 
         {step.detail && isActive && (
-          <p className="mt-0.5 font-mono text-[10px] text-zinc-400 truncate">
+          <p className="mt-0.5 font-mono text-[10px] text-muted-foreground truncate">
             {step.detail}
           </p>
         )}
@@ -227,11 +227,11 @@ function AgentTimelineRail({ steps }: { steps: AgentTimelineItem[] }) {
     <div className="mt-4">
       {/* Panel header */}
       <div className="flex items-center justify-between px-1 mb-2">
-        <div className="flex items-center gap-1.5 text-zinc-400">
+        <div className="flex items-center gap-1.5 text-muted-foreground">
           <GridIcon />
           <span className="text-[10px] font-bold uppercase tracking-[0.14em]">Steps</span>
         </div>
-        <span className="text-[10px] font-semibold tabular-nums text-zinc-400">
+        <span className="text-[10px] font-semibold tabular-nums text-muted-foreground">
           {completedCount} / {steps.length}
         </span>
       </div>

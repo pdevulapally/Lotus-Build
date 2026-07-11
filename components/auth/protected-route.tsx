@@ -26,8 +26,8 @@ export function ProtectedRoute({ children, requiredTokens = 0 }: ProtectedRouteP
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-8 h-8 animate-spin text-zinc-400" />
-          <p className="text-zinc-500">Loading...</p>
+          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+          <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
     )
@@ -42,9 +42,9 @@ export function ProtectedRoute({ children, requiredTokens = 0 }: ProtectedRouteP
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="text-center max-w-md">
-          <div className="w-16 h-16 rounded-full bg-zinc-800 flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
             <svg
-              className="w-8 h-8 text-zinc-500"
+              className="w-8 h-8 text-muted-foreground"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -57,18 +57,18 @@ export function ProtectedRoute({ children, requiredTokens = 0 }: ProtectedRouteP
               />
             </svg>
           </div>
-          <h2 className="text-xl font-semibold text-zinc-100 mb-2">Token Limit Reached</h2>
-          <p className="text-zinc-500 mb-4">
+          <h2 className="text-xl font-semibold text-foreground mb-2">Token Limit Reached</h2>
+          <p className="text-muted-foreground mb-4">
             You&apos;ve used all your tokens for this month. Upgrade your plan to continue building.
           </p>
-          <p className="text-zinc-600 text-sm mb-6">
-            Current plan: <span className="text-zinc-400 capitalize">{userData?.planName || userData?.planId || "free"}</span>
+          <p className="text-muted-foreground text-sm mb-6">
+            Current plan: <span className="text-foreground capitalize">{userData?.planName || userData?.planId || "free"}</span>
             {" | "}
-            Used: <span className="text-zinc-400">{(userData?.tokenUsage?.used ?? 0).toLocaleString()}</span> / {(userData?.tokensLimit ?? 0).toLocaleString()}
+            Used: <span className="text-foreground">{(userData?.tokenUsage?.used ?? 0).toLocaleString()}</span> / {(userData?.tokensLimit ?? 0).toLocaleString()}
           </p>
           <a
             href="/pricing"
-            className="inline-flex items-center justify-center px-6 py-2 bg-zinc-100 text-foreground font-medium rounded-lg hover:bg-zinc-200 transition-colors"
+            className="inline-flex items-center justify-center px-6 py-2 bg-secondary text-foreground font-medium rounded-lg hover:bg-secondary/80 transition-colors"
           >
             Upgrade Plan
           </a>

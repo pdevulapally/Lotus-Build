@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
   }
 
   const baseUrl = getAppBaseUrl(new URL(req.url).origin)
-  const success = getSameOriginUrl(body.successUrl, baseUrl) || `${baseUrl}/projects?checkout=success`
+  const success = getSameOriginUrl(body.successUrl, baseUrl) || `${baseUrl}/?checkout=success`
   const cancel = getSameOriginUrl(body.cancelUrl, baseUrl) || `${baseUrl}/pricing?checkout=cancelled`
 
   try {

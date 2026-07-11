@@ -90,7 +90,7 @@ export default function ProjectRouteBridgePage() {
         {state !== "checking" ? (
           <div className="mt-6 flex flex-col gap-2 sm:flex-row">
             <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90">
-              <Link href="/projects">Open projects</Link>
+              <Link href="/">Open projects</Link>
             </Button>
             <Button asChild variant="outline" className="border-border-strong">
               <Link href="/">Go home</Link>

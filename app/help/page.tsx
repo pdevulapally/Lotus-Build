@@ -71,7 +71,7 @@ export default function HelpPage() {
                   Contact support
                 </Link>
                 <Link
-                  href="/projects"
+                  href="/"
                   className="inline-flex min-h-11 items-center rounded-full border border-border px-5 text-sm font-medium text-foreground transition hover:bg-muted"
                 >
                   Open projects

@@ -26,7 +26,6 @@ import {
   Plus,
 } from "lucide-react"
 
-import { ProtectedRoute } from "@/components/auth/protected-route"
 import { CreateWorkspaceModal } from "@/components/workspaces/create-workspace-modal"
 import { Button } from "@/components/ui/button"
 import {
@@ -73,7 +72,7 @@ type ProjectSummary = {
 /* ─── helpers ────────────────────────────────────────────────────────────── */
 
 const sidebarActionClass =
-  "inline-flex items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/25"
+  "inline-flex items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent-soft hover:text-accent-soft-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-card"
 
 
 const accountMenuItemClass =
@@ -373,14 +372,14 @@ function Sidebar({
     await switchWorkspace(workspaceId)
     if (isTeamsPlan) setScope("team")
     onClose?.()
-    router.push("/projects")
+    router.push("/")
   }
 
   return (
-    <div className="flex h-full flex-col border-r border-border bg-card">
+    <div className="workspace-sidebar relative flex h-full flex-col overflow-visible rounded-[1.75rem] border border-border/65 text-foreground">
 
       {/* ── Logo row ── */}
-      <div className="flex h-16 shrink-0 items-center justify-between border-b border-border px-4">
+      <div className="flex h-16 shrink-0 items-center justify-between px-5">
         <Link href="/" onClick={onClose} className="flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30" aria-label="Go to Lotus home">
           <LotusLogo size={28} />
           <span className="font-display text-[16px] font-semibold tracking-tight text-foreground/90">
@@ -388,14 +387,14 @@ function Sidebar({
           </span>
         </Link>
         <div className="flex items-center gap-0.5">
-          {onToggle && (
+          {onToggle && !onClose && (
             <button
               type="button"
               onClick={onToggle}
               aria-label="Collapse sidebar"
-              className={cn(sidebarActionClass, "h-9 w-9")}
+              className={cn(sidebarActionClass, "workspace-sidebar-toggle absolute right-4 top-4 z-30 h-8 w-8")}
             >
-              <PanelLeft className="h-4 w-4" />
+              <PanelLeft className="h-4 w-4" aria-hidden="true" />
             </button>
           )}
           {onClose && (
@@ -403,7 +402,7 @@ function Sidebar({
               type="button"
               onClick={onClose}
               aria-label="Close sidebar"
-              className={cn(sidebarActionClass, "h-8 w-8")}
+              className={cn(sidebarActionClass, "absolute -right-3 top-3 z-30 h-9 w-9 border border-border/70 bg-card/75 shadow-md backdrop-blur-xl")}
             >
               <X className="h-3.5 w-3.5" aria-hidden="true" />
             </button>
@@ -412,14 +411,14 @@ function Sidebar({
       </div>
 
       {/* ── Workspace switcher ── */}
-      <div className="px-3 pb-3 pt-2">
+      <div className="px-3 pb-3 pt-1">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               type="button"
               className={cn(
-                "lotus-glass-control group flex h-11 w-full items-center gap-2.5 rounded-2xl border px-3",
-                "text-left transition-colors hover:border-border-strong"
+                "group flex h-11 w-full items-center gap-2.5 rounded-2xl border border-transparent bg-card/32 px-3",
+                "text-left transition-colors hover:border-border/70 hover:bg-card/58 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/55"
               )}
               aria-label={`Switch workspace. Current workspace: ${selectedWorkspaceName}`}
             >
@@ -534,7 +533,7 @@ function Sidebar({
         </div>
       )}
 
-      <div className="mx-3 mb-3 border-t border-border" />
+      <div className="mx-4 mb-3 border-t border-border/55" />
 
       {/* ── Section header ── */}
       <div className="mb-2 flex items-center justify-between px-4">
@@ -619,7 +618,7 @@ function Sidebar({
       </div>
 
       {/* ── User row ── */}
-      <div className="lotus-glass-panel shrink-0 border-t border-border/55 px-3 py-3">
+      <div className="shrink-0 border-t border-border/45 px-3 py-3">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -891,7 +890,7 @@ function OnboardingBanner() {
   )
 }
 
-export default function ProjectsPage() {
+export function ProjectsWorkspace() {
   const router = useRouter()
   const { user, userData, workspaces, currentWorkspace, switchWorkspace, signOut } = useAuth()
   const { openSettings } = useSettingsDialog()
@@ -1021,8 +1020,7 @@ export default function ProjectsPage() {
   }
 
   return (
-    <ProtectedRoute>
-      <div className="flex h-[100dvh] overflow-hidden bg-background">
+      <div className="workspace-root flex h-[100dvh] overflow-hidden bg-background">
         <a
           href={`#${PROJECTS_MAIN_ID}`}
           className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[80] focus:rounded-full focus:border focus:border-border-strong focus:bg-card focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-foreground focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-border-strong/30"
@@ -1048,8 +1046,7 @@ export default function ProjectsPage() {
           aria-label="Project navigation"
           aria-hidden={!mobileSidebarOpen}
           className={cn(
-            "fixed inset-y-0 left-0 z-50 w-[min(21.5rem,calc(100vw-1rem))]",
-            "border-r border-foreground/10 shadow-lg",
+            "fixed inset-y-2 left-2 z-50 w-[min(21rem,calc(100vw-1.25rem))]",
             "transition-transform duration-200 ease-in-out lg:hidden",
             mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
           )}
@@ -1069,11 +1066,11 @@ export default function ProjectsPage() {
           aria-label="Project navigation"
           className={cn(
             "hidden shrink-0 transition-[width] duration-200 ease-in-out lg:block",
-            desktopSidebarCollapsed ? "lg:w-0 lg:overflow-hidden" : "lg:w-[280px]"
+            desktopSidebarCollapsed ? "lg:w-0 lg:overflow-hidden" : "lg:w-[304px]"
           )}
         >
           {!desktopSidebarCollapsed && (
-            <div className="relative h-full">
+            <div className="relative h-full p-3 pr-0">
               <Sidebar {...sidebarProps} onToggle={() => setDesktopSidebarCollapsed(true)} />
             </div>
           )}
@@ -1083,11 +1080,11 @@ export default function ProjectsPage() {
         <main
           id={PROJECTS_MAIN_ID}
           aria-labelledby={PROJECTS_HEADING_ID}
-          className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-background"
+          className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-transparent"
         >
 
           {/* ── Mobile top bar ── */}
-          <header className="relative z-10 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-card px-3 lg:hidden">
+          <header className="relative z-10 flex h-14 shrink-0 items-center gap-3 border-b border-border/60 bg-card/45 px-3 backdrop-blur-xl lg:hidden">
             <button
               type="button"
               onClick={() => setMobileSidebarOpen(true)}
@@ -1116,9 +1113,8 @@ export default function ProjectsPage() {
               aria-expanded={!desktopSidebarCollapsed}
               className={cn(
                 "absolute left-4 top-4 z-20 hidden lg:flex",
-                "h-9 w-9 items-center justify-center rounded-lg",
-                "lotus-glass-control border text-muted-foreground",
-                "transition-colors hover:border-border-strong hover:bg-muted hover:text-foreground"
+                "h-9 w-9 items-center justify-center rounded-lg text-muted-foreground",
+                "transition-colors hover:bg-accent-soft hover:text-accent-soft-foreground"
               )}
             >
               <PanelLeft className="h-4 w-4" aria-hidden="true" />
@@ -1129,7 +1125,7 @@ export default function ProjectsPage() {
           <div className="relative z-10 flex min-h-0 flex-1">
             <div className="relative min-h-0 w-full flex-1 overflow-hidden md:rounded-t-[1.125rem] lg:rounded-t-[1.25rem]">
               <div className="h-full overflow-y-auto [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
-                <div className="relative isolate flex min-h-[calc(100dvh+8rem)] w-full flex-col items-center justify-start overflow-hidden border-t border-border bg-background px-5 pb-20 md:rounded-t-[1.125rem] sm:px-8 sm:pb-24 lg:rounded-t-[1.25rem]">
+                <div className="relative isolate flex min-h-[calc(100dvh+8rem)] w-full flex-col items-center justify-start overflow-hidden bg-transparent px-5 pb-20 md:rounded-t-[1.125rem] sm:px-8 sm:pb-24 lg:rounded-t-[1.25rem]">
 
                   <div className="relative z-10 w-full max-w-[60rem]">
                     <div className="mx-auto flex min-h-[calc(100dvh-10rem)] w-full max-w-[44rem] flex-col justify-center py-10 sm:min-h-[calc(100dvh-9rem)] sm:py-12 md:py-14 lg:py-16">
@@ -1167,10 +1163,10 @@ export default function ProjectsPage() {
                         className="animate-in fade-in slide-in-from-bottom-4 fill-mode-both relative duration-700"
                         style={{ animationDelay: "200ms" }}
                       >
-                        <div aria-hidden="true" className="hero-glow pointer-events-none absolute inset-x-8 -top-8 -z-10 h-28" />
                         <AnimatedAIInput
                           placeholder="Build a refined site for..."
-                          wrapperClassName="rounded-2xl border-border-strong/70 bg-card [&_textarea]:min-h-[88px] [&_button]:rounded-full [&_button.bg-primary]:bg-accent [&_button.bg-primary]:text-accent-foreground [&_button.bg-primary:hover]:bg-accent/90"
+                          wrapperClassName="liquid-composer rounded-[1.75rem] border-border-strong/60 bg-card/70 [&_textarea]:min-h-[88px] [&_textarea]:text-foreground [&_textarea]:placeholder:text-foreground/55 [&_button]:rounded-full [&_button[aria-pressed=true]]:bg-accent [&_button[aria-pressed=true]]:text-accent-foreground [&_button.bg-primary]:bg-accent [&_button.bg-primary]:text-accent-foreground [&_button.bg-primary:hover]:bg-accent/90"
+                          footerHintsClassName="text-foreground/60"
                         />
                       </div>
                     </div>
@@ -1299,6 +1295,5 @@ export default function ProjectsPage() {
           </DialogContent>
         </Dialog>
       </div>
-    </ProtectedRoute>
   )
 }
