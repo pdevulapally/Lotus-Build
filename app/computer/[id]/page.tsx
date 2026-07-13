@@ -2671,7 +2671,7 @@ export default function ComputerPage() {
         <aside
           aria-label="Agent conversation"
           className={cn(
-          "flex w-full shrink-0 flex-col overflow-hidden bg-card backdrop-blur-2xl transition-[width] duration-200 ease-in-out",
+          "lotus-glass-strong flex w-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 ease-in-out",
           desktopChatCollapsed
             ? "sm:w-0 sm:overflow-hidden"
             : "sm:w-[32%] md:w-[31%] lg:w-[340px] xl:w-[370px] 2xl:w-[400px]",

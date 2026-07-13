@@ -82,8 +82,8 @@ export function Navbar({ variant = "default" }: NavbarProps) {
     <header className={headerClass}>
       <nav
         className={cn(
-          "nav-glass mx-auto grid h-14 w-full max-w-6xl grid-cols-[1fr_auto] items-center gap-3 rounded-full border border-border/60 bg-background/80 px-3.5 text-foreground backdrop-blur-xl sm:px-5 md:grid-cols-[1fr_auto_1fr]",
-          variant === "hero" && "bg-background/70"
+          "nav-glass lotus-glass-strong mx-auto grid h-14 w-full max-w-6xl grid-cols-[1fr_auto] items-center gap-3 rounded-full border border-border/60 px-3.5 text-foreground sm:px-5 md:grid-cols-[1fr_auto_1fr]",
+          variant === "hero" && "nav-glass-hero"
         )}
       >
         <Link href="/" className="flex min-w-0 items-center gap-2.5 md:justify-self-start">

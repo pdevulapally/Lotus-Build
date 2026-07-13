@@ -218,7 +218,7 @@ export function LotusLogo({ petalColor, size = 32, className, style }: Props) {
     renderer.shadowMap.enabled = true
     renderer.shadowMap.type = THREE.PCFSoftShadowMap
     renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = 1.04
+    renderer.toneMappingExposure = 1.35
     renderer.outputColorSpace = THREE.SRGBColorSpace
     renderer.domElement.style.display = "block"
     mount.appendChild(renderer.domElement)
@@ -228,8 +228,8 @@ export function LotusLogo({ petalColor, size = 32, className, style }: Props) {
     camera.position.set(0, 0, 5.6)
     camera.lookAt(0, 0, 0)
 
-    scene.add(new THREE.HemisphereLight(0xfffbf2, 0x5f5a51, 0.42))
-    scene.add(new THREE.AmbientLight(0xfffbf2, 0.18))
+    scene.add(new THREE.HemisphereLight(0xfffbf2, 0x5f5a51, 0.62))
+    scene.add(new THREE.AmbientLight(0xfffbf2, 0.32))
 
     const key = new THREE.DirectionalLight(0xfffbf2, 0.92)
     key.position.set(-2.6, 3.6, 3.4)

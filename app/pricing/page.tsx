@@ -277,12 +277,12 @@ export default function PricingPage() {
                   className={cn(
                     "relative flex flex-col rounded-2xl border",
                     isRecom
-                      ? "border-foreground bg-foreground text-background"
+                      ? "border-primary bg-primary text-primary-foreground"
                       : "border-border/70 bg-card"
                   )}
                 >
                   {isRecom && (
-                    <div className="absolute -top-3 left-5 rounded-full bg-background px-3 py-1 text-[9.5px] font-semibold uppercase tracking-[0.14em] text-foreground">
+                    <div className="absolute -top-3 left-5 rounded-full bg-primary-foreground px-3 py-1 text-[9.5px] font-semibold uppercase tracking-[0.14em] text-primary">
                       Recommended
                     </div>
                   )}
@@ -297,22 +297,22 @@ export default function PricingPage() {
                       ) : (
                         <img src="/Images/enterprise-svgrepo-com.svg" className="h-5 w-5 opacity-70" alt="" />
                       )}
-                      <span className={cn("text-[13px] font-semibold uppercase tracking-[0.1em]", isRecom ? "text-background/70" : "text-muted-foreground")}>
+                      <span className={cn("text-[13px] font-semibold uppercase tracking-[0.1em]", isRecom ? "text-primary-foreground/85" : "text-muted-foreground")}>
                         {plan.name}
                       </span>
                     </div>
 
                     {/* Price */}
                     <div className="flex items-baseline gap-1">
-                      <span className={cn("text-[40px] font-semibold leading-none tracking-[-0.04em]", isRecom ? "text-background" : "text-foreground")}>
+                      <span className={cn("text-[40px] font-semibold leading-none tracking-[-0.04em]", isRecom ? "text-primary-foreground" : "text-foreground")}>
                         {priceStr}
                       </span>
-                      <span className={cn("text-[12px]", isRecom ? "text-background/40" : "text-muted-foreground")}>
+                      <span className={cn("text-[12px]", isRecom ? "text-primary-foreground/75" : "text-muted-foreground")}>
                         {period}
                       </span>
                     </div>
 
-                    <p className={cn("mt-2.5 text-[12.5px] leading-relaxed", isRecom ? "text-background/60" : "text-muted-foreground")}>
+                    <p className={cn("mt-2.5 text-[12.5px] leading-relaxed", isRecom ? "text-primary-foreground/85" : "text-muted-foreground")}>
                       {display.description}
                     </p>
                   </div>
@@ -320,16 +320,16 @@ export default function PricingPage() {
                   {/* Credits / tier selector */}
                   <div className="px-6 pb-5">
                     {isFree ? (
-                      <div className={cn("rounded-xl px-4 py-3", isRecom ? "bg-background/10" : "bg-muted/50")}>
-                        <p className={cn("text-[12.5px]", isRecom ? "text-background/60" : "text-muted-foreground")}>
-                          <span className={cn("font-semibold tabular-nums", isRecom ? "text-background" : "text-foreground")}>
+                      <div className={cn("rounded-xl px-4 py-3", isRecom ? "bg-primary-foreground/10" : "bg-muted/50")}>
+                        <p className={cn("text-[12.5px]", isRecom ? "text-primary-foreground/85" : "text-muted-foreground")}>
+                          <span className={cn("font-semibold tabular-nums", isRecom ? "text-primary-foreground" : "text-foreground")}>
                             {plan.tokensPerMonth.toLocaleString()}
                           </span>{" "}credits / month
                         </p>
                       </div>
                     ) : tiers.length > 0 ? (
                       <div>
-                        <p className={cn("mb-2 text-[10px] font-semibold uppercase tracking-[0.12em]", isRecom ? "text-background/40" : "text-muted-foreground")}>
+                        <p className={cn("mb-2 text-[10px] font-semibold uppercase tracking-[0.12em]", isRecom ? "text-primary-foreground/75" : "text-muted-foreground")}>
                           Monthly credits
                         </p>
                         <Select
@@ -339,7 +339,7 @@ export default function PricingPage() {
                           <SelectTrigger className={cn(
                             "h-10 w-full rounded-xl border text-[12.5px] font-medium",
                             isRecom
-                              ? "border-background/20 bg-background/10 text-background focus:ring-background/20"
+                              ? "border-primary-foreground/20 bg-primary-foreground/10 text-primary-foreground focus:ring-primary-foreground/20"
                               : "border-border bg-muted/40 text-foreground focus:ring-ring/20"
                           )}>
                             <SelectValue>
@@ -348,7 +348,7 @@ export default function PricingPage() {
                                   ? `${(effTokens / 1000).toFixed(effTokens % 1000 === 0 ? 0 : 1)}k`
                                   : effTokens.toLocaleString()}{" "}credits /mo
                               </span>
-                              <span className={cn("ml-1.5 font-normal", isRecom ? "text-background/40" : "text-muted-foreground")}>
+                              <span className={cn("ml-1.5 font-normal", isRecom ? "text-primary-foreground/75" : "text-muted-foreground")}>
                                 · {priceStr}{period}
                               </span>
                             </SelectValue>
@@ -371,9 +371,9 @@ export default function PricingPage() {
                         </Select>
                       </div>
                     ) : (
-                      <div className={cn("rounded-xl px-4 py-3", isRecom ? "bg-background/10" : "bg-muted/50")}>
-                        <p className={cn("text-[12.5px]", isRecom ? "text-background/60" : "text-muted-foreground")}>
-                          <span className={cn("tabular-nums font-semibold", isRecom ? "text-background" : "text-foreground")}>
+                      <div className={cn("rounded-xl px-4 py-3", isRecom ? "bg-primary-foreground/10" : "bg-muted/50")}>
+                        <p className={cn("text-[12.5px]", isRecom ? "text-primary-foreground/85" : "text-muted-foreground")}>
+                          <span className={cn("tabular-nums font-semibold", isRecom ? "text-primary-foreground" : "text-foreground")}>
                             {plan.tokensPerMonth.toLocaleString()}
                           </span>{" "}credits / month
                         </p>
@@ -382,16 +382,16 @@ export default function PricingPage() {
                   </div>
 
                   {/* Divider */}
-                  <div className={cn("mx-6 h-px", isRecom ? "bg-background/10" : "bg-border/50")} />
+                  <div className={cn("mx-6 h-px", isRecom ? "bg-primary-foreground/10" : "bg-border/50")} />
 
                   {/* Features */}
                   <div className="flex flex-1 flex-col gap-2.5 px-6 py-5">
                     {features.map((feat) => (
                       <div key={feat} className="flex items-start gap-2.5">
-                        <span className={cn("mt-[3px] flex h-[14px] w-[14px] shrink-0 items-center justify-center rounded-full", isRecom ? "bg-background/15" : "bg-muted")}>
-                          <Check className={cn("h-[8px] w-[8px]", isRecom ? "text-background/80" : "text-foreground/60")} strokeWidth={3} />
+                        <span className={cn("mt-[3px] flex h-[14px] w-[14px] shrink-0 items-center justify-center rounded-full", isRecom ? "bg-primary-foreground/15" : "bg-muted")}>
+                          <Check className={cn("h-[8px] w-[8px]", isRecom ? "text-primary-foreground/80" : "text-foreground/60")} strokeWidth={3} />
                         </span>
-                        <span className={cn("text-[12.5px] leading-snug", isRecom ? "text-background/65" : "text-muted-foreground")}>
+                        <span className={cn("text-[12.5px] leading-snug", isRecom ? "text-primary-foreground/90" : "text-muted-foreground")}>
                           {feat}
                         </span>
                       </div>
@@ -408,7 +408,7 @@ export default function PricingPage() {
                       </Link>
                     ) : isCurrentPlan ? (
                       <Link href="/settings" className="block w-full">
-                        <Button variant="outline" className={cn("h-11 w-full rounded-full text-[13px] font-medium", isRecom ? "border-background/20 bg-background/10 text-background hover:bg-background/20" : "border-border bg-transparent text-foreground hover:bg-muted")}>
+                        <Button variant="outline" className={cn("h-11 w-full rounded-full text-[13px] font-medium", isRecom ? "border-primary-foreground/20 bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20" : "border-border bg-transparent text-foreground hover:bg-muted")}>
                           Manage plan
                         </Button>
                       </Link>
@@ -418,15 +418,15 @@ export default function PricingPage() {
                         className={cn(
                           "h-11 w-full rounded-full text-[13px] font-medium transition-all active:scale-[0.99]",
                           isRecom
-                            ? "bg-background text-foreground hover:bg-background/90"
-                            : "bg-foreground text-background hover:bg-foreground/85"
+                            ? "bg-primary-foreground text-primary hover:bg-primary-foreground/90"
+                            : "bg-primary text-primary-foreground hover:bg-primary/90"
                         )}
                         onClick={() => handleSubscribe(effPriceId!, effQty, plan.name)}
                       >
                         {checkoutLoading === effPriceId ? <Loader2 className="h-4 w-4 animate-spin" /> : `Subscribe to ${plan.name}`}
                       </Button>
                     ) : (
-                      <Button disabled className={cn("h-11 w-full rounded-full text-[13px] font-medium opacity-50", isRecom ? "bg-background text-foreground" : "bg-foreground text-background")}>
+                      <Button disabled className={cn("h-11 w-full rounded-full text-[13px] font-medium opacity-50", isRecom ? "bg-primary-foreground text-primary" : "bg-primary text-primary-foreground")}>
                         Subscribe to {plan.name}
                       </Button>
                     )}
@@ -537,7 +537,7 @@ export default function PricingPage() {
               <Button
                 type="button"
                 disabled={!!checkoutLoading}
-                className="h-11 rounded-full bg-foreground text-[13px] font-medium text-background transition-all hover:bg-foreground/85 active:scale-[0.99]"
+                className="h-11 rounded-full bg-primary text-[13px] font-medium text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.99]"
                 onClick={handleRetryCheckout}
               >
                 {checkoutLoading === cancelledAttempt.priceId

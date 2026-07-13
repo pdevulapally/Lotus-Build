@@ -103,7 +103,7 @@ export const BashTool = React.memo(function BashTool({
   const summary = extractCommandSummary(command)
 
   return (
-    <div className={cn("overflow-hidden rounded-2xl border border-border/55 bg-card/78 shadow-sm backdrop-blur-xl", className)}>
+    <div className={cn("lotus-glass-panel overflow-hidden rounded-2xl border border-border/55", className)}>
       <div className="flex h-9 items-center justify-between gap-3 pl-3 pr-2.5">
         <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
           <Terminal className="h-3.5 w-3.5 shrink-0 text-muted-foreground/55" />

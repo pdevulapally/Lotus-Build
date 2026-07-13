@@ -66,7 +66,7 @@ export default function HelpPage() {
               <div className="mt-7 flex flex-wrap gap-3">
                 <Link
                   href="#contact"
-                  className="inline-flex min-h-11 items-center rounded-full bg-foreground px-5 text-sm font-semibold text-background transition hover:bg-foreground/85"
+                  className="inline-flex min-h-11 items-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
                 >
                   Contact support
                 </Link>
@@ -146,7 +146,7 @@ export default function HelpPage() {
                     className={cn(
                       "rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors",
                       isActive
-                        ? "border-foreground bg-foreground text-background"
+                        ? "border-primary bg-primary text-primary-foreground"
                         : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
                     )}
                   >

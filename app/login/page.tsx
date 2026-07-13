@@ -6,6 +6,7 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Eye, EyeOff, Loader2, Mail } from "lucide-react"
 import { LotusLogo } from "@/components/ui/lotus-logo"
+import { AuthMarketingPanel } from "@/components/auth/auth-marketing-panel"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -18,7 +19,7 @@ import { useAuth } from "@/contexts/auth-context"
 import { getSafeRedirectPath } from "@/lib/auth/redirect"
 
 const authInputClassName =
-  "w-full rounded-2xl border border-border bg-card px-4 py-3.5 text-sm text-foreground shadow-none outline-none transition-colors placeholder:text-muted-foreground focus:border-border-strong focus:bg-secondary/60"
+  "lotus-glass-control w-full rounded-2xl border px-4 py-3.5 text-sm text-foreground shadow-none outline-none transition-colors placeholder:text-muted-foreground focus:border-border-strong"
 
 function GoogleMark() {
   return (
@@ -117,129 +118,133 @@ export default function LoginPage() {
 
   return (
     <>
-      <main className="flex min-h-[100dvh] bg-background text-foreground md:flex-row">
-        <section className="flex min-h-[100dvh] flex-1 items-center justify-center px-5 py-6 sm:px-8 lg:px-12">
-          <div className="w-full max-w-md">
-            <div className="mb-10 flex items-center">
-              <Link
-                href="/"
-                className="flex items-center gap-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label="Lotus.build home"
-              >
-                <LotusLogo size={28} />
-                <span className="text-[15px] font-semibold text-foreground">Lotus.build</span>
-              </Link>
-            </div>
+      <main className="auth-backdrop relative flex min-h-[100dvh] flex-col text-foreground">
+        <div className="px-5 pt-6 sm:px-8 lg:px-12">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label="Lotus.build home"
+          >
+            <LotusLogo size={26} />
+            <span className="text-[15px] font-semibold text-foreground">Lotus.build</span>
+          </Link>
+        </div>
 
-            <div className="flex flex-col gap-6">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Sign in</p>
-                <h1 className="mt-3 font-display text-4xl font-semibold leading-tight text-foreground md:text-5xl">
-                  Welcome back
-                </h1>
-                <p className="mt-4 text-sm leading-6 text-muted-foreground">
-                  Return to your projects, previews, and follow-up edits without losing
-                  the thread.
-                </p>
-              </div>
+        <div className="flex flex-1 items-center justify-center px-5 py-10 sm:px-8 lg:px-12">
+          <div className="flex w-full max-w-5xl items-center justify-center gap-16 lg:justify-between">
+            <AuthMarketingPanel />
 
-              {error ? (
-                <div
-                  role="alert"
-                  className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+            <div className="w-full max-w-md rounded-2xl border border-border bg-card p-7 shadow-xl sm:p-8">
+              <div className="flex items-center justify-center gap-6 border-b border-border pb-4">
+                <Link
+                  href={`/signup?redirect=${encodeURIComponent(redirect)}`}
+                  className="-mb-px pb-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
                 >
-                  {error}
-                </div>
-              ) : null}
-
-              <button
-                type="button"
-                onClick={handleGoogleSignIn}
-                disabled={isLoading}
-                className="flex h-12 w-full items-center justify-center gap-3 rounded-2xl border border-border bg-card text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
-              >
-                <GoogleMark />
-                Continue with Google
-              </button>
-
-              <div className="relative flex items-center justify-center">
-                <span className="w-full border-t border-border" />
-                <span className="absolute bg-background px-4 text-sm text-muted-foreground">
-                  Or continue with
+                  Sign Up
+                </Link>
+                <span className="-mb-px border-b-2 border-foreground pb-3 text-sm font-semibold text-foreground">
+                  Log In
                 </span>
               </div>
 
-              <form className="space-y-5" onSubmit={handleEmailSignIn}>
-                <div className="space-y-2">
-                  <label htmlFor="email" className="text-sm font-medium text-muted-foreground">
-                    Email address
+            {error ? (
+              <div
+                role="alert"
+                className="mt-5 rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+              >
+                {error}
+              </div>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={isLoading}
+              className="lotus-glass-control mt-5 flex h-12 w-full items-center justify-center gap-3 rounded-2xl border text-sm font-medium text-foreground transition-colors hover:border-border-strong disabled:pointer-events-none disabled:opacity-50"
+            >
+              <GoogleMark />
+              Continue with Google
+            </button>
+
+            <div className="mt-5 flex items-center gap-3">
+              <span className="h-px flex-1 bg-border" />
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Or continue with
+              </span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
+
+            <form className="mt-5 space-y-5" onSubmit={handleEmailSignIn}>
+              <div className="space-y-2">
+                <label htmlFor="email" className="text-sm font-medium text-muted-foreground">
+                  Email address
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  className={authInputClassName}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-4">
+                  <label
+                    htmlFor="password"
+                    className="text-sm font-medium text-muted-foreground"
+                  >
+                    Password
                   </label>
+                  <button
+                    type="button"
+                    onClick={handleForgotOpen}
+                    className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    Reset password
+                  </button>
+                </div>
+                <div className="relative">
                   <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    autoComplete="email"
-                    className={authInputClassName}
+                    id="password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    autoComplete="current-password"
+                    className={`${authInputClassName} pr-12`}
                     required
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((value) => !value)}
+                    className="absolute inset-y-0 right-3 flex items-center rounded-lg px-1 text-muted-foreground transition-colors hover:text-foreground"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5" aria-hidden />
+                    ) : (
+                      <Eye className="h-5 w-5" aria-hidden />
+                    )}
+                  </button>
                 </div>
+              </div>
 
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between gap-4">
-                    <label
-                      htmlFor="password"
-                      className="text-sm font-medium text-muted-foreground"
-                    >
-                      Password
-                    </label>
-                    <button
-                      type="button"
-                      onClick={handleForgotOpen}
-                      className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                      Reset password
-                    </button>
-                  </div>
-                  <div className="relative">
-                    <input
-                      id="password"
-                      name="password"
-                      type={showPassword ? "text" : "password"}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter your password"
-                      autoComplete="current-password"
-                      className={`${authInputClassName} pr-12`}
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((value) => !value)}
-                      className="absolute inset-y-0 right-3 flex items-center rounded-lg px-1 text-muted-foreground transition-colors hover:text-foreground"
-                      aria-label={showPassword ? "Hide password" : "Show password"}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-5 w-5" aria-hidden />
-                      ) : (
-                        <Eye className="h-5 w-5" aria-hidden />
-                      )}
-                    </button>
-                  </div>
-                </div>
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="h-12 w-full rounded-2xl bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+              >
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Sign in"}
+              </Button>
+            </form>
 
-                <Button
-                  type="submit"
-                  disabled={isLoading}
-                  className="h-12 w-full rounded-2xl bg-accent text-sm font-semibold text-accent-foreground hover:bg-accent/90"
-                >
-                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Sign in"}
-                </Button>
-              </form>
-
-              <p className="text-center text-sm text-muted-foreground">
+              <p className="mt-5 text-center text-sm text-muted-foreground">
                 New to Lotus?{" "}
                 <Link
                   href={`/signup?redirect=${encodeURIComponent(redirect)}`}
@@ -248,47 +253,19 @@ export default function LoginPage() {
                   Create account
                 </Link>
               </p>
-            </div>
 
-            <div className="mt-10 text-xs leading-5 text-muted-foreground">
-              <Link href="/terms" className="underline-offset-2 hover:text-foreground hover:underline">
-                Terms
-              </Link>
-              <span> / </span>
-              <Link href="/privacy" className="underline-offset-2 hover:text-foreground hover:underline">
-                Privacy
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        <section className="hidden flex-1 p-4 md:block">
-          <div className="relative h-full min-h-[calc(100dvh-2rem)] overflow-hidden rounded-3xl bg-primary text-primary-foreground">
-            <img
-              src="/Images/487c1040-cc7a-4bee-867e-84462280fe6e.png"
-              alt=""
-              className="absolute inset-0 h-full w-full object-cover opacity-70"
-            />
-            <div className="absolute inset-0 bg-primary/60" aria-hidden />
-            <div className="relative flex h-full flex-col justify-between p-8 lg:p-10">
-              <div className="max-w-xl pt-8">
-                <p className="text-sm font-medium text-primary-foreground/70">
-                  Your work stays ready
-                </p>
-                <h2 className="mt-5 font-display text-5xl font-semibold leading-none text-primary-foreground xl:text-6xl">
-                  Come back to the build without rebuilding the brief.
-                </h2>
-              </div>
-
-              <div className="max-w-md rounded-3xl border border-primary-foreground/15 bg-primary/70 p-5 backdrop-blur-xl">
-                <p className="text-sm leading-6 text-primary-foreground/78">
-                  Lotus keeps each project, preview, and edit history together so your
-                  next session starts in the right place.
-                </p>
+              <div className="mt-6 text-center text-xs leading-5 text-muted-foreground">
+                <Link href="/terms" className="underline-offset-2 hover:text-foreground hover:underline">
+                  Terms
+                </Link>
+                <span> / </span>
+                <Link href="/privacy" className="underline-offset-2 hover:text-foreground hover:underline">
+                  Privacy
+                </Link>
               </div>
             </div>
           </div>
-        </section>
+        </div>
       </main>
 
       <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
@@ -338,7 +315,7 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 disabled={resetLoading}
-                className="h-12 w-full rounded-2xl bg-accent text-sm font-semibold text-accent-foreground hover:bg-accent/90"
+                className="h-12 w-full rounded-2xl bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary/90"
               >
                 {resetLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send reset link"}
               </Button>

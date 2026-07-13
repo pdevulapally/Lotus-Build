@@ -80,7 +80,6 @@
   --success-foreground: var(--primary-foreground);
   --success-soft: color-mix(in oklch, var(--success) 12%, var(--card));
   --success-soft-foreground: color-mix(in oklch, var(--success) 68%, var(--foreground));
-  --glass-surface: color-mix(in oklch, var(--card) 70%, transparent);
   --glass-highlight: color-mix(in oklch, var(--card) 82%, transparent);
   --glass-shadow: color-mix(in oklch, var(--foreground) 20%, transparent);
 }
@@ -510,6 +509,14 @@
   font-family: "Cal Sans", var(--font-manrope), system-ui, sans-serif;
 }
 
+/* Soft brand-tinted wash for the auth pages, single restrained gradient
+   fading into the normal page background — not a site-wide treatment. */
+.auth-backdrop {
+  background:
+    radial-gradient(1100px 650px at 12% -8%, color-mix(in oklch, var(--primary) 13%, transparent), transparent 60%),
+    var(--background);
+}
+
 .font-heading {
   font-family: "Instrument Sans", var(--font-manrope), system-ui, sans-serif;
 }
@@ -521,14 +528,14 @@
 
 .liquid-composer {
   isolation: isolate;
-  border-color: color-mix(in oklch, var(--border-strong) 55%, var(--border));
+  border-color: var(--border-strong);
   border-top-color: color-mix(in oklch, var(--card) 90%, var(--foreground));
   background:
     linear-gradient(
       135deg,
-      color-mix(in oklch, var(--card) 54%, transparent),
-      color-mix(in oklch, var(--card) 42%, transparent) 48%,
-      color-mix(in oklch, var(--card) 34%, transparent)
+      color-mix(in oklch, var(--card) 95%, transparent),
+      color-mix(in oklch, var(--card) 91%, transparent) 48%,
+      color-mix(in oklch, var(--card) 87%, transparent)
     );
   box-shadow:
     0 1px 0 color-mix(in oklch, var(--card) 92%, transparent) inset,
@@ -538,21 +545,6 @@
     0 16px 36px -30px var(--glass-shadow);
   backdrop-filter: blur(24px) saturate(165%) contrast(108%);
   -webkit-backdrop-filter: blur(24px) saturate(165%) contrast(108%);
-}
-
-.liquid-composer::before {
-  position: absolute;
-  top: -70%;
-  left: -18%;
-  z-index: 0;
-  width: 42%;
-  aspect-ratio: 1;
-  border-radius: 9999px;
-  content: "";
-  background: color-mix(in oklch, var(--glass-highlight) 72%, transparent);
-  filter: blur(18px);
-  opacity: 0.58;
-  pointer-events: none;
 }
 
 .liquid-composer > * {
@@ -575,12 +567,37 @@
   box-shadow: 0 12px 42px -22px var(--glass-shadow), 0 1px 0 var(--glass-highlight) inset;
 }
 
+/*
+ * Hero nav sits over real photographic content (the hero background image),
+ * not the flat app background .lotus-glass-strong is tuned for elsewhere
+ * (dropdowns, modals, sidebars). Same shape/shadow, but translucency and
+ * saturation closer to .liquid-composer so the image actually shows through.
+ */
+.nav-glass-hero {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in oklch, var(--card) 62%, transparent),
+      color-mix(in oklch, var(--card) 52%, transparent)
+    );
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .nav-glass-hero {
+    background: var(--card);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
 .workspace-root {
   background: var(--background);
 }
 
 .workspace-sidebar {
-  background: color-mix(in oklch, var(--card) 38%, transparent);
+  background: color-mix(in oklch, var(--card) 92%, transparent);
   box-shadow:
     0 1px 0 color-mix(in oklch, var(--card) 92%, transparent) inset,
     0 24px 60px -34px var(--glass-shadow);
@@ -605,16 +622,7 @@
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .liquid-composer::before { animation: glass-specular 12s ease-in-out infinite alternate; }
-}
-
-@keyframes glass-specular {
-  50% { transform: translate3d(120%, 38%, 0) scale(1.18); }
-  100% { transform: translate3d(250%, 8%, 0) scale(0.92); }
-}
-
-/* Composer chrome: quiet bevel at rest, accent-tinted glow on focus */
+/* Composer chrome: quiet bevel at rest, neutral glow on focus */
 .composer-shell {
   box-shadow:
     0 1px 0 0 color-mix(in oklch, var(--foreground) 5%, transparent) inset,
@@ -631,8 +639,8 @@
 .composer-shell:focus-within {
   box-shadow:
     0 1px 0 0 color-mix(in oklch, var(--foreground) 5%, transparent) inset,
-    0 0 0 1px color-mix(in oklch, var(--accent) 38%, transparent),
-    0 30px 80px -40px color-mix(in oklch, var(--accent) 42%, transparent);
+    0 0 0 1px color-mix(in oklch, var(--border-strong) 55%, transparent),
+    0 30px 80px -40px color-mix(in oklch, var(--foreground) 40%, transparent);
 }
 
 .liquid-composer:hover {
@@ -646,11 +654,11 @@
 }
 
 .liquid-composer:focus-within {
-  border-color: color-mix(in oklch, var(--accent) 72%, var(--border));
+  border-color: color-mix(in oklch, var(--border-strong) 85%, var(--border));
   box-shadow:
     0 1px 0 color-mix(in oklch, var(--card) 96%, transparent) inset,
-    0 0 0 3px color-mix(in oklch, var(--accent) 18%, transparent),
-    0 30px 76px -36px color-mix(in oklch, var(--accent) 48%, transparent),
+    0 0 0 3px color-mix(in oklch, var(--foreground) 10%, transparent),
+    0 30px 76px -36px color-mix(in oklch, var(--foreground) 28%, transparent),
     0 18px 40px -30px var(--glass-shadow);
 }
 

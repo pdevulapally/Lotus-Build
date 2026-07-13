@@ -66,6 +66,32 @@ function shouldHideCompletedFeedItem(event: ComputerTimelineEvent) {
   return event.status === "complete" && QUIET_COMPLETED_EVENTS.has(event.title)
 }
 
+/**
+ * Cursor/Claude-style thinking panel: fold every narration phase for a run
+ * (understanding, research, browser inspection, build approach, ...) into one
+ * growing Reasoning block instead of a new box per phase. Dynamic over
+ * whatever titles PROSE_EVENTS holds — not tied to a fixed phase count.
+ */
+function mergeProseEvents(events: ComputerTimelineEvent[]): ComputerTimelineEvent[] {
+  const merged: ComputerTimelineEvent[] = []
+  let anchor: ComputerTimelineEvent | null = null
+
+  for (const event of events) {
+    if (PROSE_EVENTS.includes(event.title) && event.description) {
+      if (anchor) {
+        anchor.description = `${anchor.description}\n\n${event.description}`
+      } else {
+        anchor = { ...event }
+        merged.push(anchor)
+      }
+      continue
+    }
+    merged.push(event)
+  }
+
+  return merged
+}
+
 function getGeneratingFilePath(event: ComputerTimelineEvent) {
   if (typeof event.metadata?.filePath === "string") return event.metadata.filePath
   return event.title.startsWith("Generating ") ? event.title.slice("Generating ".length).trim() : undefined
@@ -739,13 +765,18 @@ export function AgentFeed({
   const isRunning = status === "running" || status === "planning"
   const visible = events.filter((e) => e.title !== "Session created")
   const { firstRunId, followUpRunIds } = getRunIdGroups(events)
-  const initialEvents = firstRunId ? visible.filter((event) => event.runId === firstRunId) : visible
+  const initialEvents = mergeProseEvents(
+    firstRunId ? visible.filter((event) => event.runId === firstRunId) : visible
+  )
   const runEventsById = new Map<string, ComputerTimelineEvent[]>()
   for (const event of visible) {
     if (!event.runId || event.runId === firstRunId) continue
     const runEvents = runEventsById.get(event.runId) ?? []
     runEvents.push(event)
     runEventsById.set(event.runId, runEvents)
+  }
+  for (const [runId, runEvents] of runEventsById) {
+    runEventsById.set(runId, mergeProseEvents(runEvents))
   }
   const localUserMessages = localMessages.filter((msg) => msg.role === "user")
   const localUserCount = localUserMessages.length

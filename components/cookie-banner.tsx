@@ -90,7 +90,7 @@ function Toggle({
       onClick={() => onChange?.(!checked)}
       className={cn(
         "relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-        checked ? "bg-foreground" : "bg-muted",
+        checked ? "bg-primary" : "bg-muted",
         disabled && "cursor-not-allowed opacity-50"
       )}
     >
@@ -265,7 +265,7 @@ function PreferencesModal({
             <button
               type="button"
               onClick={() => onSave(analytics, functional)}
-              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background transition-colors hover:bg-foreground/90 sm:flex-none"
+              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 sm:flex-none"
             >
               <Check className="h-3.5 w-3.5" />
               Save preferences
@@ -346,7 +346,7 @@ export function CookieBanner() {
                 <button
                   type="button"
                   onClick={handleAcceptAll}
-                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background transition-colors hover:bg-foreground/90 active:scale-[0.98]"
+                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 active:scale-[0.98]"
                 >
                   <Check className="h-3.5 w-3.5" />
                   Accept all

@@ -163,7 +163,7 @@ function QuestionPrompt({
   const badgeOn = "bg-foreground/12 text-foreground border-foreground/30"
 
   return (
-    <div className={cn("space-y-2 bg-card/78 px-3 py-2.5 backdrop-blur-xl", className)}>
+    <div className={cn("lotus-glass-panel space-y-2 px-3 py-2.5", className)}>
       <p className="text-sm font-medium text-foreground leading-snug">{activeQuestion.title}</p>
       {activeQuestion.description && (
         <p className="text-xs text-muted-foreground">{activeQuestion.description}</p>
@@ -381,7 +381,7 @@ export function QuestionTool({
       </div>
 
       {isComplete ? (
-        <div className="bg-card/78 px-3 py-2 text-xs text-muted-foreground backdrop-blur-xl">{summaryText}</div>
+        <div className="lotus-glass-inset px-3 py-2 text-xs text-muted-foreground">{summaryText}</div>
       ) : (
         <QuestionPrompt
           key={`${clampedIndex}-${question.title}`}

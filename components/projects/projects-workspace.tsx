@@ -387,26 +387,25 @@ function Sidebar({
           </span>
         </Link>
         <div className="flex items-center gap-0.5">
-          {onToggle && !onClose && (
+          {onToggle ? (
             <button
               type="button"
               onClick={onToggle}
-              aria-label="Collapse sidebar"
+              aria-label={onClose ? "Close sidebar" : "Collapse sidebar"}
               className={cn(sidebarActionClass, "workspace-sidebar-toggle absolute right-4 top-4 z-30 h-8 w-8")}
             >
               <PanelLeft className="h-4 w-4" aria-hidden="true" />
             </button>
-          )}
-          {onClose && (
+          ) : onClose ? (
             <button
               type="button"
               onClick={onClose}
               aria-label="Close sidebar"
-              className={cn(sidebarActionClass, "absolute -right-3 top-3 z-30 h-9 w-9 border border-border/70 bg-card/75 shadow-md backdrop-blur-xl")}
+              className={cn(sidebarActionClass, "lotus-glass-control absolute -right-3 top-3 z-30 h-9 w-9 border border-border/70")}
             >
               <X className="h-3.5 w-3.5" aria-hidden="true" />
             </button>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -824,7 +823,7 @@ function ReferralDialog({
                 "transition-all active:scale-[0.97] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30",
                 copied
                   ? "bg-success-soft text-success-soft-foreground"
-                  : "bg-foreground text-background hover:bg-foreground/85"
+                  : "bg-primary text-primary-foreground hover:bg-primary/90"
               )}
             >
               {copied ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <Copy className="h-3.5 w-3.5" aria-hidden="true" />}
@@ -1031,7 +1030,7 @@ export function ProjectsWorkspace() {
         {/* ── Mobile overlay ── */}
         <div
           className={cn(
-            "fixed inset-0 z-40 bg-foreground/20 backdrop-blur-sm transition-opacity duration-200 lg:hidden",
+            "fixed inset-0 z-40 bg-foreground/20 transition-opacity duration-200 lg:hidden",
             mobileSidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"
           )}
           onClick={() => setMobileSidebarOpen(false)}
@@ -1084,7 +1083,7 @@ export function ProjectsWorkspace() {
         >
 
           {/* ── Mobile top bar ── */}
-          <header className="relative z-10 flex h-14 shrink-0 items-center gap-3 border-b border-border/60 bg-card/45 px-3 backdrop-blur-xl lg:hidden">
+          <header className="lotus-glass relative z-10 flex h-14 shrink-0 items-center gap-3 px-3 lg:hidden">
             <button
               type="button"
               onClick={() => setMobileSidebarOpen(true)}
@@ -1134,9 +1133,9 @@ export function ProjectsWorkspace() {
                       </Suspense>
 
                       <div className="animate-in fade-in slide-in-from-bottom-2 fill-mode-both mb-7 flex justify-center duration-700">
-                        <div className="lotus-glass-control inline-flex items-center gap-2.5 rounded-full border px-3.5 py-1.5 text-[12px]">
+                        <div className="lotus-glass-control inline-flex items-center gap-3 rounded-full border px-4 py-2 text-sm">
                           <span className="font-medium text-foreground">{stats.planName} workspace</span>
-                          <span className="h-3 w-px bg-border" />
+                          <span className="h-3.5 w-px bg-border" />
                           <Link href="/pricing" className="font-semibold text-accent-soft-foreground transition-colors hover:text-accent">
                             Upgrade
                           </Link>
@@ -1146,10 +1145,10 @@ export function ProjectsWorkspace() {
                       <div className="mb-8 text-center md:mb-10">
                         <h1
                           id={PROJECTS_HEADING_ID}
-                          className="animate-in fade-in slide-in-from-bottom-3 fill-mode-both mx-auto max-w-3xl text-4xl font-medium leading-[1.05] text-foreground duration-700 sm:text-5xl lg:text-6xl"
+                          className="animate-in fade-in slide-in-from-bottom-3 fill-mode-both mx-auto max-w-4xl whitespace-nowrap text-3xl font-medium leading-[1.05] text-foreground duration-700 sm:text-3xl lg:text-4xl"
                           style={{ animationDelay: "80ms" }}
                         >
-                          What can I <span className="font-editorial font-normal">build</span> for you{firstName ? `, ${firstName}` : ""}?
+                          What can I build for you{firstName ? `, ${firstName}` : ""}?
                         </h1>
                         <p
                           className="animate-in fade-in slide-in-from-bottom-3 fill-mode-both mx-auto mt-5 max-w-[34rem] text-[14px] leading-7 text-muted-foreground duration-700 sm:mt-6 sm:text-base"

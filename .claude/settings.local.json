@@ -147,7 +147,23 @@
       "Bash(timeout 45 bash -c 'until curl -sf http://localhost:3000 >/dev/null 2>&1; do sleep 1; done')",
       "Bash(curl -s -o /dev/null -w \"home:%{http_code}\\\\n\" http://localhost:3000/)",
       "Bash(npx playwright *)",
-      "Bash(awk 'NR==1795 || NR==1794 {print \"L1794:\" $0}' \"app/api/generate/route.ts\")"
+      "Bash(awk 'NR==1795 || NR==1794 {print \"L1794:\" $0}' \"app/api/generate/route.ts\")",
+      "Bash(break)",
+      "Bash(cp \"C:/Users/Preet/AppData/Local/Temp/claude/C--Users-Preet-Desktop-Lotus-Build/10403d1d-1db1-43c9-99de-65daac80a1c3/scratchpad/glass-check.mjs\" \"C:/Users/Preet/Desktop/Lotus-Build/glass-check.mjs\")",
+      "Bash(rm glass-check.mjs)",
+      "Bash(npx --yes playwright --help)",
+      "Bash(pkill -f \"next dev\")",
+      "Bash(npx --yes playwright screenshot --wait-for-timeout 1500 --viewport-size=1280,900 http://localhost:3000 C:/Users/Preet/AppData/Local/Temp/claude/C--Users-Preet-Desktop-Lotus-Build/10403d1d-1db1-43c9-99de-65daac80a1c3/scratchpad/home-light-v2.png)",
+      "Bash(npx --yes next lint)",
+      "Bash(npx --yes playwright screenshot --viewport-size=390,844 --wait-for-timeout 1200 http://localhost:3000 C:/Users/Preet/AppData/Local/Temp/claude/C--Users-Preet-Desktop-Lotus-Build/10403d1d-1db1-43c9-99de-65daac80a1c3/scratchpad/mobile-home.png)",
+      "Bash(npx --yes playwright screenshot --viewport-size=1280,900 --wait-for-timeout 1200 http://localhost:3000/signup C:/Users/Preet/AppData/Local/Temp/claude/C--Users-Preet-Desktop-Lotus-Build/10403d1d-1db1-43c9-99de-65daac80a1c3/scratchpad/signup-desktop.png)",
+      "Bash(npx --yes playwright screenshot --viewport-size=1280,900 --wait-for-timeout 1200 http://localhost:3000 C:/Users/Preet/AppData/Local/Temp/claude/C--Users-Preet-Desktop-Lotus-Build/10403d1d-1db1-43c9-99de-65daac80a1c3/scratchpad/home-desktop.png)",
+      "Bash(npx --yes playwright screenshot --viewport-size=1280,900 --wait-for-timeout 1500 http://localhost:3000 __TRACKED_VAR__/hero-with-image.png)",
+      "Bash(npx *)",
+      "Bash(NODE_PATH=\"/c/Users/Preet/AppData/Local/npm-cache/_npx/e41f203b7505f1fb/node_modules\" node *)",
+      "Bash(cat)",
+      "Bash(python /tmp/pixel_check.py)",
+      "Bash(python3 /tmp/pixel_check.py)"
     ]
   }
 }

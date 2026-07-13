@@ -30,14 +30,18 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { db } from "@/lib/firebase"
 import {
+  Brain,
+  CreditCard,
   Download,
   ExternalLink,
+  FolderGit2,
+  Gauge,
   Loader2,
-  Mail,
   Trash2,
+  UserRound,
   XCircle,
+  type LucideIcon,
 } from "lucide-react"
-import { getAgentRunLimitForPlan } from "@/lib/agent-quotas"
 
 /* ─── context ────────────────────────────────────────────────────────────── */
 
@@ -87,12 +91,12 @@ type StripeInvoice = {
   description: string | null
 }
 
-const SETTINGS_PAGES: Array<{ key: SettingsPageKey; label: string; description: string }> = [
-  { key: "account", label: "Account", description: "Profile, workspace, security" },
-  { key: "billing", label: "Billing", description: "Plan, payment, invoices" },
-  { key: "usage", label: "Usage", description: "Credits and agent runs" },
-  { key: "projects", label: "Projects", description: "Build history and health" },
-  { key: "memory", label: "Memory", description: "Agent context controls" },
+const SETTINGS_PAGES: Array<{ key: SettingsPageKey; label: string; description: string; icon: LucideIcon }> = [
+  { key: "account", label: "Account", description: "Profile, workspace, security", icon: UserRound },
+  { key: "billing", label: "Billing", description: "Plan, payment, invoices", icon: CreditCard },
+  { key: "usage", label: "Usage", description: "Credits and billing cycle", icon: Gauge },
+  { key: "projects", label: "Projects", description: "Build history and health", icon: FolderGit2 },
+  { key: "memory", label: "Memory", description: "Agent context controls", icon: Brain },
 ]
 
 type ProjectAnalyticsItem = {
@@ -588,10 +592,6 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
   const daysLeft = periodEnd ? Math.max(0, Math.ceil((periodEnd.getTime() - Date.now()) / 86400000)) : 0
   const cycleDays = periodStart && periodEnd ? Math.max(1, Math.ceil((periodEnd.getTime() - periodStart.getTime()) / 86400000)) : 30
   const dailyAvg = Math.max(0, Math.round(usedCredits / cycleDays))
-  const agentRunLimit = getAgentRunLimitForPlan(userData?.planId, userData?.agentRunLimit)
-  const agentUsed = Math.max(0, Number(userData?.agentUsage?.used ?? 0))
-  const agentRemaining = Math.max(0, Number.isFinite(Number(userData?.agentUsage?.remaining)) ? Number(userData?.agentUsage?.remaining) : agentRunLimit - agentUsed)
-  const agentPct = agentRunLimit > 0 ? Math.min(100, Math.round((agentUsed / agentRunLimit) * 100)) : 0
   const createdAt = userData?.createdAt ? new Date(userData.createdAt) : null
   const isFreePlan = !userData?.planId || userData?.planId === "free"
 
@@ -626,10 +626,11 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
                   key={item.key}
                   type="button"
                   onClick={() => setActivePage(item.key)}
-                  className={`shrink-0 rounded-full px-3.5 py-1.5 text-[12.5px] font-medium transition-colors ${
+                  className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12.5px] font-medium transition-colors ${
                     activePage === item.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   }`}
                 >
+                  <item.icon className="h-3.5 w-3.5" aria-hidden />
                   {item.label}
                 </button>
               ))}
@@ -642,11 +643,11 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
                   key={item.key}
                   type="button"
                   onClick={() => setActivePage(item.key)}
-                  className={`group flex w-full items-start gap-2.5 rounded-xl px-3 py-2.5 text-left transition-colors ${
+                  className={`group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left transition-colors ${
                     activePage === item.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   }`}
                 >
-                  <span className={`mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full ${activePage === item.key ? "bg-primary-foreground" : "bg-muted-foreground/40 group-hover:bg-foreground"}`} />
+                  <item.icon className={`h-4 w-4 shrink-0 ${activePage === item.key ? "text-primary-foreground" : "text-muted-foreground/70 group-hover:text-foreground"}`} aria-hidden />
                   <span className="min-w-0">
                     <span className="block text-[13px] font-medium">{item.label}</span>
                     <span className={`mt-0.5 block text-[11px] ${activePage === item.key ? "text-primary-foreground/75" : "text-muted-foreground"}`}>{item.description}</span>
@@ -663,24 +664,20 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
                     <div className="border-b border-border/80 p-5 last:border-b-0">
                       <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex min-w-0 items-center gap-4">
-                          <Avatar className="h-16 w-16 rounded-2xl border border-border bg-background shadow-sm">
+                          <Avatar className="h-14 w-14 rounded-full">
                             <AvatarImage src={userData.photoURL || undefined} alt={userData.displayName || "User"} />
-                            <AvatarFallback className="rounded-2xl bg-muted text-xl font-semibold text-foreground">
+                            <AvatarFallback className="rounded-full bg-muted text-base font-medium text-foreground">
                               {getInitials(userData.displayName, userData.email)}
                             </AvatarFallback>
                           </Avatar>
                           <div className="min-w-0">
-                            <h3 className="truncate text-lg font-semibold tracking-tight text-foreground">{userData.displayName || "Account"}</h3>
-                            <div className="mt-2 flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
-                              <Mail className="h-3.5 w-3.5 shrink-0" />
-                              <span className="truncate">{userData.email}</span>
-                            </div>
+                            <h3 className="truncate text-base font-semibold text-foreground">{userData.displayName || "Account"}</h3>
+                            <p className="mt-0.5 truncate text-sm text-muted-foreground">{userData.email}</p>
                           </div>
                         </div>
-                        <div className="rounded-xl border border-border/80 bg-background/60 px-4 py-3 text-sm">
-                          <p className="text-xs text-muted-foreground">Plan</p>
-                          <p className="mt-1 font-medium text-foreground">{userData.planName || "Free"}</p>
-                        </div>
+                        <p className="text-sm text-muted-foreground sm:text-right">
+                          {userData.planName || "Free"} plan
+                        </p>
                       </div>
                     </div>
                     <SettingsRow label="Member since">
@@ -798,22 +795,15 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
 
               {activePage === "usage" && (
                 <>
-                  <div className="mb-6 grid gap-4 md:grid-cols-3">
+                  <div className="mb-6 grid gap-4 md:grid-cols-2">
                     <Metric label="Credits remaining" value={remainingClamped.toLocaleString()} helper={`${tokenPct}% used`} />
-                    <Metric label="Agent runs" value={`${agentRemaining}`} helper={`${agentUsed} of ${agentRunLimit} used`} />
                     <Metric label="Days left" value={daysLeft} helper={`${dailyAvg.toLocaleString()} credits daily avg`} />
                   </div>
-                  <SettingsSection title="Usage" description="Track build credits and computer-agent run limits for the current billing cycle.">
+                  <SettingsSection title="Usage" description="Track build credits for the current billing cycle.">
                     <SettingsRow label="Build credits" description={`${usedCredits.toLocaleString()} of ${tokensLimit.toLocaleString()} credits used this cycle.`}>
                       <div className="w-full sm:w-80">
                         <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground"><span>{remainingClamped.toLocaleString()} remaining</span><span>{tokenPct}% used</span></div>
                         <ProgressMeter value={tokenPct} tone={tokenPct >= 90 ? "danger" : tokenPct >= 60 ? "warning" : "primary"} />
-                      </div>
-                    </SettingsRow>
-                    <SettingsRow label="Agent runs" description="Runs available for autonomous computer sessions.">
-                      <div className="w-full sm:w-80">
-                        <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground"><span>{agentRemaining} remaining</span><span>{agentUsed} / {agentRunLimit}</span></div>
-                        <ProgressMeter value={agentPct} />
                       </div>
                     </SettingsRow>
                   </SettingsSection>

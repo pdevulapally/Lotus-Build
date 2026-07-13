@@ -228,7 +228,7 @@ export function ContactForm() {
                 className={cn(
                   "rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors",
                   isActive
-                    ? "border-foreground bg-foreground text-background"
+                    ? "border-primary bg-primary text-primary-foreground"
                     : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
@@ -281,7 +281,7 @@ export function ContactForm() {
         <button
           type="submit"
           disabled={sending}
-          className="inline-flex min-h-11 items-center gap-2 rounded-full bg-foreground px-6 text-sm font-semibold text-background transition hover:bg-foreground/85 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {sending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
           {sending ? "Sending..." : "Send message"}

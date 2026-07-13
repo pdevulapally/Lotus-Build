@@ -56,17 +56,17 @@ export default function Home() {
 
       <main className="relative min-h-screen overflow-x-clip bg-background text-foreground">
         <section className="relative isolate overflow-hidden border-b border-border px-4 pb-20 sm:px-6 sm:pb-28 lg:px-8">
+          <img
+            src="/Images/lotusbuildbgimg.png"
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+
           <Navbar variant="hero" />
 
           <section className="relative mx-auto max-w-5xl pt-20 text-center sm:pt-24 lg:pt-32">
-            <p
-              className="lotus-glass-control animate-in fade-in slide-in-from-bottom-2 fill-mode-both inline-flex items-center rounded-full border px-3.5 py-1.5 font-mono text-[11px] font-semibold text-accent duration-700"
-            >
-              Lotus.build
-            </p>
-
             <h1
-              className="animate-in fade-in slide-in-from-bottom-3 fill-mode-both mx-auto mt-5 max-w-3xl text-4xl font-medium leading-[1.04] tracking-[-0.04em] text-foreground duration-700 sm:text-5xl lg:text-6xl"
+              className="animate-in fade-in slide-in-from-bottom-3 fill-mode-both mx-auto max-w-3xl text-4xl font-medium leading-[1.04] tracking-[-0.04em] text-foreground duration-700 sm:text-5xl lg:text-6xl"
               style={{ animationDelay: "80ms" }}
             >
               What can I <span className="font-editorial font-normal">build</span> for you?

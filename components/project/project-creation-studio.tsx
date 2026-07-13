@@ -29,7 +29,7 @@ function PlanningHeader(props: {
   const { projectLabel, onBack } = props
 
   return (
-    <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur-md">
+    <header className="lotus-glass-strong sticky top-0 z-20 border-b border-border">
       <div className="mx-auto max-w-4xl px-4 py-3 sm:px-6 sm:py-4">
         <div className="flex items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
@@ -193,7 +193,7 @@ function ChatComposer(props: {
   }
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95 backdrop-blur">
+    <div className="lotus-glass-strong fixed inset-x-0 bottom-0 z-20 border-t border-border">
       <div className="mx-auto max-w-4xl px-4 py-3 sm:px-6 sm:py-4">
         <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
           <Textarea

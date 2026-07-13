@@ -125,6 +125,10 @@ function renderContentBlocks(blocks: ContentBlock[]): React.ReactNode {
  * Animates text from empty to full on first mount when isStreaming=true.
  * Uses a mount-time ref so the animation never re-triggers for already-seen text
  * when a new session starts (which would change the isStreaming prop on old components).
+ *
+ * fullText may grow over time (a Reasoning block spanning several narration
+ * phases gets appended to as each phase lands) — when it grows, only the new
+ * suffix is queued so already-typed text is never re-animated from scratch.
  */
 function useStreamingText(fullText: string, isStreaming: boolean) {
   const wasStreamingOnMountRef = React.useRef(isStreaming)
@@ -134,23 +138,33 @@ function useStreamingText(fullText: string, isStreaming: boolean) {
     wasStreamingOnMountRef.current ? chunkIntoTokens(fullText) : []
   )
   const indexRef = React.useRef(0)
+  const knownTextRef = React.useRef(fullText)
 
   const [visibleText, setVisibleText] = React.useState(
     wasStreamingOnMountRef.current ? "" : fullText
   )
 
-  // If fullText ever changes (shouldn't happen for completed events) restart
   React.useEffect(() => {
     if (!wasStreamingOnMountRef.current) {
       setVisibleText(fullText)
       return
     }
-    tokensRef.current = chunkIntoTokens(fullText)
-    indexRef.current = 0
-    setVisibleText("")
+    if (fullText === knownTextRef.current) return
+
+    const isAppend = fullText.startsWith(knownTextRef.current)
+    if (!isAppend) {
+      // Text changed from under us rather than growing — restart clean.
+      tokensRef.current = []
+      indexRef.current = 0
+      setVisibleText("")
+    }
+    const newSegment = isAppend ? fullText.slice(knownTextRef.current.length) : fullText
+    tokensRef.current.push(...chunkIntoTokens(newSegment))
+    knownTextRef.current = fullText
   }, [fullText])
 
-  // Advance one token per tick
+  // Advance one token per tick. Re-checked whenever fullText changes too, so
+  // newly queued tokens resume even if typing had already caught up.
   React.useEffect(() => {
     if (!wasStreamingOnMountRef.current) return
     if (indexRef.current >= tokensRef.current.length) return
@@ -163,7 +177,7 @@ function useStreamingText(fullText: string, isStreaming: boolean) {
     }, delay)
 
     return () => window.clearTimeout(timer)
-  }, [visibleText])
+  }, [visibleText, fullText])
 
   return visibleText
 }
