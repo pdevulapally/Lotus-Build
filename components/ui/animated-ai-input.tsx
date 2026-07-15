@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import { ArrowUp, Check, Loader2, Mic, Square, Leaf, X, ChevronUp } from "lucide-react";
-import Link from "next/link";
+import { ArrowUp, Check, Loader2, Crown, Mic, Square, Leaf, X, ChevronUp } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -112,71 +111,23 @@ type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
 
 /* ─── model metadata ─────────────────────────────────────────────────────────── */
 
+// This input drives /api/computer/run, whose agentic loop can only execute
+// Claude models (paid) or Kimi (free, server-enforced — see computer/run's
+// tier gate). These are the only two named models it can ever actually run;
+// listing anything else here would be dishonest UI on top of a silent
+// server-side fallback.
+const CLAUDE_MODELS = ["claude-opus-4-8", "claude-sonnet-4-6"];
+
 const MODEL_META: Record<string, { label: string; description: string; badges: string[] }> = {
-  "o3-mini": {
-    label: "o3-mini",
-    description: "Fast reasoning model for structured edits, debugging, and technical prompts.",
-    badges: ["Reasoning", "Coding"],
+  "claude-opus-4-8": {
+    label: "Claude Opus 4.8",
+    description: "Most capable Claude model — best for complex builds, deep refactors, and demanding product work.",
+    badges: ["Most capable"],
   },
-  "GPT-5.5": {
-    label: "GPT-5.5",
-    description: "Latest advanced model for high-quality site generation, complex refactors, and detailed builds.",
-    badges: ["Latest", "Advanced"],
-  },
-  "GPT-4-1": {
-    label: "GPT-4.1",
-    description: "Strong general-purpose model for larger refactors and more detailed builds.",
-    badges: ["Premium", "General"],
-  },
-  "Claude Sonnet 4.6": {
+  "claude-sonnet-4-6": {
     label: "Claude Sonnet 4.6",
-    description: "High-quality Claude model for robust coding, UI generation, and iterative product edits.",
-    badges: ["Premium", "Claude"],
-  },
-  "Claude Sonnet 4": {
-    label: "Claude Sonnet 4",
-    description: "Balanced Claude model for reliable implementation and design-oriented updates.",
-    badges: ["Premium", "Claude"],
-  },
-  "Claude Opus 4": {
-    label: "Claude Opus 4",
-    description: "Most capable Claude model for complex refactors and deeper reasoning workflows.",
-    badges: ["Premium", "Claude"],
-  },
-  "minimaxai/minimax-m2.1": {
-    label: "MiniMax M2.1",
-    description: "Multi-language coding, app and web dev, office AI, and agent-style workflows.",
-    badges: ["Open Source", "Agentic", "Multimodal"],
-  },
-  "meta/llama-3.3-70b-instruct": {
-    label: "Llama 3.3 70B",
-    description: "Strong open model for high-quality chat, coding, and instruction following.",
-    badges: ["Open Source", "Coding"],
-  },
-  "meta/llama-3.1-405b-instruct": {
-    label: "Llama 3.1 405B",
-    description: "Large open-weight model suited for deeper reasoning and larger generation tasks.",
-    badges: ["Open Source", "Reasoning"],
-  },
-  "deepseek-ai/deepseek-r1": {
-    label: "DeepSeek R1",
-    description: "Reasoning-heavy open model that performs well on planning and complex coding tasks.",
-    badges: ["Open Source", "Reasoning", "Coding"],
-  },
-  "qwen/qwen2.5-coder-32b-instruct": {
-    label: "Qwen 2.5 Coder 32B",
-    description: "Code-focused open model for implementation, debugging, and developer workflows.",
-    badges: ["Open Source", "Coding"],
-  },
-  "mistralai/mistral-small-3.1-24b-instruct": {
-    label: "Mistral Small 3.1",
-    description: "Compact open model for quick iteration, chat, and lightweight coding assistance.",
-    badges: ["Open Source", "Fast"],
-  },
-  "google/gemma-3-27b-it": {
-    label: "Gemma 3 27B",
-    description: "Instruction-tuned open model for multimodal-style workflows and general tasks.",
-    badges: ["Open Source", "Multimodal"],
+    description: "Fast, high-quality Claude model for robust coding and iterative product edits.",
+    badges: ["Balanced"],
   },
 };
 
@@ -276,19 +227,11 @@ export function AnimatedAIInput({
   const [sessionMode, setSessionMode] = useState<ComputerSessionMode>("auto");
   const [autoMode, setAutoMode] = useState(true);
   const [wasLoading, setWasLoading] = useState(false);
-  const [selectedModel, setSelectedModel] = useState("GPT-5.5");
+  const [selectedModel, setSelectedModel] = useState("claude-opus-4-8");
   const [isListening, setIsListening] = useState(false);
   const [speechSupported, setSpeechSupported] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState<ProjectPlatform>("web");
   const [platformTouched, setPlatformTouched] = useState(false);
-  const [availableModels, setAvailableModels] = useState([
-    "o3-mini", "GPT-5.5", "GPT-4-1",
-    "Claude Sonnet 4.6",
-    "minimaxai/minimax-m2.1",
-    "meta/llama-3.3-70b-instruct",
-    "deepseek-ai/deepseek-r1",
-    "qwen/qwen2.5-coder-32b-instruct",
-  ]);
 
   const isSlimCompact = compact && compactSize === "slim";
   const minH = compact ? (isSlimCompact ? 60 : 76) : 96;
@@ -300,7 +243,7 @@ export function AnimatedAIInput({
   });
 
   const isPaidUser = userData?.planId && userData.planId !== "free";
-  const effectiveModel = autoMode ? "GPT-5.5" : selectedModel;
+  const effectiveModel = autoMode ? "claude-opus-4-8" : selectedModel;
   const displayModelLabel = autoMode ? "Best model" : getModelMeta(selectedModel).label;
   const selectedSessionMode = getComputerSessionModeConfig(sessionMode);
 
@@ -340,29 +283,10 @@ export function AnimatedAIInput({
 
   useEffect(() => {
     if (!initialModel) return;
-    if (initialModel === "GPT-5.5") { setAutoMode(true); setSelectedModel("GPT-5.5"); return; }
+    if (initialModel === "claude-opus-4-8") { setAutoMode(true); setSelectedModel("claude-opus-4-8"); return; }
     setAutoMode(false);
     setSelectedModel(initialModel);
-    setAvailableModels((cur) => cur.includes(initialModel) ? cur : [...cur, initialModel]);
   }, [initialModel]);
-
-  useEffect(() => {
-    let mounted = true;
-    const load = async () => {
-      try {
-        const res = await fetch("/api/generate", { cache: "no-store" });
-        if (!res.ok) return;
-        const data = await res.json() as { models?: string[]; defaultModel?: string };
-        if (!mounted || !Array.isArray(data.models) || data.models.length === 0) return;
-        setAvailableModels(data.models);
-        if (data.defaultModel && !autoMode) {
-          setSelectedModel((cur) => data.models!.includes(cur) ? cur : data.defaultModel!);
-        }
-      } catch {}
-    };
-    load();
-    return () => { mounted = false; };
-  }, [autoMode]);
 
   /* handlers ─── */
 
@@ -644,43 +568,46 @@ export function AnimatedAIInput({
 
                 <DropdownMenuSeparator className="my-1" />
 
-                {isPaidUser ? (
-                  availableModels.map((model) => {
-                    const meta = getModelMeta(model);
-                    const isSelected = !autoMode && selectedModel === model;
-                    return (
-                      <DropdownMenuItem
-                        key={model}
-                        onSelect={() => { setAutoMode(false); setSelectedModel(model); }}
-                        className="rounded-md px-3 py-2.5 focus:bg-muted"
-                      >
-                        <div className="flex w-full items-start justify-between gap-2">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <span className="text-sm font-medium text-foreground">{meta.label}</span>
-                              {meta.badges.slice(0, 2).map((b) => (
-                                <Badge key={b}>{b}</Badge>
-                              ))}
-                            </div>
-                            <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
-                              {meta.description}
-                            </p>
+                {CLAUDE_MODELS.map((model) => {
+                  const meta = MODEL_META[model];
+                  const isLocked = !isPaidUser;
+                  const isSelected = !autoMode && selectedModel === model;
+                  return (
+                    <DropdownMenuItem
+                      key={model}
+                      onSelect={() => {
+                        if (isLocked) { router.push("/pricing"); return; }
+                        setAutoMode(false);
+                        setSelectedModel(model);
+                      }}
+                      className="rounded-md px-3 py-2.5 focus:bg-muted"
+                    >
+                      <div className="flex w-full items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className={cn("text-sm font-medium", isLocked ? "text-foreground/70" : "text-foreground")}>
+                              {meta.label}
+                            </span>
+                            {meta.badges.map((b) => (
+                              <Badge key={b}>{b}</Badge>
+                            ))}
+                            {isLocked && <Badge>Pro</Badge>}
                           </div>
-                          {isSelected && <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-foreground" />}
+                          <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
+                            {meta.description}
+                          </p>
                         </div>
-                      </DropdownMenuItem>
-                    );
-                  })
-                ) : (
-                  <div className="px-3 py-2">
-                    <p className="text-xs text-muted-foreground">
-                      Custom models are available on paid plans.
-                    </p>
-                    <Link href="/pricing" className="mt-1.5 inline-flex text-xs font-medium text-foreground underline-offset-2 hover:underline">
-                      Upgrade
-                    </Link>
-                  </div>
-                )}
+                        {isLocked ? (
+                          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-soft">
+                            <Crown className="h-3 w-3 text-accent-soft-foreground" />
+                          </span>
+                        ) : isSelected ? (
+                          <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-foreground" />
+                        ) : null}
+                      </div>
+                    </DropdownMenuItem>
+                  );
+                })}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

@@ -3,6 +3,8 @@ import { z } from "zod"
 import { adminDb } from "@/lib/firebase-admin"
 import { requireUserUid } from "@/lib/server-auth"
 import { createRuntimeCheckpoint, normalizeComputerAgentRuntime } from "@/lib/computer-agent/runtime"
+import { assertSessionOwner } from "@/lib/project-access"
+import { mapRouteError } from "@/lib/orchestrator/route-utils"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -21,6 +23,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
     }
 
+    await assertSessionOwner(parsed.data.sessionId, uid)
+
     const docRef = adminDb.collection("computerSessions").doc(parsed.data.sessionId)
 
     const result = await adminDb.runTransaction(async (tx) => {
@@ -33,7 +37,6 @@ export async function POST(req: Request) {
         timeline?: unknown
         agentRuntime?: unknown
       }
-      if (data.ownerId !== uid) return { status: 403 as const, error: "Access denied" }
 
       // Only an in-progress run can be stopped — otherwise this is a no-op.
       if (data.status !== "running" && data.status !== "planning") {
@@ -77,10 +80,6 @@ export async function POST(req: Request) {
     }
     return NextResponse.json({ ok: true, ...result })
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Request failed"
-    return NextResponse.json(
-      { error: message },
-      { status: message.includes("Authorization") ? 401 : 500 }
-    )
+    return mapRouteError(err)
   }
 }

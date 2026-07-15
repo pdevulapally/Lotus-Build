@@ -119,7 +119,8 @@ export async function GET(req: Request) {
     })
     await adminDb.collection("supabaseOauthStates").doc(state).delete().catch(() => {})
     return callbackResponse(true, "connected", targetOrigin, builderProjectId)
-  } catch {
+  } catch (err) {
+    console.error("[supabase-oauth-callback] Connection failed:", err)
     return callbackResponse(false, "Supabase connection failed.", targetOrigin, builderProjectId)
   }
 }

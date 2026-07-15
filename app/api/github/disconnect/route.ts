@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { clearGitHubToken, requireUserUid } from "@/lib/server-auth"
+import { mapRouteError } from "@/lib/orchestrator/route-utils"
 
 export const runtime = "nodejs"
 
@@ -9,7 +10,6 @@ export async function POST(req: Request) {
     await clearGitHubToken(uid)
     return NextResponse.json({ ok: true })
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Unauthorized"
-    return NextResponse.json({ error: message }, { status: 401 })
+    return mapRouteError(err)
   }
 }

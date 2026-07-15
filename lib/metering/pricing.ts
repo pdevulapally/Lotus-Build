@@ -58,6 +58,7 @@ const MODEL_PRICING: Record<string, Partial<ModelPricing>> = {
   "claude-sonnet-4-5": {},
   "claude-haiku-4-5": {},
   "claude-opus-4-6": {},
+  "claude-opus-4-8": {},
   // OpenAI
   "gpt-5.5": {},
   "gpt-5.4": {},
@@ -66,6 +67,8 @@ const MODEL_PRICING: Record<string, Partial<ModelPricing>> = {
   "deepseek-ai/deepseek-r1": {},
   "meta/llama-3.3-70b-instruct": {},
   "qwen/qwen2.5-coder-32b-instruct": {},
+  // Moonshot (free-tier agentic loop)
+  "kimi-k2.7-code": {},
 }
 
 function loadEnvOverrides(): Record<string, Partial<ModelPricing>> {

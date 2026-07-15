@@ -32,7 +32,11 @@ export async function GET(
       return NextResponse.json({ error: "Missing sandbox id" }, { status: 400 })
     }
 
-    await loadOwnedMobileProject(projectId, uid)
+    const project = await loadOwnedMobileProject(projectId, uid)
+    const projectData = project.snap.data() as { mobileSandboxId?: unknown } | undefined
+    if (projectData?.mobileSandboxId !== sandboxId) {
+      return NextResponse.json({ error: "Sandbox does not belong to this project" }, { status: 403 })
+    }
     const sandbox = await getSandbox(sandboxId)
 
     if (!sandbox) {
@@ -61,7 +65,11 @@ export async function DELETE(
       return NextResponse.json({ error: "Missing sandbox id" }, { status: 400 })
     }
 
-    await loadOwnedMobileProject(projectId, uid)
+    const project = await loadOwnedMobileProject(projectId, uid)
+    const projectData = project.snap.data() as { mobileSandboxId?: unknown } | undefined
+    if (projectData?.mobileSandboxId !== sandboxId) {
+      return NextResponse.json({ error: "Sandbox does not belong to this project" }, { status: 403 })
+    }
     await destroySandbox(sandboxId)
 
     return NextResponse.json({ ok: true })

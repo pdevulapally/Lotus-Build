@@ -2,6 +2,7 @@ import { NextRequest } from "next/server"
 import Stripe from "stripe"
 import { adminDb } from "@/lib/firebase-admin"
 import { Timestamp, FieldValue } from "firebase-admin/firestore"
+import { PLAN_CONFIG } from "@/lib/plans"
 
 const REFERRAL_CREDITS = 500
 
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription
         const uid = subscription.metadata?.firebase_uid
-        if (uid) await setUserPlan(uid, "free", 10000, null)
+        if (uid) await setUserPlan(uid, "free", PLAN_CONFIG.free.tokensPerMonth, null)
         break
       }
       default:
@@ -114,7 +115,7 @@ async function markWebhookFailed(eventId: string) {
 async function syncSubscriptionToUser(stripe: Stripe, subscriptionId: string, uid: string) {
   const sub = await stripe.subscriptions.retrieve(subscriptionId, { expand: ["items.data.price.product"] })
   if (sub.status !== "active" && sub.status !== "trialing") {
-    await setUserPlan(uid, "free", 10000, null)
+    await setUserPlan(uid, "free", PLAN_CONFIG.free.tokensPerMonth, null)
     return
   }
 
@@ -126,7 +127,9 @@ async function syncSubscriptionToUser(stripe: Stripe, subscriptionId: string, ui
   const productName = (product?.name || "").toLowerCase()
   const meta = (price as any).metadata || {}
   const planId = meta.plan_id || (productName.includes("pro") ? "pro" : productName.includes("team") ? "team" : "pro")
-  const baseTokensPerMonth = meta.tokens_per_month ? parseInt(meta.tokens_per_month, 10) : planId === "team" ? 500000 : 120000
+  const baseTokensPerMonth = meta.tokens_per_month
+    ? parseInt(meta.tokens_per_month, 10)
+    : planId === "team" ? PLAN_CONFIG.team.tokensPerMonth : PLAN_CONFIG.pro.tokensPerMonth
   const tokensPerMonth = Math.max(1, baseTokensPerMonth) * quantity
 
   await setUserPlan(uid, planId, tokensPerMonth, subscriptionId)

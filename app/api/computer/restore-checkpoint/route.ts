@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import { adminDb } from "@/lib/firebase-admin"
 import { requireUserUid } from "@/lib/server-auth"
 import { restoreProjectVersion } from "@/lib/project-versions/service"
+import { mapRouteError } from "@/lib/orchestrator/route-utils"
+import { assertSessionOwner } from "@/lib/project-access"
 
 export const runtime = "nodejs"
 
@@ -21,15 +23,8 @@ export async function POST(req: Request) {
     }
 
     // Verify session ownership and get projectId
-    const sessionSnap = await adminDb.collection("computerSessions").doc(sessionId).get()
-    if (!sessionSnap.exists) {
-      return NextResponse.json({ error: "Session not found" }, { status: 404 })
-    }
-    const sessionData = sessionSnap.data() as { ownerId?: string; projectId?: string }
-    if (sessionData.ownerId !== uid) {
-      return NextResponse.json({ error: "Access denied" }, { status: 403 })
-    }
-    const projectId = sessionData.projectId
+    const { data: sessionData } = await assertSessionOwner(sessionId, uid)
+    const projectId = (sessionData as { projectId?: string }).projectId
     if (!projectId) {
       return NextResponse.json({ error: "Session has no associated project" }, { status: 400 })
     }
@@ -54,9 +49,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true, versionId: restoredVersionId })
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Restore failed" },
-      { status: 500 }
-    )
+    return mapRouteError(err)
   }
 }

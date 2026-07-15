@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { requireUserUid } from "@/lib/server-auth"
 import { detectRequiredEnvVars } from "@/lib/env-detection"
 import { assertProjectCanEdit } from "@/lib/project-access"
+import { mapRouteError } from "@/lib/orchestrator/route-utils"
 
 export const runtime = "nodejs"
 
@@ -19,7 +20,6 @@ export async function GET(req: Request) {
     const requiredEnvVars = detectRequiredEnvVars(files)
     return NextResponse.json({ requiredEnvVars })
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Unauthorized"
-    return NextResponse.json({ error: message }, { status: 401 })
+    return mapRouteError(err)
   }
 }

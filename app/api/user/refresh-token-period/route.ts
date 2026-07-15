@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server"
-import { adminAuth, adminDb } from "@/lib/firebase-admin"
+import { adminDb } from "@/lib/firebase-admin"
 import { Timestamp } from "firebase-admin/firestore"
+import { requireUserUid } from "@/lib/server-auth"
+import { PLAN_CONFIG } from "@/lib/plans"
 
 function getFirstDayOfNextMonth(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth() + 1, 1)
@@ -16,18 +18,11 @@ function getPeriodEndDate(raw: unknown): Date | null {
 }
 
 export async function POST(req: NextRequest) {
-  const authHeader = req.headers.get("authorization")
-  const idToken = authHeader?.replace(/Bearer\s+/i, "")?.trim()
-  if (!idToken) {
-    return Response.json({ error: "Missing authorization" }, { status: 401 })
-  }
-
   let uid: string
   try {
-    const decoded = await adminAuth.verifyIdToken(idToken)
-    uid = decoded.uid
+    uid = await requireUserUid(req)
   } catch {
-    return Response.json({ error: "Invalid token" }, { status: 401 })
+    return Response.json({ error: "Missing or invalid auth token" }, { status: 401 })
   }
 
   const userRef = adminDb.collection("users").doc(uid)
@@ -37,12 +32,10 @@ export async function POST(req: NextRequest) {
   }
 
   const data = userSnap.data() as Record<string, unknown>
-  const planId = (data?.planId as string) || "free"
-  const planSnap = await adminDb.collection("plans").doc(planId).get()
   const planTokensPerMonth =
     data?.tokensLimit != null
       ? Number(data.tokensLimit)
-      : (planSnap.exists ? Number(planSnap.data()?.tokensPerMonth ?? 10000) : 10000)
+      : PLAN_CONFIG.free.tokensPerMonth
 
   const periodEnd = getPeriodEndDate(data?.tokenUsage && (data.tokenUsage as Record<string, unknown>)?.periodEnd)
   const now = new Date()

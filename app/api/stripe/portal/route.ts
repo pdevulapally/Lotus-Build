@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server"
 import Stripe from "stripe"
-import { adminAuth, adminDb } from "@/lib/firebase-admin"
+import { adminDb } from "@/lib/firebase-admin"
 import { getAppBaseUrl } from "@/lib/security/url"
+import { requireUserUid } from "@/lib/server-auth"
 
 function getStripeClient() {
   const secretKey = process.env.STRIPE_SECRET_KEY
@@ -14,16 +15,11 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Stripe is not configured" }, { status: 500 })
   }
 
-  const authHeader = req.headers.get("authorization")
-  const idToken = authHeader?.replace(/Bearer\s+/i, "")?.trim()
-  if (!idToken) return Response.json({ error: "Missing token" }, { status: 401 })
-
   let uid: string
   try {
-    const decoded = await adminAuth.verifyIdToken(idToken)
-    uid = decoded.uid
+    uid = await requireUserUid(req)
   } catch {
-    return Response.json({ error: "Invalid token" }, { status: 401 })
+    return Response.json({ error: "Missing or invalid token" }, { status: 401 })
   }
 
   const userDoc = await adminDb.collection("users").doc(uid).get()

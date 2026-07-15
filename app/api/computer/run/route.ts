@@ -46,10 +46,12 @@ import {
 import { createRunVersion } from "@/lib/project-versions/service"
 import { runAgenticGeneration } from "@/lib/computer-agent/agentic-generation"
 import { assertRateLimit, RateLimitError, rateLimitResponse } from "@/lib/rate-limit"
-import { assertProjectCanEdit } from "@/lib/project-access"
+import { assertProjectCanEdit, assertSessionOwner } from "@/lib/project-access"
 import { isSensitiveFilePath, normalizeRelativeFilePath } from "@/lib/security/files"
 import { InsufficientTokensError, MeteringUserNotFoundError, assertTokenBalance } from "@/lib/metering/ledger"
 import { UsageMeter, createMeteredAnthropic } from "@/lib/metering/metered-anthropic"
+import { KIMI_MODEL, getMoonshotClient } from "@/lib/computer-agent/kimi"
+import { createMeteredKimiClient } from "@/lib/computer-agent/kimi-anthropic-shim"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -1540,6 +1542,9 @@ export async function POST(req: Request) {
     })
     // Every model call in this run is billed; refuse to start with an empty balance.
     const tokenBalance = await assertTokenBalance(uid)
+    // Same tier definition /api/generate uses (resolveModel's isPaidUser) —
+    // one definition of "paid", both derived from assertTokenBalance's planId.
+    const isPaidUser = tokenBalance.planId !== "free"
     const body = await req.json().catch(() => null)
     const parsed = runRequestSchema.safeParse(body)
 
@@ -1549,13 +1554,18 @@ export async function POST(req: Request) {
 
     const docRef = adminDb.collection("computerSessions").doc(parsed.data.sessionId)
     activeDocRef = docRef
-    const docSnap = await docRef.get()
 
-    if (!docSnap.exists) {
+    // Uniform 403 for both "no such session" and "not the owner" — preserves
+    // the existing behavior of not revealing session existence to a caller
+    // who doesn't own it (assertSessionOwner otherwise distinguishes 404/403).
+    let ownedSession: Awaited<ReturnType<typeof assertSessionOwner>>
+    try {
+      ownedSession = await assertSessionOwner(parsed.data.sessionId, uid)
+    } catch {
       return NextResponse.json({ error: "Access denied" }, { status: 403 })
     }
 
-    const data = docSnap.data() as {
+    const data = ownedSession.data as {
       ownerId?: string
       prompt?: unknown
       model?: unknown
@@ -1565,9 +1575,6 @@ export async function POST(req: Request) {
       sessionMode?: unknown
       agentRuntime?: unknown
       planApproved?: unknown
-    }
-    if (data.ownerId !== uid) {
-      return NextResponse.json({ error: "Access denied" }, { status: 403 })
     }
 
     let projectFiles: GeneratedFile[] = []
@@ -1606,7 +1613,12 @@ export async function POST(req: Request) {
       params: Parameters<typeof createComputerAgentMessage>[1],
       options?: { enableMcp?: boolean }
     ) =>
-      createComputerAgentMessage(meteredAnthropic, params, { ...options, memory: sessionMemory, meter: runMeter })
+      createComputerAgentMessage(meteredAnthropic, params, {
+        ...options,
+        memory: sessionMemory,
+        meter: runMeter,
+        billingPlan: tokenBalance.planId,
+      })
 
     const storedPrompt = typeof data.prompt === "string" ? data.prompt.trim() : ""
     const incomingPrompt = parsed.data.prompt?.trim() || ""
@@ -1615,9 +1627,35 @@ export async function POST(req: Request) {
       sanitizeConversationTurns((data as { conversationTurns?: unknown }).conversationTurns),
       storedPrompt
     )
-    const builderModel = typeof data.model === "string" && data.model.trim()
-      ? data.model.trim()
-      : "GPT-5.5"
+    // Free tier is consolidated onto Kimi for the ENTIRE agentic loop (this
+    // route's planning/reasoning calls via callAgent's billingPlan above, and
+    // the file-generation loop below) — validated end-to-end against real
+    // Kimi output before this wiring was written. Paid users get the model
+    // they picked when the session was created (the model dropdown, which
+    // now sends the raw Claude model id directly), defaulting to
+    // claude-opus-4-8 when nothing was picked or the picked value isn't a
+    // Claude model this Anthropic-only loop can use directly.
+    const PAID_DEFAULT_GENERATION_MODEL = "claude-opus-4-8"
+    const BUILDER_MODEL_TO_CLAUDE: Record<string, string> = {
+      // Raw ids the current dropdown sends — pass through unchanged.
+      "claude-opus-4-8": "claude-opus-4-8",
+      "claude-sonnet-4-6": "claude-sonnet-4-6",
+      // Legacy display label from the pre-redesign dropdown, kept so a
+      // session created before this change and re-run still resolves to
+      // Sonnet instead of silently falling back to the Opus default.
+      "Claude Sonnet 4.6": "claude-sonnet-4-6",
+    }
+    const requestedBuilderModel = typeof data.model === "string" ? data.model.trim() : ""
+    const generationModel = isPaidUser
+      ? (BUILDER_MODEL_TO_CLAUDE[requestedBuilderModel] || PAID_DEFAULT_GENERATION_MODEL)
+      : KIMI_MODEL
+    const generationClient: Anthropic = isPaidUser
+      ? meteredAnthropic
+      : (() => {
+          const moonshot = getMoonshotClient()
+          if (!moonshot) throw new Error("Kimi (Moonshot) is not configured — missing MOONSHOT_API_KEY")
+          return createMeteredKimiClient(moonshot, runMeter) as unknown as Anthropic
+        })()
     const sessionMode = normalizeComputerSessionMode(data.sessionMode)
     const projectPlatform = normalizePlatform(data.platform)
     const sessionModeInstructions = buildComputerSessionModeInstructions(sessionMode)
@@ -2623,7 +2661,8 @@ ${formatWebEvidenceList(usableWebEvidence.filter((evidence) => evidence.sourceUr
 
       try {
         const { files: generatedPatchFiles, suggestsBackend: genSuggestsBackend } = await runAgenticGeneration({
-          client: meteredAnthropic,
+          client: generationClient,
+          model: generationModel,
           prompt: generationPrompt,
           existingFiles: projectFiles,
           platform: projectPlatform,

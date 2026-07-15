@@ -1,7 +1,9 @@
 import OpenAI from "openai"
 import { z } from "zod"
-import { adminAuth } from "@/lib/firebase-admin"
+import { requireUserUid } from "@/lib/server-auth"
 import { assertRateLimit, RateLimitError, rateLimitResponse } from "@/lib/rate-limit"
+import { assertTokenBalance, InsufficientTokensError, MeteringUserNotFoundError, recordUsageAndDebit } from "@/lib/metering/ledger"
+import { normalizeOpenAiSdkUsage } from "@/lib/metering/pricing"
 
 const ITEM_GUIDANCE: Record<string, string> = {
   audience: "Suggest realistic audience segments or buyer types only if the brief implies a few plausible directions.",
@@ -33,18 +35,11 @@ export async function POST(req: Request) {
   const { itemKey, blueprint, prompt } = parsed.data
 
   // Authenticate
-  const authHeader = req.headers.get("authorization") || req.headers.get("Authorization")
-  const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : null
-  if (!bearerToken) {
-    return new Response(JSON.stringify({ error: 'Missing auth token' }), { status: 401 })
-  }
-
-  let uid = ""
+  let uid: string
   try {
-    const decoded = await adminAuth.verifyIdToken(bearerToken)
-    uid = decoded.uid
+    uid = await requireUserUid(req)
   } catch {
-    return new Response(JSON.stringify({ error: 'Invalid token' }), { status: 401 })
+    return new Response(JSON.stringify({ error: 'Missing or invalid auth token' }), { status: 401 })
   }
 
   try {
@@ -57,6 +52,18 @@ export async function POST(req: Request) {
   } catch (err) {
     if (err instanceof RateLimitError) return rateLimitResponse(err)
     return Response.json({ error: "Failed to check request limits" }, { status: 500 })
+  }
+
+  try {
+    await assertTokenBalance(uid)
+  } catch (err) {
+    if (err instanceof InsufficientTokensError) {
+      return new Response(JSON.stringify({ error: 'Insufficient tokens' }), { status: 402 })
+    }
+    if (err instanceof MeteringUserNotFoundError) {
+      return new Response(JSON.stringify({ error: 'User not found' }), { status: 404 })
+    }
+    return Response.json({ error: "Failed to check token balance" }, { status: 500 })
   }
 
   try {
@@ -101,6 +108,15 @@ Return only valid JSON matching this shape:
         { role: "user", content: `Decide whether quick choices would help for ${itemKey}, and if so generate them.` }
       ],
       max_tokens: 300,
+    })
+
+    await recordUsageAndDebit({
+      uid,
+      feature: "generate-options",
+      provider: "openai",
+      model: completion.model || "gpt-5-mini",
+      usage: normalizeOpenAiSdkUsage(completion.usage),
+      requestId: completion.id ?? null,
     })
 
     const content = completion.choices[0]?.message?.content?.trim()

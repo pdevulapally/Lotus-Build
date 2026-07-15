@@ -3,6 +3,7 @@ import { adminDb } from "@/lib/firebase-admin"
 import { requireUserUid } from "@/lib/server-auth"
 import { assertProjectCanEdit } from "@/lib/project-access"
 import { encryptEnvVars } from "@/lib/encrypt-env"
+import { mapRouteError } from "@/lib/orchestrator/route-utils"
 
 export const runtime = "nodejs"
 
@@ -38,7 +39,7 @@ export async function POST(req: Request) {
     })
 
     return NextResponse.json({ success: true })
-  } catch (err: any) {
-    return NextResponse.json({ error: err?.message || "Unauthorized" }, { status: 401 })
+  } catch (err: unknown) {
+    return mapRouteError(err)
   }
 }

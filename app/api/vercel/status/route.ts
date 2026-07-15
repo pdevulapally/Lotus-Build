@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { adminDb } from "@/lib/firebase-admin"
 import { requireUserUid } from "@/lib/server-auth"
 import { assertProjectCanEdit } from "@/lib/project-access"
+import { mapRouteError } from "@/lib/orchestrator/route-utils"
 
 export const runtime = "nodejs"
 
@@ -25,7 +26,7 @@ export async function GET(req: Request) {
 
     const connected = !!data?.vercelToken || !!data?.vercelTokenEncrypted
     return NextResponse.json({ connected })
-  } catch (err: any) {
-    return NextResponse.json({ error: err?.message || "Unauthorized" }, { status: 401 })
+  } catch (err: unknown) {
+    return mapRouteError(err)
   }
 }

@@ -2,7 +2,8 @@ import { NextResponse } from "next/server"
 import { z } from "zod"
 import { adminDb } from "@/lib/firebase-admin"
 import { requireUserUid } from "@/lib/server-auth"
-import { assertProjectCanEdit } from "@/lib/project-access"
+import { assertProjectCanEdit, assertSessionOwner } from "@/lib/project-access"
+import { mapRouteError } from "@/lib/orchestrator/route-utils"
 import type { ComputerTimelineEvent } from "@/lib/computer-agent/types"
 import { sanitizeConversationTurns } from "@/lib/computer-agent/conversation"
 import { isProjectPlatform, normalizePlatform } from "@/lib/projects/platform"
@@ -57,21 +58,11 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Missing session id" }, { status: 400 })
     }
 
-    const snap = await adminDb.collection("computerSessions").doc(id).get()
-    if (!snap.exists) {
-      return NextResponse.json({ error: "Session not found" }, { status: 404 })
-    }
+    const { snap, data } = await assertSessionOwner(id, uid)
 
-    const data = snap.data() as Record<string, unknown>
-    if (data.ownerId !== uid) {
-      return NextResponse.json({ error: "Access denied" }, { status: 403 })
-    }
-
-    return NextResponse.json(serializeSession(snap.id, data))
+    return NextResponse.json(serializeSession(snap.id, data as Record<string, unknown>))
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Request failed"
-    const status = message.includes("Authorization") ? 401 : 500
-    return NextResponse.json({ error: message }, { status })
+    return mapRouteError(error)
   }
 }
 

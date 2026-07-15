@@ -116,7 +116,8 @@ export async function POST(req: Request) {
     })
 
     return NextResponse.json({ ok: true })
-  } catch {
+  } catch (err) {
+    console.error("[contact] Failed to save message:", err)
     return NextResponse.json(
       { error: "Something went wrong sending your message. Please try again." },
       { status: 500 }

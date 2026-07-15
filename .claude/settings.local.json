@@ -163,7 +163,19 @@
       "Bash(NODE_PATH=\"/c/Users/Preet/AppData/Local/npm-cache/_npx/e41f203b7505f1fb/node_modules\" node *)",
       "Bash(cat)",
       "Bash(python /tmp/pixel_check.py)",
-      "Bash(python3 /tmp/pixel_check.py)"
+      "Bash(python3 /tmp/pixel_check.py)",
+      "Bash(npx tsc *)",
+      "Bash(wc -l /tmp_tsc_out.txt)",
+      "Bash(mkdir -p /c/Users/Preet/AppData/Local/Temp/claude/C--Users-Preet-Desktop-Lotus-Build/a8b81ee6-7e68-49ad-9aca-a79b25ab6795/scratchpad)",
+      "Bash(npm -v)",
+      "WebFetch(domain:openrouter.ai)",
+      "Bash(tee scripts/eval-qwen/output/run.log)",
+      "Bash(python3 -c ' *)",
+      "WebFetch(domain:platform.moonshot.ai)",
+      "WebFetch(domain:platform.kimi.ai)",
+      "Bash(tee scripts/eval-kimi-output/run.log)",
+      "Bash(grep -oE \"[a-z_]+_[a-z_]+|[a-z_]{4,}\")",
+      "Bash(grep -vE \"^tools$|^none$\")"
     ]
   }
 }

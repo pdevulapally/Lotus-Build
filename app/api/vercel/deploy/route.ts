@@ -142,7 +142,8 @@ export async function POST(req: Request) {
 
         if (!deployRes.ok) {
           const t = await deployRes.text().catch(() => "")
-          throw new Error(`Vercel deploy failed: ${deployRes.status} ${t}`)
+          console.error(`[vercel-deploy] Deploy failed: ${deployRes.status} ${t}`)
+          throw new Error("Vercel deploy failed.")
         }
 
         const deploy = (await deployRes.json()) as any

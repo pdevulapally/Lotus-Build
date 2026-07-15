@@ -11,7 +11,8 @@ import {
   type User,
 } from "firebase/auth"
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp, onSnapshot, Timestamp, collection } from "firebase/firestore"
-import { auth, db, googleProvider, githubProvider, type UserPlan, PLAN_TOKEN_LIMITS, DEFAULT_PLANS } from "@/lib/firebase"
+import { auth, db, googleProvider, githubProvider, type UserPlan } from "@/lib/firebase"
+import { PLAN_CONFIG } from "@/lib/plans"
 
 interface TokenUsage {
   used: number
@@ -80,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!userSnap.exists()) {
       const now = new Date()
       const planId = 'free'
-      const plan = DEFAULT_PLANS[planId as UserPlan]
+      const plan = PLAN_CONFIG[planId as UserPlan]
       const initial = {
         uid: firebaseUser.uid,
         email: firebaseUser.email,
@@ -172,21 +173,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             const planId = data.planId || 'free'
             // Prefer Firestore values (set by Stripe webhook / API) over defaults
-            let planName = data.planName || DEFAULT_PLANS[planId as UserPlan]?.name || planId
-            let tokensLimit = data.tokensLimit != null ? Number(data.tokensLimit) : (DEFAULT_PLANS[planId as UserPlan]?.tokensPerMonth ?? PLAN_TOKEN_LIMITS.free)
-
-            // Optionally override from plans collection
-            try {
-              const planRef = doc(db, 'plans', planId)
-              const planSnap = await getDoc(planRef)
-              if (planSnap.exists()) {
-                const p = planSnap.data()
-                if (p?.name) planName = p.name
-                if (p?.tokensPerMonth != null) tokensLimit = p.tokensPerMonth
-              }
-            } catch (e) {
-              // ignore
-            }
+            const planName = data.planName || PLAN_CONFIG[planId as UserPlan]?.name || planId
+            const tokensLimit = data.tokensLimit != null ? Number(data.tokensLimit) : (PLAN_CONFIG[planId as UserPlan]?.tokensPerMonth ?? PLAN_CONFIG.free.tokensPerMonth)
 
             const tokenUsage = data.tokenUsage || { used: data.tokensUsed || 0, remaining: tokensLimit - (data.tokensUsed || 0), periodStart: new Date(), periodEnd: new Date() }
             const tokenPeriodStart = tokenUsage.periodStart?.toDate ? tokenUsage.periodStart.toDate() : new Date(tokenUsage.periodStart)

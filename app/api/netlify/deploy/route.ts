@@ -382,13 +382,14 @@ export async function POST(req: Request) {
 
           if (!createSiteRes.ok) {
             const responseText = await createSiteRes.text().catch(() => "")
-            
+
             // Check if the error is about subdomain uniqueness
             if (createSiteRes.status === 422 && responseText.includes("must be unique")) {
               throw new Error(`The site name "${safeName}" is already taken. Please choose a different name.`)
             }
-            
-            throw new Error(`Failed to create site: ${createSiteRes.status} ${responseText}`)
+
+            console.error(`[netlify-deploy] Failed to create site: ${createSiteRes.status} ${responseText}`)
+            throw new Error("Failed to create Netlify site.")
           }
 
           const s = (await createSiteRes.json()) as any
@@ -436,7 +437,8 @@ export async function POST(req: Request) {
 
         if (!deployRes.ok) {
           const t = await deployRes.text().catch(() => "")
-          throw new Error(`Deploy failed: ${deployRes.status} ${t}`)
+          console.error(`[netlify-deploy] Deploy failed: ${deployRes.status} ${t}`)
+          throw new Error("Netlify deploy failed.")
         }
 
         const deploy = (await deployRes.json()) as any

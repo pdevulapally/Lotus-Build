@@ -15,6 +15,12 @@ export function mapRouteError(err: unknown): NextResponse {
   if (message === "Project not found") {
     return NextResponse.json({ error: message }, { status: 404 })
   }
+  if (message === "Version not found") {
+    return NextResponse.json({ error: message }, { status: 404 })
+  }
+  if (message === "Session not found") {
+    return NextResponse.json({ error: message }, { status: 404 })
+  }
   if (message === "Project is not a mobile project") {
     return NextResponse.json({ error: message }, { status: 400 })
   }

@@ -10,6 +10,9 @@ import { createProjectVersion } from "@/lib/project-versions/service"
 import { assertRateLimit, RateLimitError, rateLimitResponse } from "@/lib/rate-limit"
 import { isSensitiveFilePath, normalizeRelativeFilePath } from "@/lib/security/files"
 import { requireUserUid } from "@/lib/server-auth"
+import { assertTokenBalance, InsufficientTokensError, MeteringUserNotFoundError } from "@/lib/metering/ledger"
+import { normalizeOpenAiSdkUsage } from "@/lib/metering/pricing"
+import { UsageMeter } from "@/lib/metering/metered-anthropic"
 
 export const runtime = "nodejs"
 
@@ -194,6 +197,7 @@ function validateFiles(files: ProjectFile[]) {
 }
 
 async function runFixAttempt(params: {
+  meter: UsageMeter
   projectFiles: ProjectFile[]
   errorMessage: string
   logsTail?: string
@@ -240,6 +244,12 @@ async function runFixAttempt(params: {
     .filter(Boolean)
     .join("\n")
 
+  // Live circuit breaker: throws InsufficientTokensError once this run's
+  // cumulative spend has caught up with the balance it started with, so a
+  // multi-attempt repair can't keep burning real completions past what the
+  // user can actually be charged for.
+  params.meter.assertBudget()
+
   const completion = await openai.chat.completions.create({
     model: "gpt-5.5",
     messages: [
@@ -251,6 +261,13 @@ async function runFixAttempt(params: {
       { role: "user", content: prompt },
     ],
     max_completion_tokens: 9000,
+  })
+
+  params.meter.record({
+    provider: "openai",
+    model: completion.model || "gpt-5.5",
+    usage: normalizeOpenAiSdkUsage(completion.usage),
+    requestId: completion.id ?? null,
   })
 
   const raw = completion.choices[0]?.message?.content || ""
@@ -271,6 +288,7 @@ async function runFixAttempt(params: {
 }
 
 export async function POST(req: Request) {
+  let meter: UsageMeter | null = null
   try {
     const uid = await requireUserUid(req)
     await assertRateLimit({
@@ -308,6 +326,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Project has no files to repair" }, { status: 400 })
     }
 
+    // Starting balance for this run's live circuit breaker (see runFixAttempt).
+    // Throws InsufficientTokensError/MeteringUserNotFoundError if there's no
+    // balance to start with at all — handled by the catch block below, the
+    // same way a mid-run budget exhaustion from meter.assertBudget() is.
+    const tokenBalance = await assertTokenBalance(uid)
+    meter = new UsageMeter({ uid, feature: "error-fix" }, { remainingTokens: tokenBalance.remaining })
+
     const authHeader = req.headers.get("authorization") || req.headers.get("Authorization") || ""
     const origin = new URL(req.url).origin
 
@@ -316,6 +341,7 @@ export async function POST(req: Request) {
 
     for (let attempt = 1; attempt <= 3; attempt++) {
       const result = await runFixAttempt({
+        meter,
         projectFiles: latestFiles,
         errorMessage: String(body.error).slice(0, MAX_ERROR_CONTEXT_CHARS),
         logsTail: String(body.logsTail || "").slice(0, MAX_LOG_CONTEXT_CHARS),
@@ -402,9 +428,22 @@ export async function POST(req: Request) {
     )
   } catch (error: any) {
     if (error instanceof RateLimitError) return rateLimitResponse(error)
+    // Covers both the up-front balance check and the mid-run circuit breaker
+    // in runFixAttempt — either way, InsufficientTokensError means the same
+    // thing to the caller.
+    if (error instanceof InsufficientTokensError) {
+      return NextResponse.json({ error: "Insufficient tokens" }, { status: 402 })
+    }
+    if (error instanceof MeteringUserNotFoundError) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 })
+    }
     const message = error?.message || "Failed to run automatic fix"
     const status = message.includes("Authorization") ? 401 : message.includes("Forbidden") ? 403 : 500
     return NextResponse.json({ error: status === 500 ? "Failed to run automatic fix" : message }, { status })
+  } finally {
+    // Ledger writes from meter.record() run in the background — make sure
+    // they land before the function instance can be frozen.
+    if (meter) await meter.flush()
   }
 }
 

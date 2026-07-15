@@ -72,13 +72,15 @@ export async function GET(req: Request) {
 
   if (!tokenRes.ok) {
     const text = await tokenRes.text().catch(() => "")
-    return new NextResponse(`Token exchange failed: ${tokenRes.status} ${text}`, { status: 500 })
+    console.error(`[github-oauth-callback] Token exchange failed: ${tokenRes.status} ${text}`)
+    return new NextResponse("GitHub token exchange failed.", { status: 500 })
   }
 
   const tokenJson = (await tokenRes.json()) as { access_token?: string; error?: string }
   const accessToken = tokenJson?.access_token
   if (!accessToken) {
-    return new NextResponse(tokenJson?.error ?? "No access_token returned", { status: 500 })
+    console.error("[github-oauth-callback] No access_token in GitHub response:", tokenJson?.error)
+    return new NextResponse("GitHub token exchange failed.", { status: 500 })
   }
 
   await setGitHubToken(uid, accessToken)

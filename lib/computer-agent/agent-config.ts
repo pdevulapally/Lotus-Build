@@ -1,11 +1,12 @@
 import Anthropic from "@anthropic-ai/sdk"
-import OpenAI from "openai"
+import type OpenAI from "openai"
 import type {
   BetaTextBlockParam,
   MessageCreateParamsNonStreaming,
 } from "@anthropic-ai/sdk/resources/beta/messages/messages"
 import { normalizeOpenAiSdkUsage } from "@/lib/metering/pricing"
 import type { UsageMeter } from "@/lib/metering/metered-anthropic"
+import { KIMI_MODEL, getMoonshotClient } from "@/lib/computer-agent/kimi"
 
 export type ComputerAgentDefinition = {
   name: string
@@ -25,17 +26,10 @@ type ComputerAgentMessageParams = Omit<MessageCreateParamsNonStreaming, "model">
   model?: MessageCreateParamsNonStreaming["model"]
 }
 
-type ReasoningProvider = "nvidia" | "anthropic"
+type ReasoningProvider = "kimi" | "anthropic"
 type BillingPlan = "free" | "paid" | "team" | string | null | undefined
 
 const DEFAULT_ANTHROPIC_REASONING_MODEL = "claude-sonnet-4-6"
-const DEFAULT_NVIDIA_REASONING_MODELS = [
-  "deepseek-ai/deepseek-r1",
-  "meta/llama-3.3-70b-instruct",
-  "qwen/qwen2.5-coder-32b-instruct",
-]
-
-let nvidiaClient: OpenAI | null = null
 
 export const LOTUS_BUILD_ORCHESTRATOR_AGENT: ComputerAgentDefinition = {
   name: "Lotus Build Orchestrator",
@@ -113,42 +107,18 @@ function isFreeBillingPlan(plan: BillingPlan) {
   return normalized === "free"
 }
 
+// Free tier is consolidated onto Kimi for the entire agentic loop (both this
+// reasoning path and the file-generation loop in agentic-generation.ts via
+// kimi-anthropic-shim.ts) — there is only one free-tier provider now, so
+// there's no longer a per-provider toggle for it (there previously was, for
+// choosing among NVIDIA-hosted models; that's retired along with NVIDIA here).
 function getReasoningProvider(plan: BillingPlan): ReasoningProvider {
   const configured = (process.env.LOTUS_REASONING_PROVIDER || "").toLowerCase()
-  if (configured === "anthropic" || configured === "nvidia") return configured
+  if (configured === "anthropic" || configured === "kimi") return configured
 
-  const freeConfigured = (process.env.LOTUS_FREE_REASONING_PROVIDER || "nvidia").toLowerCase()
-  if (isFreeBillingPlan(plan) && freeConfigured === "nvidia") return "nvidia"
+  if (isFreeBillingPlan(plan)) return "kimi"
 
   return "anthropic"
-}
-
-function getNvidiaClient() {
-  const apiKey = process.env.NVIDIA_API_KEY || process.env.NGC_API_KEY
-  if (!apiKey) return null
-  nvidiaClient ??= new OpenAI({
-    apiKey,
-    baseURL: process.env.NVIDIA_BASE_URL || "https://integrate.api.nvidia.com/v1",
-  })
-  return nvidiaClient
-}
-
-function getReasoningModels() {
-  const configured = process.env.LOTUS_NVIDIA_REASONING_MODELS
-    ?.split(",")
-    .map((model) => model.trim())
-    .filter(Boolean)
-  return configured?.length ? configured : DEFAULT_NVIDIA_REASONING_MODELS
-}
-
-function chooseReasoningModel(params: ComputerAgentMessageParams) {
-  const models = getReasoningModels()
-  const seed = JSON.stringify(params.messages || []).slice(0, 2000)
-  let hash = 0
-  for (let i = 0; i < seed.length; i += 1) {
-    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0
-  }
-  return models[hash % models.length]
 }
 
 function stringifyAnthropicContent(content: unknown): string {
@@ -188,28 +158,27 @@ function toAnthropicLikeResponse(text: string) {
   }
 }
 
-async function createNvidiaReasoningMessage(
+async function createKimiReasoningMessage(
   params: ComputerAgentMessageParams,
   memory?: MemoryContext,
   meter?: UsageMeter,
 ) {
-  const client = getNvidiaClient()
+  const client = getMoonshotClient()
   if (!client) return null
 
-  const model = chooseReasoningModel(params)
   const system = composeSystemPrompt(params.system, memory)
   const response = await client.chat.completions.create({
-    model,
+    model: KIMI_MODEL,
     messages: toOpenAIMessages(params, system),
     temperature: params.temperature,
     max_tokens: params.max_tokens,
   })
 
-  // NVIDIA is OpenAI-compatible and reports usage on the response; bill the
-  // actuals through the same ledger as Anthropic calls.
+  // Kimi/Moonshot is OpenAI-compatible and reports usage on the response;
+  // bill the actuals through the same ledger as Anthropic calls.
   meter?.record({
-    provider: "nvidia",
-    model: response.model || model,
+    provider: "moonshot",
+    model: response.model || KIMI_MODEL,
     usage: normalizeOpenAiSdkUsage(response.usage),
     requestId: response.id ?? null,
   })
@@ -222,10 +191,10 @@ export async function createComputerAgentMessage(
   params: ComputerAgentMessageParams,
   options?: { enableMcp?: boolean; memory?: MemoryContext; billingPlan?: BillingPlan; meter?: UsageMeter },
 ) {
-  if (getReasoningProvider(options?.billingPlan) === "nvidia") {
+  if (getReasoningProvider(options?.billingPlan) === "kimi") {
     options?.meter?.assertBudget()
-    const nvidiaResponse = await createNvidiaReasoningMessage(params, options?.memory, options?.meter)
-    if (nvidiaResponse) return nvidiaResponse
+    const kimiResponse = await createKimiReasoningMessage(params, options?.memory, options?.meter)
+    if (kimiResponse) return kimiResponse
   }
 
   return anthropic.beta.messages.create({

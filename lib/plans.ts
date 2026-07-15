@@ -2,6 +2,62 @@
  * Shared plan display config and fallbacks.
  * Used by the /pricing page for consistent, dynamic pricing UI.
  */
+import type { UserPlan } from "@/lib/firebase"
+
+/**
+ * CANONICAL plan config — the single source of truth for plan name, price,
+ * interval, priceId, tokensPerMonth, and features. Consumed by the metering
+ * ledger, Stripe webhook, Stripe plans catalog, refresh-token-period, and
+ * auth-context bootstrap/display. There is no other override layer — the
+ * Firestore `plans/{planId}` collection and the `enterprise` plan tier were
+ * both retired; see the plan-config audit for history.
+ */
+export interface CanonicalPlanConfig {
+  id: UserPlan
+  name: string
+  price: number
+  interval: string
+  priceId: string | null
+  tokensPerMonth: number
+  features: string[]
+}
+
+export const PLAN_CONFIG: Record<UserPlan, CanonicalPlanConfig> = {
+  free: {
+    id: "free",
+    name: "Free",
+    price: 0,
+    interval: "forever",
+    priceId: null,
+    tokensPerMonth: 10000,
+    features: [
+      "10,000 credits/month",
+      "Single personal workspace",
+      "Community support",
+      "Public projects",
+      "Export to GitHub",
+      "Deploy to Netlify or Vercel",
+    ],
+  },
+  pro: {
+    id: "pro",
+    name: "Pro",
+    price: 9900,
+    interval: "month",
+    priceId: null,
+    tokensPerMonth: 120000,
+    features: ["120,000 credits/month", "Create and switch workspaces", "Premium templates + visual edit", "Priority support"],
+  },
+  team: {
+    id: "team",
+    name: "Agency",
+    price: 29900,
+    interval: "month",
+    priceId: null,
+    tokensPerMonth: 500000,
+    features: ["500,000 credits/month", "Create and switch workspaces", "Client handoff + white-label", "Priority support"],
+  },
+}
 
 export type PlanId = "free" | "pro" | "team"
 
@@ -14,13 +70,7 @@ export interface PlanDisplayConfig {
 export const PLAN_DISPLAY: Record<PlanId, PlanDisplayConfig> = {
   free: {
     description: "Perfect for trying Lotus.build before going live.",
-    features: [
-      "10,000 credits/month",
-      "Single personal workspace",
-      "Community support",
-      "Public projects",
-      "Export to GitHub",
-    ],
+    features: PLAN_CONFIG.free.features,
   },
   pro: {
     description: "For founders shipping production sites with AI speed.",
@@ -89,7 +139,7 @@ export function getPaidPlanTiers(plan: PlanForApi): PlanTier[] {
 export const DEFAULT_PLANS_FALLBACK: PlanForApi[] = [
   {
     id: "free",
-    name: "Starter",
+    name: PLAN_CONFIG.free.name,
     price: 0,
     interval: "forever",
     priceId: null,

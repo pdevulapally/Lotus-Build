@@ -29,7 +29,11 @@ export async function POST(
       return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
     }
 
-    await loadOwnedMobileProject(parsed.data.projectId, uid)
+    const project = await loadOwnedMobileProject(parsed.data.projectId, uid)
+    const projectData = project.snap.data() as { mobileSandboxId?: unknown } | undefined
+    if (projectData?.mobileSandboxId !== sandboxId) {
+      return NextResponse.json({ error: "Sandbox does not belong to this project" }, { status: 403 })
+    }
     await sandboxHeartbeat(sandboxId)
 
     return NextResponse.json({ ok: true })

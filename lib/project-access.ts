@@ -34,7 +34,11 @@ export async function assertSessionOwner(sessionId: string, uid: string) {
     throw new Error("Session not found")
   }
   const data = snap.data() as { ownerId?: string }
-  if (data.ownerId && data.ownerId !== uid) {
+  if (!data.ownerId) {
+    console.warn(`[security] assertSessionOwner: session ${sessionId} has no ownerId — denied for ${uid}`)
+    throw new Error("Forbidden")
+  }
+  if (data.ownerId !== uid) {
     throw new Error("Forbidden")
   }
   return { snap, data }

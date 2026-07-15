@@ -20,7 +20,7 @@
  */
 import { adminDb } from "@/lib/firebase-admin"
 import { Timestamp } from "firebase-admin/firestore"
-import { DEFAULT_PLANS } from "@/lib/firebase"
+import { PLAN_CONFIG } from "@/lib/plans"
 import { computeChargedTokens, hasUsage, type NormalizedUsage } from "./pricing"
 
 export class InsufficientTokensError extends Error {
@@ -37,7 +37,7 @@ export class MeteringUserNotFoundError extends Error {
   }
 }
 
-export type UsageProvider = "anthropic" | "openai" | "nvidia"
+export type UsageProvider = "anthropic" | "openai" | "nvidia" | "moonshot"
 
 export type UsageEventInput = {
   uid: string
@@ -82,7 +82,7 @@ function readUserBalance(data: Record<string, unknown> | undefined): UserBalance
   const planTokensPerMonth =
     d.tokensLimit != null
       ? Number(d.tokensLimit)
-      : DEFAULT_PLANS[planId as keyof typeof DEFAULT_PLANS]?.tokensPerMonth ?? DEFAULT_PLANS.free.tokensPerMonth
+      : PLAN_CONFIG[planId as keyof typeof PLAN_CONFIG]?.tokensPerMonth ?? PLAN_CONFIG.free.tokensPerMonth
 
   const used = Number(d.tokenUsage?.used ?? d.tokensUsed ?? 0)
 

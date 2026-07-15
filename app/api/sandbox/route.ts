@@ -1319,12 +1319,22 @@ export async function POST(req: Request) {
 
   if (projectId) {
     try {
-      await assertProjectCanEdit(projectId, uid)
+      const { snap } = await assertProjectCanEdit(projectId, uid)
+      if (sandboxId) {
+        const project = snap.data() as { sandboxId?: unknown } | undefined
+        if (project?.sandboxId !== sandboxId) {
+          return Response.json({ error: "Sandbox does not belong to this project" }, { status: 403 })
+        }
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Access denied"
       const status = message.includes("Project not found") ? 404 : message.includes("Forbidden") ? 403 : 500
       return Response.json({ error: status === 500 ? "Server error" : message }, { status })
     }
+  } else if (sandboxId) {
+    // A sandboxId with no owned projectId to scope it to cannot be trusted —
+    // refuse rather than reconnecting to an unverified sandbox.
+    return Response.json({ error: "projectId required to reconnect to a sandbox" }, { status: 400 })
   }
 
   const encoder = new TextEncoder()

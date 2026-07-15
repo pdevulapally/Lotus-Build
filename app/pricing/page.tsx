@@ -458,7 +458,7 @@ export default function PricingPage() {
                   <th className="px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                     Operation
                   </th>
-                  {(["Starter", "Pro", "Agency"] as const).map((name) => (
+                  {(["Free", "Pro", "Agency"] as const).map((name) => (
                     <th key={name} className="px-6 py-4 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                       {name}
                     </th>

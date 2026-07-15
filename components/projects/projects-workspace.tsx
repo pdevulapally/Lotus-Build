@@ -1145,7 +1145,7 @@ export function ProjectsWorkspace() {
                       <div className="mb-8 text-center md:mb-10">
                         <h1
                           id={PROJECTS_HEADING_ID}
-                          className="animate-in fade-in slide-in-from-bottom-3 fill-mode-both mx-auto max-w-4xl whitespace-nowrap text-3xl font-medium leading-[1.05] text-foreground duration-700 sm:text-3xl lg:text-4xl"
+                          className="animate-in fade-in slide-in-from-bottom-3 fill-mode-both mx-auto max-w-4xl text-2xl font-medium leading-[1.15] text-foreground duration-700 sm:whitespace-nowrap sm:text-3xl sm:leading-[1.05] lg:text-4xl"
                           style={{ animationDelay: "80ms" }}
                         >
                           What can I build for you{firstName ? `, ${firstName}` : ""}?

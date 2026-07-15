@@ -27,6 +27,13 @@ export async function GET(
 
     await assertProjectCanEdit(projectId, uid)
     const data = snap.data() as any
+
+    // Verify the deploymentId actually belongs to this project (prevents probing other deployments)
+    const storedDeploymentId = typeof data?.vercelDeploymentId === "string" ? data.vercelDeploymentId.trim() : ""
+    if (storedDeploymentId && storedDeploymentId !== deploymentId) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 })
+    }
+
     const token = typeof data?.vercelTokenEncrypted === "string"
       ? decryptEnvVars(data.vercelTokenEncrypted)
       : data?.vercelToken

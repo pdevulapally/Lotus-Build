@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { requireUserUid } from "@/lib/server-auth"
 import { getSupabaseConnection } from "@/lib/supabase-management"
+import { mapRouteError } from "@/lib/orchestrator/route-utils"
 
 export const runtime = "nodejs"
 
@@ -12,7 +13,6 @@ export async function GET(req: Request) {
     const connected = !!connection?.accessToken
     return NextResponse.json({ connected })
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Unauthorized"
-    return NextResponse.json({ connected: false, error: message }, { status: 401 })
+    return mapRouteError(err)
   }
 }

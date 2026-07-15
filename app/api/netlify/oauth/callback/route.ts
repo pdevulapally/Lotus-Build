@@ -73,7 +73,8 @@ export async function GET(req: Request) {
 
   if (!tokenRes.ok) {
     const text = await tokenRes.text().catch(() => "")
-    return new NextResponse(`Token exchange failed: ${tokenRes.status} ${text}`, { status: 500 })
+    console.error(`[netlify-oauth-callback] Token exchange failed: ${tokenRes.status} ${text}`)
+    return new NextResponse("Netlify token exchange failed.", { status: 500 })
   }
 
   const tokenJson = (await tokenRes.json()) as any

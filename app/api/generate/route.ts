@@ -11,7 +11,6 @@ import OpenAI from "openai"
 import { adminAuth, adminDb } from "@/lib/firebase-admin"
 import { FieldValue, Timestamp, type DocumentReference } from "firebase-admin/firestore"
 import { z } from "zod"
-import { DEFAULT_PLANS } from "@/lib/firebase"
 import { normalizeGeneratedCodeFiles } from "@/lib/generated-code-normalization"
 import {
   ensureGeneratedProjectScaffold,
@@ -1655,6 +1654,11 @@ export async function GET() {
   return Response.json({
     defaultModel: DEFAULT_MODEL,
     models: [...Object.keys(OPENAI_MODEL_MAP), ...anthropicModels, ...nvidiaModels],
+    // Same list resolveModel() itself checks (`nvidiaModels.includes(model)`) to
+    // decide whether a free-tier request gets the requested model or falls back
+    // to FREE_TIER_DEFAULT_MODEL — the single source of truth for what a free
+    // plan can actually reach, not a separately-maintained allow-list.
+    freeModels: nvidiaModels,
     providers: PROVIDER_CAPABILITIES,
   })
 }

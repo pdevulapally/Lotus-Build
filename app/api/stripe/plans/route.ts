@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server"
 import Stripe from "stripe"
+import { PLAN_CONFIG } from "@/lib/plans"
 
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null
 
@@ -7,18 +8,18 @@ export const dynamic = "force-dynamic"
 
 const DEFAULT_PAID_PLANS = {
   pro: {
-    name: "Pro",
-    priceCents: 9900,
-    interval: "month" as const,
-    tokensPerMonth: 120000,
-    features: ["120,000 credits/month", "Create and switch workspaces", "Premium templates + visual edit", "Priority support"],
+    name: PLAN_CONFIG.pro.name,
+    priceCents: PLAN_CONFIG.pro.price,
+    interval: PLAN_CONFIG.pro.interval as Stripe.PriceCreateParams.Recurring.Interval,
+    tokensPerMonth: PLAN_CONFIG.pro.tokensPerMonth,
+    features: PLAN_CONFIG.pro.features,
   },
   team: {
-    name: "Agency",
-    priceCents: 29900,
-    interval: "month" as const,
-    tokensPerMonth: 500000,
-    features: ["500,000 credits/month", "Create and switch workspaces", "Client handoff + white-label", "Priority support"],
+    name: PLAN_CONFIG.team.name,
+    priceCents: PLAN_CONFIG.team.price,
+    interval: PLAN_CONFIG.team.interval as Stripe.PriceCreateParams.Recurring.Interval,
+    tokensPerMonth: PLAN_CONFIG.team.tokensPerMonth,
+    features: PLAN_CONFIG.team.features,
   },
 }
 
@@ -70,9 +71,9 @@ export async function GET(req: NextRequest) {
   if (!stripe) {
     return Response.json({
       plans: [
-        { id: "free", name: "Hobby", price: 0, interval: "forever", priceId: null, tokensPerMonth: 10000, features: ["10,000 credits/month", "Single personal workspace", "Public projects", "Community support"] },
-        { id: "pro", name: "Pro", price: 9900, interval: "month", priceId: null, tokensPerMonth: 120000, features: DEFAULT_PAID_PLANS.pro.features },
-        { id: "team", name: "Agency", price: 29900, interval: "month", priceId: null, tokensPerMonth: 500000, features: DEFAULT_PAID_PLANS.team.features },
+        { id: "free", name: PLAN_CONFIG.free.name, price: PLAN_CONFIG.free.price, interval: PLAN_CONFIG.free.interval, priceId: null, tokensPerMonth: PLAN_CONFIG.free.tokensPerMonth, features: PLAN_CONFIG.free.features },
+        { id: "pro", name: DEFAULT_PAID_PLANS.pro.name, price: DEFAULT_PAID_PLANS.pro.priceCents, interval: DEFAULT_PAID_PLANS.pro.interval, priceId: null, tokensPerMonth: DEFAULT_PAID_PLANS.pro.tokensPerMonth, features: DEFAULT_PAID_PLANS.pro.features },
+        { id: "team", name: DEFAULT_PAID_PLANS.team.name, price: DEFAULT_PAID_PLANS.team.priceCents, interval: DEFAULT_PAID_PLANS.team.interval, priceId: null, tokensPerMonth: DEFAULT_PAID_PLANS.team.tokensPerMonth, features: DEFAULT_PAID_PLANS.team.features },
       ],
     })
   }
@@ -87,12 +88,12 @@ export async function GET(req: NextRequest) {
     const plans: PlanRow[] = [
       {
         id: "free",
-        name: "Hobby",
-        price: 0,
-        interval: "forever",
+        name: PLAN_CONFIG.free.name,
+        price: PLAN_CONFIG.free.price,
+        interval: PLAN_CONFIG.free.interval,
         priceId: null,
-        tokensPerMonth: 10000,
-        features: ["10,000 credits/month", "Public projects", "Community support"],
+        tokensPerMonth: PLAN_CONFIG.free.tokensPerMonth,
+        features: PLAN_CONFIG.free.features,
       },
     ]
 
@@ -102,7 +103,9 @@ export async function GET(req: NextRequest) {
       const meta = (p as Stripe.Price & { metadata?: Record<string, string> }).metadata || {}
       const name = (product.name || p.nickname || "Plan").trim()
       const planId = meta.plan_id?.toLowerCase() || (name.toLowerCase().includes("pro") ? "pro" : name.toLowerCase().includes("team") ? "team" : "pro")
-      const tokensPerMonth = meta.tokens_per_month ? parseInt(meta.tokens_per_month, 10) : planId === "team" ? 500000 : 120000
+      const tokensPerMonth = meta.tokens_per_month
+        ? parseInt(meta.tokens_per_month, 10)
+        : planId === "team" ? PLAN_CONFIG.team.tokensPerMonth : PLAN_CONFIG.pro.tokensPerMonth
       const amount = p.unit_amount ?? 0
       plans.push({
         id: planId,
@@ -150,9 +153,9 @@ export async function GET(req: NextRequest) {
     console.error("[Stripe plans]", err)
     return Response.json({
       plans: [
-        { id: "free", name: "Hobby", price: 0, interval: "forever", priceId: null, tokensPerMonth: 10000, features: ["10,000 credits/month", "Public projects", "Community support"] },
-        { id: "pro", name: "Pro", price: 9900, interval: "month", priceId: null, tokensPerMonth: 120000, features: DEFAULT_PAID_PLANS.pro.features },
-        { id: "team", name: "Agency", price: 29900, interval: "month", priceId: null, tokensPerMonth: 500000, features: DEFAULT_PAID_PLANS.team.features },
+        { id: "free", name: PLAN_CONFIG.free.name, price: PLAN_CONFIG.free.price, interval: PLAN_CONFIG.free.interval, priceId: null, tokensPerMonth: PLAN_CONFIG.free.tokensPerMonth, features: PLAN_CONFIG.free.features },
+        { id: "pro", name: DEFAULT_PAID_PLANS.pro.name, price: DEFAULT_PAID_PLANS.pro.priceCents, interval: DEFAULT_PAID_PLANS.pro.interval, priceId: null, tokensPerMonth: DEFAULT_PAID_PLANS.pro.tokensPerMonth, features: DEFAULT_PAID_PLANS.pro.features },
+        { id: "team", name: DEFAULT_PAID_PLANS.team.name, price: DEFAULT_PAID_PLANS.team.priceCents, interval: DEFAULT_PAID_PLANS.team.interval, priceId: null, tokensPerMonth: DEFAULT_PAID_PLANS.team.tokensPerMonth, features: DEFAULT_PAID_PLANS.team.features },
       ],
     })
   }
