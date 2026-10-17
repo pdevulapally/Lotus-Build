@@ -203,6 +203,25 @@ function Sidebar({
   isPaidUser: boolean
 }) {
   const { openSettings } = useSettingsDialog()
+  const [openingProject, setOpeningProject] = useState(false)
+  const [openProjectError, setOpenProjectError] = useState<string | null>(null)
+  const handleOpenProject = async (project: { id: string; kind?: string }) => {
+    if (openingProject) return
+    setOpeningProject(true)
+    setOpenProjectError(null)
+    try {
+      const sessionId = project.kind === "computer"
+        ? project.id
+        : (await currentBackend().sessions(project.id)).sessions[0]?.id
+      if (!sessionId) throw new Error("This project has no saved computer session yet.")
+      onClose?.()
+      router.push(`/computer/${encodeURIComponent(sessionId)}`)
+    } catch (error) {
+      setOpenProjectError(error instanceof Error ? error.message : "Could not open this project's computer session. Try again.")
+    } finally {
+      setOpeningProject(false)
+    }
+  }
   const recentBuildsHeadingId = useId()
   const scopeToggleLabelId = useId()
   const initials = user?.displayName
@@ -229,7 +248,7 @@ function Sidebar({
       <div className="flex h-14 shrink-0 items-center justify-between gap-1 px-3">
         <Link href="/" onClick={onClose} className="flex items-center gap-2 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30" aria-label="Go to Lotus home"><BrandWordmark size="compact" /></Link>
         <div className="flex items-center gap-0.5">
-          <ProjectSearchDialog projects={filtered} loading={projectsLoading} error={projectListError} onOpenProject={(project) => { onClose?.(); router.push(project.kind === 'computer' ? `/computer/${project.id}` : `/project/${project.id}`) }} />
+          <ProjectSearchDialog projects={filtered} loading={projectsLoading} error={projectListError} onOpenProject={handleOpenProject} />
           {onToggle ? (
             <button
               type="button"
@@ -269,6 +288,9 @@ function Sidebar({
         </span>
       </div>
 
+      {openingProject && <p role="status" className="px-4 pb-2 text-xs text-muted-foreground">Opening computer workspace…</p>}
+      {openProjectError && <p role="alert" className="px-4 pb-2 text-xs text-destructive">{openProjectError}</p>}
+
       {/* ── Task list ── */}
       <div
         className="flex-1 overflow-y-auto pb-2 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]"
@@ -303,16 +325,13 @@ function Sidebar({
               <TaskRow
                 key={p.id}
                 p={p}
-                onNavigate={() => {
-                  onClose?.()
-                  router.push(p.kind === "computer" ? `/computer/${p.id}` : `/project/${p.id}`)
-                }}
+                onNavigate={() => { void handleOpenProject(p) }}
                 onDelete={(e) => handleDeleteProject(e, p.id, p.kind)}
               />
             ))}
             {hiddenBuildCount > 0 ? (
               <div className="px-2 pb-1 pt-1.5 text-[11px] text-muted-foreground/80">
-                {hiddenBuildCount} more in all builds below
+                {hiddenBuildCount} more available in search
               </div>
             ) : null}
           </div>
