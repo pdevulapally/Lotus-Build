@@ -1,124 +1,18 @@
 # AGENTS.md
 
-## Purpose
+## Purpose and current architecture
 
-This repository is a production-quality AI website/app builder called **Lotus Build / Nebula Website Builder**.
+LotusBuild is a production-quality AI website/app builder. This checkout is the Next.js frontend only. The separate lotusbuild-server repository owns all business APIs, generation, sandbox execution, storage, billing, and provider integrations.
 
-Agents working in this repo must behave like **senior product engineers**, not junior code generators.
-
-That means:
-
-- do not hallucinate product behavior
-- do not invent requirements
-- do not hardcode flows that should be state-driven
-- do not add static lists, repeated mapping logic, or brittle `if/else` trees when the behavior should be derived from data/state
-- do not duplicate UI, business logic, copy, or derived state
-- do not create internal-tool dashboards for founder-facing flows
-- do not make architectural changes unless required by the task
-
-When something is unclear, **ask concise clarifying questions first** rather than guessing.
-
----
-
-## Product overview
-
-Lotus Build Website Builder is an AI website/app builder.
-
-High-level architecture:
-
-- Firestore `projects` documents hold project state
-- `/api/generate` performs AI code generation and iterative edits
-- `/api/sandbox` handles preview runtime through E2B
-- `projectId` is the Firestore document ID in `projects`
-- existing project edits are full-context regenerations using:
-  - original prompt
-  - current user request
-  - current file set
-- the project builder UI lives in `app/project/[id]/page.tsx`
-- the landing page assistant is separate from project code generation
-
-Three AI systems exist:
-
-1. **Main builder AI**
-  - code generation/editing
-  - driven by `/api/generate`
-2. **Website assistant**
-  - landing-page assistant
-  - separate from the builder generation flow
-3. **Computer agent** (`app/computer/[id]/page.tsx`)
-  - autonomous orchestration agent powered by Anthropic
-  - all calls go through `createComputerAgentMessage` in `lib/computer-agent/agent-config.ts`
-  - POST endpoint: `/api/computer/run/route.ts`
-
-These must not be conflated.
-
----
-
-## Memory system (computer agent)
-
-The computer agent supports persistent memory injected into every Anthropic call.
-
-### Storage
-
-
-| Scope   | Firestore field         | Collection             |
-| ------- | ----------------------- | ---------------------- |
-| Global  | `globalMemory: string`  | `users/{uid}`          |
-| Project | `projectMemory: string` | `projects/{projectId}` |
-
-
-### Injection flow
-
-1. `POST /api/computer/run` reads both fields in parallel (`Promise.all`)
-2. Passes them as `MemoryContext` to `createComputerAgentMessage` via the `callAgent` closure
-3. `composeSystemPrompt` injects them between the base system prompt and task-specific instructions
-4. Format: `buildMemoryBlock()` in `lib/computer-agent/agent-config.ts`
-
-### User editing
-
-Users edit global and project memories at `/settings` → Memory tab:
-
-- Global memory: one textarea, saved to `users/{uid}.globalMemory`
-- Project memory: per-project textareas, saved to `projects/{projectId}.projectMemory`
-- Both load lazily (only when the Memory tab is activated) and persist immediately on Save
-
-### Rules
-
-- Never read memory from anywhere other than these two Firestore fields
-- Do not add a third memory scope without updating `MemoryContext` in `agent-config.ts`, the run route, and the settings page
-- Memory is plain text — do not impose a structured format on it
-
----
-
-## Non-negotiable architectural rules
-
-Preserve these unless the task explicitly requires otherwise:
-
-- `projectId` is the Firestore doc ID in `projects`
-- project generation remains driven by `/api/generate`
-- preview/runtime remains driven by `/api/sandbox`
-- post-approval build flow must reuse the existing generation pipeline where possible
-- do not rewrite server routes when the task is clearly UI/UX-only
-- do not create parallel systems when existing ones can be extended cleanly
-- do not fork the builder into duplicate versions for different states unless unavoidable
-
-When changing UI behavior, prefer **front-end orchestration changes** over backend rewrites.
-
-### Sandbox (E2B) rules
-
-- `sandbox.commands.run()` wraps commands in `bash -c '...'` — **never use single quotes inside commands**
-- For shell operations that need complex regex, write a Python script to `/tmp/` via `sandbox.files.write()` and execute it with `python3 /tmp/script.py`
-- Use `\\x27` (Python hex escape for `'`) inside Python strings to avoid any quoting issues
-- The import scanner at `/api/sandbox/route.ts` uses this pattern (`_lotus_scan.py`)
-
-### Firecrawl remote browser rules
-
-- The live stream URL is `metadata.browserLiveUrl` on the timeline event — **not** the target URL
-- `getLatestBrowserInspection` in `app/computer/[id]/page.tsx` reads `browserLiveUrl` for the iframe src
-- Never use `targetUrl` as an iframe src — target sites block embedding via X-Frame-Options
-- If `browserLiveUrl` is missing or expired, show a fallback UI with an external link, not a broken iframe
-
----
+- Use Firebase browser Auth only for sign-in and bearer tokens. Do not add Admin SDKs, direct business-data writes, AI providers, billing SDKs, server routes, E2B templates, or a second backend here.
+- All application API requests go through `lib/backend/client.ts` to the explicitly configured `NEXT_PUBLIC_BACKEND_URL` origin. Its route paths have no `/api` prefix.
+- Inspect the current server contracts before changing clients. Keep runtime response validation, explicit errors, ownership enforcement on the server, and stable mutation identities across uncertain retries.
+- The server catalog determines models. The server determines plans, usage and limits. Never invent balances, models, entitlements, statuses, or successful actions.
+- Project IDs and session IDs identify different resources. Keep agent completion, saving, preview, and session state distinct.
+- Features without a current server contract must state that they have not been migrated and make no request to a retired endpoint. Preserve intended ports in MIGRATION.md.
+- Keep the existing project/computer outer layouts and blue tokens. The public landing has authorized local Syncrun-type warm neutral tokens and charcoal primary actions; do not propagate its palette into detail pages. Use supplied LotusBuild brand assets; do not recreate the wordmark or copy competitor branding/copy.
+- Preserve pre-existing work and never publish, merge, deploy, or write production data without explicit user authorization. Read-only checks and local verification are authorized.
+- Verify with `npm run typecheck`, `npm run test:contracts`, `npm run build`, and rendered checks for changed UI. Report local and live verification separately.
 
 ## Working style expected from agents
 
@@ -856,3 +750,14 @@ MORE CLI:
   swizzle <Name>     eject component source (--gap reports why)
   upgrade --apply    run after any @astryxdesign/core bump
 <!-- ASTRYX:END -->
+
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

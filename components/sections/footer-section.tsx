@@ -1,3 +1,4 @@
+import { BrandWordmark } from "@/components/ui/brand-wordmark"
 import Link from "next/link"
 import { LotusLogo } from "@/components/ui/lotus-logo"
 
@@ -35,12 +36,7 @@ export function FooterSection() {
       <div className="mx-auto max-w-6xl">
         <div className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
           <div>
-            <Link href="/" className="inline-flex items-center gap-3">
-              <LotusLogo size={32} />
-              <span className="text-lg font-semibold tracking-tight text-foreground">
-                Lotus.build
-              </span>
-            </Link>
+            <Link href="/" className="inline-flex items-center gap-3"><BrandWordmark /></Link>
 
             <p className="mt-6 max-w-sm text-sm leading-7 text-muted-foreground">
               A calm AI workspace for founders turning rough ideas into polished product surfaces.

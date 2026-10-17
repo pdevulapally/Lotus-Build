@@ -1,0 +1,51 @@
+.page, .popover { --background: #f7f5f3; --foreground: #262626; --card: #ffffff; --popover: #ffffff; --popover-foreground: #262626; --muted: #eeeae6; --muted-foreground: #686460; --secondary: #eeeae6; --secondary-foreground: #262626; --border: #d6d0c8; --primary: #1a1a1a; --primary-foreground: #ffffff; --primary-rgb: 26 26 26; --accent: #1a1a1a; --accent-foreground: #ffffff; --accent-soft: #eeeae6; --accent-soft-foreground: #262626; --ring: #1a1a1a; }
+.page { background: var(--background); color: var(--foreground); font-family: var(--font-manrope), sans-serif; }
+.header { max-width: 1500px; margin: auto; min-height: 92px; padding: 20px 48px; display: flex; justify-content: space-between; align-items: center; gap: 32px; }
+.desktopNav { display: flex; align-items: center; gap: 34px; font-size: 14px; font-weight: 500; }
+.desktopNav a { padding: 12px 0; border-bottom: 2px solid transparent; }
+.desktopNav a:hover { border-bottom-color: var(--primary); }
+.desktopNav a:hover, .footer a:hover { color: var(--primary); }
+.account { display: flex; align-items: center; gap: 22px; font-size: 12px; white-space: nowrap; }
+.primary { display: inline-flex; align-items: center; justify-content: center; gap: 13px; padding: 13px 18px; border-radius: 9px; background: var(--primary); color: var(--primary-foreground); font-size: 13px; font-weight: 600; text-decoration: none; }
+.primary:hover { opacity: .9; }
+.mobileMenu { display: none; }
+.hero { padding: 64px 32px 76px; text-align: center; background: var(--background); border-top: 1px solid color-mix(in oklch, var(--border) 65%, transparent); }
+.hero h1 { font-size: clamp(52px, 6.7vw, 96px); line-height: 1.06; letter-spacing: -.055em; font-weight: 600; margin: 0 auto; max-width: 1100px; }
+.intro { font-size: 16px; line-height: 1.75; margin: 25px auto 34px; max-width: 640px; color: var(--muted-foreground); }
+.composer { max-width: 720px; margin: auto; text-align: left; }
+.composer > div { max-width: none; }
+.composer > div > div { box-shadow: 0 10px 32px -18px rgb(var(--primary-rgb) / .2); border-color: color-mix(in oklch, var(--border) 80%, transparent); }
+.composer > div > div:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px rgb(var(--primary-rgb) / .08); }
+.inputHint { text-align: right; color: var(--muted-foreground); font-size: 10px; }
+.briefs { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin: 23px auto 0; }
+.briefs button { display: flex; align-items: center; gap: 9px; font-size: 13px; background: var(--card); border: 1px solid color-mix(in oklch, var(--border) 80%, transparent); border-radius: 999px; padding: 11px 16px; cursor: pointer; }
+.briefs button:hover { color: var(--primary); border-color: var(--primary); }
+.workflow { max-width: 1320px; margin: auto; padding: 76px 32px; text-align: center; scroll-margin-top: 32px; }
+.workflow h2, .saved h2 { margin: 0; font-size: clamp(36px, 4.3vw, 58px); line-height: 1.08; font-weight: 600; letter-spacing: -.055em; }
+.workflow > div > p { max-width: 570px; color: var(--muted-foreground); font-size: 15px; line-height: 1.8; margin: 24px auto 0; }
+.workflowRows { max-width: 640px; margin: 42px auto 0; display: flex; flex-direction: column; gap: 32px; }
+.workflowRows article { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 0; }
+.workflowRows button { display: flex; align-items: center; gap: 18px; color: var(--primary); font-weight: 600; font-size: 13px; cursor: pointer; padding: 10px 15px; border: 1px solid var(--border); border-radius: 9px; background: var(--card); }
+.workflowRows article:first-child { padding-top: 0; }
+.workflowRows h3 { font-size: 24px; letter-spacing: -.035em; font-weight: 500; margin: 0 0 11px; }
+.workflowRows p { font-size: 14px; line-height: 1.8; color: var(--muted-foreground); margin: 0 auto; max-width: 440px; }
+.saved { background: var(--card); padding: 76px max(32px, calc((100vw - 1256px) / 2)); scroll-margin-top: 20px; }
+.savedHeader { text-align: center; }
+.savedHeader p { max-width: 540px; color: var(--muted-foreground); font-size: 15px; line-height: 1.8; margin: 24px auto 0; }
+.savedItems { display: grid; grid-template-columns: repeat(3, 1fr); gap: 48px; margin-top: 48px; text-align: center; }
+.savedItems article { border-top: 1px solid var(--border); padding-top: 24px; }
+.savedItems svg { color: var(--primary); margin: 0 auto; }
+.savedItems h3 { font-size: 18px; font-weight: 500; letter-spacing: -.025em; margin: 22px 0 12px; }
+.savedItems p { font-size: 14px; line-height: 1.8; color: var(--muted-foreground); max-width: 300px; margin: 0 auto; }
+.closing { background: var(--muted); color: var(--foreground); margin: auto; padding: 72px max(32px, calc((100vw - 1256px) / 2)); text-align: center; }
+.closing p { font-size: 14px; line-height: 1.7; margin: 22px auto 0; max-width: 500px; }
+.closing .primary { background: var(--primary); color: var(--primary-foreground); padding: 16px 22px; cursor: pointer; margin-top: 30px; }
+.closing h2 { font-size: clamp(40px, 5vw, 68px); font-weight: 600; letter-spacing: -.055em; line-height: 1.07; margin: 0; }
+.footer { border-top: 1px solid var(--border); padding: 44px 24px 32px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; text-align: center; }
+.footer > div { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px 24px; font-size: 13px; }
+.footer > div a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; }
+.footer > span { font-size: 11px; color: var(--muted-foreground); }
+.page a:focus-visible, .page button:focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; }
+@media(max-width:1000px) { .header { padding: 20px 28px; gap: 20px; } .desktopNav { gap: 20px; } .login { display: none; } .workflow { gap: 55px; } .footer { padding-left: 28px; padding-right: 28px; } }
+@media(max-width:720px) { .header { min-height: 76px; padding: 16px 20px; } .header > a { width: 145px; height: 34px; overflow: hidden; } .header > a > span { transform: scale(.83); transform-origin: left top; } .desktopNav { display: none; } .account { gap: 14px; } .account .primary { padding: 10px 12px; font-size: 11px; gap: 8px; } .account .primary svg { display: none; } .mobileMenu { display: inline-flex; justify-content: center; align-items: center; width: 28px; height: 32px; } .hero { padding: 48px 20px 56px; } .hero h1 { font-size: clamp(43px, 10.5vw, 64px); letter-spacing: -.055em; } .intro { font-size: 14px; margin-top: 24px; margin-bottom: 29px; } .intro br { display: none; } .inputHint { display: none; } .briefs { gap: 8px; margin-bottom: 0; } .briefs button { font-size: 11px; padding: 10px 12px; gap: 7px; } .workflow { grid-template-columns: 1fr; padding: 58px 24px; gap: 36px; } .workflow h2, .saved h2 { font-size: 38px; } .workflow > div > p { font-size: 14px; margin-top: 22px; } .workflowRows h3 { font-size: 22px; } .saved { padding: 54px 24px; } .savedHeader { display: block; } .savedHeader p { margin: 24px auto 0; } .savedItems { grid-template-columns: 1fr; gap: 32px; margin-top: 38px; } .savedItems h3 { margin-top: 16px; } .closing { display: block; padding: 58px 24px; } .closing .primary { margin-top: 30px; } .footer { flex-wrap: wrap; padding: 28px 24px; gap: 28px; } .footer > a { display: inline-flex; } .footer > div { flex-wrap: wrap; gap: 22px; } }
+@media(max-width:360px) { .header { gap: 10px; padding-left: 16px; padding-right: 16px; } .header > a { width: 126px; } .header > a > span { transform: scale(.72); } .account { gap: 9px; } .hero { padding-left: 16px; padding-right: 16px; } }

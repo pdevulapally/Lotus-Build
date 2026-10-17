@@ -6,16 +6,14 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/auth-context";
-import {
-  PLATFORM_OPTIONS,
-  inferPlatformFromPrompt,
-  type ProjectPlatform,
-} from "@/lib/projects/platform";
+import { currentBackend } from "@/lib/backend/browser";
+import { createBuild, pendingBuild } from "@/lib/backend/create-build";
+
 import {
   COMPUTER_SESSION_MODES,
   getComputerSessionModeConfig,
   type ComputerSessionMode,
-} from "@/lib/computer-agent/session-modes";
+} from "@/lib/backend/session-modes";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +22,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { draftKey, readSessionDraft, saveSessionDraft } from "@/lib/backend/draft";
 /* ─── textarea auto-resize ─────────────────────────────────────────────────── */
 
 interface UseAutoResizeTextareaProps {
@@ -69,6 +68,11 @@ function useAutoResizeTextarea({ minHeight, maxHeight }: UseAutoResizeTextareaPr
 /* ─── types ─────────────────────────────────────────────────────────────────── */
 
 interface AnimatedAIInputProps {
+  suggestedPrompt?: string;
+  promptRequestId?: number;
+  suggestedMode?: 'build' | 'plan';
+  inputId?: string;
+  portalClassName?: string;
   mode?: "create" | "chat";
   onSubmit?: (value: string, model: string) => void | Promise<void>;
   onStop?: () => void;
@@ -111,32 +115,11 @@ type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
 
 /* ─── model metadata ─────────────────────────────────────────────────────────── */
 
-// This input drives /api/computer/run, whose agentic loop can only execute
-// Claude models (paid) or Kimi (free, server-enforced — see computer/run's
-// tier gate). These are the only two named models it can ever actually run;
-// listing anything else here would be dishonest UI on top of a silent
-// server-side fallback.
-const CLAUDE_MODELS = ["claude-opus-4-8", "claude-sonnet-4-6"];
-
-const MODEL_META: Record<string, { label: string; description: string; badges: string[] }> = {
-  "claude-opus-4-8": {
-    label: "Claude Opus 4.8",
-    description: "Most capable Claude model — best for complex builds, deep refactors, and demanding product work.",
-    badges: ["Most capable"],
-  },
-  "claude-sonnet-4-6": {
-    label: "Claude Sonnet 4.6",
-    description: "Fast, high-quality Claude model for robust coding and iterative product edits.",
-    badges: ["Balanced"],
-  },
-};
-
+// Model identity and availability come from the authenticated server catalog.
 function getModelMeta(model: string) {
-  if (MODEL_META[model]) return MODEL_META[model];
-  const shortName = model.split("/").pop()?.replace(/-/g, " ") || model;
   return {
-    label: shortName.replace(/\b\w/g, (c) => c.toUpperCase()),
-    description: "Provider model available for generation and iterative product building.",
+    label: model,
+    description: "Model identifier from your current account.",
     badges: model.includes("/") ? ["Open Model"] : ["Model"],
   };
 }
@@ -204,6 +187,11 @@ function IconButton({ children, active, label, className, ...props }: IconButton
 /* ─── main component ──────────────────────────────────────────────────────── */
 
 export function AnimatedAIInput({
+  suggestedPrompt,
+  promptRequestId,
+  suggestedMode,
+  inputId,
+  portalClassName,
   mode = "create",
   onSubmit,
   onStop,
@@ -220,18 +208,18 @@ export function AnimatedAIInput({
   footerHintsClassName,
 }: AnimatedAIInputProps) {
   const router = useRouter();
-  const { user, userData } = useAuth();
+  const { user, userData, account, accountError } = useAuth();
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const submittingRef = useRef(false);
 
   const [value, setValue] = useState("");
   const [isCreating, setIsCreating] = useState(false);
-  const [sessionMode, setSessionMode] = useState<ComputerSessionMode>("auto");
+  const [sessionMode, setSessionMode] = useState<ComputerSessionMode>("build");
   const [autoMode, setAutoMode] = useState(true);
   const [wasLoading, setWasLoading] = useState(false);
-  const [selectedModel, setSelectedModel] = useState("claude-opus-4-8");
+  const [selectedModel, setSelectedModel] = useState("");
   const [isListening, setIsListening] = useState(false);
   const [speechSupported, setSpeechSupported] = useState(false);
-  const [selectedPlatform, setSelectedPlatform] = useState<ProjectPlatform>("web");
-  const [platformTouched, setPlatformTouched] = useState(false);
 
   const isSlimCompact = compact && compactSize === "slim";
   const minH = compact ? (isSlimCompact ? 60 : 76) : 96;
@@ -243,11 +231,12 @@ export function AnimatedAIInput({
   });
 
   const isPaidUser = userData?.planId && userData.planId !== "free";
-  const effectiveModel = autoMode ? "claude-opus-4-8" : selectedModel;
-  const displayModelLabel = autoMode ? "Best model" : getModelMeta(selectedModel).label;
+  const models = account?.models.map((model) => model.id) ?? [];
+  const effectiveModel = mode === 'chat' && initialModel ? initialModel : models.includes(selectedModel) ? selectedModel : '';
+  const displayModelLabel = account?.models.find((model) => model.id === effectiveModel)?.name || effectiveModel || 'Select model';
   const selectedSessionMode = getComputerSessionModeConfig(sessionMode);
 
-  const PENDING_CREATE_KEY = "lotus-build_pending_create";
+  const draftRestoredRef = useRef(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const speechBaseValueRef = useRef("");
 
@@ -256,6 +245,13 @@ export function AnimatedAIInput({
   }, [adjustHeight]);
 
   /* effects ─── */
+
+  useEffect(() => {
+    if (suggestedPrompt === undefined) return;
+    setValue(suggestedPrompt);
+    requestAnimationFrame(() => { textareaRef.current?.focus(); adjustHeight(); });
+  }, [suggestedPrompt, promptRequestId, textareaRef, adjustHeight]);
+  useEffect(() => { if (suggestedMode) setSessionMode(suggestedMode); }, [suggestedMode, promptRequestId]);
 
   useEffect(() => { if (!isPaidUser) setAutoMode(true); }, [isPaidUser]);
 
@@ -267,77 +263,59 @@ export function AnimatedAIInput({
     return () => { recognitionRef.current?.abort(); recognitionRef.current = null; };
   }, []);
 
-  useEffect(() => {
-    if (mode !== "create" || platformTouched || !value.trim()) return;
-    const inferred = inferPlatformFromPrompt(value);
-    setSelectedPlatform((current) => (current === inferred ? current : inferred));
-  }, [mode, platformTouched, value]);
 
-  useEffect(() => {
-    if (wasLoading && !isLoading && mode === "chat") {
-      setValue("");
-      adjustHeight(true);
-    }
-    setWasLoading(isLoading || false);
-  }, [isLoading, wasLoading, mode, adjustHeight]);
 
   useEffect(() => {
     if (!initialModel) return;
-    if (initialModel === "claude-opus-4-8") { setAutoMode(true); setSelectedModel("claude-opus-4-8"); return; }
     setAutoMode(false);
     setSelectedModel(initialModel);
   }, [initialModel]);
 
+  useEffect(() => {
+    if (mode !== 'create' || !user || draftRestoredRef.current) return;
+    draftRestoredRef.current = true;
+    try {
+      const pending = pendingBuild(sessionStorage, user.uid);
+      const draft = pending ?? readSessionDraft(sessionStorage);
+      if (draft) { setValue(draft.prompt); setSessionMode(draft.mode); if (pending) setSelectedModel(pending.model); requestAnimationFrame(() => adjustHeight()); }
+    } catch (reason) { setSubmitError(reason instanceof Error ? reason.message : 'Could not restore your draft.'); }
+  }, [mode, user, adjustHeight]);
+
   /* handlers ─── */
 
   const handleSubmit = async () => {
-    if (!value.trim() || isCreating || isLoading || disabled) return;
+    if (!value.trim() || isCreating || isLoading || disabled || submittingRef.current) return;
+    setSubmitError(null);
     recognitionRef.current?.stop();
     setIsListening(false);
 
     if (mode === "chat" && onSubmit) {
       const v = value.trim();
-      setValue("");
-      adjustHeight(true);
-      await onSubmit(v, effectiveModel);
+      submittingRef.current = true;
+      try { await onSubmit(v, effectiveModel); setValue(''); adjustHeight(true); }
+      catch (error) { setSubmitError(error instanceof Error ? error.message : 'Could not send message.'); }
+      finally { submittingRef.current = false; }
       return;
     }
 
     if (mode === "create" && !user) {
-      sessionStorage.setItem(
-        PENDING_CREATE_KEY,
-        JSON.stringify({
-          prompt: value.trim(),
-          model: effectiveModel,
-          platform: selectedPlatform,
-          sessionMode,
-        }),
-      );
+      saveSessionDraft(sessionStorage, { prompt: value.trim(), mode: sessionMode });
       router.push("/login?redirect=" + encodeURIComponent("/"));
       return;
     }
-
     setIsCreating(true);
+    submittingRef.current = true;
     try {
-      const idToken = await user?.getIdToken();
-      if (!idToken) throw new Error("Not authenticated");
-      const res = await fetch("/api/computer/sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
-        body: JSON.stringify({
-          prompt: value.trim(),
-          model: effectiveModel,
-          platform: selectedPlatform,
-          sessionMode,
-        }),
-      });
-      const data = await res.json().catch(() => ({})) as { id?: string; error?: string };
-      if (!res.ok || !data.id) throw new Error(data.error || "Could not create session");
+      if (!user || !account) throw new Error(accountError || 'Account details are not available.');
+      if (!effectiveModel) throw new Error('Choose one of the models available on your plan.');
+      if (sessionMode !== 'build' && sessionMode !== 'plan') throw new Error('Choose Build or Plan.');
+      const data = await createBuild(currentBackend(), sessionStorage, { uid: user.uid, prompt: value.trim(), model: effectiveModel, mode: sessionMode });
+      sessionStorage.removeItem(draftKey);
       router.push(`/computer/${data.id}`);
     } catch (err) {
-      console.error(err);
+      setSubmitError(err instanceof Error ? err.message : 'Could not create session.');
       setIsCreating(false);
-    }
+    } finally { submittingRef.current = false; }
   };
 
   const handleToggleSpeech = () => {
@@ -423,6 +401,7 @@ export function AnimatedAIInput({
 
         <div className={cn("px-3 pt-3 sm:px-4 sm:pt-4", compact && "pt-2.5 sm:pt-3", isSlimChat && "px-5 pt-4")}>
           <textarea
+            id={inputId}
             ref={textareaRef}
             value={value}
             aria-label={mode === "chat" ? "Message the agent" : "Describe the site or app you want to build"}
@@ -442,6 +421,12 @@ export function AnimatedAIInput({
               isSlimChat && "min-h-[54px] text-[14px] leading-[1.55]",
             )}
           />
+          {submitError && <div role="alert" className="mt-2 text-sm text-destructive">
+            <p>{submitError}</p>
+            {mode === 'create' && user && <button type="button" className="mt-1 underline" onClick={() => {
+              sessionStorage.removeItem(`lotus-current-build:${user.uid}`); setSubmitError(null);
+            }}>Discard pending request</button>}
+          </div>}
         </div>
 
         <div
@@ -453,34 +438,9 @@ export function AnimatedAIInput({
         >
           <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {mode === "create" && !compact && (
-              <div className="inline-flex shrink-0 items-center rounded-full bg-background p-0.5 ring-1 ring-border/60">
-                {PLATFORM_OPTIONS.map((option) => (
-                  <button
-                    key={option.id}
-                    type="button"
-                    aria-pressed={selectedPlatform === option.id}
-                    onClick={() => {
-                      setPlatformTouched(true);
-                      setSelectedPlatform(option.id);
-                    }}
-                    className={cn(
-                      "rounded-full px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
-                      selectedPlatform === option.id
-                        ? "bg-accent text-accent-foreground"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    <span className="hidden sm:inline">{option.label}</span>
-                    <span className="sm:hidden">{option.id === "web" ? "Web" : "Mobile"}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {mode === "create" && !compact && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <ToolbarPill className="hidden sm:inline-flex max-w-[9rem]" aria-label="Choose session mode">
+                  <ToolbarPill className="max-w-[9rem]" aria-label="Choose session mode">
                     <span className="truncate text-foreground">{selectedSessionMode.label}</span>
                     <ChevronUp className="h-3 w-3 shrink-0 opacity-45" />
                   </ToolbarPill>
@@ -490,7 +450,7 @@ export function AnimatedAIInput({
                   side="top"
                   sideOffset={8}
                   avoidCollisions={false}
-                  className="w-[18rem] rounded-lg border border-border bg-popover p-1.5 shadow-lg"
+                  className={cn("w-[18rem] rounded-lg border border-border bg-popover p-1.5 shadow-lg", portalClassName)}
                 >
                   <DropdownMenuLabel className="px-2 pb-1 pt-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                     Mode
@@ -530,9 +490,9 @@ export function AnimatedAIInput({
               </ToolbarPill>
             )}
 
-            <DropdownMenu>
+            {user && <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <ToolbarPill className="max-w-[6.5rem] sm:max-w-[9rem]" aria-label="Choose model">
+                <ToolbarPill className="max-w-[6.5rem] sm:max-w-[9rem]" aria-label={mode === 'chat' ? 'Session model' : 'Choose model'} disabled={mode === 'chat'}>
                   <span className="truncate text-foreground">{displayModelLabel}</span>
                   <ChevronUp className="h-3 w-3 shrink-0 opacity-45" />
                 </ToolbarPill>
@@ -542,14 +502,14 @@ export function AnimatedAIInput({
                 align="start"
                 side="top"
                 sideOffset={8}
-                className="max-h-[60vw] w-[calc(100vw-2rem)] max-w-[22rem] overflow-y-auto overscroll-contain rounded-lg border border-border bg-popover p-1.5 shadow-lg sm:max-h-[26rem]"
+                className={cn("max-h-[60vw] w-[calc(100vw-2rem)] max-w-[22rem] overflow-y-auto overscroll-contain rounded-lg border border-border bg-popover p-1.5 shadow-lg sm:max-h-[26rem]", portalClassName)}
               >
                 <DropdownMenuLabel className="px-2 pb-1 pt-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                   Model
                 </DropdownMenuLabel>
 
                 <DropdownMenuItem
-                  onSelect={() => setAutoMode(true)}
+                  disabled
                   className="rounded-md px-3 py-2.5 focus:bg-muted"
                 >
                   <div className="flex w-full items-center justify-between gap-2">
@@ -558,8 +518,8 @@ export function AnimatedAIInput({
                         <Leaf className="h-3.5 w-3.5 text-muted-foreground" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-foreground">Best model</p>
-                        <p className="text-xs text-muted-foreground">Picks the best model for the task</p>
+                        <p className="text-sm font-medium text-foreground">Available models</p>
+                        <p className="text-xs text-muted-foreground">From your current plan</p>
                       </div>
                     </div>
                     {autoMode && <Check className="h-3.5 w-3.5 text-foreground" />}
@@ -568,9 +528,9 @@ export function AnimatedAIInput({
 
                 <DropdownMenuSeparator className="my-1" />
 
-                {CLAUDE_MODELS.map((model) => {
-                  const meta = MODEL_META[model];
-                  const isLocked = !isPaidUser;
+                {models.map((model) => {
+                  const meta = getModelMeta(model);
+                  const isLocked = false;
                   const isSelected = !autoMode && selectedModel === model;
                   return (
                     <DropdownMenuItem
@@ -586,7 +546,7 @@ export function AnimatedAIInput({
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-1.5">
                             <span className={cn("text-sm font-medium", isLocked ? "text-foreground/70" : "text-foreground")}>
-                              {meta.label}
+                              {account?.models.find((entry) => entry.id === model)?.name || model}
                             </span>
                             {meta.badges.map((b) => (
                               <Badge key={b}>{b}</Badge>
@@ -609,7 +569,7 @@ export function AnimatedAIInput({
                   );
                 })}
               </DropdownMenuContent>
-            </DropdownMenu>
+            </DropdownMenu>}
           </div>
 
           <div className="flex shrink-0 items-center gap-1">

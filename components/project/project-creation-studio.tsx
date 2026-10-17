@@ -1,5 +1,7 @@
 "use client"
 
+
+import { unavailableFeature } from "@/lib/backend/unavailable-feature"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { ArrowLeft } from "lucide-react"
 
@@ -456,11 +458,7 @@ export function ProjectCreationStudio(props: {
           return
         }
 
-        const res = await fetch("/api/generate-options", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...authHeader },
-          body: JSON.stringify({ itemKey: unresolvedItem.key, blueprint, prompt }),
-        })
+        const res = await unavailableFeature("Generated planning options")
 
         if (!res.ok) {
           applyFallback()
