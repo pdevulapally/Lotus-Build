@@ -41,7 +41,7 @@ No real authenticated create-to-session, provider generation, Stripe, Firestore,
 
 ## Verification
 
-- Typecheck, 18 frontend contract tests and production build pass locally. Backend PR #21 Linux CI passed 639/639 tests with no skips.
+- Typecheck, 19 frontend contract tests and production build pass locally. Backend PR #21 Linux CI passed 639/639 tests with no skips.
 - Public desktop/mobile rendering, supported mode menu, starter-to-composer interaction, labels, focus and overflow checked locally. The final public landing is at /welcome so signed-in visitors can review it; / opens the authenticated workspace when signed in. This is not a full accessibility certification or signed-in UI test.
 - Original reference clone and Git history remain unchanged. No merge, deployment or production mutation is authorized by this PR.
 
@@ -50,3 +50,19 @@ Shared theme: app/globals.css is the single semantic color and font source for t
 The public landing follows the inspected Syncrun typography and neutral palette, using LotusBuild software-workspace copy, supplied wordmark, a live composer, and centered lower sections/footer as requested. Chrome was not connected; the same public reference was inspected in the connected browser. No reference text, logos, photos, testimonials or capability claims are used. The software-workspace positioning does not imply desktop automation, deployment, repository import or arbitrary runtime support.
 
 Browser verification: shared fonts/palette were observed on the public landing, sign-in, help and pricing shell. Landing overflow checked at 1440, 390 and 320px. Authenticated project/workspace screens and their dark-mode toggle remain visually unverified with the render-only fake Auth configuration. Pricing correctly exposes a connection failure with no backend at the test origin. A browser-discovered native-fetch receiver bug was fixed and covered by an additional contract regression test; live plans were not loaded.
+
+## Shared public navigation and landing refinement
+
+All public routes (signed-out root, /welcome, /pricing, /help, /terms, /privacy) plus /login and /signup use components/ui/navbar.tsx. Its module owns header geometry, links, active page treatment, account actions, mobile sheet and focus behavior. Shared .site-action and BrandWordmark provide action and responsive logo sizing. The header participates in document flow; obsolete fixed-header offsets were removed from help/pricing. No duplicated landing/auth header remains. The former public account menu's inferred quota display is removed; account usage remains in Settings.
+
+Authenticated project navigation retains its sidebar/mobile working header; computer detail retains its session/editor controls. These are functional product contexts, not alternate public marketing headers, and share global color/type tokens and the supplied mark. Signed-in account menus, authenticated headers and dark mode were source-reviewed but could not be exercised with the fake local Auth configuration.
+
+The lower landing now uses centered paired Plan/Build panels, a unified source/history/download panel, a contrasting closing CTA, and the same maintained centered footer as pricing/help/legal. Existing Plan/Build and brief-focus interactions are retained; design acceptance remains pending. Browser checks verified common desktop header geometry/links across the public pages and loaded auth pages; mobile navigation route-close and Escape focus return, 320/390px landing overflow, 320px signup overflow, and unchanged typed brief after Plan/CTA interaction. No account creation, live generation or billing action was performed.
+
+## Auth diagnosis in the local review preview
+
+The running browser was correlated with its loaded development bundle: it still contained the documented fake Firebase web key/project/auth domain and the unavailable http://127.0.0.1:3199 backend. No real frontend env file or OS public configuration was found in the known checkouts/scopes. Google sign-in reproduced Firebase auth/api-key-not-valid.-please-pass-a-valid-api-key.; the previous generic form copy hid that configuration failure. Login, Google, signup and password-reset forms now use a shared safe provider-error formatter, with regression coverage against leaking raw messages or distinguishing invalid-password/nonexistent-account cases.
+
+The intended live backend https://api.lotusbuild.co.uk was checked without credentials: GET /me returned 401 auth/missing-token; OPTIONS /me for http://127.0.0.1:3107 returned 204 but no Access-Control-Allow-Origin, so that local origin is not currently allowed. No production settings were changed. Actual Firebase sign-in, token validation, authenticated /me models/bootstrap and usage remain unverified. Firebase identity is retained independently of account/usage failures in AuthProvider; consumers render the explicit account error rather than manufacturing account state.
+
+A gitignored .env.local was opened for the user to paste the six actual public Firebase fields locally, with intended app/backend URLs already set. Values are not logged or committed. The old dev-process test variables must be removed and the local preview restarted after the user finishes saving configuration. CORS/provider authorized-domain and provider-enable settings must be verified separately; no wildcard or auth bypass is added.

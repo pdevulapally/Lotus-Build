@@ -1,2 +1,7 @@
 .wordmark { display: inline-block; position: relative; width: 174px; height: 40px; overflow: hidden; flex-shrink: 0; }
 .wordmark img { position: absolute; width: 142.3%; max-width: none; height: auto; left: -21.2%; top: -53.5%; mix-blend-mode: multiply; }
+
+@media(max-width:800px) { .wordmark { width: 142px; height: 33px; } }
+@media(max-width:360px) { .wordmark { width: 124px; height: 29px; } }
+
+:global(.dark) .wordmark img { filter: invert(1); mix-blend-mode: screen; }

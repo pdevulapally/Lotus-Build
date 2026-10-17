@@ -44,7 +44,7 @@ export default function HelpPage() {
     <main className="min-h-screen bg-background text-foreground">
       <Navbar />
 
-      <section className="px-4 pb-14 pt-28 sm:px-6 sm:pt-32 lg:px-8">
+      <section className="px-4 pb-14 pt-16 sm:px-6 sm:pt-20 lg:px-8">
         <div className="mx-auto max-w-6xl">
           <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
             <div>

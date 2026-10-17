@@ -1,304 +1,60 @@
 "use client"
 
-import { BrandWordmark } from "@/components/ui/brand-wordmark"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { LotusLogo } from "@/components/ui/lotus-logo"
+import { usePathname } from "next/navigation"
+import { ArrowUpRight, Menu, Settings, LogOut, UserRound } from "lucide-react"
+import { BrandWordmark } from "@/components/ui/brand-wordmark"
 import { useAuth } from "@/contexts/auth-context"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import {
-  ChevronDown,
-  Coins,
-  LayoutDashboard,
-  Leaf,
-  LogOut,
-  Settings,
-} from "lucide-react"
-import { cn } from "@/lib/utils"
 import { useSettingsDialog } from "@/components/settings/settings-dialog"
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import styles from "./navbar.module.css"
 
-const navLinks = [
-  { href: "/", label: "Workspace" },
-
+const links = [
+  { href: "/welcome#workflow", label: "How it works" },
+  { href: "/welcome#saved-work", label: "Your work" },
   { href: "/pricing", label: "Pricing" },
   { href: "/help", label: "Help" },
 ]
 
-const accountMenuItemClass =
-  "h-10 cursor-pointer rounded-lg px-3 text-[13px] text-foreground focus:bg-muted focus:text-foreground"
-
-type NavbarProps = {
-  variant?: "default" | "hero"
-}
-
-export function Navbar({ variant = "default" }: NavbarProps) {
-  const router = useRouter()
+/** Shared public-site header. Project navigation and editor controls remain contextual. */
+export function Navbar() {
+  const pathname = usePathname()
+  const { user, loading, signOut } = useAuth()
   const { openSettings } = useSettingsDialog()
-  const { user, userData, loading, signOut } = useAuth()
-  const [isOpen, setIsOpen] = useState(false)
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  const handleSignOut = async () => {
-    try {
-      await signOut()
-      router.push("/")
-    } catch (error) {
-      console.error("Sign out error:", error)
-    }
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [signingOut, setSigningOut] = useState(false)
+  const active = (href: string) => !href.includes('#') && pathname === href
+  const exit = async () => {
+    setSigningOut(true); setError(null)
+    try { await signOut() }
+    catch { setError("Could not sign out. Try again.") }
+    finally { setSigningOut(false) }
   }
-
-  const getInitials = (name: string | null, email: string | null) => {
-    if (name) {
-      return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
-    }
-    if (email) return email[0].toUpperCase()
-    return "U"
-  }
-
-  const remainingClamped = userData ? Math.max(0, userData.tokenUsage?.remaining ?? 0) : 0
-  const tokensLimit = userData?.tokenUsage ? userData.tokenUsage.used + remainingClamped : 0
-  const tokenPercentage = userData && tokensLimit > 0
-    ? Math.min(100, Math.round(((userData.tokenUsage?.used ?? 0) / tokensLimit) * 100))
-    : 0
-
-  const headerClass = variant === "hero"
-    ? "relative z-20 flex w-full justify-center px-0 pt-5 sm:pt-6"
-    : "fixed left-0 right-0 top-5 z-40 px-4 sm:top-6"
-
-  return (
-    <header className={headerClass}>
-      <nav
-        className={cn(
-          "nav-glass lotus-glass-strong mx-auto grid h-14 w-full max-w-6xl grid-cols-[1fr_auto] items-center gap-3 rounded-full border border-border/60 px-3.5 text-foreground sm:px-5 md:grid-cols-[1fr_auto_1fr]",
-          variant === "hero" && "nav-glass-hero"
-        )}
-      >
-        <Link href="/" className="flex min-w-0 items-center gap-2.5 md:justify-self-start"><BrandWordmark /></Link>
-
-        <div className="hidden items-center justify-center gap-0.5 md:flex">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="rounded-full px-3.5 py-1.5 text-[13px] font-medium text-secondary-foreground transition-colors hover:bg-accent-soft hover:text-accent-soft-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/55"
-            >
-              {link.label}
-            </Link>
-          ))}
-        </div>
-
-        <div className="ml-auto flex items-center gap-2 md:ml-0 md:justify-self-end">
-          {!mounted || loading ? (
-            <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
-          ) : user && userData ? (
-            <>
-              <Link
-                href="/"
-                className="hidden h-9 items-center rounded-full bg-accent px-4 text-[13px] font-semibold text-accent-foreground transition-colors hover:bg-accent/88 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:inline-flex"
-              >
-                Projects
-              </Link>
-              <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className="flex h-9 items-center gap-1.5 rounded-full border border-border/70 bg-card px-1.5 pr-2 text-foreground transition-colors hover:bg-muted/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/45"
-                    aria-label="Open account menu"
-                  >
-                    <Avatar className="h-7 w-7 border border-border/70">
-                      <AvatarImage src={userData.photoURL || undefined} alt={userData.displayName || "User"} />
-                      <AvatarFallback className="bg-muted text-[11px] text-foreground">
-                        {getInitials(userData.displayName, userData.email)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  className="w-[calc(100vw-2rem)] max-w-[22rem] overflow-hidden rounded-2xl border border-border/70 bg-card p-0 text-popover-foreground shadow-xl"
-                  sideOffset={12}
-                >
-                  <DropdownMenuLabel className="px-4 py-4 font-normal">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <Avatar className="h-10 w-10 shrink-0 border border-border/70">
-                        <AvatarImage src={userData.photoURL || undefined} />
-                        <AvatarFallback className="bg-muted text-sm text-foreground">
-                          {getInitials(userData.displayName, userData.email)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0 flex-1">
-                        <span className="block truncate text-[14px] font-medium leading-5 text-foreground">
-                          {userData.displayName || "User"}
-                        </span>
-                        <span className="block truncate text-[12.5px] leading-5 text-muted-foreground">{userData.email}</span>
-                      </div>
-                    </div>
-                  </DropdownMenuLabel>
-
-                  <DropdownMenuSeparator className="m-0 bg-border/70" />
-
-                  <div className="px-3 py-3">
-                    <div className="rounded-xl border border-border/60 bg-muted/40 px-3.5 py-3.5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-background text-foreground">
-                              <Leaf className="h-3.5 w-3.5" />
-                            </span>
-                            <span className="truncate text-[13px] font-medium capitalize text-foreground">{userData.planName} Plan</span>
-                          </div>
-                          <p className="mt-1.5 text-[11.5px] text-muted-foreground">
-                            {remainingClamped.toLocaleString()} tokens available
-                          </p>
-                        </div>
-                        <Link
-                          href="/pricing"
-                          className="shrink-0 rounded-full bg-background px-2.5 py-1 text-[12px] font-medium text-foreground transition-colors hover:bg-border/40"
-                          onClick={() => setIsOpen(false)}
-                        >
-                          Upgrade
-                        </Link>
-                      </div>
-
-                      <div className="mt-3.5 space-y-2">
-                        <div className="flex items-center justify-between gap-3 text-[11.5px]">
-                          <span className="flex items-center gap-1.5 text-muted-foreground">
-                            <Coins className="h-3.5 w-3.5" />
-                            {userData.tokenUsage ? 'Tokens used' : 'Usage'}
-                          </span>
-                          <span className="shrink-0 font-medium text-foreground">
-                            {userData.tokenUsage ? `${userData.tokenUsage.used.toLocaleString()} / ${tokensLimit.toLocaleString()}` : 'View account usage'}
-                          </span>
-                        </div>
-                        {userData.tokenUsage && <div className="h-1.5 overflow-hidden rounded-full bg-border/70">
-                          <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${tokenPercentage}%` }} />
-                        </div>}
-                      </div>
-                    </div>
-                  </div>
-
-                  <DropdownMenuSeparator className="m-0 bg-border/70" />
-
-                  <div className="p-2">
-                    <DropdownMenuItem
-                      className={accountMenuItemClass}
-                      onClick={() => {
-                        setIsOpen(false)
-                        router.push("/")
-                      }}
-                    >
-                      <LayoutDashboard className="mr-2 h-4 w-4" />
-                      Projects
-                    </DropdownMenuItem>
-
-                    <DropdownMenuItem
-                      className={accountMenuItemClass}
-                      onClick={() => {
-                        setIsOpen(false)
-                        openSettings()
-                      }}
-                    >
-                      <Settings className="mr-2 h-4 w-4" />
-                      Settings
-                    </DropdownMenuItem>
-                  </div>
-
-                  <DropdownMenuSeparator className="m-0 bg-border/70" />
-
-                  <div className="p-2">
-                    <DropdownMenuItem
-                      className="h-10 cursor-pointer rounded-lg px-3 text-[13px] text-destructive focus:bg-destructive/10 focus:text-destructive"
-                      onClick={handleSignOut}
-                    >
-                      <LogOut className="mr-2 h-4 w-4" />
-                      Sign out
-                    </DropdownMenuItem>
-                  </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </>
-          ) : (
-            <Link
-              href="/login"
-              className="inline-flex h-9 items-center rounded-full bg-accent px-4 text-[13px] font-semibold text-accent-foreground transition-colors hover:bg-accent/88 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            >
-              Sign in
-            </Link>
-          )}
-
-          <div className="flex md:hidden">
-            {mounted ? (
-              <Sheet>
-                <SheetTrigger asChild>
-                  <button
-                    type="button"
-                    className="inline-flex h-9 items-center justify-center rounded-full border border-border/70 bg-card px-3 text-foreground transition-colors hover:bg-muted/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/45"
-                    aria-label="Open navigation"
-                  >
-                    <span className="relative block h-3.5 w-4.5">
-                      <span className="absolute left-0 top-0 block h-[2px] w-4.5 rounded-full bg-current" />
-                      <span className="absolute bottom-0 left-1 block h-[2px] w-3.5 rounded-full bg-current" />
-                    </span>
-                  </button>
-                </SheetTrigger>
-                <SheetContent side="top" className="h-screen bg-background px-5 pb-8 pt-16 text-foreground">
-                  <SheetHeader className="p-0 pb-6">
-                    <SheetTitle className="text-left text-sm font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                      Navigation
-                    </SheetTitle>
-                  </SheetHeader>
-                  <div className="divide-y divide-border/70 border-y border-border/70">
-                    {navLinks.map((link) => (
-                      <Link
-                        key={link.href}
-                        href={link.href}
-                        className="flex items-center justify-between py-4 text-2xl font-medium tracking-[-0.03em] text-foreground transition-colors hover:text-muted-foreground"
-                      >
-                        {link.label}
-                        <span className="text-sm text-muted-foreground">Open</span>
-                      </Link>
-                    ))}
-                    <Link
-                      href={user ? "/" : "/login"}
-                      className="flex items-center justify-between py-4 text-2xl font-medium tracking-[-0.03em] text-foreground transition-colors hover:text-muted-foreground"
-                    >
-                      {user ? "Projects" : "Sign in"}
-                      <span className="text-sm text-muted-foreground">Open</span>
-                    </Link>
-                  </div>
-                </SheetContent>
-              </Sheet>
-            ) : (
-              <button
-                type="button"
-                className="inline-flex h-9 items-center justify-center rounded-full border border-border/70 bg-card px-3 text-foreground"
-                aria-label="Open navigation"
-                disabled
-              >
-                <span className="relative block h-3.5 w-4.5">
-                  <span className="absolute left-0 top-0 block h-[2px] w-4.5 rounded-full bg-current" />
-                  <span className="absolute bottom-0 left-1 block h-[2px] w-3.5 rounded-full bg-current" />
-                </span>
-              </button>
-            )}
-          </div>
-        </div>
+  return <header className={styles.header}>
+    <div className={styles.inner}>
+      <Link href="/welcome" aria-label="LotusBuild home" className={styles.brand}><BrandWordmark /></Link>
+      <nav aria-label="Main navigation" className={styles.desktop}>
+        {links.map(link => <Link key={link.href} href={link.href} className={styles.navLink} aria-current={active(link.href) ? 'page' : undefined}>{link.label}</Link>)}
       </nav>
-    </header>
-  )
+      <div className={styles.actions}>
+        {loading ? <span role="status" className={styles.loading}>Loading account…</span> : <>
+          {!user && <Link href="/login" className={styles.login} aria-current={pathname === '/login' ? 'page' : undefined}>Log in</Link>}
+          <Link href={user ? '/' : '/signup'} className="site-action" aria-current={!user && pathname === '/signup' ? 'page' : undefined}>{user ? 'Open workspace' : 'Start building'}<ArrowUpRight size={15} aria-hidden /></Link>
+          {user && <DropdownMenu><DropdownMenuTrigger asChild><button className={`${styles.iconButton} ${styles.accountControl}`} type="button" aria-label="Open account menu"><UserRound size={18} /></button></DropdownMenuTrigger><DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={() => openSettings()}><Settings size={16} />Settings</DropdownMenuItem>
+            <DropdownMenuItem disabled={signingOut} onSelect={() => void exit()}><LogOut size={16} />{signingOut ? 'Signing out…' : 'Sign out'}</DropdownMenuItem>
+          </DropdownMenuContent></DropdownMenu>}
+        </>}
+        <Sheet open={menuOpen} onOpenChange={setMenuOpen}><SheetTrigger asChild><button className={`${styles.iconButton} ${styles.mobile}`} type="button" aria-label="Open navigation"><Menu size={21} /></button></SheetTrigger><SheetContent side="right" className="bg-background text-foreground"><SheetTitle>Navigation</SheetTitle><nav aria-label="Mobile navigation" className={styles.mobileLinks}>
+          {links.map(link => <Link key={link.href} href={link.href} aria-current={active(link.href) ? 'page' : undefined} onClick={() => setMenuOpen(false)}>{link.label}<ArrowUpRight size={16} aria-hidden /></Link>)}
+          <Link href={user ? '/' : '/login'} onClick={() => setMenuOpen(false)}>{user ? 'Open workspace' : 'Log in'}<ArrowUpRight size={16} aria-hidden /></Link>
+          {user && <><button type="button" onClick={() => { setMenuOpen(false); openSettings() }}>Settings<Settings size={16} aria-hidden /></button><button type="button" disabled={signingOut} onClick={() => { setMenuOpen(false); void exit() }}>Sign out<LogOut size={16} aria-hidden /></button></>}
+        </nav></SheetContent></Sheet>
+      </div>
+    </div>
+    {error && <p role="alert" className={styles.error}>{error}</p>}
+  </header>
 }

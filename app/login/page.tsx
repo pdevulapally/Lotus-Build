@@ -1,6 +1,6 @@
 "use client"
 
-import { BrandWordmark } from "@/components/ui/brand-wordmark"
+import { Navbar } from "@/components/ui/navbar"
 import type { FormEvent } from "react"
 import { useEffect, useState } from "react"
 import Link from "next/link"
@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog"
 import { useAuth } from "@/contexts/auth-context"
 import { getSafeRedirectPath } from "@/lib/auth/redirect"
+import { authErrorMessage } from "@/lib/auth/errors"
 
 const authInputClassName =
   "lotus-glass-control w-full rounded-2xl border px-4 py-3.5 text-sm text-foreground shadow-none outline-none transition-colors placeholder:text-muted-foreground focus:border-border-strong"
@@ -61,8 +62,8 @@ export default function LoginPage() {
     try {
       await signInWithEmail(email, password)
       router.push(redirect)
-    } catch {
-      setError("Invalid email or password. Please try again.")
+    } catch (error) {
+      setError(authErrorMessage(error))
     } finally {
       setIsLoading(false)
     }
@@ -74,8 +75,8 @@ export default function LoginPage() {
     try {
       await signInWithGoogle()
       router.push(redirect)
-    } catch {
-      setError("Failed to sign in with Google.")
+    } catch (error) {
+      setError(authErrorMessage(error))
     } finally {
       setIsLoading(false)
     }
@@ -97,13 +98,7 @@ export default function LoginPage() {
       await sendPasswordResetEmail(resetEmail.trim())
       setResetSent(true)
     } catch (err: unknown) {
-      const message =
-        err && typeof err === "object" && "code" in err
-          ? (err as { code?: string }).code === "auth/user-not-found"
-            ? "No account found with this email."
-            : ((err as { message?: string }).message ?? "Failed to send reset link.")
-          : "Failed to send reset link."
-      setResetError(message)
+      setResetError(authErrorMessage(err, 'reset'))
     } finally {
       setResetLoading(false)
     }
@@ -120,13 +115,7 @@ export default function LoginPage() {
   return (
     <>
       <main className="auth-backdrop relative flex min-h-[100dvh] flex-col text-foreground">
-        <div className="px-5 pt-6 sm:px-8 lg:px-12">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label="Lotus.build home"
-          ><BrandWordmark /></Link>
-        </div>
+        <Navbar />
 
         <div className="flex flex-1 items-center justify-center px-5 py-10 sm:px-8 lg:px-12">
           <div className="flex w-full max-w-5xl items-center justify-center gap-16 lg:justify-between">

@@ -3,11 +3,29 @@ import test from 'node:test'
 import { BackendClient, BackendError, backendOrigin, readEvents, type SessionEvent } from '../lib/backend/client'
 import { createBuild } from '../lib/backend/create-build'
 import { sendMessage } from '../lib/backend/send-message'
+import { authErrorMessage } from '../lib/auth/errors'
 
 const createdAt = '2026-10-17T12:00:00.000Z'
 const project = { id: 'p1', name: 'App', platform: 'web', status: 'draft', publicPreviewEnabled: false, createdAt }
 const session = { id: 's1', projectId: 'p1', status: 'QUEUED', model: 'configured-model', effort: 'standard', mode: 'build', messageCount: 1, createdAt }
 const key = 'client-operation-123'
+
+test('auth UI distinguishes provider configuration failures without exposing raw error data', () => {
+  const sensitiveMessage = 'email=private@example.test token=private-token apiKey=private-key'
+  for (const code of ['auth/invalid-api-key', 'auth/unauthorized-domain', 'auth/operation-not-allowed', 'auth/popup-blocked', 'auth/network-request-failed']) {
+    const message = authErrorMessage({ code, message: sensitiveMessage })
+    assert.ok(message.includes(code))
+    assert.ok(!message.includes('private'))
+    assert.ok(!message.includes('password is incorrect'))
+  }
+  for (const code of ['auth/user-not-found', 'auth/wrong-password', 'auth/invalid-credential']) {
+    assert.equal(authErrorMessage({ code }), 'The email or password is incorrect. Check your details and try again.')
+  }
+  assert.equal(authErrorMessage(new Error(sensitiveMessage)), 'Could not sign in. Try again or contact support.')
+  assert.equal(authErrorMessage({ code: sensitiveMessage }), 'Could not sign in. Try again or contact support.')
+  assert.equal(authErrorMessage({ code: 'auth/user-not-found' }, 'reset'), 'Could not send a reset link. Try again or contact support.')
+  assert.equal(authErrorMessage(null, 'sign-up'), 'Could not create your account. Try again or contact support.')
+})
 
 test('default browser fetch is called without the client as its receiver', async (context) => {
   context.mock.method(globalThis, 'fetch', async function (this: unknown) {
