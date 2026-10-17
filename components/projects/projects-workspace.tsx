@@ -1,6 +1,7 @@
 "use client"
 
 import { BrandWordmark } from "@/components/ui/brand-wordmark"
+import { SidebarToggleIcon } from "@/components/ui/sidebar-toggle-icon"
 import { Suspense, useCallback, useEffect, useId, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -15,7 +16,6 @@ import {
   CreditCard,
   X,
   ChevronRight,
-  PanelLeft,
   Gift,
   Copy,
   Check,
@@ -129,15 +129,15 @@ function TaskRow({
         onClick={onNavigate}
         aria-label={`Open ${projectAccessibleSummary(p, 34)}`}
         className={cn(
-          "flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 pr-9 text-left",
-          "transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30"
+          "flex min-h-11 w-full items-center gap-3 rounded-lg px-2.5 py-2 pr-9 text-left",
+          "transition-colors hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30"
         )}
       >
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13px] font-medium leading-snug text-foreground/90 group-hover/row:text-foreground">
+          <span className="block truncate text-[14px] font-normal leading-snug text-foreground/90 group-hover/row:text-foreground">
             {title}
           </span>
-          <span className="mt-0.5 block truncate text-[11px] leading-snug text-muted-foreground">
+          <span className="sr-only">
             {p.kind === "computer" ? "Computer agent" : "Software project"} · {status.label}
           </span>
         </span>
@@ -167,21 +167,26 @@ function TaskRow({
 function SearchBar({
   value,
   onChange,
+  autoFocus = false,
+  variant = 'default',
 }: {
   value: string
   onChange: (v: string) => void
+  autoFocus?: boolean
+  variant?: 'default' | 'sidebar'
 }) {
   return (
     <div className="relative mx-3 mb-3">
       <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/55" aria-hidden="true" />
       <input
         type="search"
+        autoFocus={autoFocus}
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
         aria-label="Search saved builds"
         placeholder="Search builds…"
         className={cn(
-          "lotus-glass-control h-9 w-full rounded-full border pl-8 pr-8",
+          variant === 'sidebar' ? "h-10 w-full rounded-lg border border-sidebar-border bg-background pl-8 pr-8" : "lotus-glass-control h-9 w-full rounded-full border pl-8 pr-8",
           "text-[13px] text-foreground placeholder:text-muted-foreground/50",
           "outline-none transition-colors focus:border-border-strong focus:ring-0"
         )}
@@ -320,6 +325,9 @@ function FullBuildsPanel({
 
 function Sidebar({
   filtered,
+  search,
+  onSearchChange,
+  onNewProject,
   projectsLoading,
   stats,
   router,
@@ -337,6 +345,9 @@ function Sidebar({
   isPaidUser,
 }: {
   filtered: ProjectSummary[]
+  search: string
+  onSearchChange: (value: string) => void
+  onNewProject: () => void
   projectsLoading: boolean
   stats: { planName: string }
   router: ReturnType<typeof useRouter>
@@ -354,6 +365,7 @@ function Sidebar({
   isPaidUser: boolean
 }) {
   const { openSettings } = useSettingsDialog()
+  const [searchOpen, setSearchOpen] = useState(false)
   const recentBuildsHeadingId = useId()
   const scopeToggleLabelId = useId()
   const initials = user?.displayName
@@ -374,20 +386,20 @@ function Sidebar({
   }
 
   return (
-    <div className="workspace-sidebar relative flex h-full flex-col overflow-visible rounded-[1.75rem] border border-border/65 text-foreground">
+    <div className="workspace-sidebar relative flex h-full flex-col overflow-visible border-r border-sidebar-border/65 text-sidebar-foreground">
 
       {/* ── Logo row ── */}
-      <div className="flex h-16 shrink-0 items-center justify-between px-5">
-        <Link href="/" onClick={onClose} className="flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30" aria-label="Go to Lotus home"><BrandWordmark /></Link>
+      <div className="flex h-14 shrink-0 items-center justify-between px-4">
+        <Link href="/" onClick={onClose} className="flex items-center gap-2 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30" aria-label="Go to Lotus home"><BrandWordmark size="compact" /></Link>
         <div className="flex items-center gap-0.5">
           {onToggle ? (
             <button
               type="button"
               onClick={onToggle}
               aria-label={onClose ? "Close sidebar" : "Collapse sidebar"}
-              className={cn(sidebarActionClass, "workspace-sidebar-toggle absolute right-4 top-4 z-30 h-8 w-8")}
+              className={cn(sidebarActionClass, "workspace-sidebar-toggle absolute right-2 top-1.5 z-30 h-11 w-11 rounded-lg")}
             >
-              <PanelLeft className="h-4 w-4" aria-hidden="true" />
+              <SidebarToggleIcon className="h-5 w-5" />
             </button>
           ) : onClose ? (
             <button
@@ -402,14 +414,18 @@ function Sidebar({
         </div>
       </div>
 
-      {/* ── Team / personal scope toggle ── */}
-      <></>
-
-      <div className="mx-4 mb-3 border-t border-border/55" />
+      <div className="mb-7 space-y-2 px-3 pt-2">
+        <button type="button" onClick={() => { onClose?.(); onNewProject() }} className="flex min-h-11 w-full items-center justify-between gap-3 rounded-[10px] bg-primary px-3.5 text-left text-[13px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar">
+          New project
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5.5v13M5.5 12h13" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /></svg>
+        </button>
+        <button type="button" onClick={(event) => { setSearchOpen(true); event.currentTarget.closest('.workspace-sidebar')?.querySelector('input')?.focus() }} className="flex min-h-11 w-full items-center gap-2.5 rounded-lg px-3 text-left text-[13px] text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><Search size={16} strokeWidth={1.7} aria-hidden />Search projects</button>
+      </div>
+      {(searchOpen || search) && <SearchBar value={search} onChange={onSearchChange} autoFocus variant="sidebar" />}
 
       {/* ── Section header ── */}
       <div className="mb-2 flex items-center justify-between px-4">
-        <span id={recentBuildsHeadingId} className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+        <span id={recentBuildsHeadingId} className="text-xs font-medium text-muted-foreground">
           {recentBuildsLabel}
         </span>
         <span className="text-[11px] text-muted-foreground/75">
@@ -468,15 +484,15 @@ function Sidebar({
       </div>
 
       {/* ── User row ── */}
-      <div className="shrink-0 border-t border-border/45 px-3 py-3">
+      <div className="shrink-0 px-2 py-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               type="button"
               aria-label={`Open account menu for ${accountName}. ${stats.planName} plan.`}
               className={cn(
-                "flex w-full items-center gap-2.5 rounded-2xl border border-transparent px-2 py-2",
-                "transition-colors hover:border-border hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30"
+                "flex w-full items-center gap-2.5 rounded-lg border border-transparent px-2 py-2",
+                "transition-colors hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30"
               )}
             >
               <Avatar className="h-8 w-8 shrink-0 rounded-full">
@@ -852,7 +868,10 @@ export function ProjectsWorkspace() {
   }, [router])
 
   const sidebarProps = {
-    filtered: projects,
+    filtered,
+    search,
+    onSearchChange: setSearch,
+    onNewProject: () => requestAnimationFrame(() => document.getElementById('workspace-brief')?.focus()),
     projectsLoading,
     stats,
     router,
@@ -901,7 +920,7 @@ export function ProjectsWorkspace() {
           aria-label="Project navigation"
           aria-hidden={!mobileSidebarOpen}
           className={cn(
-            "fixed inset-y-2 left-2 z-50 w-[min(21rem,calc(100vw-1.25rem))]",
+            "fixed inset-y-0 left-0 z-50 w-[min(18rem,calc(100vw-3rem))]",
             "transition-transform duration-200 ease-in-out lg:hidden",
             mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
           )}
@@ -921,11 +940,11 @@ export function ProjectsWorkspace() {
           aria-label="Project navigation"
           className={cn(
             "hidden shrink-0 transition-[width] duration-200 ease-in-out lg:block",
-            desktopSidebarCollapsed ? "lg:w-0 lg:overflow-hidden" : "lg:w-[304px]"
+            desktopSidebarCollapsed ? "lg:w-0 lg:overflow-hidden" : "lg:w-[260px]"
           )}
         >
           {!desktopSidebarCollapsed && (
-            <div className="relative h-full p-3 pr-0">
+            <div className="relative h-full">
               <Sidebar {...sidebarProps} onToggle={() => setDesktopSidebarCollapsed(true)} />
             </div>
           )}
@@ -948,7 +967,7 @@ export function ProjectsWorkspace() {
               aria-expanded={mobileSidebarOpen}
               className={cn(sidebarActionClass, "h-9 w-9")}
             >
-              <PanelLeft className="h-4 w-4" aria-hidden="true" />
+              <SidebarToggleIcon className="h-5 w-5" />
             </button>
             <Link href="/" className="flex min-w-0 items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30" aria-label="Go to Lotus home"><BrandWordmark /></Link>
           </header>
@@ -967,7 +986,7 @@ export function ProjectsWorkspace() {
                 "transition-colors hover:bg-accent-soft hover:text-accent-soft-foreground"
               )}
             >
-              <PanelLeft className="h-4 w-4" aria-hidden="true" />
+              <SidebarToggleIcon className="h-5 w-5" />
             </button>
           )}
 
@@ -1020,6 +1039,7 @@ export function ProjectsWorkspace() {
                         style={{ animationDelay: "200ms" }}
                       >
                         <AnimatedAIInput
+                          inputId="workspace-brief"
                           placeholder="Build a refined site for..."
                           wrapperClassName="liquid-composer rounded-[1.75rem] border-border-strong/60 bg-card/70 [&_textarea]:min-h-[88px] [&_textarea]:text-foreground [&_textarea]:placeholder:text-foreground/55 [&_button]:rounded-full [&_button[aria-pressed=true]]:bg-accent [&_button[aria-pressed=true]]:text-accent-foreground [&_button.bg-primary]:bg-accent [&_button.bg-primary]:text-accent-foreground [&_button.bg-primary:hover]:bg-accent/90"
                           footerHintsClassName="text-foreground/60"
