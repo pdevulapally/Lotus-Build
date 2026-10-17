@@ -11,6 +11,8 @@
     "test:contracts": "node --import tsx --test test/backend-client.test.ts"
   },
   "dependencies": {
+    "@astryxdesign/core": "0.7.1",
+    "@astryxdesign/theme-neutral": "0.7.1",
     "@emotion/is-prop-valid": "latest",
     "@fontsource/libre-caslon-condensed": "5.3.1",
     "@fontsource/public-sans": "5.3.0",
@@ -43,6 +45,7 @@
     "@radix-ui/react-toggle": "1.1.12",
     "@radix-ui/react-toggle-group": "1.1.13",
     "@radix-ui/react-tooltip": "1.2.10",
+    "@stylexjs/stylex": "0.19.0",
     "@vercel/analytics": "2.0.1",
     "autoprefixer": "^10.5.2",
     "class-variance-authority": "^0.7.1",

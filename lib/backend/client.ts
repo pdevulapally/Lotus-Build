@@ -71,9 +71,11 @@ export class BackendError extends Error {
   readonly status: number
   readonly code: string
   readonly requestId?: string
-  constructor(status: number, code: string, message: string, requestId?: string) {
+  readonly details?: unknown
+  constructor(status: number, code: string, message: string, requestId?: string, details?: unknown) {
     super(message); this.name = 'BackendError'; this.status = status; this.code = code
     this.requestId = requestId
+    this.details = details
   }
 }
 
@@ -88,7 +90,7 @@ export function backendOrigin(value: string): string {
 
 const keySchema = z.string().regex(/^[A-Za-z0-9_-]{16,128}$/)
 const streamId = z.string().regex(/^\d{1,20}-\d{1,20}$/)
-const errorSchema = z.object({ error: z.object({ code: z.string(), message: z.string() }), requestId: z.string().optional() })
+const errorSchema = z.object({ error: z.object({ code: z.string(), message: z.string(), details: z.unknown().optional() }), requestId: z.string().optional() })
 
 /** No automatic mutation retries. The UI must retain the same key when an outcome is uncertain. */
 export class BackendClient {
@@ -118,7 +120,7 @@ export class BackendClient {
       const body: unknown = await response.json().catch(() => null)
       const error = errorSchema.safeParse(body)
       throw error.success
-        ? new BackendError(response.status, error.data.error.code, error.data.error.message, error.data.requestId)
+        ? new BackendError(response.status, error.data.error.code, error.data.error.message, error.data.requestId, error.data.error.details)
         : new BackendError(response.status, 'response/invalid-error', 'The server returned an invalid error response.')
     }
     return response

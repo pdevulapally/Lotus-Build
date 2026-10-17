@@ -5,3 +5,5 @@
 @media(max-width:360px) { .wordmark { width: 124px; height: 29px; } }
 
 :global(.dark) .wordmark img { filter: invert(1); mix-blend-mode: screen; }
+
+.wordmark.compact { width: 104px; height: 24px; }

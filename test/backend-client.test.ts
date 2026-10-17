@@ -4,6 +4,38 @@ import { BackendClient, BackendError, backendOrigin, readEvents, type SessionEve
 import { createBuild } from '../lib/backend/create-build'
 import { sendMessage } from '../lib/backend/send-message'
 import { authErrorMessage } from '../lib/auth/errors'
+import { resolveModelSelection } from '../lib/backend/model-selection'
+import { presentRequestError } from '../lib/backend/error-presentation'
+
+test('quota error UI validates server details and keeps used and reserved usage distinct', async () => {
+  const details = { label: 'Builds', unit: 'count', limit: 10, consumed: 7, reserved: 3 }
+  const client = new BackendClient({ origin: 'https://backend.example', token: async () => 'test-token',
+    fetch: async () => new Response(JSON.stringify({ error: { code: 'usage/limit-reached', message: 'Technical quota message', details } }), { status: 403 }) })
+  await assert.rejects(client.projects(), (error: unknown) => {
+    assert.ok(error instanceof BackendError)
+    const presentation = presentRequestError(error, 'Free')
+    assert.equal(presentation.title, 'Plan limit reached')
+    assert.match(presentation.description, /Free plan allows up to 10 builds/)
+    assert.deepEqual(presentation.quota, details)
+    return true
+  })
+  for (const invalid of [undefined, { ...details, consumed: -1 }, { ...details, limit: '10' }]) {
+    const presentation = presentRequestError(new BackendError(403, 'usage/limit-reached', 'Raw quota text', undefined, invalid))
+    assert.equal(presentation.quota, null)
+    assert.ok(!presentation.description.includes('10'))
+  }
+  assert.equal(presentRequestError(new Error('Network unavailable')).description, 'Network unavailable')
+  assert.equal(presentRequestError(new BackendError(400, 'other/error', 'Not a quota', undefined, details)).isQuota, false)
+})
+
+test('model defaults follow the account catalog without replacing explicit or pending choices', () => {
+  assert.equal(resolveModelSelection([], ''), '')
+  assert.equal(resolveModelSelection(['allowed-a', 'allowed-b'], ''), 'allowed-a')
+  assert.equal(resolveModelSelection(['allowed-a', 'allowed-b'], 'allowed-b'), 'allowed-b')
+  assert.equal(resolveModelSelection(['allowed-a'], 'pending-unavailable'), '')
+  assert.equal(resolveModelSelection([], 'allowed-b'), '')
+  assert.equal(resolveModelSelection(['allowed-b', 'allowed-a'], 'allowed-a'), 'allowed-a')
+})
 
 const createdAt = '2026-10-17T12:00:00.000Z'
 const project = { id: 'p1', name: 'App', platform: 'web', status: 'draft', publicPreviewEnabled: false, createdAt }
