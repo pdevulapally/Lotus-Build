@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { currentBackend } from "@/lib/backend/browser";
 import { createBuild, pendingBuild } from "@/lib/backend/create-build";
 import { resolveModelSelection } from "@/lib/backend/model-selection";
+import { RequestErrorDialog } from "@/components/ui/request-error";
 
 import {
   COMPUTER_SESSION_MODES,
@@ -210,7 +211,7 @@ export function AnimatedAIInput({
 }: AnimatedAIInputProps) {
   const router = useRouter();
   const { user, account, accountError } = useAuth();
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<Error | null>(null);
   const submittingRef = useRef(false);
 
   const [value, setValue] = useState("");
@@ -277,7 +278,7 @@ export function AnimatedAIInput({
       const pending = pendingBuild(sessionStorage, user.uid);
       const draft = pending ?? readSessionDraft(sessionStorage);
       if (draft) { setValue(draft.prompt); setSessionMode(draft.mode); if (pending) setSelectedModel(pending.model); requestAnimationFrame(() => adjustHeight()); }
-    } catch (reason) { setSubmitError(reason instanceof Error ? reason.message : 'Could not restore your draft.'); }
+    } catch (reason) { setSubmitError(reason instanceof Error ? reason : new Error('Could not restore your draft.')); }
   }, [mode, user, adjustHeight]);
 
   /* handlers ─── */
@@ -292,7 +293,7 @@ export function AnimatedAIInput({
       const v = value.trim();
       submittingRef.current = true;
       try { await onSubmit(v, effectiveModel); setValue(''); adjustHeight(true); }
-      catch (error) { setSubmitError(error instanceof Error ? error.message : 'Could not send message.'); }
+      catch (error) { setSubmitError(error instanceof Error ? error : new Error('Could not send message.')); }
       finally { submittingRef.current = false; }
       return;
     }
@@ -312,7 +313,7 @@ export function AnimatedAIInput({
       sessionStorage.removeItem(draftKey);
       router.push(`/computer/${data.id}`);
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Could not create session.');
+      setSubmitError(err instanceof Error ? err : new Error('Could not create session.'));
       setIsCreating(false);
     } finally { submittingRef.current = false; }
   };
@@ -420,12 +421,6 @@ export function AnimatedAIInput({
               isSlimChat && "min-h-[54px] text-[14px] leading-[1.55]",
             )}
           />
-          {submitError && <div role="alert" className="mt-2 text-sm text-destructive">
-            <p>{submitError}</p>
-            {mode === 'create' && user && <button type="button" className="mt-1 underline" onClick={() => {
-              sessionStorage.removeItem(`lotus-current-build:${user.uid}`); setSubmitError(null);
-            }}>Discard pending request</button>}
-          </div>}
         </div>
 
         <div
@@ -633,6 +628,11 @@ export function AnimatedAIInput({
           {" "}for new line
         </p>
       )}
+      <RequestErrorDialog error={submitError} planName={account?.plan.name} onClose={() => setSubmitError(null)} restoreFocus={() => textareaRef.current?.focus()}>
+        {mode === 'create' && user && <button type="button" onClick={() => {
+          sessionStorage.removeItem(`lotus-current-build:${user.uid}`); setSubmitError(null);
+        }}>Discard pending request</button>}
+      </RequestErrorDialog>
     </div>
   );
 }

@@ -1,0 +1,35 @@
+.theme {
+  --font-family-body: var(--font-sans);
+  --font-family-heading: var(--font-sans);
+  color-scheme: light;
+  margin-block: 12px 4px;
+}
+:global(.dark) .theme { color-scheme: dark; }
+.banner { overflow: hidden; border: 1px solid var(--border); border-radius: 14px; }
+.banner :global(.astryx-banner) { padding: 16px; background: var(--card); color: var(--foreground); }
+.banner :global(.astryx-banner-description) { color: var(--muted-foreground); }
+.banner :global(.astryx-banner-icon) { padding: 8px; border-radius: 10px; background: var(--warning-soft); color: var(--warning-soft-foreground); }
+.banner :global(.astryx-banner-icon[data-status="error"]) { background: color-mix(in oklch, var(--destructive) 10%, var(--card)); color: var(--destructive); }
+.banner :global(.astryx-banner-content) { background: var(--card); border-top: 1px solid var(--border); padding: 8px 16px; }
+.description { display: grid; gap: 12px; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.description p { margin: 0; }
+.usage { display: flex; flex-wrap: wrap; gap: 12px 28px; margin: 0; }
+.usage div { display: grid; gap: 2px; }
+.usage dt { font-size: 12px; color: var(--muted-foreground); }
+.usage dd { margin: 0; font-size: 17px; font-weight: 600; color: var(--foreground); font-variant-numeric: tabular-nums; }
+.note { font-size: 12px; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.actions:empty { display: none; }
+.actions button, .primary { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; border-radius: 8px; padding: 8px 12px; font-size: 13px; font-weight: 500; }
+.actions button { color: var(--muted-foreground); }
+.primary { background: var(--primary); color: var(--primary-foreground); text-decoration: none; }
+.primary:hover { opacity: .9; }
+.actions button:focus-visible, .primary:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+.dialog { position: relative; width: 100%; max-width: 540px; padding: 0; gap: 0; overflow: hidden; border-radius: 16px; background: var(--card); }
+.dialog .theme { margin: 0; }
+.dialog .banner { border: 0; border-radius: 0; }
+.dialog .banner :global(.astryx-banner) { padding: 24px 52px 24px 24px; }
+.dialog .banner :global(.astryx-banner-content) { padding: 12px 24px; }
+.close { position: absolute; top: 8px; right: 8px; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 8px; color: var(--foreground); }
+.close:hover { background: var(--muted); }
+.close:focus-visible { outline: 2px solid var(--ring); outline-offset: -4px; }
