@@ -12,20 +12,14 @@ import { cn } from "@/lib/utils"
 const FAQ_CATEGORIES = [
   { key: "all", label: "All questions" },
   { key: "getting-started", label: "Getting started" },
-  { key: "preview", label: "Preview and deploy" },
-  { key: "billing", label: "Tokens and billing" },
-  { key: "sharing", label: "Sharing" },
+  { key: "saved-work", label: "Saved work" },
+  { key: "billing", label: "Usage and billing" },
 ] as const
 
 type CategoryKey = (typeof FAQ_CATEGORIES)[number]["key"]
 
 const FAQ_CATEGORY_MAP: CategoryKey[] = [
-  "getting-started",
-  "getting-started",
-  "preview",
-  "preview",
-  "billing",
-  "sharing",
+  "getting-started", "getting-started", "saved-work", "billing", "billing",
 ]
 
 export default function HelpPage() {
@@ -92,14 +86,14 @@ export default function HelpPage() {
                 setQuery(event.target.value)
                 if (event.target.value) setActiveCategory("all")
               }}
-              placeholder="Search preview, billing, deploy, sharing..."
+              placeholder="Search projects, planning, saved files, usage..."
               className="mt-3 h-12 w-full rounded-xl border border-border bg-card px-4 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-foreground/35 focus:ring-2 focus:ring-ring/25"
             />
           </div>
         </div>
       </section>
 
-      <section className="border-y border-border bg-[#f7f5ef] px-4 py-14 sm:px-6 sm:py-16 lg:px-8">
+      <section className="border-y border-border bg-muted px-4 py-14 sm:px-6 sm:py-16 lg:px-8">
         <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[0.72fr_1.28fr]">
           <div>
             <p className="text-sm font-medium text-muted-foreground">Support areas</p>
@@ -190,7 +184,7 @@ export default function HelpPage() {
 
       <section
         id="contact"
-        className="scroll-mt-24 border-t border-border bg-[#f7f5ef] px-4 py-16 sm:px-6 sm:py-20 lg:px-8"
+        className="scroll-mt-24 border-t border-border bg-muted px-4 py-16 sm:px-6 sm:py-20 lg:px-8"
       >
         <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[0.72fr_1.28fr]">
           <div>

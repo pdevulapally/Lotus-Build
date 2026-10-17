@@ -582,21 +582,23 @@ function FeedItem({
 type CheckpointRestoreState = "idle" | "confirming" | "restoring"
 
 function UserMessageBubble({
+  canEdit = true,
   content, index, isEditing, editText,
   runId, isLastCheckpoint, onRestoreCheckpoint,
   onEditStart, onEditChange, onEditSubmit, onEditCancel,
 }: {
   content: string
+  canEdit?: boolean
   index: number
   isEditing: boolean
   editText: string
   runId?: string
   isLastCheckpoint?: boolean
   onRestoreCheckpoint?: (runId: string) => Promise<void>
-  onEditStart: (i: number, c: string) => void
-  onEditChange: (t: string) => void
-  onEditSubmit: (i: number) => void
-  onEditCancel: () => void
+  onEditStart?: (i: number, c: string) => void
+  onEditChange?: (t: string) => void
+  onEditSubmit?: (i: number) => void
+  onEditCancel?: () => void
 }) {
   const ref = useRef<HTMLTextAreaElement | null>(null)
   const [copied, setCopied] = useState(false)
@@ -631,19 +633,19 @@ function UserMessageBubble({
         <div className="w-full max-w-[min(84%,42rem)]">
           <div className="overflow-hidden rounded-2xl bg-muted shadow-sm">
             <textarea
-              ref={ref} value={editText} onChange={(e) => onEditChange(e.target.value)}
+              ref={ref} value={editText} onChange={(e) => onEditChange?.(e.target.value)}
               aria-label="Edit message"
               rows={Math.max(2, editText.split("\n").length)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onEditSubmit(index) }
-                if (e.key === "Escape") onEditCancel()
+                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onEditSubmit?.(index) }
+                if (e.key === "Escape") onEditCancel?.()
               }}
               className="w-full resize-none bg-transparent px-3.5 py-2.5 text-[13px] leading-relaxed text-foreground outline-none placeholder:text-foreground/50"
             />
           </div>
           <div className="mt-1.5 flex items-center justify-end gap-2">
             <button type="button" onClick={onEditCancel} className="min-h-6 rounded-md px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35">Cancel</button>
-            <button type="button" onClick={() => onEditSubmit(index)} className="min-h-6 rounded-full border border-border-strong bg-muted px-2.5 py-1 text-[11px] font-medium text-foreground shadow-sm transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40">Submit</button>
+            <button type="button" onClick={() => onEditSubmit?.(index)} className="min-h-6 rounded-full border border-border-strong bg-muted px-2.5 py-1 text-[11px] font-medium text-foreground shadow-sm transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40">Submit</button>
           </div>
         </div>
       </div>
@@ -667,9 +669,9 @@ function UserMessageBubble({
           }} aria-label="Copy message" className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35">
             {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
           </button>
-          <button type="button" onClick={() => onEditStart(index, content)} aria-label="Edit message" className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35">
+          {canEdit && onEditStart && <button type="button" onClick={() => onEditStart?.(index, content)} aria-label="Edit message" className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35">
             <Pencil className="h-3.5 w-3.5" />
-          </button>
+          </button>}
           {showRestoreButton && restoreState !== "restoring" && (
             <button
               type="button"
@@ -742,7 +744,11 @@ export function AgentFeed({
   editingIndex, editText, onEditStart, onEditChange, onEditSubmit, onEditCancel,
   onSupabaseSetup, onSupabaseDecline, onClarificationAnswer, onApprovePlan,
   onRestoreCheckpoint,
+  canonicalMessages, queuedMessages, streamText,
 }: {
+  canonicalMessages?: { seq: number; role: 'user' | 'assistant'; content: string; createdAt: string }[]
+  queuedMessages?: { id: string; prompt: string }[]
+  streamText?: string
   prompt?: string
   events: ComputerTimelineEvent[]
   localMessages: LocalMessage[]
@@ -751,10 +757,10 @@ export function AgentFeed({
   optimisticStart?: boolean
   editingIndex: number | null
   editText: string
-  onEditStart: (i: number, c: string) => void
-  onEditChange: (t: string) => void
-  onEditSubmit: (i: number) => void
-  onEditCancel: () => void
+  onEditStart?: (i: number, c: string) => void
+  onEditChange?: (t: string) => void
+  onEditSubmit?: (i: number) => void
+  onEditCancel?: () => void
   onSupabaseSetup?: () => void
   onSupabaseDecline?: () => void
   onClarificationAnswer?: (answer: string) => void
@@ -794,7 +800,31 @@ export function AgentFeed({
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end", behavior: "smooth" })
-  }, [visible.length, localMessages.length, isStarting])
+  }, [visible.length, localMessages.length, isStarting, canonicalMessages?.length, streamText])
+
+  if (canonicalMessages) {
+    const rows = [
+      ...canonicalMessages.map((message) => ({ time: Date.parse(message.createdAt), key: `message-${message.seq}`, message, event: undefined as ComputerTimelineEvent | undefined })),
+      ...events.map((event) => ({ time: Date.parse(event.createdAt), key: `event-${event.id}`, message: undefined, event })),
+    ].sort((left, right) => left.time - right.time)
+    return <div className="space-y-2.5 pb-4">
+      {rows.map(({ key, message, event }) => <div key={key} className={message?.role === 'user' ? 'pt-5 pb-5' : ''}>
+        {message?.role === 'user' ? <UserMessageBubble canEdit={false} content={message.content} index={message.seq} isEditing={false} editText=""
+          onEditStart={onEditStart} onEditChange={onEditChange} onEditSubmit={onEditSubmit} onEditCancel={onEditCancel} />
+          : <FeedItem event={event ?? { title: 'Response', description: message!.content, status: 'complete', createdAt: message!.createdAt, index: message!.seq }}
+            isLatest={false} isSessionRunning={isRunning} />}
+      </div>)}
+      {queuedMessages?.map((message) => <div key={message.id} className="pt-5">
+        <UserMessageBubble canEdit={false} content={message.prompt} index={-1} isEditing={false} editText=""
+          onEditStart={onEditStart} onEditChange={onEditChange} onEditSubmit={onEditSubmit} onEditCancel={onEditCancel} />
+        <p className="mt-1 text-xs text-muted-foreground">Queued</p>
+      </div>)}
+      {streamText && <FeedItem event={{ title: 'Response', description: streamText, status: 'running', createdAt: '', index: 0 }} isLatest isSessionRunning={isRunning} />}
+      {isRunning && <div className="py-2"><Shimmer className="text-[13px] font-medium">Working…</Shimmer></div>}
+      {onApprovePlan && !isRunning && <button type="button" className="mt-3 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={onApprovePlan}>Build this plan</button>}
+      <div ref={endRef} />
+    </div>
+  }
 
   if (isEmpty) {
     return (

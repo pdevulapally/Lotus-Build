@@ -7,6 +7,7 @@ import { AlertCircle, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { LotusLogo } from "@/components/ui/lotus-logo"
 import { useAuth } from "@/contexts/auth-context"
+import { currentBackend } from "@/lib/backend/browser"
 
 type BridgeState = "checking" | "unlinked" | "error"
 
@@ -33,18 +34,10 @@ export default function ProjectRouteBridgePage() {
     ;(async () => {
       setState("checking")
       try {
-        const authHeader = await getOptionalAuthHeader()
-        const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/linked-session`, {
-          headers: authHeader,
-        })
-        const data = await res.json().catch(() => ({}))
+        const data = await currentBackend().sessions(projectId)
         if (cancelled) return
-        if (!res.ok) {
-          setState("error")
-          return
-        }
-        if (typeof data.sessionId === "string" && data.sessionId) {
-          router.replace(`/computer/${data.sessionId}`)
+        if (data.sessions[0]) {
+          router.replace(`/computer/${data.sessions[0].id}`)
           return
         }
         setState("unlinked")

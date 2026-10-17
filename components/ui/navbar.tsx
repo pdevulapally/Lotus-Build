@@ -1,5 +1,6 @@
 "use client"
 
+import { BrandWordmark } from "@/components/ui/brand-wordmark"
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -27,8 +28,8 @@ import { cn } from "@/lib/utils"
 import { useSettingsDialog } from "@/components/settings/settings-dialog"
 
 const navLinks = [
-  { href: "/#product", label: "Product" },
-  { href: "/teams", label: "Teams" },
+  { href: "/", label: "Workspace" },
+
   { href: "/pricing", label: "Pricing" },
   { href: "/help", label: "Help" },
 ]
@@ -69,9 +70,9 @@ export function Navbar({ variant = "default" }: NavbarProps) {
   }
 
   const remainingClamped = userData ? Math.max(0, userData.tokenUsage?.remaining ?? 0) : 0
-  const tokensLimit = userData ? userData.tokenUsage.used + remainingClamped : 0
+  const tokensLimit = userData?.tokenUsage ? userData.tokenUsage.used + remainingClamped : 0
   const tokenPercentage = userData && tokensLimit > 0
-    ? Math.min(100, Math.round((userData.tokenUsage.used / tokensLimit) * 100))
+    ? Math.min(100, Math.round(((userData.tokenUsage?.used ?? 0) / tokensLimit) * 100))
     : 0
 
   const headerClass = variant === "hero"
@@ -86,12 +87,7 @@ export function Navbar({ variant = "default" }: NavbarProps) {
           variant === "hero" && "nav-glass-hero"
         )}
       >
-        <Link href="/" className="flex min-w-0 items-center gap-2.5 md:justify-self-start">
-          <LotusLogo size={24} />
-          <span className="truncate text-[14.5px] font-semibold tracking-[-0.02em] text-foreground">
-            Lotus.build
-          </span>
-        </Link>
+        <Link href="/" className="flex min-w-0 items-center gap-2.5 md:justify-self-start"><BrandWordmark /></Link>
 
         <div className="hidden items-center justify-center gap-0.5 md:flex">
           {navLinks.map((link) => (
@@ -183,15 +179,15 @@ export function Navbar({ variant = "default" }: NavbarProps) {
                         <div className="flex items-center justify-between gap-3 text-[11.5px]">
                           <span className="flex items-center gap-1.5 text-muted-foreground">
                             <Coins className="h-3.5 w-3.5" />
-                            Tokens used
+                            {userData.tokenUsage ? 'Tokens used' : 'Usage'}
                           </span>
                           <span className="shrink-0 font-medium text-foreground">
-                            {userData.tokenUsage.used.toLocaleString()} / {tokensLimit.toLocaleString()}
+                            {userData.tokenUsage ? `${userData.tokenUsage.used.toLocaleString()} / ${tokensLimit.toLocaleString()}` : 'View account usage'}
                           </span>
                         </div>
-                        <div className="h-1.5 overflow-hidden rounded-full bg-border/70">
+                        {userData.tokenUsage && <div className="h-1.5 overflow-hidden rounded-full bg-border/70">
                           <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${tokenPercentage}%` }} />
-                        </div>
+                        </div>}
                       </div>
                     </div>
                   </div>

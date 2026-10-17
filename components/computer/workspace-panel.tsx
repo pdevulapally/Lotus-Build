@@ -5,7 +5,6 @@ import Link from "next/link"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
 import { BookOpen, Check, ChevronDown, ChevronRight, Copy, ExternalLink, FileCode, Folder, FolderOpen, Globe2, Home, Laptop, Loader2, Monitor, RotateCcw, ShieldAlert, Wrench } from "lucide-react"
 import Editor, { DiffEditor, type Monaco } from "@monaco-editor/react"
-import { MobilePreview } from "@/components/computer/mobile-preview"
 import { TextShimmer } from "@/components/prompt-kit/text-shimmer"
 import { normalizePlatform } from "@/lib/projects/platform"
 import { buildFileTree, getLanguageFromPath } from "@/lib/projects/utils"
@@ -19,6 +18,7 @@ import {
   type ComputerTimelineEvent,
   type WorkspaceTab,
 } from "@/components/computer/session-types"
+import { SavedProjectFiles as ComputerCodePanel } from "@/components/computer/saved-project-content"
 import { cn } from "@/lib/utils"
 
 function formatBrowserHost(url: string) {
@@ -577,317 +577,6 @@ function defineLotusMonacoThemes(monaco: Monaco) {
   }
 }
 
-function ComputerCodePanel({
-  files,
-  codeTheme = "light",
-  projectId,
-  getAuthHeader,
-}: {
-  files: Array<{ path: string; content: string }>
-  codeTheme?: "dark" | "light"
-  projectId?: string
-  getAuthHeader?: () => Promise<Record<string, string>>
-}) {
-  const [selectedPath, setSelectedPath] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
-  const [isDiffMode, setIsDiffMode] = useState(false)
-  const [prevFiles, setPrevFiles] = useState<Map<string, string>>(new Map())
-  const [diffLoading, setDiffLoading] = useState(false)
-  const [diffError, setDiffError] = useState<string | null>(null)
-  const [hasPrevVersion, setHasPrevVersion] = useState<boolean | null>(null)
-
-  const tree = buildFileTree(files.map((f) => ({ path: f.path, content: f.content })))
-
-  useEffect(() => {
-    if (files.length > 0 && !selectedPath) {
-      setSelectedPath(files[0].path)
-    }
-  }, [files, selectedPath])
-
-  // Reset diff state when files change (new run completed)
-  useEffect(() => {
-    setPrevFiles(new Map())
-    setHasPrevVersion(null)
-    setDiffError(null)
-  }, [files.length])
-
-  const selectedFile = files.find((f) => f.path === selectedPath) ?? (files.length > 0 ? files[0] : null)
-  const language = selectedFile ? getLanguageFromPath(selectedFile.path) : "plaintext"
-  const totalKb = (files.reduce((acc, f) => acc + f.content.length, 0) / 1024).toFixed(1)
-  const monacoTheme = codeTheme === "dark" ? "lotus-dark" : "lotus-light"
-
-  const fileStatuses = isDiffMode
-    ? new Map(
-        files.map((f): [string, DiffStatus] => {
-          if (!prevFiles.has(f.path)) return [f.path, "new"]
-          return [f.path, prevFiles.get(f.path) !== f.content ? "modified" : "unchanged"]
-        })
-      )
-    : undefined
-
-  const loadPrevVersion = async () => {
-    if (!projectId || !getAuthHeader) return
-    setDiffLoading(true)
-    setDiffError(null)
-    try {
-      const auth = await getAuthHeader()
-      const listRes = await fetch(`/api/projects/${encodeURIComponent(projectId)}/versions`, { headers: auth })
-      const listJson = await listRes.json().catch(() => ({})) as {
-        versions?: Array<{ id: string }>
-      }
-      const versions = listJson.versions ?? []
-      if (versions.length < 2) {
-        setHasPrevVersion(false)
-        return
-      }
-      setHasPrevVersion(true)
-      const prevId = versions[1].id
-      const prevRes = await fetch(
-        `/api/projects/${encodeURIComponent(projectId)}/versions/${encodeURIComponent(prevId)}`,
-        { headers: auth }
-      )
-      const prevJson = await prevRes.json().catch(() => ({})) as {
-        version?: { files?: Array<{ path: string; content: string }> }
-      }
-      const prevFileList = prevJson.version?.files ?? []
-      setPrevFiles(new Map(prevFileList.map((f) => [f.path, f.content])))
-    } catch (err) {
-      setDiffError(err instanceof Error ? err.message : "Failed to load diff")
-    } finally {
-      setDiffLoading(false)
-    }
-  }
-
-  const handleDiffToggle = () => {
-    const next = !isDiffMode
-    setIsDiffMode(next)
-    if (next && prevFiles.size === 0 && hasPrevVersion !== false) {
-      void loadPrevVersion()
-    }
-  }
-
-  const handleCopy = () => {
-    if (!selectedFile) return
-    void navigator.clipboard.writeText(selectedFile.content).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    })
-  }
-
-  const prevContent = isDiffMode && selectedFile ? (prevFiles.get(selectedFile.path) ?? "") : ""
-  const changedCount = fileStatuses
-    ? [...fileStatuses.values()].filter((s) => s !== "unchanged").length
-    : 0
-
-  return (
-    <div className="flex h-full min-h-0 overflow-hidden">
-      {/* File tree */}
-      <div className="flex w-[220px] shrink-0 flex-col overflow-hidden border-r border-border/35">
-        {/* Tree header */}
-        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/30 px-3 py-2">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/60">
-            Files
-          </span>
-          <div className="flex items-center gap-1">
-            {isDiffMode && changedCount > 0 && (
-              <span className="rounded-md bg-warning/15 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-warning">
-                {changedCount} changed
-              </span>
-            )}
-            <span className="rounded-md bg-muted/50 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground/70">
-              {files.length}
-            </span>
-          </div>
-        </div>
-
-        {/* Diff / Source toggle */}
-        {projectId && getAuthHeader && (
-          <div className="shrink-0 border-b border-border/30 px-2 py-1.5">
-            <div className="lotus-glass-control flex items-center rounded-full border border-border/50 p-0.5">
-              <button
-                type="button"
-                onClick={() => isDiffMode && handleDiffToggle()}
-                aria-pressed={!isDiffMode}
-                className={cn(
-                  "flex h-5 flex-1 items-center justify-center rounded-full text-[11px] font-semibold transition-all",
-                  !isDiffMode ? "bg-card/80 text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                Source
-              </button>
-              <button
-                type="button"
-                onClick={() => !isDiffMode && handleDiffToggle()}
-                disabled={diffLoading}
-                aria-pressed={isDiffMode}
-                className={cn(
-                  "flex h-5 flex-1 items-center justify-center gap-1 rounded-full text-[11px] font-semibold transition-all disabled:opacity-50",
-                  isDiffMode ? "bg-card/80 text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {diffLoading && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
-                Diff
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* File list */}
-        <div className="min-h-0 flex-1 overflow-y-auto p-1.5 [scrollbar-width:thin]" aria-label="Generated files">
-          {tree.length > 0 ? (
-            <div className="space-y-px">
-              {tree.map((node) => (
-                <CodeTreeNode
-                  key={node.path}
-                  node={node}
-                  selectedPath={selectedFile?.path ?? null}
-                  onSelect={setSelectedPath}
-                  fileStatuses={fileStatuses}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="flex h-full flex-col items-center justify-center py-10 text-center">
-              <FileCode className="mb-2 h-6 w-6 text-muted-foreground/25" />
-              <p className="text-[11px] text-muted-foreground/50">No files yet</p>
-            </div>
-          )}
-        </div>
-
-        <div className="shrink-0 border-t border-border/30 px-3 py-2">
-          <p className="font-mono text-[10px] text-muted-foreground/40">{totalKb}k total</p>
-        </div>
-      </div>
-
-      {/* Code / Diff viewer */}
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden" aria-label="Selected file viewer">
-        {selectedFile ? (
-          <>
-            {/* File header */}
-            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/30 px-4 py-2">
-              <div className="flex min-w-0 items-center gap-2">
-                <FileCode className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
-                <span className="min-w-0 truncate font-mono text-[12px] text-muted-foreground">
-                  {selectedFile.path}
-                </span>
-                {isDiffMode && fileStatuses?.get(selectedFile.path) === "new" && (
-                  <span className="shrink-0 rounded-sm bg-success/20 px-1.5 py-0.5 text-[10px] font-semibold text-success">
-                    New file
-                  </span>
-                )}
-                {isDiffMode && fileStatuses?.get(selectedFile.path) === "unchanged" && (
-                  <span className="shrink-0 rounded-sm bg-muted/50 px-1.5 py-0.5 text-[10px] text-muted-foreground/60">
-                    Unchanged
-                  </span>
-                )}
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                {!isDiffMode && (
-                  <span className="rounded-md bg-muted/50 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground/70">
-                    {language}
-                  </span>
-                )}
-                {!isDiffMode && (
-                  <button
-                    type="button"
-                    onClick={handleCopy}
-                    aria-label="Copy file content"
-                    className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
-                  >
-                    {copied
-                      ? <Check className="h-3.5 w-3.5 text-success" />
-                      : <Copy className="h-3.5 w-3.5" />}
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Editor */}
-            <div className="min-h-0 flex-1">
-              {isDiffMode && diffError && (
-                <div className="flex h-full items-center justify-center" role="status">
-                  <div className="text-center">
-                    <p className="text-[13px] font-medium text-destructive">Could not load diff</p>
-                    <p className="mt-1 text-[12px] text-muted-foreground">{diffError}</p>
-                    <button
-                      type="button"
-                      onClick={() => { setDiffError(null); void loadPrevVersion() }}
-                      className="mt-3 rounded-full bg-muted px-3 py-1.5 text-[12px] font-medium text-foreground hover:bg-muted/80"
-                    >
-                      Retry
-                    </button>
-                  </div>
-                </div>
-              )}
-              {isDiffMode && !diffError && hasPrevVersion === false && (
-                <div className="flex h-full items-center justify-center">
-                  <div className="text-center">
-                    <p className="text-[13px] font-medium text-foreground">No previous version</p>
-                    <p className="mt-1 text-[12px] text-muted-foreground">
-                      This is the first build — nothing to compare against yet.
-                    </p>
-                  </div>
-                </div>
-              )}
-              {isDiffMode && !diffError && hasPrevVersion !== false && !diffLoading && (
-                <DiffEditor
-                  height="100%"
-                  language={language}
-                  original={prevContent}
-                  modified={selectedFile.content}
-                  theme={monacoTheme}
-                  beforeMount={defineLotusMonacoThemes}
-                  loading={
-                    <div className="flex h-full items-center justify-center">
-                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground/50" />
-                    </div>
-                  }
-                  options={{
-                    ...EDITOR_OPTIONS,
-                    renderSideBySide: true,
-                    enableSplitViewResizing: true,
-                  }}
-                />
-              )}
-              {isDiffMode && diffLoading && (
-                <div className="flex h-full items-center justify-center gap-2 text-muted-foreground" role="status">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-[12px]">Loading diff…</span>
-                </div>
-              )}
-              {!isDiffMode && (
-                <Editor
-                  height="100%"
-                  language={language}
-                  value={selectedFile.content}
-                  theme={monacoTheme}
-                  beforeMount={defineLotusMonacoThemes}
-                  loading={
-                    <div className="flex h-full items-center justify-center">
-                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground/50" />
-                    </div>
-                  }
-                  options={EDITOR_OPTIONS}
-                />
-              )}
-            </div>
-          </>
-        ) : (
-          <div className="flex h-full items-center justify-center">
-            <div className="text-center">
-              <FileCode className="mx-auto mb-3 h-8 w-8 text-muted-foreground/20" />
-              <p className="text-[13px] font-medium text-foreground">Select a file</p>
-              <p className="mt-1 text-[12px] text-muted-foreground">
-                Choose a file from the tree to view its source
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
 // ─── Workspace tab bar ────────────────────────────────────────────────────────
 
 export function WorkspaceTabBar({
@@ -1022,7 +711,7 @@ export function WorkspaceContent({
   activeTab: WorkspaceTab
   browserInspection: BrowserInspection | null
   hasProjectFiles: boolean
-  projectFileCount: number
+  projectFileCount: number | null
   isEnsuringPreview: boolean
   previewEnsureError: string | null
   onSwitchView: (v: WorkspaceTab) => void
@@ -1105,24 +794,6 @@ export function WorkspaceContent({
         </div>
       </motion.div>
     )
-  }
-
-  if (activeTab === "preview" && sessionPlatform === "mobile" && session.projectId && projectFileCount > 0) {
-    return (
-      <motion.div key="mobile-preview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}
-        className="flex h-full min-h-0 flex-col">
-        <MobilePreview
-          projectId={session.projectId}
-          getAuthHeader={getAuthHeader}
-          syncNonce={previewSyncNonce}
-          className="h-full"
-        />
-      </motion.div>
-    )
-  }
-
-  if (activeTab === "preview" && sessionPlatform === "mobile" && session.projectId && !hasProjectFiles) {
-    return <SessionProgressSurface progress={workspaceProgress} />
   }
 
   if (activeTab === "preview" && session.previewUrl) {

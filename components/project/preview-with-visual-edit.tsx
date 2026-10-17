@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useRef, useState, useEffect, useCallback } from "react"
+import React, { useRef, useState, useEffect, useCallback, useMemo } from "react"
 import { cn } from "@/lib/utils"
 import type { DesignSnapshot } from "./visual-edit-design-panel"
 import type { VisualEditSectionItem, VisualEditStructureCommand } from "./visual-edit-structure"
@@ -54,6 +54,15 @@ export function PreviewWithVisualEdit({
 }: PreviewWithVisualEditProps) {
   const previewAreaRef = useRef<HTMLDivElement>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
+  const previewOrigin = useMemo(() => {
+    if (!src) return null
+    try {
+      const url = new URL(src)
+      if (url.protocol !== "https:" && url.protocol !== "http:") return null
+      if (url.username || url.password) return null
+      return url.origin
+    } catch { return null }
+  }, [src])
   const [previewSize, setPreviewSize] = useState({ w: 1, h: 1 })
   const [hover, setHover] = useState<{ rect: Rect; viewport: Viewport } | null>(null)
   const [selectedItems, setSelectedItems] = useState<SelectedElement[]>([])
@@ -102,6 +111,7 @@ export function PreviewWithVisualEdit({
 
   useEffect(() => {
     const handler = (e: MessageEvent) => {
+      if (!previewOrigin || e.origin !== previewOrigin || e.source !== iframeRef.current?.contentWindow) return
       const d = e.data
       if (d && typeof d === "object" && d.type === "preview-navigate" && typeof d.path === "string") {
         onIframeNavigate?.(d.path)
@@ -109,11 +119,12 @@ export function PreviewWithVisualEdit({
     }
     window.addEventListener("message", handler)
     return () => window.removeEventListener("message", handler)
-  }, [onIframeNavigate])
+  }, [onIframeNavigate, previewOrigin])
 
   useEffect(() => {
     const handler = (e: MessageEvent) => {
       if (!enabled) return
+      if (!previewOrigin || e.origin !== previewOrigin || e.source !== iframeRef.current?.contentWindow) return
       const d = e.data
       if (!d || typeof d !== "object" || d.type === undefined) return
 
@@ -180,7 +191,7 @@ export function PreviewWithVisualEdit({
 
     window.addEventListener("message", handler)
     return () => window.removeEventListener("message", handler)
-  }, [enabled, onSelectionChange, onStructureChange])
+  }, [enabled, onSelectionChange, onStructureChange, previewOrigin])
 
   const hoverStyle =
     hover && previewSize.w > 0
@@ -193,10 +204,10 @@ export function PreviewWithVisualEdit({
       : undefined
 
   const handleIframeLoad = useCallback(() => {
-    if (!iframeRef.current?.contentWindow) return
+    if (!iframeRef.current?.contentWindow || !previewOrigin) return
     iframeRef.current.contentWindow.postMessage(
       { type: "bstudio-set-visual-edit", enabled: canEdit && enabled },
-      "*"
+      previewOrigin
     )
 
     try {
@@ -241,31 +252,32 @@ export function PreviewWithVisualEdit({
     } catch {
       // Cross-origin iframe, script injection not allowed.
     }
-  }, [canEdit, enabled])
+  }, [canEdit, enabled, previewOrigin])
 
   useEffect(() => {
+    if (!previewOrigin) return
     iframeRef.current?.contentWindow?.postMessage(
       { type: "bstudio-set-visual-edit", enabled: canEdit && enabled },
-      "*"
+      previewOrigin
     )
-  }, [canEdit, enabled, iframeKey, src])
+  }, [canEdit, enabled, iframeKey, src, previewOrigin])
 
   useEffect(() => {
-    if (!externalDraft || !iframeRef.current?.contentWindow) return
+    if (!externalDraft || !iframeRef.current?.contentWindow || !previewOrigin) return
 
     iframeRef.current.contentWindow.postMessage(
       { type: "bstudio-apply-design", id: externalDraft.id, payload: externalDraft.snapshot },
-      "*"
+      previewOrigin
     )
-  }, [externalDraft])
+  }, [externalDraft, previewOrigin])
 
   useEffect(() => {
-    if (!command || !iframeRef.current?.contentWindow) return
+    if (!command || !iframeRef.current?.contentWindow || !previewOrigin) return
     iframeRef.current.contentWindow.postMessage(
       { type: "bstudio-structure-command", command: command.payload },
-      "*"
+      previewOrigin
     )
-  }, [command])
+  }, [command, previewOrigin])
 
   return (
     <div className={cn("relative flex w-full min-h-0 flex-1 flex-col", className)}>
@@ -273,7 +285,7 @@ export function PreviewWithVisualEdit({
         <iframe
           ref={iframeRef}
           key={iframeKey}
-          src={src || undefined}
+          src={previewOrigin ? src! : undefined}
           className="absolute inset-0 h-full w-full min-h-0 border-0"
           title="Preview"
           sandbox="allow-scripts allow-same-origin allow-forms allow-popups"

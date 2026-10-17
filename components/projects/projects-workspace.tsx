@@ -1,10 +1,11 @@
 "use client"
 
+import { BrandWordmark } from "@/components/ui/brand-wordmark"
 import { Suspense, useCallback, useEffect, useId, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { LotusLogo } from "@/components/ui/lotus-logo"
-import { deleteDoc, doc } from "firebase/firestore"
+import { currentBackend } from "@/lib/backend/browser"
 import {
   Settings,
   Search,
@@ -26,7 +27,7 @@ import {
   Plus,
 } from "lucide-react"
 
-import { CreateWorkspaceModal } from "@/components/workspaces/create-workspace-modal"
+
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -46,14 +47,13 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { AnimatedAIInput } from "@/components/ui/animated-ai-input"
 import { cn } from "@/lib/utils"
-import { db } from "@/lib/firebase"
-import { planIdForDisplay } from "@/lib/plans"
+
 import { useProjectList } from "@/hooks/use-project-list"
 import { useSettingsDialog } from "@/components/settings/settings-dialog"
 
 /* ─── types ─────────────────────────────────────────────────────────────── */
 
-type ProjectStatus = "pending" | "generating" | "complete" | "error"
+type ProjectStatus = "pending" | "generating" | "complete" | "error" | "draft" | "deleting"
 
 type ProjectSummary = {
   id: string
@@ -95,10 +95,12 @@ const PROJECT_STATUS_META: Record<ProjectStatus, { dot: string; label: string }>
   generating: { dot: "animate-pulse bg-foreground", label: "Building" },
   complete: { dot: "bg-success", label: "Ready" },
   error: { dot: "bg-destructive", label: "Needs attention" },
+  draft: { dot: "bg-muted-foreground/40", label: "Draft" },
+  deleting: { dot: "bg-muted-foreground/40", label: "Deleting" },
 }
 
 function projectKindLabel(kind?: ProjectSummary["kind"]): string {
-  return kind === "computer" ? "Computer agent" : "Website build"
+  return kind === "computer" ? "Computer agent" : "Software project"
 }
 
 function projectAccessibleSummary(project: ProjectSummary, max = 72): string {
@@ -136,7 +138,7 @@ function TaskRow({
             {title}
           </span>
           <span className="mt-0.5 block truncate text-[11px] leading-snug text-muted-foreground">
-            {p.kind === "computer" ? "Computer agent" : "Website build"} · {status.label}
+            {p.kind === "computer" ? "Computer agent" : "Software project"} · {status.label}
           </span>
         </span>
       </button>
@@ -298,7 +300,7 @@ function FullBuildsPanel({
                     {(build.prompt || "").trim() || "Untitled build"}
                   </p>
                   <div className="mt-auto flex items-center justify-between gap-3 pt-3 text-[11px] text-muted-foreground">
-                    <span>{build.kind === "computer" ? "Computer agent" : "Website build"}</span>
+                    <span>{build.kind === "computer" ? "Computer agent" : "Software project"}</span>
                     <span className="rounded-full bg-slate-soft px-2 py-0.5 text-[10.5px] font-medium text-slate-soft-foreground">
                       {status.label}
                     </span>
@@ -326,7 +328,6 @@ function Sidebar({
   signOut,
   onClose,
   onToggle,
-  onShare,
   isTeamsPlan,
   scope,
   setScope,
@@ -334,7 +335,6 @@ function Sidebar({
   currentWorkspace,
   switchWorkspace,
   isPaidUser,
-  onCreateWorkspace,
 }: {
   filtered: ProjectSummary[]
   projectsLoading: boolean
@@ -345,7 +345,6 @@ function Sidebar({
   signOut: () => void
   onClose?: () => void
   onToggle?: () => void
-  onShare: () => void
   isTeamsPlan: boolean
   scope: "user" | "team"
   setScope: (s: "user" | "team") => void
@@ -353,7 +352,6 @@ function Sidebar({
   currentWorkspace: { id: string; name: string; slug?: string } | null
   switchWorkspace: (workspaceId: string) => Promise<void>
   isPaidUser: boolean
-  onCreateWorkspace: () => void
 }) {
   const { openSettings } = useSettingsDialog()
   const recentBuildsHeadingId = useId()
@@ -380,12 +378,7 @@ function Sidebar({
 
       {/* ── Logo row ── */}
       <div className="flex h-16 shrink-0 items-center justify-between px-5">
-        <Link href="/" onClick={onClose} className="flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30" aria-label="Go to Lotus home">
-          <LotusLogo size={28} />
-          <span className="font-display text-[16px] font-semibold tracking-tight text-foreground/90">
-            Lotus.build
-          </span>
-        </Link>
+        <Link href="/" onClick={onClose} className="flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30" aria-label="Go to Lotus home"><BrandWordmark /></Link>
         <div className="flex items-center gap-0.5">
           {onToggle ? (
             <button
@@ -409,128 +402,8 @@ function Sidebar({
         </div>
       </div>
 
-      {/* ── Workspace switcher ── */}
-      <div className="px-3 pb-3 pt-1">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className={cn(
-                "group flex h-11 w-full items-center gap-2.5 rounded-2xl border border-transparent bg-card/32 px-3",
-                "text-left transition-colors hover:border-border/70 hover:bg-card/58 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/55"
-              )}
-              aria-label={`Switch workspace. Current workspace: ${selectedWorkspaceName}`}
-            >
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[11px] font-semibold text-accent-soft-foreground">
-                {selectedWorkspaceInitial}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13px] font-semibold text-foreground">
-                  {selectedWorkspaceName}
-                </span>
-                <span className="block text-[11px] text-muted-foreground">Workspace</span>
-              </span>
-              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" aria-hidden="true" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="start"
-            sideOffset={8}
-            className="lotus-glass-strong w-[15.75rem] overflow-hidden rounded-2xl border border-border/60 p-1.5 shadow-lg"
-          >
-            <div className="px-2 pb-1.5 pt-1 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground/65">
-              Workspaces
-            </div>
-
-            {/* Current workspace */}
-            <DropdownMenuItem
-              disabled
-              aria-label={`Current workspace: ${selectedWorkspaceName}`}
-              className="flex cursor-default items-center gap-2.5 rounded-xl px-2.5 py-2.5 opacity-100 focus:bg-muted"
-            >
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-foreground text-[11px] font-semibold text-background">
-                {selectedWorkspaceInitial}
-              </span>
-              <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
-                {selectedWorkspaceName}
-              </span>
-              <Check className="h-3.5 w-3.5 shrink-0 text-foreground" aria-hidden="true" />
-            </DropdownMenuItem>
-
-            {isPaidUser ? (
-              <>
-                {otherWorkspaces.map((workspace) => (
-                  <DropdownMenuItem
-                    key={workspace.id}
-                    onSelect={() => void handleWorkspaceSelect(workspace.id)}
-                    className="flex cursor-pointer items-center gap-2.5 rounded-xl px-2.5 py-2.5 focus:bg-muted"
-                  >
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground">
-                      {workspace.name.charAt(0).toUpperCase()}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground/80">
-                      {workspace.name}
-                    </span>
-                  </DropdownMenuItem>
-                ))}
-
-                <DropdownMenuItem
-                  onSelect={onCreateWorkspace}
-                  className="flex cursor-pointer items-center gap-2.5 rounded-xl px-2.5 py-2.5 focus:bg-muted"
-                >
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-dashed border-border text-muted-foreground">
-                    <Plus className="h-3.5 w-3.5" />
-                  </span>
-                  <span className="text-[13px] font-medium text-muted-foreground">Add workspace</span>
-                </DropdownMenuItem>
-              </>
-            ) : (
-              <div className="lotus-glass-inset mx-1 mt-1 flex items-center gap-2.5 rounded-xl border border-border/55 px-2.5 py-2">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted">
-                  <Lock className="h-3.5 w-3.5 text-muted-foreground/60" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[12px] font-medium text-muted-foreground">Switch workspaces</p>
-                  <Link
-                    href="/pricing"
-                    className="text-[11px] font-semibold text-foreground underline underline-offset-2 hover:text-muted-foreground"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    Upgrade to unlock
-                  </Link>
-                </div>
-              </div>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
       {/* ── Team / personal scope toggle ── */}
-      {isTeamsPlan && (
-        <div className="px-3 pb-3">
-          <div className="lotus-glass-control grid grid-cols-2 rounded-2xl border p-1" role="group" aria-labelledby={scopeToggleLabelId}>
-            <span id={scopeToggleLabelId} className="sr-only">Build scope</span>
-            {(["user", "team"] as const).map((id) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setScope(id)}
-                aria-pressed={scope === id}
-                aria-label={id === "team" ? "Show team builds" : "Show my builds"}
-                className={cn(
-                  "flex h-8 items-center justify-center gap-1.5 rounded-full text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30",
-                  scope === id
-                    ? "bg-foreground text-background"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {id === "team" && <Users className="h-3.5 w-3.5" aria-hidden="true" />}
-                {id === "team" ? "Team" : "Mine"}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      <></>
 
       <div className="mx-4 mb-3 border-t border-border/55" />
 
@@ -592,28 +465,6 @@ function Sidebar({
             ) : null}
           </div>
         )}
-      </div>
-
-      {/* ── Referral card ── */}
-      <div className="shrink-0 px-3 pb-3">
-        <button
-          type="button"
-          onClick={onShare}
-          aria-label="Invite a friend. You both get 500 credits."
-          className={cn(
-            "lotus-glass-control group flex w-full items-center gap-2.5 rounded-2xl border px-3 py-3",
-            "text-left transition-colors hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30"
-          )}
-        >
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-card">
-            <Gift className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[12px] font-medium text-foreground">Invite a friend</p>
-            <p className="truncate text-[11px] text-muted-foreground">You both get 500 credits</p>
-          </div>
-          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-        </button>
       </div>
 
       {/* ── User row ── */}
@@ -891,10 +742,10 @@ function OnboardingBanner() {
 
 export function ProjectsWorkspace() {
   const router = useRouter()
-  const { user, userData, workspaces, currentWorkspace, switchWorkspace, signOut } = useAuth()
+  const { user, userData, workspaces, currentWorkspace, switchWorkspace, signOut, accountError, refreshAccount } = useAuth()
   const { openSettings } = useSettingsDialog()
 
-  const isTeamsPlan = !!userData?.planId && planIdForDisplay(userData.planId) === "team"
+  const isTeamsPlan = !!userData?.planId && userData.planId === "team"
   const isPaidUser = !!userData?.planId && userData.planId !== "free"
   const [scope, setScope] = useState<"user" | "team">("user")
   const [search, setSearch] = useState("")
@@ -945,7 +796,7 @@ export function ProjectsWorkspace() {
     return { Authorization: `Bearer ${token}` }
   }, [user])
 
-  const { projects, loading: projectsLoading } = useProjectList({
+  const { projects, loading: projectsLoading, error: projectsError, refresh: refreshProjects } = useProjectList({
     scope,
     uid: user?.uid ?? null,
     workspaceId: scope === "team" ? userData?.currentWorkspaceId || null : null,
@@ -966,7 +817,7 @@ export function ProjectsWorkspace() {
   // from the user doc the Stripe webhook writes to, so the dialog updates
   // reactively the moment the plan activates — nothing is hardcoded.
   const checkoutSuccessInfo = useMemo(() => {
-    const planKey = userData?.planId ? planIdForDisplay(userData.planId) : null
+    const planKey = userData?.planId ? userData.planId : null
     const planName = userData?.planName
       || (planKey ? planKey.charAt(0).toUpperCase() + planKey.slice(1) : "")
     const credits = Math.max(
@@ -987,9 +838,10 @@ export function ProjectsWorkspace() {
     e.preventDefault()
     e.stopPropagation()
     try {
-      await deleteDoc(doc(db, kind === "computer" ? "computerSessions" : "projects", projectId))
+      await currentBackend().deleteProject(projectId)
+      refreshProjects()
     } catch (err) {
-      console.error(`Failed to delete ${kind || "project"}:`, err)
+      window.alert(err instanceof Error ? err.message : 'Could not delete project.')
     }
   }
 
@@ -1007,7 +859,6 @@ export function ProjectsWorkspace() {
     handleDeleteProject,
     user,
     signOut,
-    onShare: () => { setMobileSidebarOpen(false); setReferralOpen(true) },
     isTeamsPlan,
     scope,
     setScope,
@@ -1015,8 +866,13 @@ export function ProjectsWorkspace() {
     currentWorkspace,
     switchWorkspace,
     isPaidUser,
-    onCreateWorkspace: () => setCreateModalOpen(true),
   }
+
+  if (user && !userData) return <main className="min-h-screen bg-background p-8 text-foreground">
+    <div role="alert"><p>{accountError || 'Account data is unavailable.'}</p>
+      <button type="button" className="mt-3 underline" onClick={() => { void refreshAccount().catch(() => {}) }}>Retry account connection</button>
+    </div>
+  </main>
 
   return (
       <div className="workspace-root flex h-[100dvh] overflow-hidden bg-background">
@@ -1094,12 +950,7 @@ export function ProjectsWorkspace() {
             >
               <PanelLeft className="h-4 w-4" aria-hidden="true" />
             </button>
-            <Link href="/" className="flex min-w-0 items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30" aria-label="Go to Lotus home">
-              <LotusLogo size={24} />
-              <span className="truncate font-display text-[16px] font-semibold tracking-tight text-foreground/90">
-                Lotus.build
-              </span>
-            </Link>
+            <Link href="/" className="flex min-w-0 items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30" aria-label="Go to Lotus home"><BrandWordmark /></Link>
           </header>
 
           {/* ── Desktop: expand sidebar button ── */}
@@ -1131,6 +982,12 @@ export function ProjectsWorkspace() {
                       <Suspense fallback={null}>
                         <OnboardingBanner />
                       </Suspense>
+                      {(accountError || projectsError) && <div role="alert" className="mb-4 text-sm text-destructive">
+                        <p>{accountError || projectsError}</p>
+                        <button type="button" className="mt-1 underline" onClick={() => {
+                          void refreshAccount().then(refreshProjects).catch(() => {})
+                        }}>Retry connection</button>
+                      </div>}
 
                       <div className="animate-in fade-in slide-in-from-bottom-2 fill-mode-both mb-7 flex justify-center duration-700">
                         <div className="lotus-glass-control inline-flex items-center gap-3 rounded-full border px-4 py-2 text-sm">
@@ -1154,7 +1011,7 @@ export function ProjectsWorkspace() {
                           className="animate-in fade-in slide-in-from-bottom-3 fill-mode-both mx-auto mt-5 max-w-[34rem] text-[14px] leading-7 text-muted-foreground duration-700 sm:mt-6 sm:text-base"
                           style={{ animationDelay: "140ms" }}
                         >
-                          Describe the site or app you need. Lotus turns the brief into a live workspace you can keep refining.
+                          Describe the software you want to build. Plan the approach, implement changes, and review your work in one workspace.
                         </p>
                       </div>
 
@@ -1185,18 +1042,9 @@ export function ProjectsWorkspace() {
           </div>
         </main>
 
-        <ReferralDialog
-          open={referralOpen}
-          onClose={() => setReferralOpen(false)}
-          referralCode={user?.uid ?? null}
-          referralCount={userData?.referralCount ?? 0}
-          creditsEarned={userData?.referralCreditsEarned ?? 0}
-        />
+        <></>
 
-        <CreateWorkspaceModal
-          open={createModalOpen}
-          onClose={() => setCreateModalOpen(false)}
-        />
+        <></>
 
         {/* ── Checkout success dialog ── */}
         <Dialog open={checkoutSuccessOpen} onOpenChange={handleCheckoutSuccessChange}>
@@ -1213,7 +1061,7 @@ export function ProjectsWorkspace() {
                       : "Your subscription is active"}
                   </DialogTitle>
                   <DialogDescription className="text-[13.5px] leading-relaxed text-muted-foreground">
-                    Payment confirmed — your plan is active and your credits are ready to use.
+                    Your account currently reports this plan. A checkout return alone does not confirm payment.
                   </DialogDescription>
                 </DialogHeader>
                 {checkoutSuccessInfo.credits > 0 && (
@@ -1266,10 +1114,10 @@ export function ProjectsWorkspace() {
                     <CheckCircle2 className="h-7 w-7 text-success" strokeWidth={1.75} />
                   </div>
                   <DialogTitle className="text-[20px] font-semibold tracking-tight text-foreground">
-                    Payment received
+                    Checking your plan
                   </DialogTitle>
                   <DialogDescription className="text-[13.5px] leading-relaxed text-muted-foreground">
-                    Your plan is taking a little longer than usual to activate. You can keep building — your credits will appear automatically.
+                    A plan change has not been confirmed. Refresh your account status or check the billing portal.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="mt-2 grid grid-cols-2 gap-3">

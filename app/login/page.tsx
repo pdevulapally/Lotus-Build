@@ -1,5 +1,6 @@
 "use client"
 
+import { BrandWordmark } from "@/components/ui/brand-wordmark"
 import type { FormEvent } from "react"
 import { useEffect, useState } from "react"
 import Link from "next/link"
@@ -124,10 +125,7 @@ export default function LoginPage() {
             href="/"
             className="inline-flex items-center gap-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="Lotus.build home"
-          >
-            <LotusLogo size={26} />
-            <span className="text-[15px] font-semibold text-foreground">Lotus.build</span>
-          </Link>
+          ><BrandWordmark /></Link>
         </div>
 
         <div className="flex flex-1 items-center justify-center px-5 py-10 sm:px-8 lg:px-12">

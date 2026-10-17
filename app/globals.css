@@ -4,41 +4,41 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(0.982 0 0);
-  --foreground: oklch(0.22 0 0);
-  --card: oklch(0.995 0 0);
-  --card-foreground: oklch(0.22 0 0);
-  --popover: oklch(0.995 0 0);
-  --popover-foreground: oklch(0.22 0 0);
-  --primary: oklch(0.56 0.19 255);
-  --primary-rgb: 0 113 227;
-  --primary-foreground: oklch(0.99 0.004 247);
-  --secondary: oklch(0.94 0 0);
-  --secondary-foreground: oklch(0.34 0 0);
-  --muted: oklch(0.95 0 0);
-  --muted-foreground: oklch(0.49 0 0);
-  --accent: oklch(0.59 0.21 255);
-  --accent-foreground: oklch(0.99 0.004 247);
+  --background: #f7f5f3;
+  --foreground: #262626;
+  --card: #ffffff;
+  --card-foreground: #262626;
+  --popover: #ffffff;
+  --popover-foreground: #262626;
+  --primary: #1a1a1a;
+  --primary-rgb: 26 26 26;
+  --primary-foreground: #ffffff;
+  --secondary: #eeeae6;
+  --secondary-foreground: #262626;
+  --muted: #eeeae6;
+  --muted-foreground: #686460;
+  --accent: #eeeae6;
+  --accent-foreground: #262626;
   --destructive: oklch(0.52 0.17 25);
   --destructive-foreground: oklch(1.0000 0 0);
-  --border: oklch(0.88 0 0);
-  --input: oklch(0.78 0 0);
-  --ring: oklch(0.59 0.21 255);
+  --border: #d6d0c8;
+  --input: #686460;
+  --ring: #1a1a1a;
   --chart-1: oklch(0.38 0.022 250);
   --chart-2: oklch(0.6898 0.1581 290.4107);
   --chart-3: oklch(0.8816 0.0276 93.1280);
   --chart-4: oklch(0.8822 0.0403 298.1792);
   --chart-5: oklch(0.48 0 0);
-  --sidebar: oklch(0.965 0 0);
-  --sidebar-foreground: oklch(0.34 0 0);
-  --sidebar-primary: oklch(0.56 0.19 255);
-  --sidebar-primary-foreground: oklch(0.99 0.004 247);
-  --sidebar-accent: oklch(0.93 0 0);
-  --sidebar-accent-foreground: oklch(0.32 0 0);
-  --sidebar-border: oklch(0.89 0 0);
-  --sidebar-ring: oklch(0.7731 0 0);
-  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
-  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --sidebar: #eeeae6;
+  --sidebar-foreground: #262626;
+  --sidebar-primary: #1a1a1a;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f7f5f3;
+  --sidebar-accent-foreground: #262626;
+  --sidebar-border: #d6d0c8;
+  --sidebar-ring: #1a1a1a;
+  --font-sans: "Public Sans", sans-serif;
+  --font-serif: "Libre Caslon Condensed", serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --radius: 0.5rem;
   --shadow-x: 0;
@@ -68,16 +68,16 @@
   --slate-soft: var(--muted);
   --slate-soft-foreground: var(--foreground);
   --border-strong: color-mix(in oklch, var(--border) 65%, var(--foreground));
-  --warning: var(--chart-1);
+  --warning: oklch(0.55 0.12 65);
   --warning-foreground: var(--foreground);
-  --warning-soft: color-mix(in oklch, var(--chart-1) 14%, var(--card));
-  --warning-soft-foreground: color-mix(in oklch, var(--chart-1) 68%, var(--foreground));
+  --warning-soft: color-mix(in oklch, var(--warning) 14%, var(--card));
+  --warning-soft-foreground: color-mix(in oklch, var(--warning) 68%, var(--foreground));
   --info: color-mix(in oklch, var(--chart-2) 55%, var(--foreground));
   --info-foreground: var(--primary-foreground);
   --info-soft: color-mix(in oklch, var(--chart-2) 12%, var(--card));
   --info-soft-foreground: color-mix(in oklch, var(--chart-2) 62%, var(--foreground));
   --success: oklch(0.42 0.13 155);
-  --success-foreground: var(--primary-foreground);
+  --success-foreground: #ffffff;
   --success-soft: color-mix(in oklch, var(--success) 12%, var(--card));
   --success-soft-foreground: color-mix(in oklch, var(--success) 68%, var(--foreground));
   --glass-highlight: color-mix(in oklch, var(--card) 82%, transparent);
@@ -85,41 +85,41 @@
 }
 
 .dark {
-  --background: oklch(0.19 0 0);
-  --foreground: oklch(0.94 0 0);
-  --card: oklch(0.23 0 0);
-  --card-foreground: oklch(0.94 0 0);
-  --popover: oklch(0.24 0 0);
-  --popover-foreground: oklch(0.94 0 0);
-  --primary: oklch(0.68 0.17 252);
-  --primary-rgb: 64 156 255;
-  --primary-foreground: oklch(0.16 0.035 255);
-  --secondary: oklch(0.28 0 0);
-  --secondary-foreground: oklch(0.9 0 0);
-  --muted: oklch(0.25 0 0);
-  --muted-foreground: oklch(0.76 0 0);
-  --accent: oklch(0.68 0.17 252);
-  --accent-foreground: oklch(0.16 0.035 255);
+  --background: #1c1b1a;
+  --foreground: #f7f5f3;
+  --card: #252321;
+  --card-foreground: #f7f5f3;
+  --popover: #252321;
+  --popover-foreground: #f7f5f3;
+  --primary: #f7f5f3;
+  --primary-rgb: 247 245 243;
+  --primary-foreground: #1a1a1a;
+  --secondary: #322f2c;
+  --secondary-foreground: #f7f5f3;
+  --muted: #322f2c;
+  --muted-foreground: #c0b8af;
+  --accent: #322f2c;
+  --accent-foreground: #f7f5f3;
   --destructive: oklch(0.6368 0.2078 25.3313);
   --destructive-foreground: oklch(1.0000 0 0);
-  --border: oklch(0.36 0 0);
-  --input: oklch(0.43 0 0);
-  --ring: oklch(0.68 0.17 252);
+  --border: #514b45;
+  --input: #c0b8af;
+  --ring: #f7f5f3;
   --chart-1: oklch(0.62 0.01 250);
   --chart-2: oklch(0.6898 0.1581 290.4107);
   --chart-3: oklch(0.2130 0.0078 95.4245);
   --chart-4: oklch(0.3074 0.0516 289.3230);
   --chart-5: oklch(0.74 0 0);
-  --sidebar: oklch(0.21 0 0);
-  --sidebar-foreground: oklch(0.86 0 0);
-  --sidebar-primary: oklch(0.68 0.17 252);
-  --sidebar-primary-foreground: oklch(0.16 0.035 255);
-  --sidebar-accent: oklch(0.27 0 0);
-  --sidebar-accent-foreground: oklch(0.9 0 0);
-  --sidebar-border: oklch(0.34 0 0);
-  --sidebar-ring: oklch(0.68 0.17 252);
-  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
-  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --sidebar: #322f2c;
+  --sidebar-foreground: #f7f5f3;
+  --sidebar-primary: #f7f5f3;
+  --sidebar-primary-foreground: #1a1a1a;
+  --sidebar-accent: #1c1b1a;
+  --sidebar-accent-foreground: #f7f5f3;
+  --sidebar-border: #514b45;
+  --sidebar-ring: #f7f5f3;
+  --font-sans: "Public Sans", sans-serif;
+  --font-serif: "Libre Caslon Condensed", serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --radius: 0.5rem;
   --shadow-x: 0;
@@ -148,26 +148,26 @@
   --slate-soft: var(--muted);
   --slate-soft-foreground: var(--foreground);
   --border-strong: color-mix(in oklch, var(--border) 72%, var(--foreground));
-  --warning: var(--chart-1);
+  --warning: oklch(0.55 0.12 65);
   --warning-foreground: var(--foreground);
-  --warning-soft: color-mix(in oklch, var(--chart-1) 18%, var(--card));
-  --warning-soft-foreground: color-mix(in oklch, var(--chart-1) 72%, var(--foreground));
+  --warning-soft: color-mix(in oklch, var(--warning) 18%, var(--card));
+  --warning-soft-foreground: color-mix(in oklch, var(--warning) 72%, var(--foreground));
   --info: color-mix(in oklch, var(--chart-2) 55%, var(--foreground));
   --info-foreground: var(--primary-foreground);
   --info-soft: color-mix(in oklch, var(--chart-2) 16%, var(--card));
   --info-soft-foreground: color-mix(in oklch, var(--chart-2) 68%, var(--foreground));
   --success: oklch(0.52 0.14 155);
-  --success-foreground: var(--primary-foreground);
+  --success-foreground: #ffffff;
   --success-soft: color-mix(in oklch, var(--success) 16%, var(--card));
   --success-soft-foreground: color-mix(in oklch, var(--success) 72%, var(--foreground));
 }
 
 @theme inline {
-  --font-sans: var(--font-manrope), var(--font-sans);
+  --font-sans: "Public Sans", sans-serif;
   --font-mono: var(--font-mono);
   --font-serif: var(--font-serif);
-  --font-display: "Cal Sans", var(--font-manrope), system-ui, sans-serif;
-  --font-heading: "Instrument Sans", var(--font-manrope), system-ui, sans-serif;
+  --font-display: var(--font-serif);
+  --font-heading: var(--font-serif);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -506,7 +506,8 @@
 }
 
 .font-display {
-  font-family: "Cal Sans", var(--font-manrope), system-ui, sans-serif;
+  font-family: var(--font-serif);
+  font-weight: 500;
 }
 
 /* Soft brand-tinted wash for the auth pages, single restrained gradient
@@ -518,11 +519,12 @@
 }
 
 .font-heading {
-  font-family: "Instrument Sans", var(--font-manrope), system-ui, sans-serif;
+  font-family: var(--font-serif);
+  font-weight: 500;
 }
 
 .font-editorial {
-  font-family: "Instrument Serif", Georgia, serif;
+  font-family: var(--font-serif);
   font-style: italic;
 }
 
@@ -919,3 +921,7 @@ html::-webkit-scrollbar {
 }
 
 
+
+@layer base {
+  h1, h2, h3 { font-family: var(--font-serif); font-weight: 500; }
+}

@@ -4,7 +4,7 @@
  * Settings now lives in the global SettingsDialog (Claude-style modal) mounted
  * by SettingsDialogProvider in the root layout. This route remains only as a
  * landing target for external return URLs — the Stripe billing portal
- * (return_url, app/api/stripe/portal/route.ts) and the GitHub OAuth callback
+ * (the current backend billing portal return URL)
  * both redirect here. It opens the dialog and moves the user onto the workspace at /.
  * underneath it.
  */
