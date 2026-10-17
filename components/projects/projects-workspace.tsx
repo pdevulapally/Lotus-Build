@@ -2,6 +2,7 @@
 
 import { BrandWordmark } from "@/components/ui/brand-wordmark"
 import { SidebarToggleIcon } from "@/components/ui/sidebar-toggle-icon"
+import { ProjectSearchDialog } from "@/components/projects/project-search-dialog"
 import { Suspense, useCallback, useEffect, useId, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -9,13 +10,11 @@ import { LotusLogo } from "@/components/ui/lotus-logo"
 import { currentBackend } from "@/lib/backend/browser"
 import {
   Settings,
-  Search,
   Trash2,
   LogOut,
   Users,
   CreditCard,
   X,
-  ChevronRight,
   Gift,
   Copy,
   Check,
@@ -162,171 +161,11 @@ function TaskRow({
   )
 }
 
-/* ─── SearchBar ───────────────────────────────────────────────────────────── */
-
-function SearchBar({
-  value,
-  onChange,
-  autoFocus = false,
-  variant = 'default',
-}: {
-  value: string
-  onChange: (v: string) => void
-  autoFocus?: boolean
-  variant?: 'default' | 'sidebar'
-}) {
-  return (
-    <div className="relative mx-3 mb-3">
-      <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/55" aria-hidden="true" />
-      <input
-        type="search"
-        autoFocus={autoFocus}
-        value={value ?? ""}
-        onChange={(e) => onChange(e.target.value)}
-        aria-label="Search saved builds"
-        placeholder="Search builds…"
-        className={cn(
-          variant === 'sidebar' ? "h-10 w-full rounded-lg border border-sidebar-border bg-background pl-8 pr-8" : "lotus-glass-control h-9 w-full rounded-full border pl-8 pr-8",
-          "text-[13px] text-foreground placeholder:text-muted-foreground/50",
-          "outline-none transition-colors focus:border-border-strong focus:ring-0"
-        )}
-      />
-      {value && (
-        <button
-          type="button"
-          onClick={() => onChange("")}
-          aria-label="Clear build search"
-          className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground/55 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30"
-        >
-          <X className="h-3 w-3" aria-hidden="true" />
-        </button>
-      )}
-    </div>
-  )
-}
-
-/* ─── FullBuildsPanel ────────────────────────────────────────────────────── */
-
-function FullBuildsPanel({
-  builds,
-  loading,
-  search,
-  onSearchChange,
-  scope,
-  onOpenBuild,
-}: {
-  builds: ProjectSummary[]
-  loading: boolean
-  search: string
-  onSearchChange: (v: string) => void
-  scope: "user" | "team"
-  onOpenBuild: (build: ProjectSummary) => void
-}) {
-  const headingId = useId()
-  const searchTerm = search.trim()
-  const resultSummary = loading
-    ? "Loading saved builds"
-    : searchTerm
-      ? `${builds.length} saved ${builds.length === 1 ? "build" : "builds"} match "${searchTerm}"`
-      : `${builds.length} saved ${builds.length === 1 ? "build" : "builds"} available`
-  const title = scope === "team" ? "Team build directory" : "Build directory"
-
-  return (
-    <section
-      aria-labelledby={headingId}
-      className="lotus-glass-panel mt-8 overflow-hidden rounded-2xl border border-border/55"
-    >
-      <p className="sr-only" role="status" aria-live="polite">
-        {resultSummary}
-      </p>
-      <div className="flex items-center justify-between gap-4 border-b border-border/55 px-4 py-3.5 sm:px-5">
-        <div className="min-w-0">
-          <h2 id={headingId} className="text-[13px] font-semibold text-foreground">{title}</h2>
-          <p className="mt-0.5 text-[12px] text-muted-foreground">
-            Search your saved builds and reopen the one you need.
-          </p>
-        </div>
-        <span
-          className="shrink-0 rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-medium text-accent-soft-foreground"
-          aria-label={resultSummary}
-        >
-          {builds.length}
-        </span>
-      </div>
-
-      <div className="px-2 pt-2">
-        <SearchBar value={search} onChange={onSearchChange} />
-      </div>
-
-      <div
-        className="max-h-[24rem] overflow-y-auto p-2 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]"
-        aria-busy={loading}
-      >
-        {loading ? (
-          <div className="space-y-2 p-2" aria-hidden="true">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div
-                key={i}
-                className="h-12 animate-pulse rounded-lg bg-muted/70"
-                style={{ opacity: 1 - i * 0.16 }}
-              />
-            ))}
-          </div>
-        ) : builds.length === 0 ? (
-          <div className="px-4 py-6 text-center">
-            <p className="text-[13px] font-medium text-foreground">
-              {search ? "No matching builds" : "No builds yet"}
-            </p>
-            <p className="mt-1 text-[12px] text-muted-foreground">
-              {search ? "Try a different search." : "Start with a prompt and your builds will appear here."}
-            </p>
-          </div>
-        ) : (
-          <div className="grid gap-2 sm:grid-cols-2" role="list" aria-label={resultSummary}>
-            {builds.map((build) => {
-              const status = PROJECT_STATUS_META[build.status] ?? PROJECT_STATUS_META.pending
-              const title = projectTitle(build.prompt, 72)
-
-              return (
-                <div key={build.id} role="listitem">
-                  <button
-                    type="button"
-                    onClick={() => onOpenBuild(build)}
-                    aria-label={`Open ${projectAccessibleSummary(build)}`}
-                    className="lotus-glass-control group flex min-h-[7.25rem] w-full flex-col rounded-2xl border p-3.5 text-left transition-[border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30"
-                  >
-                  <div className="flex items-start justify-between gap-3">
-                    <span className="min-w-0 flex-1 text-[13.5px] font-semibold leading-snug text-foreground">
-                      {title}
-                    </span>
-                    <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-                  </div>
-                  <p className="mt-2 line-clamp-2 text-[12px] leading-5 text-muted-foreground">
-                    {(build.prompt || "").trim() || "Untitled build"}
-                  </p>
-                  <div className="mt-auto flex items-center justify-between gap-3 pt-3 text-[11px] text-muted-foreground">
-                    <span>{build.kind === "computer" ? "Computer agent" : "Software project"}</span>
-                    <span className="rounded-full bg-slate-soft px-2 py-0.5 text-[10.5px] font-medium text-slate-soft-foreground">
-                      {status.label}
-                    </span>
-                  </div>
-                  </button>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
-    </section>
-  )
-}
-
 /* ─── Sidebar ────────────────────────────────────────────────────────────── */
 
 function Sidebar({
   filtered,
-  search,
-  onSearchChange,
+  projectListError,
   onNewProject,
   projectsLoading,
   stats,
@@ -345,8 +184,7 @@ function Sidebar({
   isPaidUser,
 }: {
   filtered: ProjectSummary[]
-  search: string
-  onSearchChange: (value: string) => void
+  projectListError: string | null
   onNewProject: () => void
   projectsLoading: boolean
   stats: { planName: string }
@@ -365,7 +203,6 @@ function Sidebar({
   isPaidUser: boolean
 }) {
   const { openSettings } = useSettingsDialog()
-  const [searchOpen, setSearchOpen] = useState(false)
   const recentBuildsHeadingId = useId()
   const scopeToggleLabelId = useId()
   const initials = user?.displayName
@@ -386,18 +223,19 @@ function Sidebar({
   }
 
   return (
-    <div className="workspace-sidebar relative flex h-full flex-col overflow-visible border-r border-sidebar-border/65 text-sidebar-foreground">
+    <div className="workspace-sidebar relative flex h-full flex-col overflow-visible rounded-xl border border-sidebar-border/65 text-sidebar-foreground">
 
       {/* ── Logo row ── */}
-      <div className="flex h-14 shrink-0 items-center justify-between px-4">
+      <div className="flex h-14 shrink-0 items-center justify-between gap-1 px-3">
         <Link href="/" onClick={onClose} className="flex items-center gap-2 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30" aria-label="Go to Lotus home"><BrandWordmark size="compact" /></Link>
         <div className="flex items-center gap-0.5">
+          <ProjectSearchDialog projects={filtered} loading={projectsLoading} error={projectListError} onOpenProject={(project) => { onClose?.(); router.push(project.kind === 'computer' ? `/computer/${project.id}` : `/project/${project.id}`) }} />
           {onToggle ? (
             <button
               type="button"
               onClick={onToggle}
               aria-label={onClose ? "Close sidebar" : "Collapse sidebar"}
-              className={cn(sidebarActionClass, "workspace-sidebar-toggle absolute right-2 top-1.5 z-30 h-11 w-11 rounded-lg")}
+              className={cn(sidebarActionClass, "workspace-sidebar-toggle h-11 w-11 shrink-0 rounded-lg")}
             >
               <SidebarToggleIcon className="h-5 w-5" />
             </button>
@@ -419,9 +257,7 @@ function Sidebar({
           New project
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5.5v13M5.5 12h13" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /></svg>
         </button>
-        <button type="button" onClick={(event) => { setSearchOpen(true); event.currentTarget.closest('.workspace-sidebar')?.querySelector('input')?.focus() }} className="flex min-h-11 w-full items-center gap-2.5 rounded-lg px-3 text-left text-[13px] text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><Search size={16} strokeWidth={1.7} aria-hidden />Search projects</button>
       </div>
-      {(searchOpen || search) && <SearchBar value={search} onChange={onSearchChange} autoFocus variant="sidebar" />}
 
       {/* ── Section header ── */}
       <div className="mb-2 flex items-center justify-between px-4">
@@ -764,7 +600,6 @@ export function ProjectsWorkspace() {
   const isTeamsPlan = !!userData?.planId && userData.planId === "team"
   const isPaidUser = !!userData?.planId && userData.planId !== "free"
   const [scope, setScope] = useState<"user" | "team">("user")
-  const [search, setSearch] = useState("")
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(false)
   const [referralOpen, setReferralOpen] = useState(false)
@@ -819,11 +654,6 @@ export function ProjectsWorkspace() {
     getAuthHeader,
   })
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    return projects.filter((p) => !q || (p.prompt || "").toLowerCase().includes(q))
-  }, [projects, search])
-
   const stats = useMemo(() => {
     const planName = userData?.planName || "Free"
     return { planName }
@@ -863,14 +693,9 @@ export function ProjectsWorkspace() {
 
   const firstName = user?.displayName?.split(" ")[0] ?? ""
 
-  const handleOpenBuild = useCallback((build: ProjectSummary) => {
-    router.push(build.kind === "computer" ? `/computer/${build.id}` : `/project/${build.id}`)
-  }, [router])
-
   const sidebarProps = {
-    filtered,
-    search,
-    onSearchChange: setSearch,
+    filtered: projects,
+    projectListError: projectsError,
     onNewProject: () => requestAnimationFrame(() => document.getElementById('workspace-brief')?.focus()),
     projectsLoading,
     stats,
@@ -920,7 +745,7 @@ export function ProjectsWorkspace() {
           aria-label="Project navigation"
           aria-hidden={!mobileSidebarOpen}
           className={cn(
-            "fixed inset-y-0 left-0 z-50 w-[min(18rem,calc(100vw-3rem))]",
+            "fixed inset-y-1.5 left-1.5 z-50 w-[min(18rem,calc(100vw-1.5rem))]",
             "transition-transform duration-200 ease-in-out lg:hidden",
             mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
           )}
@@ -944,7 +769,7 @@ export function ProjectsWorkspace() {
           )}
         >
           {!desktopSidebarCollapsed && (
-            <div className="relative h-full">
+            <div className="relative h-full p-1.5 pr-0">
               <Sidebar {...sidebarProps} onToggle={() => setDesktopSidebarCollapsed(true)} />
             </div>
           )}
@@ -994,7 +819,7 @@ export function ProjectsWorkspace() {
           <div className="relative z-10 flex min-h-0 flex-1">
             <div className="relative min-h-0 w-full flex-1 overflow-hidden md:rounded-t-[1.125rem] lg:rounded-t-[1.25rem]">
               <div className="h-full overflow-y-auto [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
-                <div className="relative isolate flex min-h-[calc(100dvh+8rem)] w-full flex-col items-center justify-start overflow-hidden bg-transparent px-5 pb-20 md:rounded-t-[1.125rem] sm:px-8 sm:pb-24 lg:rounded-t-[1.25rem]">
+                <div className="relative isolate flex min-h-full w-full flex-col items-center justify-start overflow-hidden bg-transparent px-5 pb-20 md:rounded-t-[1.125rem] sm:px-8 sm:pb-24 lg:rounded-t-[1.25rem]">
 
                   <div className="relative z-10 w-full max-w-[60rem]">
                     <div className="mx-auto flex min-h-[calc(100dvh-10rem)] w-full max-w-[44rem] flex-col justify-center py-10 sm:min-h-[calc(100dvh-9rem)] sm:py-12 md:py-14 lg:py-16">
@@ -1026,12 +851,6 @@ export function ProjectsWorkspace() {
                         >
                           What can I build for you{firstName ? `, ${firstName}` : ""}?
                         </h1>
-                        <p
-                          className="animate-in fade-in slide-in-from-bottom-3 fill-mode-both mx-auto mt-5 max-w-[34rem] text-[14px] leading-7 text-muted-foreground duration-700 sm:mt-6 sm:text-base"
-                          style={{ animationDelay: "140ms" }}
-                        >
-                          Describe the software you want to build. Plan the approach, implement changes, and review your work in one workspace.
-                        </p>
                       </div>
 
                       <div
@@ -1040,21 +859,13 @@ export function ProjectsWorkspace() {
                       >
                         <AnimatedAIInput
                           inputId="workspace-brief"
-                          placeholder="Build a refined site for..."
-                          wrapperClassName="liquid-composer rounded-[1.75rem] border-border-strong/60 bg-card/70 [&_textarea]:min-h-[88px] [&_textarea]:text-foreground [&_textarea]:placeholder:text-foreground/55 [&_button]:rounded-full [&_button[aria-pressed=true]]:bg-accent [&_button[aria-pressed=true]]:text-accent-foreground [&_button.bg-primary]:bg-accent [&_button.bg-primary]:text-accent-foreground [&_button.bg-primary:hover]:bg-accent/90"
-                          footerHintsClassName="text-foreground/60"
+                          placeholder="Describe what you want to build…"
+                          wrapperClassName="rounded-3xl border-border bg-card shadow-sm focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/15 [&_textarea]:min-h-[96px] [&_textarea]:px-1 [&_textarea]:pt-1 [&_textarea]:text-base [&_textarea]:placeholder:text-muted-foreground [&>div:last-child]:px-3 [&>div:last-child]:pb-3 [&_button]:min-h-11 [&_button]:min-w-11 [&_button]:rounded-full"
+                          footerHintsClassName="text-muted-foreground"
                         />
                       </div>
                     </div>
 
-                    <FullBuildsPanel
-                      builds={filtered}
-                      loading={projectsLoading}
-                      search={search}
-                      onSearchChange={setSearch}
-                      scope={scope}
-                      onOpenBuild={handleOpenBuild}
-                    />
                   </div>
                 </div>
               </div>
