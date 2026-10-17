@@ -36,7 +36,7 @@ export default function PricingPage() {
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not start checkout.') }
     finally { submitting.current = false; setBusy(null) }
   }
-  return <><Navbar /><main className="mx-auto min-h-screen max-w-6xl px-5 pb-20 pt-36 text-foreground">
+  return <><Navbar /><main className="mx-auto min-h-screen max-w-6xl px-5 pb-20 pt-16 text-foreground">
     <Link href="/" className="text-sm underline">Back to Lotus</Link>
     <h1 className="mt-8 font-display text-4xl font-medium">Plans</h1>
     <p className="mt-4 text-muted-foreground">Available plans and allowances from your current LotusBuild service.</p>

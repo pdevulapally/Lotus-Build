@@ -925,3 +925,7 @@ html::-webkit-scrollbar {
 @layer base {
   h1, h2, h3 { font-family: var(--font-serif); font-weight: 500; }
 }
+
+.site-action { display: inline-flex; align-items: center; justify-content: center; gap: 12px; padding: 13px 18px; border-radius: 999px; background: var(--primary); color: var(--primary-foreground); font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; }
+.site-action:hover { opacity: .88; }
+.site-action:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; }
