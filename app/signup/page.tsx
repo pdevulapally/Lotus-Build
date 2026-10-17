@@ -11,6 +11,7 @@ import { AuthMarketingPanel } from "@/components/auth/auth-marketing-panel"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/auth-context"
 import { getSafeRedirectPath } from "@/lib/auth/redirect"
+import { authErrorMessage } from "@/lib/auth/errors"
 
 const authInputClassName =
   "lotus-glass-control w-full rounded-2xl border px-4 py-3.5 text-sm text-foreground shadow-none outline-none transition-colors placeholder:text-muted-foreground focus:border-border-strong"
@@ -107,8 +108,8 @@ export default function SignupPage() {
     try {
       await signUpWithEmail(email, password)
       router.push(redirect)
-    } catch {
-      setError("Failed to create account. That email may already be in use.")
+    } catch (error) {
+      setError(authErrorMessage(error, 'sign-up'))
     } finally {
       setIsLoading(false)
     }
@@ -120,8 +121,8 @@ export default function SignupPage() {
     try {
       await signInWithGoogle()
       router.push(redirect)
-    } catch {
-      setError("Failed to sign up with Google.")
+    } catch (error) {
+      setError(authErrorMessage(error))
     } finally {
       setIsLoading(false)
     }
