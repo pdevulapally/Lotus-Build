@@ -404,7 +404,7 @@ export function AnimatedAIInput({
             id={inputId}
             ref={textareaRef}
             value={value}
-            aria-label={mode === "chat" ? "Message the agent" : "Describe the site or app you want to build"}
+            aria-label={mode === "chat" ? "Message the agent" : "Describe the software you want to build"}
             placeholder={placeholder}
             disabled={disabled}
             onKeyDown={handleKeyDown}

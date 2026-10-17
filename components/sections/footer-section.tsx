@@ -1,6 +1,5 @@
 import { BrandWordmark } from "@/components/ui/brand-wordmark"
 import Link from "next/link"
-import { LotusLogo } from "@/components/ui/lotus-logo"
 
 const footerGroups = [
   {
@@ -15,9 +14,8 @@ const footerGroups = [
   {
     title: "Company",
     links: [
-      { href: "/help", label: "About" },
-      { href: "/settings", label: "Account" },
-      { href: "#", label: "Contact" },
+            { href: "/settings", label: "Account" },
+      { href: "/help#contact", label: "Contact" },
     ],
   },
   {
@@ -39,7 +37,7 @@ export function FooterSection() {
             <Link href="/" className="inline-flex items-center gap-3"><BrandWordmark /></Link>
 
             <p className="mt-6 max-w-sm text-sm leading-7 text-muted-foreground">
-              A calm AI workspace for founders turning rough ideas into polished product surfaces.
+              A workspace for planning, building, and reviewing software.
             </p>
           </div>
 
@@ -65,7 +63,7 @@ export function FooterSection() {
 
         <div className="mt-14 flex flex-col gap-2 border-t border-border pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} Lotus.build</p>
-          <p>Made for founders building real companies.</p>
+          <p>Plan. Build. Review.</p>
         </div>
       </div>
     </footer>

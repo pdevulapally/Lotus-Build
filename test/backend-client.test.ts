@@ -9,6 +9,15 @@ const project = { id: 'p1', name: 'App', platform: 'web', status: 'draft', publi
 const session = { id: 's1', projectId: 'p1', status: 'QUEUED', model: 'configured-model', effort: 'standard', mode: 'build', messageCount: 1, createdAt }
 const key = 'client-operation-123'
 
+test('default browser fetch is called without the client as its receiver', async (context) => {
+  context.mock.method(globalThis, 'fetch', async function (this: unknown) {
+    assert.equal(this, undefined, 'native browser fetch must not be called as a BackendClient method')
+    return Response.json({ projects: [] })
+  })
+  const client = new BackendClient({ origin: 'https://api.example.test', token: async () => 'id-token' })
+  assert.deepEqual(await client.projects(), { projects: [] })
+})
+
 test('core requests use the current server paths, validated bodies and stable mutation keys', async () => {
   const calls: { url: string; init: RequestInit | undefined }[] = []
   const client = new BackendClient({ origin: 'https://api.example.test', token: async () => 'id-token', fetch: async (input, init) => {

@@ -2,7 +2,7 @@
 
 ## Purpose and current architecture
 
-LotusBuild is a production-quality AI website/app builder. This checkout is the Next.js frontend only. The separate lotusbuild-server repository owns all business APIs, generation, sandbox execution, storage, billing, and provider integrations.
+LotusBuild is a production-quality AI software workspace. This checkout is the Next.js frontend only. The separate lotusbuild-server repository owns all business APIs, generation, sandbox execution, storage, billing, and provider integrations.
 
 - Use Firebase browser Auth only for sign-in and bearer tokens. Do not add Admin SDKs, direct business-data writes, AI providers, billing SDKs, server routes, E2B templates, or a second backend here.
 - All application API requests go through `lib/backend/client.ts` to the explicitly configured `NEXT_PUBLIC_BACKEND_URL` origin. Its route paths have no `/api` prefix.
@@ -349,139 +349,9 @@ It must also be:
 
 ---
 
-## AI website generation quality rules
+## Current software workspace scope
 
-The generate pipeline (`/api/generate/route.ts`) must produce modern, editorial, non-generic websites.
-
-### How the generation pipeline works (new sites)
-
-1. `deriveDesignBrief(prompt)` is called first — it produces a structured design brief
-2. The brief is injected into `systemPromptNew(designBrief)` as the authoritative visual spec
-3. `extractCriticalChecklist(brief)` extracts HERO_FORMAT, HERO_HEADLINE, STANDOUT, LAYOUT_VOCABULARY, ANTI_PATTERN and appends them as a final hard-constraint block at the end of the system prompt (models attend more to instructions near the end)
-4. The full prompt is sent to the model for streaming code generation
-
-### How the generation pipeline works (follow-ups)
-
-When `isFollowUp === true`:
-- `deriveDesignBrief` is **skipped**
-- `systemPromptFollowUp` is used instead
-- This prompt enforces a BANNED PATTERNS list and a DESIGN QUALITY CHECKLIST specific to follow-up edits
-- Never weaken the follow-up prompt's design enforcement — follow-ups are where design regresses most
-
-### Design brief (`deriveDesignBrief`) — current state
-
-- **Temperature: `0.75`** — allows creative exploration, prevents deterministic convergence
-- **`max_completion_tokens: 1400`** — enough tokens for a section-by-section specific brief
-- **Aesthetic vector injection**: Before every call, one of 10 distinct aesthetic directions is randomly sampled from `AESTHETIC_VECTORS` and injected into the creative director system prompt as `MANDATORY AESTHETIC VECTOR`. This forces different visual directions for similar prompts. Do not remove or reduce this list.
-- **Prompt length: `3000` chars** (up from 2000)
-
-Produces a structured brief with 11 fields:
-`PALETTE`, `FONTS`, `PERSONALITY`, `VISUAL_REFERENCE`, `HERO_FORMAT`, `HERO_HEADLINE`, `SECTIONS`, `TYPOGRAPHY_APPROACH`, `STANDOUT`, `LAYOUT_VOCABULARY` (domain-specific layout patterns), `ANTI_PATTERN`
-
-### `LAYOUT_VOCABULARY` field (important)
-
-This field asks the creative director to describe 2-3 domain-specific layout or content patterns that the business actually uses in the real world — patterns that a generic AI template would never know to include. The generator is required to implement these patterns in the site sections. Do not remove this field from the brief prompt.
-
-### Banned AI slop patterns (enforced in system prompt)
-
-The following must NEVER appear in generated output. Their presence is a build failure:
-
-1. Centered headline + centered subheadline + two CTA buttons as hero
-2. Any quantity of identical-structure cards in a row (3, 4, 5 cards — all banned)
-3. Gradient hero backgrounds (blue-to-purple, teal-to-blue, or any obvious gradient)
-4. Stock photo with dark overlay + centered white text as the hero
-5. Generic section headings: "Why Choose Us", "Our Features", "How It Works", "Get Started Today"
-6. Three identical testimonial cards with avatar + stars + quote + name + title
-7. Numbered 1-2-3 steps in identical icon cards for "How It Works"
-8. Footer with 4 identical link column grid
-9. Uniform vertical padding across all sections
-10. Purple gradients on white backgrounds
-11. Shadows on every card
-12. Plain white or plain off-white background for the entire site
-
-### Modern pattern requirements (enforced in system prompt)
-
-Generated sites must implement at least 4 of:
-
-- Typographically dominant hero (left-aligned or asymmetric, no filler subheadline)
-- Alternating image-left/text-right rows OR bento grid with varied cell sizes OR editorial numbered list (01, 02, 03)
-- Single oversized pull-quote OR inline client logo marquee strip (not a card grid)
-- Large numerals as visual anchors in a stats section
-- Section decorative numbers or letters as background elements
-- Split screen (two exact halves, different backgrounds)
-- Navigation: wordmark left, 3-5 links right, no big CTA button
-- Horizontal scroll strip for logos/tags/social proof
-- One grid-breaking element per page
-- Generous section vertical padding and max-width with proper horizontal padding
-
-### Rules for agents touching `/api/generate/route.ts`
-
-- Do not remove the BANNED PATTERNS or MODERN PATTERNS sections from `systemPromptNew`
-- Do not remove the DESIGN QUALITY CHECKLIST from `systemPromptFollowUp`
-- Do not revert `deriveDesignBrief` to a shorter, less specific, or lower-temperature version
-- Do not reduce `max_completion_tokens` for the design brief below 1400
-- Do not reduce `temperature` for the design brief below 0.7
-- Do not remove or shrink `AESTHETIC_VECTORS` — the random sampling is what prevents design convergence
-- Do not remove `extractCriticalChecklist` or its injection at the end of `systemPromptNew`
-- Do not remove `LAYOUT_VOCABULARY` from the brief prompt or the critical checklist extraction
-- `skipDesignBrief: true` in the request body bypasses the brief — only use this for inspiration mode or cases where a brief is genuinely not needed
-
----
-
-## Mobile sandbox / preview system
-
-The mobile preview sandbox is an Expo/React Native VPS-based environment orchestrated by a separate service.
-
-### Infrastructure
-
-- Hosted on FastHost VPS: 2 vCPU, 4 GB RAM, 120 GB NVMe
-- Orchestrator service runs on this VPS, exposes an API consumed by the Next.js app via `ORCHESTRATOR_URL` env var
-- The Next.js app never starts sandboxes directly — it calls the orchestrator, which manages Expo Metro instances
-
-### Key files
-
-| File | Role |
-|---|---|
-| `lib/orchestrator/client.ts` | All HTTP calls to the orchestrator (ensureSandbox, getSandbox, writeSandboxFiles, sandboxHeartbeat, destroySandbox) |
-| `lib/mobile-preview/ensure.ts` | Business logic: reuse existing sandbox or create new one, sync files, persist sandbox ID to Firestore |
-| `app/api/projects/[id]/ensure-mobile-preview/route.ts` | Route called by the frontend to ensure/reuse a sandbox |
-| `app/api/mobile-preview/[sandboxId]/heartbeat/route.ts` | Keep-alive heartbeat (every 60s when preview is running) |
-| `components/computer/mobile-preview.tsx` | Frontend React component — polls sandbox status, renders phone frame, handles error states |
-
-### "Metro did not become ready in time" — what it means
-
-Metro is React Native's JavaScript bundler. On a 2 vCPU / 4 GB VPS, if multiple sandboxes start simultaneously or the machine is under CPU/RAM pressure, Metro times out during the bundling phase. The orchestrator returns `{ status: "failed", error: "Metro did not become ready in time" }`.
-
-### How the frontend handles this (current implementation)
-
-- `isRetryableError(error)` detects Metro timeout, connection refused, and timed-out errors via regex
-- `normalizePreviewError(error)` maps technical orchestrator errors to user-friendly English
-- Auto-retry: when a "failed" sandbox has a retryable error, the frontend automatically retries up to `MAX_AUTO_RETRIES = 2` times with a `AUTO_RETRY_DELAY_MS = 4000` ms delay between attempts
-- After 2 auto-retries, a manual "Try again" button is shown
-- `handleRetry()` resets the auto-retry counter so manual retry can trigger fresh auto-retries
-- The "failed" view shows "Preview timed out — retrying…" during auto-retry and the friendly error message at all times
-
-### Sandbox lifecycle
-
-```
-queued → starting → running → stopping → (expired)
-                 ↘ failed
-```
-
-- `ACTIVE_STATUSES = ["queued", "starting", "running", "stopping"]`
-- Failed sandboxes are cleared from Firestore (`mobileSandboxId = null`) and a new one is created
-- Heartbeat fires every 60 seconds when the sandbox is running and the tab is visible
-- On tab visibility change, the frontend also syncs files and sends a heartbeat
-
-### Rules for agents touching mobile preview
-
-- Do not increase `MAX_AUTO_RETRIES` beyond 3 — each retry creates a new VPS sandbox instance
-- Do not decrease `AUTO_RETRY_DELAY_MS` below 3000 — the VPS needs time to free resources
-- `normalizePreviewError` should always map technical errors to user-friendly copy; do not expose raw orchestrator error strings to users
-- `orchestratorRequest` in `client.ts` has a 15-second `AbortSignal.timeout` — do not reduce this, the VPS can be slow under load
-- Never expose `ORCHESTRATOR_URL` or `ORCHESTRATOR_API_KEY` to the client
-
----
+This frontend uses the separate current server for project sessions, Plan/Build modes, saved files, history and project downloads. It contains no embedded generation pipeline or mobile sandbox backend. Do not reintroduce legacy route or provider implementations. Keep capabilities tied to verified current server contracts. See MIGRATION.md for remaining ports and live-verification boundaries.
 
 ## Reasoning component (`components/ai-elements/reasoning.tsx`)
 
@@ -505,61 +375,16 @@ Splits a reasoning string into `TextBlock` and `CodeBlock` segments using a glob
 
 ## Visual/theme rules
 
-lotus.build uses a **Lotus Editorial** theme: warm ivory canvas, charcoal slate brand surfaces, and a muted oxblood accent used sparingly.
-This is the canonical palette — do not invent alternatives.
+The single color and typography source is app/globals.css. Use its semantic Tailwind tokens across every page and portal; do not add page-specific copies of the palette. Light mode uses a #f7f5f3 canvas, white cards, #eeeae6 muted surfaces, #262626 text, #686460 secondary text, #d6d0c8 borders and #1a1a1a actions. The .dark theme provides corresponding dark surfaces and light actions.
 
-### Design tokens (source of truth: app/globals.css :root)
-
-
-| Token                    | oklch value            | Hex approx | Role                          |
-| ------------------------ | ---------------------- | ---------- | ----------------------------- |
-| --background             | oklch(0.978 0.006 82)  | #F6F4EF    | Page base (warm ivory)        |
-| --card                   | oklch(0.995 0.004 82)  | #FDFCFA    | Card / popover surface        |
-| --secondary / --muted    | oklch(0.938 0.006 82)  | #ECEAE5    | Parchment muted surface       |
-| --primary (slate)        | oklch(0.265 0.018 250) | #2E3440    | Nav, strong UI, headings      |
-| --slate-mid              | oklch(0.38 0.022 250)  | #4A5568    | Secondary slate text          |
-| --slate-soft             | oklch(0.935 0.008 250) | #E8EAED    | Slate tint background         |
-| --accent (muted oxblood) | oklch(0.50 0.155 27)   | #B84232    | Primary CTAs, key links       |
-| --accent-soft            | oklch(0.955 0.018 27)  | #F5E8E5    | Badge / tag backgrounds       |
-| --accent-soft-foreground | oklch(0.36 0.12 27)    | #7A2E22    | Text on accent-soft           |
-| --foreground             | oklch(0.18 0.012 60)   | #1C1B18    | Body text                     |
-| --muted-foreground       | oklch(0.48 0.012 60)   | #5C5A54    | Secondary text                |
-| --border                 | oklch(0.868 0.008 82)  | #D8D5CE    | Default borders               |
-| --border-strong          | oklch(0.74 0.01 82)    | #B8B4AB    | Emphasis borders              |
-| --success                | oklch(0.42 0.13 155)   | #1A7A4A    | Success states                |
-| --success-soft           | oklch(0.945 0.04 155)  | #DFF2E8    | Success badge bg              |
-| --destructive            | oklch(0.52 0.17 25)    | #B83830    | Errors (distinct from accent) |
-
-
-### Usage rules for agents
-
-- `bg-background` — page root only
-- `bg-card` — cards, modals, popovers
-- `bg-secondary` / `bg-muted` — surfaces, input areas
-- `bg-primary text-primary-foreground` — slate nav bars, code blocks, strong UI
-- `bg-sidebar` — light parchment sidebar surfaces
-- `bg-accent text-accent-foreground` — primary CTAs and active indicators only
-- `bg-accent-soft text-accent-soft-foreground` — badges, tags, status chips
-- `bg-slate-soft text-slate-soft-foreground` — draft/neutral state chips
-- `text-foreground` — all primary body text
-- `text-muted-foreground` — secondary/supporting text
-- `border-border` — default borders
-- `border-border-strong` — emphasis borders, active containers
-- `bg-success-soft text-success-soft-foreground` — live/complete badges
-- `bg-success text-success-foreground` — filled success elements
-
-### Rules agents must follow
-
-- Never hardcode hex values for brand colors in components
-- Always use the Tailwind token names above
-- Never use purple, blue, orange, or gradient accents
-- Reserve `bg-accent` for primary actions — ghost/outline hovers use `muted`
-- The one accent color is muted oxblood — do not introduce secondary accents
-- Active/selected states use accent or accent-soft
-- Success states use success or success-soft
-- Destructive/error states use destructive
-
----
+- Body/control text uses Public Sans through --font-sans.
+- Display headings use Libre Caslon Condensed 500 through --font-serif, font-display or font-heading.
+- Code and terminal content remains monospace with meaningful syntax/status colors.
+- bg-primary/text-primary-foreground is the action pair. bg-accent is a subtle neutral selection/hover surface.
+- Use background/card/popover/muted/foreground/border/ring tokens for corresponding surfaces and focus states.
+- Success, warning, information and destructive colors retain their semantic meaning.
+- Fonts are self-hosted once from the root layout. Do not add Google Fonts requests or per-page font imports.
+- Preserve supported theme switching, contrast, hover, disabled and focus states.
 
 ## File and folder expectations
 

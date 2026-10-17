@@ -1,7 +1,7 @@
 "use client"
 import { useState } from 'react'
 import Link from 'next/link'
-import { Menu, ArrowUpRight, FileCode2, History, Download, LayoutDashboard, Globe2, Users } from 'lucide-react'
+import { Menu, ArrowUpRight, FileCode2, History, Download, ListChecks, Code2, Wrench } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import { AnimatedAIInput } from '@/components/ui/animated-ai-input'
 import { BrandWordmark } from '@/components/ui/brand-wordmark'
@@ -10,9 +10,9 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/s
 import styles from './landing-page.module.css'
 
 const briefs = [
-  { label: 'Team dashboard', icon: LayoutDashboard, prompt: 'Help me create a dashboard for my team. Ask about our tasks and the data we need before building.' },
-  { label: 'Business website', icon: Globe2, prompt: 'Help me create a website for my business. Ask about the business, its audience, and the content first.' },
-  { label: 'Customer portal', icon: Users, prompt: 'Help me plan a customer portal. Start by asking about the users, their tasks, and the information they need.' },
+  { label: 'Plan a project', icon: ListChecks, prompt: 'Help me plan a software project. Ask about the problem, the users, and the requirements before proposing an approach.' },
+  { label: 'Build a feature', icon: Code2, prompt: 'Help me build a software feature. Start by asking what it should do, its inputs and outputs, and how we should verify it.' },
+  { label: 'Create a tool', icon: Wrench, prompt: 'Help me create a software tool for a repetitive task. Ask about the workflow, its inputs, and the expected results first.' },
 ]
 const links = [{ href: '#workflow', label: 'How it works' }, { href: '#saved-work', label: 'Your work' }, { href: '/pricing', label: 'Pricing' }, { href: '/help', label: 'Help' }]
 export function LandingPage() {
@@ -31,8 +31,10 @@ export function LandingPage() {
         </div>
       </header>
       <section className={styles.hero} aria-labelledby="landing-heading">
-        <h1 id="landing-heading">Make your idea<br />something real.</h1>
-        <p className={styles.intro}>Create a website or app with LotusBuild.<br />Start with a brief. Keep shaping it in one workspace.</p>
+        <p className={styles.eyebrow}>AI software workspace</p>
+        <h1 id="landing-heading">A workspace for<br />building software.</h1>
+        <p className={styles.intro}>Plan the approach. Implement the changes.<br /> Review the code and keep building.</p>
+        <div className={styles.heroActions}><button type="button" className={styles.primary} onClick={focusBrief}>Write your brief<ArrowUpRight size={16} /></button><Link href="#workflow" className={styles.secondary}>How it works<ArrowUpRight size={16} /></Link></div>
         <div className={styles.composer}>
             <AnimatedAIInput suggestedPrompt={request.id === 0 ? undefined : request.prompt} promptRequestId={request.id} suggestedMode={request.mode} inputId="project-brief" portalClassName={styles.popover}
             placeholder="Tell LotusBuild what you have in mind…"

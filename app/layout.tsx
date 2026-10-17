@@ -1,15 +1,14 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Manrope } from "next/font/google"
 import { AuthProvider } from "@/contexts/auth-context"
 import { SettingsDialogProvider } from "@/components/settings/settings-dialog"
 import { ConsentAnalytics } from "@/components/consent-analytics"
 import "./globals.css"
-
-const manrope = Manrope({
-  subsets: ["latin"],
-  variable: "--font-manrope",
-})
+import "@fontsource/libre-caslon-condensed/500.css"
+import "@fontsource/public-sans/400.css"
+import "@fontsource/public-sans/500.css"
+import "@fontsource/public-sans/600.css"
+import "@fontsource/public-sans/700.css"
 
 function normalizeSiteUrl(raw?: string): string {
   const value = (raw || "").trim()
@@ -23,22 +22,12 @@ const siteUrl = normalizeSiteUrl(process.env.NEXT_PUBLIC_APP_URL)
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Lotus.build | AI-Powered Full-Stack App Builder",
+    default: "LotusBuild | AI Software Workspace",
     template: "%s | Lotus.build",
   },
   description:
-    "Turn ideas into production-ready web apps with AI. Describe what you want to build in plain English—landing pages, dashboards, SaaS UIs—and get React/TypeScript code, live preview, and one-click deploy to Vercel or Netlify.",
-  keywords: [
-    "AI app builder",
-    "build app with AI",
-    "React code generator",
-    "full-stack app builder",
-    "no-code AI",
-    "web app generator",
-    "Vite React",
-    "deploy to Vercel",
-    "Lotus.build",
-  ],
+    "Build software with LotusBuild. Plan your approach, implement changes, review source files and saved versions, and keep working in one project workspace.",
+  keywords: ["AI software workspace", "software development", "AI coding", "LotusBuild"],
   authors: [{ name: "Lotus.build", url: siteUrl }],
   creator: "Lotus.build",
   publisher: "Lotus.build",
@@ -49,14 +38,14 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: siteUrl,
     siteName: "Lotus.build",
-    title: "Lotus.build | AI-Powered Full-Stack App Builder",
+    title: "LotusBuild | AI Software Workspace",
     description:
-      "Turn ideas into production-ready web apps with AI. Describe what you want—get React code, live preview, and one-click deploy.",
+      "Build software with LotusBuild. Plan your approach, implement changes, review source files and saved versions, and keep working in one project workspace.",
   },
   twitter: {
     card: "summary",
-    title: "Lotus.build | AI-Powered Full-Stack App Builder",
-    description: "Turn ideas into production-ready web apps with AI. Describe what you want—get code, preview, deploy.",
+    title: "LotusBuild | AI Software Workspace",
+    description: "Build software with LotusBuild. Plan your approach, implement changes, review source files and saved versions, and keep working in one project workspace.",
   },
   robots: {
     index: true,
@@ -70,20 +59,7 @@ export const metadata: Metadata = {
     canonical: siteUrl,
   },
   icons: {
-    icon: [
-      {
-        url: "/icon-light-32x32.png",
-        media: "(prefers-color-scheme: light)",
-      },
-      {
-        url: "/icon-dark-32x32.png",
-        media: "(prefers-color-scheme: dark)",
-      },
-      {
-        url: "/icon.svg",
-        type: "image/svg+xml",
-      },
-    ],
+    icon: [{ url: "/Images/lotusbuild-icon.svg", type: "image/svg+xml" }],
     apple: "/apple-icon.png",
   },
   verification: {
@@ -106,30 +82,24 @@ export default function RootLayout({
         "@id": `${siteUrl}/#organization`,
         name: "Lotus.build",
         url: siteUrl,
-        logo: { "@type": "ImageObject", url: `${siteUrl}/icon.svg` },
-        description: "AI-powered full-stack app builder. Turn ideas into production-ready web applications.",
+        logo: { "@type": "ImageObject", url: `${siteUrl}/Images/lotusbuild-icon.svg` },
+        description: "Build software with LotusBuild. Plan your approach, implement changes, review source files and saved versions, and keep working in one project workspace.",
       },
       {
         "@type": "WebSite",
         "@id": `${siteUrl}/#website`,
         url: siteUrl,
         name: "Lotus.build",
-        description: "Build full-stack web apps with AI. Describe your idea—get React code, live preview, and deploy.",
+        description: "Build software with LotusBuild. Plan your approach, implement changes, review source files and saved versions, and keep working in one project workspace.",
         publisher: { "@id": `${siteUrl}/#organization` },
         inLanguage: "en-US",
-        potentialAction: {
-          "@type": "SearchAction",
-          target: { "@type": "EntryPoint", urlTemplate: `${siteUrl}/?q={search_term_string}` },
-          "query-input": "required name=search_term_string",
-        },
       },
       {
         "@type": "SoftwareApplication",
         name: "Lotus.build",
         applicationCategory: "DeveloperApplication",
         operatingSystem: "Web",
-        description: "AI-powered app builder. Generate React/TypeScript apps from a prompt, preview in-browser, deploy to Vercel or Netlify.",
-        offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+        description: "Build software with LotusBuild. Plan your approach, implement changes, review source files and saved versions, and keep working in one project workspace.",
         url: siteUrl,
       },
     ],
@@ -138,16 +108,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <link
-          href="https://fonts.googleapis.com/css2?family=Cal+Sans&family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap"
-          rel="stylesheet"
-        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body className={`${manrope.variable} font-sans antialiased bg-background text-foreground overflow-x-hidden`}>
+      <body className="font-sans antialiased bg-background text-foreground overflow-x-hidden">
         <AuthProvider>
           <SettingsDialogProvider>
             {children}

@@ -1,18 +1,18 @@
-import { History, Rocket, Smartphone } from "lucide-react"
+import { History, Code2, ListChecks } from "lucide-react"
 import { LotusLogo } from "@/components/ui/lotus-logo"
 
 const features = [
   {
-    icon: Smartphone,
-    label: "Live preview on web and mobile as you build",
+    icon: ListChecks,
+    label: "Plan your approach before implementing changes",
   },
   {
-    icon: Rocket,
-    label: "One-click deploy to Vercel or Netlify",
+    icon: Code2,
+    label: "Read your saved source files in the workspace",
   },
   {
     icon: History,
-    label: "Full version history — roll back any change",
+    label: "Review saved versions and compare changes",
   },
 ]
 
@@ -21,11 +21,11 @@ export function AuthMarketingPanel() {
     <div className="hidden max-w-md flex-1 lg:block">
       <LotusLogo size={40} />
       <h1 className="mt-6 font-display text-4xl font-semibold leading-[1.1] tracking-[-0.02em] text-foreground xl:text-5xl">
-        Turn your idea into a working product.
+        Keep your software work moving.
       </h1>
       <p className="mt-4 text-base leading-7 text-muted-foreground">
-        Describe what you want built. Lotus generates the code, a live preview,
-        and a path to deploy.
+        Describe the software you want to build. Plan the approach, implement
+        changes, and review your saved work in one workspace.
       </p>
 
       <ul className="mt-8 space-y-4 border-t border-border pt-8">

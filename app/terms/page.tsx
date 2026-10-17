@@ -227,18 +227,15 @@ export default function TermsPage() {
             <SectionAnchor id="services" />
             <SectionTitle>2. Description of Services</SectionTitle>
             <p>
-              Lotus.build is an AI-powered web application builder that enables users to generate,
-              iterate, and deploy production-ready websites and web applications using natural
-              language prompts. The Service includes, but is not limited to:
+              LotusBuild is an AI software workspace for planning projects, implementing changes,
+              and reviewing saved work using natural language prompts. The Service includes:
             </p>
             <ul className="mt-4 space-y-2 list-none pl-0">
               {[
-                "AI-assisted code generation for websites, landing pages, dashboards, and web applications",
-                "Live preview and sandboxed execution environments for generated code",
-                "Integration with third-party services including Supabase (database), GitHub (version control), Netlify and Vercel (deployment), and Stripe (payments)",
-                "A computer-agent feature that autonomously plans and builds multi-page applications",
-                "Team workspaces, project management, and collaboration tools",
-                "API access for programmatic interaction with Lotus.build capabilities",
+                "AI-assisted software planning and implementation",
+                "Project conversations and session activity",
+                "Source-file review and saved-version comparisons",
+                "Saved project downloads",
               ].map((item) => (
                 <li key={item} className="flex items-start gap-2.5">
                   <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground" />

@@ -100,7 +100,7 @@ const PROJECT_STATUS_META: Record<ProjectStatus, { dot: string; label: string }>
 }
 
 function projectKindLabel(kind?: ProjectSummary["kind"]): string {
-  return kind === "computer" ? "Computer agent" : "Website build"
+  return kind === "computer" ? "Computer agent" : "Software project"
 }
 
 function projectAccessibleSummary(project: ProjectSummary, max = 72): string {
@@ -138,7 +138,7 @@ function TaskRow({
             {title}
           </span>
           <span className="mt-0.5 block truncate text-[11px] leading-snug text-muted-foreground">
-            {p.kind === "computer" ? "Computer agent" : "Website build"} · {status.label}
+            {p.kind === "computer" ? "Computer agent" : "Software project"} · {status.label}
           </span>
         </span>
       </button>
@@ -300,7 +300,7 @@ function FullBuildsPanel({
                     {(build.prompt || "").trim() || "Untitled build"}
                   </p>
                   <div className="mt-auto flex items-center justify-between gap-3 pt-3 text-[11px] text-muted-foreground">
-                    <span>{build.kind === "computer" ? "Computer agent" : "Website build"}</span>
+                    <span>{build.kind === "computer" ? "Computer agent" : "Software project"}</span>
                     <span className="rounded-full bg-slate-soft px-2 py-0.5 text-[10.5px] font-medium text-slate-soft-foreground">
                       {status.label}
                     </span>
@@ -1011,7 +1011,7 @@ export function ProjectsWorkspace() {
                           className="animate-in fade-in slide-in-from-bottom-3 fill-mode-both mx-auto mt-5 max-w-[34rem] text-[14px] leading-7 text-muted-foreground duration-700 sm:mt-6 sm:text-base"
                           style={{ animationDelay: "140ms" }}
                         >
-                          Describe the site or app you need. Lotus turns the brief into a live workspace you can keep refining.
+                          Describe the software you want to build. Plan the approach, implement changes, and review your work in one workspace.
                         </p>
                       </div>
 

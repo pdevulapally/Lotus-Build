@@ -96,7 +96,10 @@ export class BackendClient {
   private readonly token: (forceRefresh?: boolean) => Promise<string>
   private readonly fetcher: typeof fetch
   constructor(options: { origin: string; token: (forceRefresh?: boolean) => Promise<string>; fetch?: typeof fetch }) {
-    this.origin = backendOrigin(options.origin); this.token = options.token; this.fetcher = options.fetch ?? fetch
+    this.origin = backendOrigin(options.origin); this.token = options.token
+    const fetcher = options.fetch ?? fetch
+    // Native browser fetch must not receive this BackendClient as its receiver.
+    this.fetcher = (...args) => fetcher(...args)
   }
 
   private async response(path: string, options: { method?: string; body?: unknown; key?: string; signal?: AbortSignal; after?: string; public?: true } = {}) {
