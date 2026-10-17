@@ -4,35 +4,42 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { Banner } from '@astryxdesign/core/Banner'
-import { AlertCircle, CircleAlert, X } from 'lucide-react'
+import { AlertCircle, Gauge, X } from 'lucide-react'
 import { presentRequestError } from '@/lib/backend/error-presentation'
 import styles from './request-error.module.css'
 
 export function RequestError({ error, planName, children, announce = true }: { error: Error; planName?: string; children?: ReactNode; announce?: boolean }) {
   const message = presentRequestError(error, planName)
+  const quota = message.quota
+  const used = quota ? quota.consumed + quota.reserved : 0
+  const consumedWidth = quota && quota.limit > 0 ? Math.min(100, quota.consumed / quota.limit * 100) : 0
+  const reservedWidth = quota && quota.limit > 0 ? Math.min(100 - consumedWidth, quota.reserved / quota.limit * 100) : 0
   return (
     <div data-astryx-theme="neutral" className={styles.theme}>
       <Banner
-        status={message.isQuota ? 'warning' : 'error'}
+        status={message.isQuota ? 'info' : 'error'}
         role={announce ? 'alert' : undefined}
-        title={message.title}
-        icon={message.isQuota ? <CircleAlert size={20} /> : <AlertCircle size={20} />}
-        description={<div className={styles.description}>
-          <p>{message.description}</p>
-          {message.quota && <dl className={styles.usage}>
-            <div><dt>Used</dt><dd>{message.quota.consumed.toLocaleString()}</dd></div>
-            <div><dt>Reserved</dt><dd>{message.quota.reserved.toLocaleString()}</dd></div>
-            <div><dt>Plan limit</dt><dd>{message.quota.limit.toLocaleString()}</dd></div>
-          </dl>}
-          {message.quota && message.quota.reserved > 0 && <p className={styles.note}>Reserved usage is held for work in progress.</p>}
-        </div>}
+        title={<div className={styles.heading}><span>{message.title}</span>{message.isQuota && planName && <span className={styles.plan}>{planName}</span>}</div>}
+        icon={message.isQuota ? <Gauge size={21} strokeWidth={1.7} /> : <AlertCircle size={21} strokeWidth={1.7} />}
         collapsible={false}
         className={styles.banner}
       >
-        {(message.isQuota || children) && <div className={styles.actions}>
-          {message.isQuota && <Link href="/pricing" className={styles.primary}>View plans</Link>}
-          {children}
-        </div>}
+        <div className={styles.body}>
+          <p className={styles.description}>{message.description}</p>
+          {quota && <div className={styles.usage}>
+            <div className={styles.usageHeading}><span>{quota.label}</span><span className={styles.amount}><strong>{used.toLocaleString()}</strong><span> / {quota.limit.toLocaleString()}</span></span></div>
+            <div className={styles.track} aria-hidden="true"><span className={styles.consumed} style={{ width: `${consumedWidth}%` }} /><span className={styles.reserved} style={{ width: `${reservedWidth}%` }} /></div>
+            <dl className={styles.legend}>
+              <div><dt><span className={styles.usedDot} aria-hidden />Used</dt><dd>{quota.consumed.toLocaleString()}</dd></div>
+              <div><dt><span className={styles.reservedDot} aria-hidden />Reserved</dt><dd>{quota.reserved.toLocaleString()}</dd></div>
+            </dl>
+            {quota.reserved > 0 && <p className={styles.note}>Reserved usage is held for work in progress.</p>}
+          </div>}
+          {(message.isQuota || children) && <div className={styles.actions}>
+            {message.isQuota && <Link href="/pricing" className={styles.primary}>View plans</Link>}
+            {children}
+          </div>}
+        </div>
       </Banner>
     </div>
   )
