@@ -9,7 +9,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { currentBackend } from "@/lib/backend/browser";
 import { createBuild, pendingBuild } from "@/lib/backend/create-build";
 import { resolveModelSelection } from "@/lib/backend/model-selection";
-import { RequestErrorDialog } from "@/components/ui/request-error";
+import { RequestErrorNotice } from "@/components/ui/request-error";
 
 import {
   COMPUTER_SESSION_MODES,
@@ -628,11 +628,11 @@ export function AnimatedAIInput({
           {" "}for new line
         </p>
       )}
-      <RequestErrorDialog error={submitError} planName={account?.plan.name} onClose={() => setSubmitError(null)} restoreFocus={() => textareaRef.current?.focus()}>
+      <RequestErrorNotice error={submitError} planName={account?.plan.name} onClose={() => setSubmitError(null)} restoreFocus={() => textareaRef.current?.focus()}>
         {mode === 'create' && user && <button type="button" onClick={() => {
           sessionStorage.removeItem(`lotus-current-build:${user.uid}`); setSubmitError(null);
         }}>Discard pending request</button>}
-      </RequestErrorDialog>
+      </RequestErrorNotice>
     </div>
   );
 }

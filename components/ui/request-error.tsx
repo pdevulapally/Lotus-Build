@@ -1,10 +1,10 @@
 "use client"
 
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { Banner } from '@astryxdesign/core/Banner'
 import { AlertCircle, CircleAlert, X } from 'lucide-react'
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { presentRequestError } from '@/lib/backend/error-presentation'
 import styles from './request-error.module.css'
 
@@ -38,17 +38,17 @@ export function RequestError({ error, planName, children, announce = true }: { e
   )
 }
 
-export function RequestErrorDialog({ error, planName, onClose, restoreFocus, children }: {
+export function RequestErrorNotice({ error, planName, onClose, restoreFocus, children }: {
   error: Error | null; planName?: string; onClose: () => void; restoreFocus?: () => void; children?: ReactNode
 }) {
-  return <Dialog open={error !== null} onOpenChange={(open) => { if (!open) onClose() }}>
-    <DialogContent showCloseButton={false} className={styles.dialog} onCloseAutoFocus={(event) => {
-      if (restoreFocus) { event.preventDefault(); restoreFocus() }
-    }}>
-      <DialogTitle className="sr-only">{error ? presentRequestError(error).title : 'Request error'}</DialogTitle>
-      <DialogDescription className="sr-only">Review the request details below. Close this notice to return to your prompt.</DialogDescription>
-      {error && <RequestError error={error} planName={planName} announce={false}>{children}</RequestError>}
-      <DialogClose asChild><button type="button" aria-label="Close request notice" className={styles.close}><X size={18} aria-hidden /></button></DialogClose>
-    </DialogContent>
-  </Dialog>
+  const [host, setHost] = useState<HTMLElement | null>(null)
+  useEffect(() => { setHost(document.body) }, [])
+  if (!error || !host) return null
+  const dismiss = () => { onClose(); restoreFocus?.() }
+  return createPortal(<aside aria-label="Request notification" className={styles.notice} onKeyDown={(event) => {
+    if (event.key === 'Escape') { event.stopPropagation(); dismiss() }
+  }}>
+    <RequestError error={error} planName={planName}>{children}</RequestError>
+    <button type="button" aria-label="Dismiss request notification" className={styles.close} onClick={dismiss}><X size={18} aria-hidden /></button>
+  </aside>, host)
 }
