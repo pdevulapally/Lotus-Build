@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/auth-context";
 import { currentBackend } from "@/lib/backend/browser";
 import { createBuild, pendingBuild } from "@/lib/backend/create-build";
+import { resolveModelSelection } from "@/lib/backend/model-selection";
 
 import {
   COMPUTER_SESSION_MODES,
@@ -208,14 +209,13 @@ export function AnimatedAIInput({
   footerHintsClassName,
 }: AnimatedAIInputProps) {
   const router = useRouter();
-  const { user, userData, account, accountError } = useAuth();
+  const { user, account, accountError } = useAuth();
   const [submitError, setSubmitError] = useState<string | null>(null);
   const submittingRef = useRef(false);
 
   const [value, setValue] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [sessionMode, setSessionMode] = useState<ComputerSessionMode>("build");
-  const [autoMode, setAutoMode] = useState(true);
   const [wasLoading, setWasLoading] = useState(false);
   const [selectedModel, setSelectedModel] = useState("");
   const [isListening, setIsListening] = useState(false);
@@ -230,9 +230,10 @@ export function AnimatedAIInput({
     maxHeight: compact ? (isSlimCompact ? 160 : 200) : 320,
   });
 
-  const isPaidUser = userData?.planId && userData.planId !== "free";
   const models = account?.models.map((model) => model.id) ?? [];
-  const effectiveModel = mode === 'chat' && initialModel ? initialModel : models.includes(selectedModel) ? selectedModel : '';
+  const effectiveModel = mode === 'chat' && initialModel
+    ? initialModel
+    : resolveModelSelection(models, selectedModel);
   const displayModelLabel = account?.models.find((model) => model.id === effectiveModel)?.name || effectiveModel || 'Select model';
   const selectedSessionMode = getComputerSessionModeConfig(sessionMode);
 
@@ -253,7 +254,6 @@ export function AnimatedAIInput({
   }, [suggestedPrompt, promptRequestId, textareaRef, adjustHeight]);
   useEffect(() => { if (suggestedMode) setSessionMode(suggestedMode); }, [suggestedMode, promptRequestId]);
 
-  useEffect(() => { if (!isPaidUser) setAutoMode(true); }, [isPaidUser]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -267,7 +267,6 @@ export function AnimatedAIInput({
 
   useEffect(() => {
     if (!initialModel) return;
-    setAutoMode(false);
     setSelectedModel(initialModel);
   }, [initialModel]);
 
@@ -307,7 +306,7 @@ export function AnimatedAIInput({
     submittingRef.current = true;
     try {
       if (!user || !account) throw new Error(accountError || 'Account details are not available.');
-      if (!effectiveModel) throw new Error('Choose one of the models available on your plan.');
+      if (!effectiveModel) throw new Error(models.length ? 'The selected model is no longer available. Choose another model.' : 'No models are currently available for your account. Refresh your account details and try again.');
       if (sessionMode !== 'build' && sessionMode !== 'plan') throw new Error('Choose Build or Plan.');
       const data = await createBuild(currentBackend(), sessionStorage, { uid: user.uid, prompt: value.trim(), model: effectiveModel, mode: sessionMode });
       sessionStorage.removeItem(draftKey);
@@ -522,7 +521,6 @@ export function AnimatedAIInput({
                         <p className="text-xs text-muted-foreground">From your current plan</p>
                       </div>
                     </div>
-                    {autoMode && <Check className="h-3.5 w-3.5 text-foreground" />}
                   </div>
                 </DropdownMenuItem>
 
@@ -531,13 +529,12 @@ export function AnimatedAIInput({
                 {models.map((model) => {
                   const meta = getModelMeta(model);
                   const isLocked = false;
-                  const isSelected = !autoMode && selectedModel === model;
+                  const isSelected = effectiveModel === model;
                   return (
                     <DropdownMenuItem
                       key={model}
                       onSelect={() => {
                         if (isLocked) { router.push("/pricing"); return; }
-                        setAutoMode(false);
                         setSelectedModel(model);
                       }}
                       className="rounded-md px-3 py-2.5 focus:bg-muted"

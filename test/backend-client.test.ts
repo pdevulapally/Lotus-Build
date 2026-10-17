@@ -4,6 +4,16 @@ import { BackendClient, BackendError, backendOrigin, readEvents, type SessionEve
 import { createBuild } from '../lib/backend/create-build'
 import { sendMessage } from '../lib/backend/send-message'
 import { authErrorMessage } from '../lib/auth/errors'
+import { resolveModelSelection } from '../lib/backend/model-selection'
+
+test('model defaults follow the account catalog without replacing explicit or pending choices', () => {
+  assert.equal(resolveModelSelection([], ''), '')
+  assert.equal(resolveModelSelection(['allowed-a', 'allowed-b'], ''), 'allowed-a')
+  assert.equal(resolveModelSelection(['allowed-a', 'allowed-b'], 'allowed-b'), 'allowed-b')
+  assert.equal(resolveModelSelection(['allowed-a'], 'pending-unavailable'), '')
+  assert.equal(resolveModelSelection([], 'allowed-b'), '')
+  assert.equal(resolveModelSelection(['allowed-b', 'allowed-a'], 'allowed-a'), 'allowed-a')
+})
 
 const createdAt = '2026-10-17T12:00:00.000Z'
 const project = { id: 'p1', name: 'App', platform: 'web', status: 'draft', publicPreviewEnabled: false, createdAt }
