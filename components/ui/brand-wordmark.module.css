@@ -7,3 +7,7 @@
 :global(.dark) .wordmark img { filter: invert(1); mix-blend-mode: screen; }
 
 .wordmark.compact { width: 104px; height: 24px; }
+.wordmark.nav { width: 136px; height: 32px; }
+
+@media(max-width:800px) { .wordmark.nav { width: 126px; height: 30px; } }
+@media(max-width:360px) { .wordmark.nav { width: 116px; height: 27px; } }
