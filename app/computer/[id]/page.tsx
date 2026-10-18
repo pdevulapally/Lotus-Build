@@ -45,16 +45,14 @@ import {
   GitBranch,
   KeyRound,
   Loader2,
-  Maximize2,
-  Minimize2,
   Rocket,
   Search,
-  X,
 } from "lucide-react"
 
 
 
 import { AnimatedAIInput } from "@/components/ui/animated-ai-input"
+import { CloseIcon, CollapseIcon, ExpandIcon } from "@/components/ui/lotus-icons"
 
 
 
@@ -553,13 +551,13 @@ export default function ComputerPage() {
           className={cn(
           "m-2 mt-0 flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card",
         )}>
-          <div className="flex min-h-12 shrink-0 items-center justify-between gap-2 border-b border-border/50 px-2">
+          <div className="flex min-h-14 shrink-0 items-center justify-between gap-2 border-b border-border/50 px-3">
             <WorkspaceViewTabs activeTab={activeTab} onChange={setActiveTab} hasBrowser={hasBrowser} hasResearch={hasResearch} />
             <div className="flex shrink-0 items-center gap-1">
-              <button type="button" aria-label={workspacePanel === "expanded" ? "Restore split view" : "Expand preview panel"} aria-pressed={workspacePanel === "expanded"} onClick={() => setWorkspacePanel(workspacePanel === "expanded" ? "split" : "expanded")} className="hidden size-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:inline-flex">
-                {workspacePanel === "expanded" ? <Minimize2 className="size-4" aria-hidden /> : <Maximize2 className="size-4" aria-hidden />}
+              <button type="button" aria-label={workspacePanel === "expanded" ? "Restore split view" : "Expand preview panel"} aria-pressed={workspacePanel === "expanded"} onClick={() => setWorkspacePanel(workspacePanel === "expanded" ? "split" : "expanded")} className="hidden size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:inline-flex">
+                {workspacePanel === "expanded" ? <CollapseIcon className="size-4" /> : <ExpandIcon className="size-4" />}
               </button>
-              <button type="button" aria-label="Close preview panel" onClick={() => { setWorkspacePanel("closed"); document.getElementById("computer-workspace-toggle")?.focus() }} className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><X className="size-4" aria-hidden /></button>
+              <button type="button" aria-label="Close preview panel" onClick={() => { setWorkspacePanel("closed"); document.getElementById("computer-workspace-toggle")?.focus() }} className="inline-flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><CloseIcon className="size-4" /></button>
             </div>
           </div>
           {/* Workspace content — fills panel edge to edge */}

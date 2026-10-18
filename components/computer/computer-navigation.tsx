@@ -3,8 +3,9 @@
 import { useEffect, useId, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ChevronDown, CreditCard, FolderOpen, LogOut, Settings, SquarePen } from "lucide-react"
+import { ChevronDown, FolderOpen, SquarePen } from "lucide-react"
 import { SidebarToggleIcon } from "@/components/ui/sidebar-toggle-icon"
+import { BillingIcon, ChevronUpDownIcon, SettingsIcon, SignOutIcon } from "@/components/ui/lotus-icons"
 import { useAuth } from "@/contexts/auth-context"
 import { useProjectList } from "@/hooks/use-project-list"
 import { currentBackend } from "@/lib/backend/browser"
@@ -94,19 +95,30 @@ export function ComputerNavigation({ currentProjectId, mobileOpen, onMobileOpenC
       </div>
     </>}
     <footer className="mt-auto shrink-0 space-y-1 px-2 pb-3">
-      <button type="button" onClick={() => { onMobileOpenChange(false); openSettings() }} aria-label="Settings" className={cn("flex min-h-11 w-full items-center gap-2.5 whitespace-nowrap rounded-lg px-3 text-[13px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", compact && "justify-center px-0")}><Settings className="size-4 shrink-0" aria-hidden />{!compact && "Settings"}</button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button type="button" aria-label={`Open account menu for ${displayName}`} className={cn("flex min-h-12 w-full items-center gap-2.5 whitespace-nowrap rounded-lg px-2 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", compact && "justify-center px-0")}>
+          <button type="button" aria-label={`Open account menu for ${displayName}`} className={cn("flex min-h-12 w-full items-center gap-2.5 whitespace-nowrap rounded-xl px-2 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", compact && "justify-center px-0")}>
             <Avatar className="size-7 shrink-0"><AvatarImage src={userData?.photoURL ?? undefined} /><AvatarFallback className="bg-muted text-xs">{displayName.slice(0, 1).toUpperCase()}</AvatarFallback></Avatar>
-            {!compact && <span className="min-w-0 flex-1 truncate text-[13px]">{displayName}</span>}
+            {!compact && <>
+              <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">{displayName}</span>
+              <ChevronUpDownIcon className="size-3.5 shrink-0 text-muted-foreground" />
+            </>}
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent side="top" align="start" className={cn("w-56 rounded-xl border-border bg-popover p-1.5 text-popover-foreground", theme === "dark" && "dark")}>
-          {account && <p className="px-3 py-2 text-xs text-muted-foreground">{account.plan.name} plan</p>}
-          <DropdownMenuItem onSelect={() => router.push("/pricing")} className="min-h-10 gap-2 rounded-lg"><CreditCard className="size-4" />Billing &amp; plans</DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => void signOut()} className="min-h-10 gap-2 rounded-lg text-destructive focus:text-destructive"><LogOut className="size-4" />Sign out</DropdownMenuItem>
+        <DropdownMenuContent side="top" align="start" className={cn("w-64 rounded-2xl border-border bg-popover p-1.5 text-popover-foreground shadow-[0_16px_48px_-16px_rgb(0_0_0/0.3)]", theme === "dark" && "dark")}>
+          <div className="flex min-w-0 items-center gap-2.5 px-2.5 py-2">
+            <Avatar className="size-9 shrink-0"><AvatarImage src={userData?.photoURL ?? undefined} /><AvatarFallback className="bg-muted text-xs">{displayName.slice(0, 1).toUpperCase()}</AvatarFallback></Avatar>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] font-semibold">{displayName}</p>
+              {userData?.email && <p className="truncate text-xs text-muted-foreground">{userData.email}</p>}
+            </div>
+            {account && <span className="shrink-0 rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">{account.plan.name}</span>}
+          </div>
+          <DropdownMenuSeparator className="mx-1 my-1.5" />
+          <DropdownMenuItem onSelect={() => { onMobileOpenChange(false); openSettings() }} className="min-h-10 gap-2.5 rounded-xl px-2.5 text-[13px] font-medium"><SettingsIcon className="size-4 text-muted-foreground" />Settings</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => { onMobileOpenChange(false); router.push("/pricing") }} className="min-h-10 gap-2.5 rounded-xl px-2.5 text-[13px] font-medium"><BillingIcon className="size-4 text-muted-foreground" />Billing &amp; plans</DropdownMenuItem>
+          <DropdownMenuSeparator className="mx-1 my-1.5" />
+          <DropdownMenuItem onSelect={() => void signOut()} className="min-h-10 gap-2.5 rounded-xl px-2.5 text-[13px] font-medium text-destructive focus:bg-destructive/10 focus:text-destructive"><SignOutIcon className="size-4 text-destructive" />Sign out</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </footer>
