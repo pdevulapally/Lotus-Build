@@ -15,7 +15,7 @@ function SummaryRow(props: { label: string; value?: string; muted?: boolean; mul
 
   return (
     <div className="py-3">
-      <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
       <p
         className={cn(
           "mt-1 text-sm leading-6",
@@ -115,7 +115,7 @@ export function CreationBlueprintPanel(props: {
   return (
     <section className="overflow-hidden rounded-2xl border border-border bg-card">
       <div className="border-b border-border px-5 pb-4 pt-5">
-        <h2 className="text-base font-semibold tracking-tight text-foreground">Version-one build plan</h2>
+        <h2 className="text-xl font-semibold tracking-[-0.03em] text-foreground">Version-one build plan</h2>
         <p className="mt-1 text-sm leading-6 text-muted-foreground">{introCopy}</p>
       </div>
 
@@ -126,7 +126,7 @@ export function CreationBlueprintPanel(props: {
       </div>
 
       <div className="border-t border-border px-5 py-4">
-        <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Implementation sequence</p>
+        <p className="text-xs font-semibold text-muted-foreground">Implementation sequence</p>
         <ol className="mt-3 space-y-3">
           {planSteps.map((step, index) => (
             <li key={step.title} className="flex gap-3">
@@ -144,7 +144,7 @@ export function CreationBlueprintPanel(props: {
 
       {blockingMessage ? (
         <div className="border-t border-border px-5 py-3">
-          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Needs your input</p>
+          <p className="text-xs font-semibold text-muted-foreground">Needs your input</p>
           <p className="mt-1 text-sm leading-6 text-foreground">{blockingMessage}</p>
         </div>
       ) : null}

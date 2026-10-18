@@ -5,9 +5,9 @@ import { BlueprintStatusBadge } from "@/components/project/blueprint-status-badg
 
 export function BlueprintSectionCard({ section }: { section: BlueprintSection }) {
   return (
-    <article className="rounded-[1.5rem] border border-border bg-card p-4 shadow-sm">
+    <article className="rounded-2xl border border-border bg-card p-4">
       <div className="mb-3">
-        <h3 className="text-sm font-semibold text-foreground">{section.title}</h3>
+        <h3 className="text-base font-semibold tracking-[-0.03em] text-foreground">{section.title}</h3>
         {section.description ? (
           <p className="mt-1 text-xs leading-5 text-muted-foreground">{section.description}</p>
         ) : null}
@@ -15,10 +15,10 @@ export function BlueprintSectionCard({ section }: { section: BlueprintSection })
 
       <div className="space-y-3">
         {section.items.map((item) => (
-          <div key={item.key} className="rounded-2xl border border-border bg-muted/80 p-3">
+          <div key={item.key} className="border-l border-border p-3">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                <p className="text-xs font-medium text-muted-foreground">
                   {item.label}
                 </p>
                 <p className="mt-1 text-sm leading-6 text-foreground">{item.value}</p>

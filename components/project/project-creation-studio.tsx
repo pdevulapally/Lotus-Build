@@ -31,7 +31,7 @@ function PlanningHeader(props: {
   const { projectLabel, onBack } = props
 
   return (
-    <header className="lotus-glass-strong sticky top-0 z-20 border-b border-border">
+    <header className="sticky top-0 z-20 border-b border-border bg-background">
       <div className="mx-auto max-w-4xl px-4 py-3 sm:px-6 sm:py-4">
         <div className="flex items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
@@ -46,7 +46,7 @@ function PlanningHeader(props: {
               </button>
             ) : null}
             <div className="min-w-0">
-              <p className="truncate text-base font-medium text-foreground">{projectLabel}</p>
+              <p className="truncate text-base font-semibold tracking-[-0.03em] text-foreground">{projectLabel}</p>
             </div>
           </div>
 
@@ -132,7 +132,7 @@ function SuggestedReplies(props: {
                   type="button"
                   onClick={() => onToggleGuidedOption(option.label)}
                   className={cn(
-                    "rounded-full border px-4 py-2 text-sm transition-all",
+                    "rounded-xl border px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
                     selected
                       ? "border-primary bg-primary text-primary-foreground"
                       : "border-border bg-card text-foreground hover:border-border-strong hover:text-foreground"
@@ -159,7 +159,7 @@ function SuggestedReplies(props: {
               type="button"
               onClick={onSubmitSelection}
               disabled={isSubmitting}
-              className="rounded-full bg-accent px-5 py-2 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent/90 disabled:opacity-50"
+              className="rounded-xl bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
             >
               {isSubmitting ? "Continuing..." : "Continue â†’"}
             </button>
@@ -195,9 +195,9 @@ function ChatComposer(props: {
   }
 
   return (
-    <div className="lotus-glass-strong fixed inset-x-0 bottom-0 z-20 border-t border-border">
+    <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background">
       <div className="mx-auto max-w-4xl px-4 py-3 sm:px-6 sm:py-4">
-        <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+        <div className="relative overflow-hidden rounded-2xl border border-border bg-card focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/15">
           <Textarea
             ref={textareaRef}
             value={draft}
@@ -211,7 +211,7 @@ function ChatComposer(props: {
             type="button"
             onClick={onSubmit}
             disabled={!canSubmit || !canEdit || isSubmitting}
-            className="absolute bottom-3 right-3 h-8 rounded-lg bg-accent px-3 text-xs font-medium text-accent-foreground disabled:opacity-40"
+            className="absolute bottom-3 right-3 h-8 rounded-xl bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
             {isSubmitting ? "..." : submitLabel}
           </Button>
@@ -326,7 +326,7 @@ function ConversationThread(props: {
                     type="button"
                     onClick={() => void onBuildFromPlan()}
                     disabled={!canEdit || isDisabled}
-                    className="h-10 rounded-lg bg-accent px-4 text-sm font-medium text-accent-foreground hover:bg-accent/90 disabled:opacity-50"
+                    className="h-10 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                   >
                     Build from plan
                   </Button>
@@ -335,7 +335,7 @@ function ConversationThread(props: {
                     variant="outline"
                     onClick={onRefine}
                     disabled={!canEdit || isDisabled}
-                    className="h-10 rounded-lg border-border-strong bg-card px-4 text-sm font-medium text-foreground hover:bg-muted"
+                    className="h-10 rounded-xl border-border bg-card px-4 text-sm font-medium text-foreground hover:bg-muted"
                   >
                     Refine in chat
                   </Button>

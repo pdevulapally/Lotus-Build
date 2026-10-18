@@ -221,7 +221,7 @@ export function ComputerTopBar({
 
   return (
     <>
-      <header className="lotus-glass relative z-30 shrink-0" aria-label="Computer workspace header">
+      <header className="border-b border-border bg-background relative z-30 shrink-0" aria-label="Computer workspace header">
         <div className="relative flex h-[52px] w-full items-center">
           {onToggleChatPanel && (
             <button
@@ -229,7 +229,7 @@ export function ComputerTopBar({
               onClick={onToggleChatPanel}
               aria-label={chatPanelCollapsed ? "Show chat panel" : "Collapse chat panel"}
               className={cn(
-                "absolute top-1/2 z-20 hidden h-8 w-8 -translate-y-1/2 shrink-0 items-center justify-center rounded-lg text-muted-foreground/55 transition-all duration-150 hover:bg-muted hover:text-foreground active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35 sm:flex",
+                "absolute top-1/2 z-20 hidden h-8 w-8 -translate-y-1/2 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-all duration-150 hover:bg-muted hover:text-foreground active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:flex",
                 chatPanelCollapsed
                   ? "left-3"
                   : "left-[calc(32%-1.75rem)] md:left-[calc(31%-1.75rem)] lg:left-[316px] xl:left-[346px] 2xl:left-[376px]",
@@ -246,7 +246,7 @@ export function ComputerTopBar({
                 <input
                   value={titleDraft}
                   onChange={(e) => onTitleDraftChange(e.target.value)}
-                  className="lotus-glass-control w-[44vw] rounded-lg border px-2.5 py-1 text-[13px] font-medium text-foreground outline-none focus:border-ring"
+                  className="bg-card w-[44vw] rounded-lg border px-2.5 py-1 text-[13px] font-medium text-foreground outline-none focus:border-ring"
                   placeholder="Session title"
                   aria-label="Edit session title"
                   autoFocus
@@ -262,16 +262,16 @@ export function ComputerTopBar({
                       <span className="min-w-0 truncate text-[13px] font-medium tracking-[-0.01em] text-foreground">
                         {sessionTitle}
                       </span>
-                      <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground/35 transition-transform duration-150 group-data-[state=open]:rotate-180" />
+                      <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground transition-transform duration-150 group-data-[state=open]:rotate-180" />
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
                     align="center"
                     sideOffset={10}
-                    className={themedGlassSurface("lotus-glass-strong w-[calc(100vw-1.5rem)] max-w-[22rem] overflow-hidden rounded-xl border border-border/60 p-0")}
+                    className={themedGlassSurface("bg-popover text-popover-foreground w-[calc(100vw-1.5rem)] max-w-[22rem] overflow-hidden rounded-xl border border-border/70 p-0")}
                   >
                     {/* User profile */}
-                    <div className="flex items-center gap-3 border-b border-border/40 px-3.5 py-3">
+                    <div className="flex items-center gap-3 border-b border-border/70 px-3.5 py-3">
                       <Avatar className="h-9 w-9 shrink-0 rounded-xl">
                         <AvatarImage src={userData?.photoURL ?? undefined} className="rounded-xl object-cover" />
                         <AvatarFallback className="rounded-xl bg-muted text-[13px] font-bold text-foreground">
@@ -286,7 +286,7 @@ export function ComputerTopBar({
                       </div>
                     </div>
                     {contextUsage && (
-                      <div className="px-3.5 py-2.5 border-b border-border/40">
+                      <div className="px-3.5 py-2.5 border-b border-border/70">
                         <Context
                           maxTokens={contextUsage.maxTokens}
                           modelId="anthropic:claude-sonnet-4-6"
@@ -354,7 +354,7 @@ export function ComputerTopBar({
               onClick={() => setSidebarOpen(true)}
               aria-label="Open sidebar"
               aria-expanded={sidebarOpen}
-              className="mr-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground/55 transition-all duration-150 hover:bg-muted hover:text-foreground active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
+              className="mr-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-all duration-150 hover:bg-muted hover:text-foreground active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
             >
               <PanelLeft className="h-[15px] w-[15px]" />
             </button>
@@ -366,7 +366,7 @@ export function ComputerTopBar({
                   <input
                     value={titleDraft}
                     onChange={(e) => onTitleDraftChange(e.target.value)}
-                    className="lotus-glass-control min-w-0 flex-1 rounded-lg border px-2.5 py-1 text-[13px] font-medium text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                    className="bg-card min-w-0 flex-1 rounded-lg border px-2.5 py-1 text-[13px] font-medium text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
                     placeholder="Session title"
                     aria-label="Edit session title"
                     autoFocus
@@ -397,23 +397,23 @@ export function ComputerTopBar({
                   <DropdownMenuTrigger asChild>
                     <button
                       type="button"
-                      className="group -mx-1 flex w-full min-w-0 items-center gap-1.5 rounded-lg px-1 py-1.5 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20"
+                      className="group -mx-1 flex w-full min-w-0 items-center gap-1.5 rounded-lg px-1 py-1.5 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                       aria-label="Session menu"
                     >
                       <span className="min-w-0 truncate text-[13px] font-medium tracking-[-0.01em] text-foreground">
                         {sessionTitle}
                       </span>
-                      <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground/35 transition-transform duration-150 group-data-[state=open]:rotate-180" />
+                      <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground transition-transform duration-150 group-data-[state=open]:rotate-180" />
                     </button>
                   </DropdownMenuTrigger>
 
                   <DropdownMenuContent
                     align="start"
                     sideOffset={10}
-                    className={themedGlassSurface("lotus-glass-strong w-[calc(100vw-1.5rem)] max-w-[22rem] overflow-hidden rounded-xl border border-border/60 p-0")}
+                    className={themedGlassSurface("bg-popover text-popover-foreground w-[calc(100vw-1.5rem)] max-w-[22rem] overflow-hidden rounded-xl border border-border/70 p-0")}
                   >
                     {/* User profile */}
-                    <div className="flex items-center gap-3 border-b border-border/40 px-3.5 py-3">
+                    <div className="flex items-center gap-3 border-b border-border/70 px-3.5 py-3">
                       <Avatar className="h-9 w-9 shrink-0 rounded-xl">
                         <AvatarImage src={userData?.photoURL ?? undefined} className="rounded-xl object-cover" />
                         <AvatarFallback className="rounded-xl bg-muted text-[13px] font-bold text-foreground">
@@ -426,14 +426,14 @@ export function ComputerTopBar({
                         </p>
                         <p className="truncate text-[11px] text-muted-foreground">{userData?.email}</p>
                       </div>
-                      <span className="shrink-0 rounded-full border border-border/60 bg-muted/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
+                      <span className="shrink-0 rounded-full border border-border/70 bg-muted/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
                         {planLabel}
                       </span>
                     </div>
 
                     {/* Credits */}
                     <div className="px-2 pt-2">
-                      <div className="lotus-glass-inset rounded-xl px-3 py-2.5">
+                      <div className="bg-muted/40 rounded-xl px-3 py-2.5">
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex items-center gap-2">
                             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted">
@@ -455,7 +455,7 @@ export function ComputerTopBar({
                     {/* Context usage */}
                     {contextUsage && (
                       <div className="px-2 pt-2">
-                        <div className="lotus-glass-inset rounded-xl px-3 py-2.5">
+                        <div className="bg-muted/40 rounded-xl px-3 py-2.5">
                           <Context
                             maxTokens={contextUsage.maxTokens}
                             modelId="anthropic:claude-sonnet-4-6"
@@ -502,14 +502,14 @@ export function ComputerTopBar({
                         <a href={session.previewUrl || "#"} target="_blank" rel="noreferrer">
                           <ItemIcon><Monitor className="h-3.5 w-3.5" /></ItemIcon>
                           Open preview
-                          <ExternalLink className="ml-auto h-3 w-3 text-muted-foreground/40" />
+                          <ExternalLink className="ml-auto h-3 w-3 text-muted-foreground" />
                         </a>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild disabled={!liveSiteUrl} className="h-9 gap-2.5 rounded-xl px-2.5 text-[13px] focus:bg-muted/60">
                         <a href={liveSiteUrl || "#"} target="_blank" rel="noreferrer">
                           <ItemIcon><Globe2 className="h-3.5 w-3.5" /></ItemIcon>
                           Open live site
-                          <ExternalLink className="ml-auto h-3 w-3 text-muted-foreground/40" />
+                          <ExternalLink className="ml-auto h-3 w-3 text-muted-foreground" />
                         </a>
                       </DropdownMenuItem>
                       <></>
@@ -519,8 +519,8 @@ export function ComputerTopBar({
 
                     {/* Stats */}
                     <div className="grid grid-cols-2 gap-2 px-2 pb-2">
-                      <div className="lotus-glass-inset rounded-xl border border-border/40 px-3 py-2.5">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/60">Files</p>
+                      <div className="bg-muted/40 rounded-xl border border-border/70 px-3 py-2.5">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Files</p>
                         <p className="mt-1.5 text-[16px] font-semibold text-foreground">{projectFileCount === null ? 'Unavailable' : projectFileCount}</p>
                       </div>
                       <></>
@@ -568,7 +568,7 @@ export function ComputerTopBar({
             <div className="hidden items-center gap-2.5 sm:flex">
               {onTabChange && (
                 <div
-                  className="lotus-glass-control flex items-center rounded-full border !border-border-strong p-0.5 shadow-sm shadow-foreground/5 focus-within:ring-2 focus-within:ring-border-strong/25"
+                  className="flex items-center rounded-xl border border-border bg-muted/50 p-0.5 focus-within:ring-2 focus-within:ring-ring/40"
                   role="tablist"
                   aria-label="Workspace views"
                 >
@@ -589,9 +589,9 @@ export function ComputerTopBar({
                         aria-selected={activeTab === tab.id}
                         aria-controls="computer-workspace-panel"
                         className={cn(
-                          "inline-flex h-6 items-center rounded-full px-2.5 text-[12px] font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35",
+                          "inline-flex h-6 items-center rounded-lg px-2.5 text-[12px] font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
                           activeTab === tab.id
-                            ? "bg-card/88 text-foreground shadow-sm"
+                            ? "bg-primary text-primary-foreground"
                             : "text-muted-foreground hover:text-foreground",
                         )}
                       >
@@ -610,7 +610,7 @@ export function ComputerTopBar({
                 onClick={onThemeToggle}
                 aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
                 title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-                className="lotus-glass-control inline-flex h-8 w-8 items-center justify-center rounded-full border !border-border-strong text-muted-foreground shadow-sm shadow-foreground/5 transition-all hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/25"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
               >
                 {theme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
               </button>
@@ -623,7 +623,7 @@ export function ComputerTopBar({
                   onClick={onOpenHistory}
                   disabled={!session.projectId}
                   aria-label="Version history"
-                  className="lotus-glass-control hidden h-8 items-center gap-1.5 rounded-full border !border-border-strong px-3 text-[12px] font-medium text-muted-foreground shadow-sm shadow-foreground/5 transition-all hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/25 disabled:pointer-events-none disabled:opacity-30 sm:inline-flex"
+                  className="hidden h-8 items-center gap-1.5 rounded-xl border border-border bg-card px-3 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 sm:inline-flex"
                 >
                   <History className="h-3.5 w-3.5" />
                   History
@@ -649,7 +649,7 @@ export function ComputerTopBar({
               className="absolute bottom-0 left-0 right-0 h-[1.5px] overflow-hidden"
             >
               <motion.div
-                className="h-full w-1/2 bg-gradient-to-r from-transparent via-foreground to-transparent opacity-35"
+                className="h-full w-1/2 bg-foreground/25"
                 animate={{ x: ["-100%", "300%"] }}
                 transition={{ duration: 2.2, ease: "easeInOut", repeat: Infinity }}
               />
@@ -668,18 +668,18 @@ export function ComputerTopBar({
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen} modal={false}>
         <SheetPortal>
           <SheetPrimitive.Content
-            className={themedGlassSurface("lotus-glass-strong data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left fixed bottom-2 left-2 top-2 z-50 flex w-[260px] flex-col overflow-hidden rounded-[1.35rem] border border-border/50 shadow-2xl shadow-foreground/10 transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500")}
+            className={themedGlassSurface("bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left fixed bottom-2 left-2 top-2 z-50 flex w-[260px] flex-col overflow-hidden rounded-[1.35rem] border border-border/70 shadow-lg shadow-foreground/10 transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500")}
           >
             <SheetTitle className="sr-only">Navigation sidebar</SheetTitle>
             <SheetDescription className="sr-only">App navigation and workspace switcher</SheetDescription>
 
             {/* Sidebar top bar — matches main header height */}
-            <div className="lotus-glass-inset flex h-[52px] shrink-0 items-center justify-between border-b border-border/35 px-3">
+            <div className="bg-muted/40 flex h-[52px] shrink-0 items-center justify-between border-b border-border/70 px-3">
               <LotusLogo size={22} />
               <div className="flex items-center gap-0.5">
                 <button
                   type="button"
-                  className="lotus-glass-control flex h-7 w-7 items-center justify-center rounded-full border border-border/55 text-muted-foreground transition-all duration-150 hover:border-border-strong hover:bg-muted hover:text-foreground active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
+                  className="bg-card flex h-7 w-7 items-center justify-center rounded-full border border-border/70 text-muted-foreground transition-all duration-150 hover:border-border-strong hover:bg-muted hover:text-foreground active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                   aria-label="Search"
                 >
                   <Search className="h-[15px] w-[15px]" />
@@ -687,7 +687,7 @@ export function ComputerTopBar({
                 <button
                   type="button"
                   onClick={() => setSidebarOpen(false)}
-                  className="lotus-glass-control flex h-7 w-7 items-center justify-center rounded-full border border-border/55 text-muted-foreground transition-all duration-150 hover:border-border-strong hover:bg-muted hover:text-foreground active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
+                  className="bg-card flex h-7 w-7 items-center justify-center rounded-full border border-border/70 text-muted-foreground transition-all duration-150 hover:border-border-strong hover:bg-muted hover:text-foreground active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                   aria-label="Close sidebar"
                 >
                   <PanelLeft className="h-[15px] w-[15px]" />
@@ -696,11 +696,11 @@ export function ComputerTopBar({
             </div>
 
             {/* Divider */}
-            <div className="lotus-glass-divider mx-3 mb-2 border-t" />
+            <div className="border-border mx-3 mb-2 border-t" />
 
             {/* Recent builds header */}
             <div className="mb-1.5 flex items-center justify-between px-4">
-              <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Recent builds</span>
+              <span className="text-[11px] font-semibold tracking-[0.02em] text-muted-foreground">Recent builds</span>
               <span className="rounded-full bg-muted/70 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">{sidebarRecentBuilds.length}</span>
             </div>
 
@@ -709,11 +709,11 @@ export function ComputerTopBar({
               {sidebarProjectsLoading ? (
                 <div className="space-y-2 px-3 pt-1">
                   {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="lotus-glass-inset h-10 animate-pulse rounded-2xl" style={{ opacity: 1 - i * 0.15 }} />
+                    <div key={i} className="bg-muted/40 h-10 animate-pulse rounded-2xl" style={{ opacity: 1 - i * 0.15 }} />
                   ))}
                 </div>
               ) : sidebarRecentBuilds.length === 0 ? (
-                <div className="lotus-glass-inset mx-3 rounded-2xl border border-border/50 px-4 py-6 text-center">
+                <div className="bg-muted/40 mx-3 rounded-2xl border border-border/70 px-4 py-6 text-center">
                   <p className="text-[13px] font-medium text-foreground">No builds yet</p>
                   <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">Start with a prompt to see your builds here.</p>
                 </div>
@@ -724,7 +724,7 @@ export function ComputerTopBar({
                       key={p.id}
                       type="button"
                       onClick={() => { setSidebarOpen(false); router.push(p.kind === "computer" ? `/computer/${p.id}` : `/project/${p.id}`) }}
-                      className="group/row flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-muted"
+                      className="group/row flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                     >
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-[13px] font-medium leading-snug text-foreground/85 group-hover/row:text-foreground">
@@ -734,7 +734,7 @@ export function ComputerTopBar({
                           {p.kind === "computer" ? "Computer agent" : "Website build"}
                         </span>
                       </span>
-                      <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/40 transition-transform group-hover/row:translate-x-0.5" />
+                      <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground transition-transform group-hover/row:translate-x-0.5" />
                     </button>
                   ))}
                 </div>
@@ -742,10 +742,10 @@ export function ComputerTopBar({
             </nav>
 
             {/* User row */}
-            <div className="lotus-glass-inset shrink-0 border-t border-border/35 px-3 py-3">
+            <div className="bg-muted/40 shrink-0 border-t border-border/70 px-3 py-3">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button type="button" className="lotus-glass-control flex w-full items-center gap-2.5 rounded-2xl border border-transparent px-2 py-2 transition-all hover:border-border/60 hover:bg-muted">
+                  <button type="button" className="bg-card flex w-full items-center gap-2.5 rounded-2xl border border-transparent px-2 py-2 transition-all hover:border-border/70 hover:bg-muted">
                     <Avatar className="h-8 w-8 shrink-0 rounded-full">
                       <AvatarImage src={userData?.photoURL ?? undefined} className="rounded-full object-cover" />
                       <AvatarFallback className="rounded-full bg-accent-soft text-[10px] font-semibold text-accent-soft-foreground">
@@ -758,10 +758,10 @@ export function ComputerTopBar({
                       </p>
                       <p className="text-[11px] leading-tight text-muted-foreground">{planLabel} plan</p>
                     </div>
-                    <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
+                    <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent side="top" align="start" sideOffset={6} className={themedGlassSurface("lotus-glass-strong w-[200px] rounded-2xl border-border p-2")}>
+                <DropdownMenuContent side="top" align="start" sideOffset={6} className={themedGlassSurface("bg-popover text-popover-foreground w-[200px] rounded-2xl border-border p-2")}>
                   <DropdownMenuItem className="h-10 cursor-pointer rounded-xl px-3 text-[13px] text-foreground focus:bg-muted" onSelect={() => router.push("/pricing")}>
                     <CreditCard className="mr-2 h-3.5 w-3.5" />
                     Billing &amp; Plans

@@ -15,19 +15,19 @@ type Props = {
 export function SupabaseConnectModal({ open, loading, error, onClose, onConnect }: Props) {
   return (
     <Dialog open={open} onOpenChange={(next) => (!next ? onClose() : null)}>
-      <DialogContent className="border-border bg-card text-foreground sm:max-w-md">
+      <DialogContent className="rounded-2xl border-border bg-popover text-popover-foreground shadow-lg shadow-foreground/5 sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Connect Supabase</DialogTitle>
+          <DialogTitle className="text-xl font-semibold tracking-[-0.03em]">Connect Supabase</DialogTitle>
           <DialogDescription>
             Authenticate with Supabase via OAuth to list and link your projects.
           </DialogDescription>
         </DialogHeader>
-        {error ? <p className="text-xs text-red-600">{error}</p> : null}
+        {error ? <p className="rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs leading-relaxed text-destructive">{error}</p> : null}
         <DialogFooter className="gap-2">
           <Button type="button" variant="outline" onClick={onClose} className="border-border-strong">
             Cancel
           </Button>
-          <Button type="button" onClick={onConnect} className="bg-accent text-accent-foreground hover:bg-accent/90" disabled={loading}>
+          <Button type="button" onClick={onConnect} className="bg-primary text-primary-foreground hover:bg-primary/90" disabled={loading}>
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Connect Supabase
           </Button>
@@ -36,4 +36,3 @@ export function SupabaseConnectModal({ open, loading, error, onClose, onConnect 
     </Dialog>
   )
 }
-

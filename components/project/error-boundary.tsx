@@ -21,11 +21,11 @@ export class ProjectErrorBoundary extends Component<
       return (
         <div className="min-h-screen bg-background flex items-center justify-center p-8">
           <div className="max-w-md text-center">
-            <h2 className="text-xl font-semibold text-red-400 mb-2">Something went wrong</h2>
-            <p className="text-muted-foreground text-sm mb-4">{this.state.error?.message || "An unexpected error occurred."}</p>
+            <h2 className="mb-2 text-2xl font-semibold tracking-[-0.04em] text-foreground">Something went wrong</h2>
+            <p className="mb-4 text-sm leading-relaxed text-muted-foreground">{this.state.error?.message || "An unexpected error occurred."}</p>
             <button
               onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-secondary text-secondary-foreground rounded hover:bg-accent/90 transition"
+              className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               Reload page
             </button>
