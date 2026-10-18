@@ -33,7 +33,7 @@ export function CreationStudioActions(props: {
             type="button"
             onClick={onBuildFromPlan}
             disabled={disabled}
-            className="w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-accent-foreground hover:bg-accent/90 disabled:opacity-50"
+            className="w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
             Build from plan
           </Button>
@@ -42,7 +42,7 @@ export function CreationStudioActions(props: {
             variant="outline"
             onClick={onRefine}
             disabled={disabled}
-            className="w-full rounded-lg border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted"
+            className="w-full rounded-xl border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted"
           >
             Refine plan
           </Button>
@@ -52,7 +52,7 @@ export function CreationStudioActions(props: {
           type="button"
           onClick={onGeneratePlan}
           disabled={disabled || isDraftingPlan}
-          className="w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-accent-foreground hover:bg-accent/90 disabled:opacity-50"
+          className="w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
           {isDraftingPlan ? "Generating plan..." : "Generate plan"}
         </Button>
@@ -72,7 +72,7 @@ export function CreationStudioActions(props: {
         type="button"
         onClick={onSkip}
         disabled={disabled}
-        className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground disabled:opacity-50"
+        className="rounded-lg text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
       >
         Skip and build now
       </button>

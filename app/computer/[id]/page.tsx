@@ -354,7 +354,7 @@ export default function ComputerPage() {
   return (
     <div
       className={cn(
-        "relative flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground",
+        "relative flex h-[100dvh] flex-col overflow-hidden bg-background font-sans text-foreground antialiased",
         computerTheme === "dark" && "dark",
       )}
     >
@@ -473,7 +473,7 @@ export default function ComputerPage() {
         <aside
           aria-label="Agent conversation"
           className={cn(
-          "lotus-glass-strong flex w-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 ease-in-out",
+          "flex w-full shrink-0 flex-col overflow-hidden bg-background transition-[width] duration-200 ease-in-out motion-reduce:transition-none",
           desktopChatCollapsed
             ? "sm:w-0 sm:overflow-hidden"
             : "sm:w-[32%] md:w-[31%] lg:w-[340px] xl:w-[370px] 2xl:w-[400px]",
@@ -508,7 +508,7 @@ export default function ComputerPage() {
           {/* Composer */}
           <div className="shrink-0 px-3 pt-2 [padding-bottom:max(4.5rem,calc(env(safe-area-inset-bottom)+3.25rem))] sm:pb-3 lg:px-4">
             {isBuildTokenBlocked && (
-              <div className="lotus-glass-panel mb-3 rounded-xl border border-border/55 px-3 py-2.5 shadow-sm">
+              <div className="mb-3 rounded-xl border border-border bg-muted px-3 py-2.5">
                 <p className="text-sm font-medium text-foreground">You have used all credits for this cycle.</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   Upgrade your plan to continue running the computer agent.{" "}
@@ -517,8 +517,8 @@ export default function ComputerPage() {
               </div>
             )}
             {(runError || backend.streamError || backend.fileError) && !isBuildTokenBlocked && (
-              <div className="lotus-glass-panel mb-3 rounded-xl border border-destructive/20 px-3 py-2.5 shadow-sm">
-                <p className="text-[11.5px] text-destructive">{getRunErrorMessage(runError || backend.streamError || backend.fileError || 'Live connection interrupted.')}</p>
+              <div className="mb-3 rounded-xl border border-destructive/25 bg-card px-3 py-2.5">
+                <p className="text-xs leading-relaxed text-destructive">{getRunErrorMessage(runError || backend.streamError || backend.fileError || 'Live connection interrupted.')}</p>
                 <button type="button" className="mt-1 text-xs underline" onClick={() => { setRunError(null); backend.reconnect() }}>Reconnect</button>
                 <button type="button" className="ml-3 mt-1 text-xs underline" onClick={() => {
                   if (user) sessionStorage.removeItem(pendingMessageKey(user.uid, session.id)); setRunError(null)
@@ -526,7 +526,7 @@ export default function ComputerPage() {
               </div>
             )}
             <details className="mb-2 text-xs text-muted-foreground">
-              <summary className="cursor-pointer">Session usage</summary>
+              <summary className="cursor-pointer rounded-lg py-1 font-medium transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Session usage</summary>
               {backend.usageError ? <p role="alert" className="mt-2 text-destructive">{backend.usageError}</p> : backend.usage === null ? <p role="status" className="mt-2">Loading usage…</p> : backend.usage.length === 0 ? <p className="mt-2">No usage recorded for this session.</p> : <dl className="mt-2 space-y-1">{backend.usage.map((meter) => <div key={meter.meterKey} className="flex justify-between gap-3"><dt>{meter.label}</dt><dd>{meter.settled.toLocaleString()} settled · {meter.open.toLocaleString()} reserved {meter.unit}</dd></div>)}</dl>}
             </details>
             <AnimatedAIInput
@@ -534,7 +534,7 @@ export default function ComputerPage() {
               isLoading={isRunning} onStop={handleStop} onSubmit={(prompt) => handleRun(prompt)}
               placeholder="Message the agent..."
               disabled={isBuildTokenBlocked}
-              wrapperClassName="lotus-glass-control !border-border-strong shadow-sm shadow-foreground/5"
+              wrapperClassName="border-border bg-card shadow-none"
             />
           </div>
         </aside>
@@ -543,7 +543,7 @@ export default function ComputerPage() {
         <section
           aria-label="Workspace preview and files"
           className={cn(
-          "lotus-glass-strong m-2 flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border/50 shadow-xl shadow-foreground/5",
+          "m-2 flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card",
           mobileView !== "workspace" && "hidden sm:flex"
         )}>
           {/* Workspace content — fills panel edge to edge */}
@@ -608,7 +608,7 @@ export default function ComputerPage() {
       {/* ── Mobile view switcher ── */}
       <nav
         aria-label="Switch between chat and preview"
-        className="lotus-glass-strong absolute inset-x-3 z-20 mx-auto max-w-xs rounded-full border !border-border-strong px-1 py-1 shadow-xl shadow-foreground/10 focus-within:ring-2 focus-within:ring-border-strong/25 sm:hidden"
+        className="absolute inset-x-3 z-20 mx-auto max-w-xs rounded-2xl border border-border bg-card px-1 py-1 shadow-sm focus-within:ring-2 focus-within:ring-ring/40 sm:hidden"
         style={{ bottom: "max(0.875rem, env(safe-area-inset-bottom))" }}
       >
         <div className="grid grid-cols-2 gap-1">
@@ -618,9 +618,9 @@ export default function ComputerPage() {
             aria-pressed={mobileView === "feed"}
             onClick={() => setMobileView("feed")}
             className={cn(
-              "flex h-10 items-center justify-center gap-1.5 rounded-full text-[12.5px] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "flex h-10 items-center justify-center gap-1.5 rounded-xl text-[12.5px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               mobileView === "feed"
-                ? "bg-foreground text-background shadow-sm"
+                ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
           >
@@ -633,9 +633,9 @@ export default function ComputerPage() {
             aria-pressed={mobileView === "workspace"}
             onClick={() => { setMobileView("workspace"); setActiveTab("preview") }}
             className={cn(
-              "flex h-10 items-center justify-center gap-1.5 rounded-full text-[12.5px] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "flex h-10 items-center justify-center gap-1.5 rounded-xl text-[12.5px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               mobileView === "workspace"
-                ? "bg-foreground text-background shadow-sm"
+                ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
           >

@@ -90,12 +90,12 @@ function AgentRunHeader({
   const pct = Math.round(progress * 100)
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
+    <div className="overflow-hidden rounded-2xl border border-border bg-card">
       {/* Top row */}
       <div className="flex items-center justify-between px-4 pt-3.5">
         <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-2 py-0.5">
           <LiveDot />
-          <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+          <span className="text-[11px] font-medium text-muted-foreground">
             Live run
           </span>
         </div>
@@ -110,7 +110,7 @@ function AgentRunHeader({
 
       {/* Current step name + mono detail */}
       <div className="px-4 pt-3">
-        <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+        <p className="mb-1 text-xs font-medium text-muted-foreground">
           Currently
         </p>
 
@@ -137,7 +137,7 @@ function AgentRunHeader({
       {/* Progress */}
       <div className="mt-3 border-t border-border px-4 py-3 bg-card/50">
         <div className="mb-1.5 flex items-center justify-between">
-          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+          <span className="text-[11px] font-medium text-muted-foreground">
             Progress
           </span>
           <span className="font-mono text-[10px] font-semibold tabular-nums text-muted-foreground">
@@ -237,7 +237,7 @@ function AgentTimelineRail({ steps }: { steps: AgentTimelineItem[] }) {
       </div>
 
       {/* Steps */}
-      <div className="divide-y divide-[#f3f0e9]/50">
+      <div className="divide-y divide-border/70">
         {steps.map((step, idx) => (
           <TimelineStep
             key={step.key}
@@ -270,4 +270,3 @@ export function AgentTimelinePanel({
     </div>
   )
 }
-

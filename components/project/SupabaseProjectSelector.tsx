@@ -29,23 +29,23 @@ export function SupabaseProjectSelector({
 }: Props) {
   return (
     <Dialog open={open} onOpenChange={(next) => (!next ? onClose() : null)}>
-      <DialogContent className="border-border bg-card text-foreground sm:max-w-lg">
+      <DialogContent className="rounded-2xl border-border bg-popover text-popover-foreground shadow-lg shadow-foreground/5 sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Select Supabase Project</DialogTitle>
+          <DialogTitle className="text-xl font-semibold tracking-[-0.03em]">Select Supabase Project</DialogTitle>
           <DialogDescription>
             Choose which Supabase project this Builder project should use.
           </DialogDescription>
         </DialogHeader>
         {projects.length > 0 ? (
-          <div className="max-h-[320px] space-y-2 overflow-y-auto rounded-xl border border-border bg-muted p-2">
+          <div className="max-h-[320px] space-y-2 overflow-y-auto rounded-xl bg-muted/50 p-2">
             {projects.map((p) => (
               <button
                 key={p.id}
                 type="button"
                 onClick={() => onChange(p.id)}
-                className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                className={`w-full rounded-xl border px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                   selectedId === p.id
-                    ? "border-border-strong bg-card text-foreground"
+                    ? "border-primary bg-card text-foreground ring-1 ring-primary"
                     : "border-border bg-card text-foreground hover:border-border-strong"
                 }`}
               >
@@ -55,7 +55,7 @@ export function SupabaseProjectSelector({
             ))}
           </div>
         ) : (
-          <div className="space-y-4 rounded-[1.5rem] border border-border bg-card p-5">
+          <div className="space-y-4 rounded-2xl bg-muted/40 p-5">
             <div>
               <p className="text-sm font-semibold text-foreground">No Supabase projects yet</p>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
@@ -63,8 +63,8 @@ export function SupabaseProjectSelector({
               </p>
             </div>
 
-            <div className="space-y-2 rounded-2xl border border-border bg-card px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Simple steps</p>
+            <div className="space-y-2 border-t border-border px-4 py-4">
+              <p className="text-xs font-semibold text-muted-foreground">Simple steps</p>
               <ol className="space-y-2 text-sm leading-6 text-foreground">
                 <li>1. Create a Supabase project here and we will keep the flow moving.</li>
                 <li>2. We automatically link it to this website.</li>
@@ -82,7 +82,7 @@ export function SupabaseProjectSelector({
               Create New Project
             </Button>
           ) : null}
-          <Button type="button" onClick={onConfirm} disabled={!selectedId || loading} className="bg-accent text-accent-foreground hover:bg-accent/90">
+          <Button type="button" onClick={onConfirm} disabled={!selectedId || loading} className="bg-primary text-primary-foreground hover:bg-primary/90">
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Link Project
           </Button>
@@ -91,4 +91,3 @@ export function SupabaseProjectSelector({
     </Dialog>
   )
 }
-

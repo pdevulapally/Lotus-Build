@@ -146,10 +146,10 @@ function ToolbarPill({
     <button
       type="button"
       className={cn(
-        "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5",
+        "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-xl px-2.5",
         "text-xs font-medium text-muted-foreground transition-colors",
         "hover:bg-muted/60 hover:text-foreground",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border/35",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
         "disabled:pointer-events-none disabled:opacity-40",
         className,
       )}
@@ -172,10 +172,10 @@ function IconButton({ children, active, label, className, ...props }: IconButton
       aria-label={label}
       title={label}
       className={cn(
-        "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground",
+        "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground",
         "transition-colors duration-150",
         "hover:bg-muted/60 hover:text-foreground",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border/35",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
         "disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground",
         active && "bg-muted/70 text-foreground",
         className,
@@ -365,12 +365,12 @@ export function AnimatedAIInput({
     <div className={cn("w-full", mode === "create" ? "mx-auto max-w-2xl" : "max-w-none")}>
       <div
         className={cn(
-          "composer-shell group/composer relative overflow-hidden rounded-xl border transition-[border-color,box-shadow] duration-200",
+          "group/composer relative overflow-hidden rounded-2xl border transition-[border-color,box-shadow] duration-200 motion-reduce:transition-none",
           "border-border bg-card",
           "hover:border-border-strong",
-          "focus-within:border-border-strong",
+          "focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/15",
           isSlimChat && "rounded-2xl border-border bg-card",
-          disabled && "pointer-events-none opacity-55",
+          disabled && "pointer-events-none opacity-60",
           wrapperClassName,
         )}
       >
@@ -446,7 +446,7 @@ export function AnimatedAIInput({
                   side="top"
                   sideOffset={8}
                   avoidCollisions={false}
-                  className={cn("w-[18rem] rounded-lg border border-border bg-popover p-1.5 shadow-lg", portalClassName)}
+                  className={cn("w-[18rem] rounded-xl border border-border bg-popover p-1.5 text-popover-foreground shadow-lg shadow-foreground/5", portalClassName)}
                 >
                   <DropdownMenuLabel className="px-2 pb-1 pt-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                     Mode
@@ -498,7 +498,7 @@ export function AnimatedAIInput({
                 align="start"
                 side="top"
                 sideOffset={8}
-                className={cn("max-h-[60vw] w-[calc(100vw-2rem)] max-w-[22rem] overflow-y-auto overscroll-contain rounded-lg border border-border bg-popover p-1.5 shadow-lg sm:max-h-[26rem]", portalClassName)}
+                className={cn("max-h-[60vw] w-[calc(100vw-2rem)] max-w-[22rem] overflow-y-auto overscroll-contain rounded-xl border border-border bg-popover p-1.5 text-popover-foreground shadow-lg shadow-foreground/5 sm:max-h-[26rem]", portalClassName)}
               >
                 <DropdownMenuLabel className="px-2 pb-1 pt-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                   Model
@@ -588,16 +588,16 @@ export function AnimatedAIInput({
               onClick={canStop ? onStop : handleSubmit}
               whileTap={canSubmit || canStop ? { scale: 0.94 } : {}}
               className={cn(
-                "flex shrink-0 items-center justify-center rounded-full font-semibold transition-all duration-150",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border/35",
+                "flex shrink-0 items-center justify-center rounded-xl font-semibold transition-colors duration-150 disabled:cursor-not-allowed",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2 focus-visible:ring-offset-card",
                 hasSubmitLabel && (canSubmit || canStop)
                   ? "h-9 gap-1.5 px-3.5 text-xs"
                   : "h-9 w-9",
                 canStop
-                  ? "bg-accent text-accent-foreground hover:bg-accent/90"
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
                   : canSubmit
                     ? isSlimChat
-                      ? "bg-accent text-accent-foreground hover:bg-accent/90"
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90"
                       : "bg-primary text-primary-foreground hover:bg-primary/90"
                     : "bg-muted text-muted-foreground",
                 submitButtonClassName,

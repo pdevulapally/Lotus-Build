@@ -147,8 +147,8 @@ export const SearchTool = React.memo(function SearchTool({
       </button>
 
       {expandable && isOpen && (
-        <div className="lotus-glass-panel overflow-hidden rounded-2xl border border-border/55">
-          <div className="flex h-8 items-center gap-1 border-b border-border/35 px-3 text-xs">
+        <div className="bg-card overflow-hidden rounded-2xl border border-border/70">
+          <div className="flex h-8 items-center gap-1 border-b border-border/70 px-3 text-xs">
             <span className="text-foreground font-medium">Searched for</span>
             {" "}
             <span className="text-muted-foreground truncate">

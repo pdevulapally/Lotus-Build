@@ -157,14 +157,14 @@ function QuestionPrompt({
 
   if (!activeQuestion) return null
 
-  const optionRowBase = "w-full text-left rounded-xl px-2.5 py-2 flex items-center gap-2 -mx-1 transition-colors hover:bg-muted/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
-  const badgeBase = "h-5 min-w-5 px-1 rounded-full inline-flex items-center justify-center text-xs font-semibold border shrink-0"
-  const badgeOff = "bg-muted/45 text-muted-foreground border-border/55"
-  const badgeOn = "bg-foreground/12 text-foreground border-foreground/30"
+  const optionRowBase = "w-full text-left rounded-xl px-2.5 py-2 flex items-center gap-2 -mx-1 transition-colors hover:bg-muted/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+  const badgeBase = "h-5 min-w-5 px-1 rounded-md inline-flex items-center justify-center text-xs font-semibold border shrink-0"
+  const badgeOff = "bg-muted/45 text-muted-foreground border-border/70"
+  const badgeOn = "bg-primary text-primary-foreground border-primary"
 
   return (
-    <div className={cn("lotus-glass-panel space-y-2 px-3 py-2.5", className)}>
-      <p className="text-sm font-medium text-foreground leading-snug">{activeQuestion.title}</p>
+    <div className={cn("bg-card space-y-2 px-3 py-2.5", className)}>
+      <p className="text-sm font-semibold tracking-[-0.02em] text-foreground leading-snug">{activeQuestion.title}</p>
       {activeQuestion.description && (
         <p className="text-xs text-muted-foreground">{activeQuestion.description}</p>
       )}
@@ -207,7 +207,7 @@ function QuestionPrompt({
                 value={customText}
                 onChange={(e) => handleCustomTextChange(e.target.value)}
                 placeholder={activeQuestion.customPlaceholder ?? "Type your answer"}
-                className="lotus-glass-control h-8 w-full rounded-full border px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground/55 focus:border-ring"
+                className="h-8 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20"
               />
             </div>
           )}
@@ -220,7 +220,7 @@ function QuestionPrompt({
           onChange={(e) => setTextValue(e.target.value)}
           placeholder={activeQuestion.placeholder ?? "Type your answer"}
           rows={3}
-          className="lotus-glass-control w-full resize-none rounded-2xl border px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/55 focus:border-ring"
+          className="w-full resize-none rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20"
         />
       )}
 
@@ -229,7 +229,7 @@ function QuestionPrompt({
           <button
             type="button"
             onClick={handleSkip}
-            className="h-6 rounded-full px-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+            className="h-6 rounded-lg px-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           >
             {skipLabel}
           </button>
@@ -238,7 +238,7 @@ function QuestionPrompt({
           type="button"
           onClick={handleSubmit}
           disabled={!canSubmit}
-          className="h-6 rounded-full border border-border-strong bg-muted px-2.5 text-xs font-semibold text-foreground transition-all hover:bg-muted/70 active:scale-[0.98] disabled:opacity-40 disabled:hover:bg-muted disabled:active:scale-100"
+          className="h-6 rounded-lg bg-primary px-2.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
         >
           {primaryLabel}
         </button>
@@ -349,8 +349,8 @@ export function QuestionTool({
   if (!question) return null
 
   return (
-    <div className={cn("lotus-glass-panel overflow-hidden rounded-2xl border border-border/55", className)}>
-      <div className="lotus-glass-inset flex h-8 items-center justify-between border-b border-border/35 px-3 text-xs text-muted-foreground">
+    <div className={cn("bg-card overflow-hidden rounded-2xl border border-border/70", className)}>
+      <div className="bg-muted/40 flex h-8 items-center justify-between border-b border-border/70 px-3 text-xs text-muted-foreground">
         <div className="inline-flex items-center gap-1.5">
           <MessageCircle className="w-3.5 h-3.5" />
           <span>Question{totalQuestions > 1 ? `s (${clampedIndex}/${totalQuestions})` : ""}</span>
@@ -381,7 +381,7 @@ export function QuestionTool({
       </div>
 
       {isComplete ? (
-        <div className="lotus-glass-inset px-3 py-2 text-xs text-muted-foreground">{summaryText}</div>
+        <div className="bg-muted/40 px-3 py-2 text-xs text-muted-foreground">{summaryText}</div>
       ) : (
         <QuestionPrompt
           key={`${clampedIndex}-${question.title}`}
