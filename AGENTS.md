@@ -377,8 +377,7 @@ Splits a reasoning string into `TextBlock` and `CodeBlock` segments using a glob
 
 The single color and typography source is app/globals.css. Use its semantic Tailwind tokens across every page and portal; do not add page-specific copies of the palette. Light mode uses a #f7f5f3 canvas, white cards, #eeeae6 muted surfaces, #262626 text, #686460 secondary text, #d6d0c8 borders and #1a1a1a actions. The .dark theme provides corresponding dark surfaces and light actions.
 
-- Body/control text uses Public Sans through --font-sans.
-- Display headings use Libre Caslon Condensed 500 through --font-serif, font-display or font-heading.
+- Body/control text and display headings use the self-hosted Manrope variable family through --font-sans and --font-heading. Legacy --font-serif and font-display aliases use the same family; do not reintroduce a separate serif style.
 - Code and terminal content remains monospace with meaningful syntax/status colors.
 - bg-primary/text-primary-foreground is the action pair. bg-accent is a subtle neutral selection/hover surface.
 - Use background/card/popover/muted/foreground/border/ring tokens for corresponding surfaces and focus states.

@@ -87,6 +87,7 @@ interface AnimatedAIInputProps {
   initialModel?: string;
   contextBadge?: { label: string; value: string; onClear?: () => void } | null;
   submitLabel?: string;
+  submitButtonClassName?: string;
   wrapperClassName?: string;
   footerHintsClassName?: string;
 }
@@ -206,6 +207,7 @@ export function AnimatedAIInput({
   initialModel,
   contextBadge,
   submitLabel,
+  submitButtonClassName,
   wrapperClassName,
   footerHintsClassName,
 }: AnimatedAIInputProps) {
@@ -598,6 +600,7 @@ export function AnimatedAIInput({
                       ? "bg-accent text-accent-foreground hover:bg-accent/90"
                       : "bg-primary text-primary-foreground hover:bg-primary/90"
                     : "bg-muted text-muted-foreground",
+                submitButtonClassName,
               )}
             >
               {canStop ? (

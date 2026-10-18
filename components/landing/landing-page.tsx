@@ -9,10 +9,10 @@ import { CookieBanner } from '@/components/cookie-banner'
 import styles from './landing-page.module.css'
 
 const briefs = [
-  { label: 'Plan a project', icon: ListChecks, prompt: 'Help me plan a software project. Ask about the problem, the users, and the requirements before proposing an approach.' },
-  { label: 'Build a feature', icon: Code2, prompt: 'Help me build a software feature. Start by asking what it should do, its inputs and outputs, and how we should verify it.' },
-  { label: 'Create a tool', icon: Wrench, prompt: 'Help me create a software tool for a repetitive task. Ask about the workflow, its inputs, and the expected results first.' },
-]
+  { label: 'A business website', mode: 'build', icon: Code2, prompt: 'Help me build a website for my business. Ask about the business, its customers, and the pages it needs before proposing an approach.' },
+  { label: 'An app for my team', mode: 'build', icon: Wrench, prompt: 'Help me create an app for my team. Ask about our workflow, who will use it, and what it needs to do first.' },
+  { label: 'Plan an idea', mode: 'plan', icon: ListChecks, prompt: 'Help me plan a software project. Ask about the problem, the users, and the requirements before proposing an approach.' },
+] as const
 export function LandingPage() {
   const [request, setRequest] = useState<{ prompt?: string; mode?: 'build' | 'plan'; id: number }>({ id: 0 })
   const focusBrief = () => document.getElementById('project-brief')?.focus({ preventScroll: false })
@@ -21,18 +21,25 @@ export function LandingPage() {
     <main className={styles.page}>
       <Navbar />
       <section className={styles.hero} aria-labelledby="landing-heading">
-        <p className={styles.eyebrow}>AI software workspace</p>
-        <h1 id="landing-heading">A workspace for<br />building software.</h1>
-        <p className={styles.intro}>Plan the approach. Implement the changes.<br /> Review the code and keep building.</p>
-        <div className={styles.heroActions}><button type="button" className="site-action" onClick={focusBrief}>Write your brief<ArrowUpRight size={16} /></button><Link href="#workflow" className={styles.secondary}>How it works<ArrowUpRight size={16} /></Link></div>
+        <p className={styles.eyebrow}>Build with LotusBuild</p>
+        <h1 id="landing-heading">Build what you<br />have in mind.</h1>
+        <p className={styles.intro}>A website, an app, a tool for your team.<br /> Describe your idea. We’ll help you take it from there.</p>
         <div className={styles.composer}>
-            <AnimatedAIInput suggestedPrompt={request.id === 0 ? undefined : request.prompt} promptRequestId={request.id} suggestedMode={request.mode} inputId="project-brief" portalClassName={styles.popover}
-            placeholder="Tell LotusBuild what you have in mind…"
+          <AnimatedAIInput
+            suggestedPrompt={request.id === 0 ? undefined : request.prompt}
+            promptRequestId={request.id}
+            suggestedMode={request.mode}
+            inputId="project-brief"
+            portalClassName={styles.popover}
+            placeholder="Describe what you’d like to make…"
+            submitLabel="Continue"
+            submitButtonClassName="h-11 w-auto min-w-24 gap-2 px-4"
             wrapperClassName="rounded-2xl border-border bg-card shadow-none [&_textarea]:min-h-[106px] [&_textarea]:text-base [&_textarea]:placeholder:text-muted-foreground"
-            footerHintsClassName={styles.inputHint} />
+            footerHintsClassName={styles.inputHint}
+          />
         </div>
-        <div className={styles.briefs} aria-label="Starting briefs">{briefs.map((brief) => <button key={brief.label} type="button" onClick={() => setRequest((value) => ({ prompt: brief.prompt, id: value.id + 1 }))}><brief.icon size={15} strokeWidth={1.7} />{brief.label}</button>)}</div>
-
+        <div className={styles.briefs} aria-label="Example ideas">{briefs.map((brief) => <button key={brief.label} type="button" onClick={() => setRequest((value) => ({ prompt: brief.prompt, mode: brief.mode, id: value.id + 1 }))}><brief.icon size={15} strokeWidth={1.7} aria-hidden />{brief.label}</button>)}</div>
+        <div className={styles.heroActions}><Link href="#workflow" className={styles.secondary}>See how it works<ArrowUpRight size={16} aria-hidden /></Link></div>
       </section>
       <section id="workflow" className={styles.workflow} aria-labelledby="workflow-heading">
         <p className={styles.sectionLabel}>From intention to implementation</p>
@@ -57,7 +64,7 @@ export function LandingPage() {
         <span className={styles.sectionLabel}>Your next project starts with a conversation</span>
         <h2 id="start-heading">Start a project<br />in LotusBuild.</h2>
         <p>A problem to solve. A tool to make.<br />Tell LotusBuild where you want to begin.</p>
-        <button type="button" onClick={focusBrief} className="site-action">Write your brief<ArrowUpRight size={17} aria-hidden /></button>
+        <button type="button" onClick={focusBrief} className="site-action">Describe your idea<ArrowUpRight size={17} aria-hidden /></button>
         <span className={styles.closingNote}>Plan the approach. Build. Review. Keep going.</span>
       </section>
       <FooterSection />

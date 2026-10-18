@@ -1,17 +1,40 @@
 import Link from "next/link"
+import { ArrowUpRight } from "lucide-react"
 import { BrandWordmark } from "@/components/ui/brand-wordmark"
 import styles from "./footer-section.module.css"
 
-const groups = [
-  { title: "Explore", links: [{ href: "/welcome#workflow", label: "How it works" }, { href: "/welcome#saved-work", label: "Your work" }, { href: "/pricing", label: "Pricing" }] },
-  { title: "Workspace", links: [{ href: "/", label: "Projects" }, { href: "/settings", label: "Account" }, { href: "/help", label: "Help & support" }] },
-  { title: "Legal", links: [{ href: "/terms", label: "Terms" }, { href: "/privacy", label: "Privacy" }, { href: "/privacy#security", label: "Security" }] },
+const links = [
+  { href: "/welcome#workflow", label: "How it works" },
+  { href: "/welcome#saved-work", label: "Project files & history" },
+  { href: "/pricing", label: "Plans & pricing" },
+  { href: "/help", label: "Help & support" },
+]
+const legalLinks = [
+  { href: "/terms", label: "Terms of service" },
+  { href: "/privacy", label: "Privacy policy" },
+  { href: "/privacy#cookies", label: "Cookies" },
+  { href: "/privacy#security", label: "Security" },
 ]
 export function FooterSection() {
   return <footer className={styles.footer}>
-    <Link href="/welcome" aria-label="LotusBuild home" className={styles.brand}><BrandWordmark /></Link>
-    <p className={styles.statement}>Good software starts with a clear idea.<br />Keep shaping yours.</p>
-    <nav aria-label="Footer navigation" className={styles.groups}>{groups.map(group => <div key={group.title}><p>{group.title}</p>{group.links.map(link => <Link key={link.label} href={link.href}>{link.label}</Link>)}</div>)}</nav>
-    <div className={styles.bottom}><span>© {new Date().getFullYear()} LotusBuild</span><Link href="/help#contact">Contact support</Link></div>
+    <div className={styles.inner}>
+      <div className={styles.main}>
+        <div className={styles.about}>
+          <Link href="/welcome" aria-label="LotusBuild home" className={styles.brand}><BrandWordmark /></Link>
+          <p className={styles.statement}>From an idea to<br />something you can use.</p>
+          <p className={styles.description}>Describe what you want to make. Plan it, build it, and keep improving it with LotusBuild.</p>
+        </div>
+        <nav aria-label="Footer navigation" className={styles.navigation}>
+          <p className={styles.label}>Explore LotusBuild</p>
+          <ul>{links.map(link => <li key={link.href}>
+            <Link href={link.href}><span>{link.label}</span><ArrowUpRight size={18} strokeWidth={1.5} aria-hidden /></Link>
+          </li>)}</ul>
+        </nav>
+      </div>
+      <div className={styles.bottom}>
+        <span>© {new Date().getFullYear()} LotusBuild</span>
+        <nav aria-label="Legal information"><ul>{legalLinks.map(link => <li key={link.href}><Link href={link.href}>{link.label}</Link></li>)}</ul></nav>
+      </div>
+    </div>
   </footer>
 }

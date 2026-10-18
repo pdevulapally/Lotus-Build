@@ -4,11 +4,7 @@ import { AuthProvider } from "@/contexts/auth-context"
 import { SettingsDialogProvider } from "@/components/settings/settings-dialog"
 import { ConsentAnalytics } from "@/components/consent-analytics"
 import "./globals.css"
-import "@fontsource/libre-caslon-condensed/500.css"
-import "@fontsource/public-sans/400.css"
-import "@fontsource/public-sans/500.css"
-import "@fontsource/public-sans/600.css"
-import "@fontsource/public-sans/700.css"
+import "@fontsource-variable/manrope/index.css"
 
 function normalizeSiteUrl(raw?: string): string {
   const value = (raw || "").trim()
@@ -124,4 +120,3 @@ export default function RootLayout({
     </html>
   )
 }
-

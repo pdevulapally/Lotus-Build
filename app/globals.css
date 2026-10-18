@@ -39,10 +39,12 @@
   --sidebar-accent-foreground: #262626;
   --sidebar-border: #d6d0c8;
   --sidebar-ring: #1a1a1a;
-  --font-sans: "Public Sans", sans-serif;
-  --font-serif: "Libre Caslon Condensed", serif;
+  --font-ui: "Manrope Variable", sans-serif;
+  --font-sans: var(--font-ui);
+  --font-serif: var(--font-ui);
+  --font-heading: var(--font-ui);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  --radius: 0.5rem;
+  --radius: 0.75rem;
   --shadow-x: 0;
   --shadow-y: 1px;
   --shadow-blur: 3px;
@@ -120,10 +122,7 @@
   --sidebar-accent-foreground: #f7f5f3;
   --sidebar-border: #514b45;
   --sidebar-ring: #f7f5f3;
-  --font-sans: "Public Sans", sans-serif;
-  --font-serif: "Libre Caslon Condensed", serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  --radius: 0.5rem;
+  --radius: 0.75rem;
   --shadow-x: 0;
   --shadow-y: 1px;
   --shadow-blur: 3px;
@@ -165,11 +164,11 @@
 }
 
 @theme inline {
-  --font-sans: "Public Sans", sans-serif;
+  --font-sans: var(--font-ui);
   --font-mono: var(--font-mono);
   --font-serif: var(--font-serif);
-  --font-display: var(--font-serif);
-  --font-heading: var(--font-serif);
+  --font-display: var(--font-ui);
+  --font-heading: var(--font-ui);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -508,26 +507,24 @@
 }
 
 .font-display {
-  font-family: var(--font-serif);
-  font-weight: 500;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  letter-spacing: -0.045em;
 }
 
-/* Soft brand-tinted wash for the auth pages, single restrained gradient
-   fading into the normal page background — not a site-wide treatment. */
 .auth-backdrop {
-  background:
-    radial-gradient(1100px 650px at 12% -8%, color-mix(in oklch, var(--primary) 13%, transparent), transparent 60%),
-    var(--background);
+  background: var(--background);
 }
 
 .font-heading {
-  font-family: var(--font-serif);
-  font-weight: 500;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  letter-spacing: -0.035em;
 }
 
 .font-editorial {
-  font-family: var(--font-serif);
-  font-style: italic;
+  font-family: var(--font-heading);
+  font-style: normal;
 }
 
 .liquid-composer {
@@ -903,9 +900,13 @@ html::-webkit-scrollbar {
 
 
 @layer base {
-  h1, h2, h3 { font-family: var(--font-serif); font-weight: 500; }
+  h1, h2, h3 { font-family: var(--font-heading); font-weight: 600; letter-spacing: -0.035em; }
 }
 
-.site-action { display: inline-flex; align-items: center; justify-content: center; gap: 12px; padding: 13px 18px; border-radius: 999px; background: var(--primary); color: var(--primary-foreground); font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; }
+.site-shell { width: min(100%, 1200px); margin-inline: auto; padding-inline: clamp(20px, 4vw, 48px); }
+.site-eyebrow { color: var(--muted-foreground); font-size: 12px; font-weight: 600; letter-spacing: 0.02em; }
+.site-title { font-family: var(--font-heading); font-size: clamp(36px, 4.5vw, 64px); font-weight: 650; line-height: 1.08; letter-spacing: -0.055em; text-wrap: balance; }
+.site-lead { max-width: 580px; color: var(--muted-foreground); font-size: 16px; line-height: 1.8; }
+.site-action { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 10px; padding: 12px 18px; border-radius: 12px; background: var(--primary); color: var(--primary-foreground); font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; transition: background-color 150ms ease, opacity 150ms ease; }
 .site-action:hover { opacity: .88; }
 .site-action:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; }
