@@ -1,19 +1,20 @@
 "use client"
 import { useState } from 'react'
 import Link from 'next/link'
-import { ArrowUpRight, ListChecks, Code2, Wrench } from 'lucide-react'
+import { ArrowUpRight } from 'lucide-react'
 import { AnimatedAIInput } from '@/components/ui/animated-ai-input'
 import { Navbar } from '@/components/ui/navbar'
 import { FooterSection } from '@/components/sections/footer-section'
 import { CookieBanner } from '@/components/cookie-banner'
 import { SavedWorkSection, StartModesSection } from './landing-sections'
 import { RevealGroup, RevealItem } from '@/components/ui/reveal'
+import { ArrowDownIcon, PlanIcon, TeamAppIcon, WebsiteIcon } from '@/components/ui/lotus-icons'
 import styles from './landing-page.module.css'
 
 const briefs = [
-  { label: 'A business website', mode: 'build', icon: Code2, prompt: 'Help me build a website for my business. Ask about the business, its customers, and the pages it needs before proposing an approach.' },
-  { label: 'An app for my team', mode: 'build', icon: Wrench, prompt: 'Help me create an app for my team. Ask about our workflow, who will use it, and what it needs to do first.' },
-  { label: 'Plan an idea', mode: 'plan', icon: ListChecks, prompt: 'Help me plan a software project. Ask about the problem, the users, and the requirements before proposing an approach.' },
+  { label: 'Business website', mode: 'build', icon: WebsiteIcon, prompt: 'Help me build a website for my business. Ask about the business, its customers, and the pages it needs before proposing an approach.' },
+  { label: 'App for my team', mode: 'build', icon: TeamAppIcon, prompt: 'Help me create an app for my team. Ask about our workflow, who will use it, and what it needs to do first.' },
+  { label: 'Plan an idea', mode: 'plan', icon: PlanIcon, prompt: 'Help me plan a software project. Ask about the problem, the users, and the requirements before proposing an approach.' },
 ] as const
 export function LandingPage() {
   const [request, setRequest] = useState<{ prompt?: string; mode?: 'build' | 'plan'; id: number }>({ id: 0 })
@@ -35,8 +36,11 @@ export function LandingPage() {
             portalClassName={styles.popover}
           />
         </RevealItem>
-        <RevealItem className={styles.briefs} aria-label="Example ideas">{briefs.map((brief) => <button key={brief.label} type="button" onClick={() => setRequest((value) => ({ prompt: brief.prompt, mode: brief.mode, id: value.id + 1 }))}><brief.icon size={15} strokeWidth={1.7} aria-hidden />{brief.label}</button>)}</RevealItem>
-        <RevealItem className={styles.heroActions}><Link href="#workflow" className={styles.secondary}>See how it works<ArrowUpRight size={16} aria-hidden /></Link></RevealItem>
+        <RevealItem className={styles.briefs} role="group" aria-label="Start from an example">
+          <span className={styles.briefsLabel}>Try</span>
+          {briefs.map((brief) => <button key={brief.label} type="button" onClick={() => setRequest((value) => ({ prompt: brief.prompt, mode: brief.mode, id: value.id + 1 }))}><span className={styles.briefIcon}><brief.icon width={14} height={14} /></span>{brief.label}</button>)}
+        </RevealItem>
+        <RevealItem className={styles.heroActions}><Link href="#workflow" className={styles.secondary}>How it works<ArrowDownIcon width={14} height={14} /></Link></RevealItem>
       </RevealGroup>
       <StartModesSection onChoose={chooseMode} />
       <SavedWorkSection />

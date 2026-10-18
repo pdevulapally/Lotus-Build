@@ -87,3 +87,19 @@ export const ExternalIcon = (props: IconProps) => (
 export const TerminalIcon = (props: IconProps) => (
   <Icon {...props}><rect x="3.5" y="4.75" width="17" height="14.5" rx="3" /><path d="M7.25 10.25 10 12.5l-2.75 2.25M12.75 15h4" /></Icon>
 )
+
+export const WebsiteIcon = (props: IconProps) => (
+  <Icon {...props}><rect x="3.25" y="4.75" width="17.5" height="14.5" rx="3.25" /><path d="M3.25 9.25h17.5" /><path d="M7 13h5.5M7 15.75h3" /><rect x="14.75" y="12.5" width="2.75" height="3.75" rx=".75" /></Icon>
+)
+
+export const TeamAppIcon = (props: IconProps) => (
+  <Icon {...props}><rect x="4" y="4" width="6.75" height="6.75" rx="2" /><rect x="13.25" y="4" width="6.75" height="6.75" rx="2" /><rect x="4" y="13.25" width="6.75" height="6.75" rx="2" /><circle cx="16.6" cy="16.6" r="3.4" /></Icon>
+)
+
+export const PlanIcon = (props: IconProps) => (
+  <Icon {...props}><path d="m4.5 6.75 1.5 1.5 2.75-2.75" /><path d="m4.5 13.25 1.5 1.5 2.75-2.75" /><path d="M11.75 7h7.75M11.75 13.5h7.75M5.5 19h14" opacity=".55" /></Icon>
+)
+
+export const ArrowDownIcon = (props: IconProps) => (
+  <Icon {...props}><path d="M12 5v14" /><path d="m6.75 13.75 5.25 5.25 5.25-5.25" /></Icon>
+)
