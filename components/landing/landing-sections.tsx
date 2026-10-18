@@ -1,4 +1,5 @@
 import { ArrowRight, Check, Download, FileCode2, Folder, History } from 'lucide-react'
+import { Reveal, RevealGroup, RevealItem } from '@/components/ui/reveal'
 import styles from './landing-sections.module.css'
 
 type StartMode = 'plan' | 'build'
@@ -97,16 +98,16 @@ const visuals: Record<StartMode, () => React.JSX.Element> = { plan: PlanVisual, 
 export function StartModesSection({ onChoose }: { onChoose: (mode: StartMode) => void }) {
   return (
     <section id="workflow" className={styles.section} aria-labelledby="workflow-heading">
-      <header className={styles.header}>
+      <Reveal as="header" className={styles.header}>
         <p className={styles.label}>Two ways to start</p>
         <h2 id="workflow-heading">Plan it with LotusBuild, or build right away.</h2>
         <p className={styles.intro}>Either way it’s one conversation and one project.</p>
-      </header>
-      <div className={styles.modes}>
+      </Reveal>
+      <RevealGroup className={styles.modes}>
         {startModes.map(({ mode, tag, title, copy, action }) => {
           const Visual = visuals[mode]
           return (
-            <article key={mode} className={styles.modeCard}>
+            <RevealItem as="article" key={mode} className={styles.modeCard}>
               <div className={styles.visual}>
                 <Visual />
                 <span className={styles.example}>Illustrative example</span>
@@ -119,10 +120,10 @@ export function StartModesSection({ onChoose }: { onChoose: (mode: StartMode) =>
                   {action}<ArrowRight size={16} aria-hidden />
                 </button>
               </div>
-            </article>
+            </RevealItem>
           )
         })}
-      </div>
+      </RevealGroup>
     </section>
   )
 }
@@ -130,13 +131,13 @@ export function StartModesSection({ onChoose }: { onChoose: (mode: StartMode) =>
 export function SavedWorkSection() {
   return (
     <section id="saved-work" className={`${styles.section} ${styles.savedSection}`} aria-labelledby="saved-heading">
-      <header className={styles.header}>
+      <Reveal as="header" className={styles.header}>
         <p className={styles.label}>Your work, always yours</p>
         <h2 id="saved-heading">See the code. Track every change.</h2>
         <p className={styles.intro}>Everything LotusBuild makes is saved to your project, ready to inspect or take with you.</p>
-      </header>
-      <div className={styles.bento}>
-        <article className={`${styles.tile} ${styles.codeTile}`}>
+      </Reveal>
+      <RevealGroup className={styles.bento}>
+        <RevealItem as="article" className={`${styles.tile} ${styles.codeTile}`}>
           <div className={styles.tileText}>
             <FileCode2 size={20} strokeWidth={1.6} aria-hidden />
             <h3>Read what was built</h3>
@@ -160,8 +161,8 @@ export function SavedWorkSection() {
               </pre>
             </div>
           </div>
-        </article>
-        <article className={styles.tile}>
+        </RevealItem>
+        <RevealItem as="article" className={styles.tile}>
           <div className={styles.tileText}>
             <History size={20} strokeWidth={1.6} aria-hidden />
             <h3>Follow every change</h3>
@@ -176,8 +177,8 @@ export function SavedWorkSection() {
             ))}
           </ol>
           <span className={styles.exampleNote}>Illustrative version history</span>
-        </article>
-        <article className={styles.tile}>
+        </RevealItem>
+        <RevealItem as="article" className={styles.tile}>
           <div className={styles.tileText}>
             <Download size={20} strokeWidth={1.6} aria-hidden />
             <h3>Take it with you</h3>
@@ -188,8 +189,8 @@ export function SavedWorkSection() {
             <span><strong>salon-booking.zip</strong><small>Full source code</small></span>
           </div>
           <span className={styles.exampleNote}>Example download</span>
-        </article>
-      </div>
+        </RevealItem>
+      </RevealGroup>
     </section>
   )
 }

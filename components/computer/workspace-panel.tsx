@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import Link from "next/link"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
+import { duration, ease } from "@/lib/motion"
 import { BookOpen, Check, ChevronDown, ChevronRight, Copy, ExternalLink, FileCode, Folder, FolderOpen, Globe2, Home, Laptop, Loader2, Monitor, RotateCcw, ShieldAlert, Wrench } from "lucide-react"
 import Editor, { DiffEditor, type Monaco } from "@monaco-editor/react"
 import { TextShimmer } from "@/components/prompt-kit/text-shimmer"
@@ -391,7 +392,7 @@ function LaptopSwitcher({ label, title, onClick, icon }: {
 
 function SessionProgressSurface({ progress }: { progress: ComputerSessionProgress }) {
   return (
-    <motion.div key={`progress-${progress.state}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}
+    <motion.div key={`progress-${progress.state}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: duration.fast, ease }}
       className="flex h-full items-center justify-center p-8 text-center">
       <div className="max-w-sm">
         <div className="bg-muted/40 mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground">
@@ -781,7 +782,7 @@ export function WorkspaceContent({
 
   if (activeTab === "code") {
     return (
-      <motion.div key="code" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}
+      <motion.div key="code" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: duration.fast, ease }}
         className="h-full min-h-0">
         <ComputerCodePanel
           files={files}
@@ -799,7 +800,7 @@ export function WorkspaceContent({
 
   if (activeTab === "browser" && browserInspection) {
     return (
-      <motion.div key="browser" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}
+      <motion.div key="browser" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: duration.fast, ease }}
         className="flex h-full min-h-0 flex-col bg-background p-3 lg:p-4">
         <div className="mb-2 flex min-w-0 items-center justify-between gap-3">
           <div className="min-w-0">
@@ -891,7 +892,7 @@ function PreviewPane({
   }, [iframeKey])
 
   return (
-    <motion.div key="preview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}
+    <motion.div key="preview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: duration.fast, ease }}
       className="flex h-full min-h-0 flex-col bg-background">
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <IsolatedPreviewFrame

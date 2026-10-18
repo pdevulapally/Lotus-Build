@@ -34,6 +34,7 @@ import {
 
 
 import { Button } from "@/components/ui/button"
+import { RevealGroup, RevealItem } from "@/components/ui/reveal"
 import {
   Dialog,
   DialogContent,
@@ -295,21 +296,22 @@ function Sidebar({
             </p>
           </div>
         ) : (
-          <div className="space-y-0.5 px-2" role="list" aria-label={recentBuildsLabel}>
+          <RevealGroup className="space-y-0.5 px-2" role="list" aria-label={recentBuildsLabel} animateOnMount>
             {recentBuilds.map((p) => (
-              <ProjectNavigationRow
-                key={p.id}
-                project={p}
-                onNavigate={() => { void handleOpenProject(p) }}
-                onChanged={onProjectsChanged}
-              />
+              <RevealItem key={p.id} role="presentation">
+                <ProjectNavigationRow
+                  project={p}
+                  onNavigate={() => { void handleOpenProject(p) }}
+                  onChanged={onProjectsChanged}
+                />
+              </RevealItem>
             ))}
             {hiddenBuildCount > 0 ? (
               <div className="px-3 pb-1 pt-3 text-[11px] text-muted-foreground">
                 {hiddenBuildCount} more available in search
               </div>
             ) : null}
-          </div>
+          </RevealGroup>
         )}
       </div>
 

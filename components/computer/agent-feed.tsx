@@ -2,6 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
+import { duration, ease } from "@/lib/motion"
 import {
   Dialog,
   DialogContent,
@@ -808,7 +809,13 @@ export function AgentFeed({
   }
 
   const renderFeedItem = (event: ComputerTimelineEvent, isLatest: boolean, key: string) => (
-    <motion.div key={key} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+    <motion.div
+      key={key}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, transition: { duration: duration.fast } }}
+      transition={{ duration: duration.base, ease }}
+    >
       <FeedItem
         event={event}
         isLatest={isLatest}
@@ -824,7 +831,7 @@ export function AgentFeed({
   return (
     <div className="space-y-2.5 pb-4">
       {prompt && (
-        <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.12 }} className="pb-5">
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: duration.base, ease }} className="pb-5">
           <UserMessageBubble
             content={prompt} index={-1} isEditing={editingIndex === -1}
             editText={editingIndex === -1 ? editText : ""}
@@ -839,7 +846,7 @@ export function AgentFeed({
 
       <AnimatePresence initial={false}>
         {isStarting && (
-          <motion.div key="optimistic" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }} className="py-2">
+          <motion.div key="optimistic" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, transition: { duration: duration.fast } }} transition={{ duration: duration.base, ease }} className="py-2">
             <Shimmer className="text-[13px] font-medium">Starting...</Shimmer>
           </motion.div>
         )}
@@ -855,7 +862,7 @@ export function AgentFeed({
         {localMessages.map((msg, i) =>
           msg.role === "user" ? (
             <Fragment key={`user-fragment-${i}`}>
-              <motion.div key={`user-${i}`} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.12 }} className="pt-5">
+              <motion.div key={`user-${i}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: duration.base, ease }} className="pt-5">
                 <UserMessageBubble
                   content={msg.content} index={i} isEditing={editingIndex === i}
                   editText={editingIndex === i ? editText : ""}
@@ -871,7 +878,7 @@ export function AgentFeed({
               )}
             </Fragment>
           ) : (
-            <motion.div key={`sys-${i}`} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.12 }} className="flex justify-center py-2">
+            <motion.div key={`sys-${i}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: duration.base, ease }} className="flex justify-center py-2">
               <span className="text-[11px] text-muted-foreground">{msg.content}</span>
             </motion.div>
           )
@@ -886,7 +893,7 @@ export function AgentFeed({
 
       <AnimatePresence>
         {showGlobalThinking && (
-          <motion.div initial={{ opacity: 0, y: 3 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }} className="py-2.5">
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, transition: { duration: duration.fast } }} transition={{ duration: duration.base, ease }} className="py-2.5">
             <Shimmer className="text-[13px] font-medium">
               {progress?.label ?? "Working..."}
             </Shimmer>

@@ -69,11 +69,11 @@ export function ComputerNavigation({ currentProjectId, mobileOpen, onMobileOpenC
         <button type="button" onClick={() => { if (mobileOpen) onMobileOpenChange(false); else setCollapsed(!compact) }} aria-label={compact ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!compact} className={actionClass}><SidebarToggleIcon className="size-[18px]" side="left" open={!compact} /></button>
       </div>
     </header>
-    <Link href="/" onClick={() => onMobileOpenChange(false)} title={compact ? "New project" : undefined} className={cn("mx-2 flex min-h-11 items-center gap-2.5 rounded-lg px-3 text-[13px] transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", compact && "justify-center px-0")}>
+    <Link href="/" onClick={() => onMobileOpenChange(false)} title={compact ? "New project" : undefined} className={cn("mx-2 flex min-h-11 items-center gap-2.5 whitespace-nowrap rounded-lg px-3 text-[13px] transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", compact && "justify-center px-0")}>
       <SquarePen className="size-4 shrink-0" aria-hidden />{!compact && "New project"}
     </Link>
     {compact ? <button type="button" onClick={() => setCollapsed(false)} className={cn(actionClass, "mx-auto")} aria-label="Show projects"><FolderOpen className="size-4" aria-hidden /></button> : <>
-      <button type="button" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded} aria-controls={projectListId} className="mx-3 mt-5 flex min-h-9 items-center justify-between rounded-lg px-2 text-xs text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+      <button type="button" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded} aria-controls={projectListId} className="mx-3 mt-5 flex min-h-9 items-center justify-between rounded-lg px-2 text-xs whitespace-nowrap text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         Projects<ChevronDown className={cn("size-3.5 transition-transform motion-reduce:transition-none", !expanded && "-rotate-90")} aria-hidden />
       </button>
       <div id={projectListId} hidden={!expanded} className="min-h-0 flex-1 overflow-y-auto px-1 [scrollbar-width:thin]">
@@ -94,10 +94,10 @@ export function ComputerNavigation({ currentProjectId, mobileOpen, onMobileOpenC
       </div>
     </>}
     <footer className="mt-auto shrink-0 space-y-1 px-2 pb-3">
-      <button type="button" onClick={() => { onMobileOpenChange(false); openSettings() }} aria-label="Settings" className={cn("flex min-h-11 w-full items-center gap-2.5 rounded-lg px-3 text-[13px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", compact && "justify-center px-0")}><Settings className="size-4 shrink-0" aria-hidden />{!compact && "Settings"}</button>
+      <button type="button" onClick={() => { onMobileOpenChange(false); openSettings() }} aria-label="Settings" className={cn("flex min-h-11 w-full items-center gap-2.5 whitespace-nowrap rounded-lg px-3 text-[13px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", compact && "justify-center px-0")}><Settings className="size-4 shrink-0" aria-hidden />{!compact && "Settings"}</button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button type="button" aria-label={`Open account menu for ${displayName}`} className={cn("flex min-h-12 w-full items-center gap-2.5 rounded-lg px-2 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", compact && "justify-center px-0")}>
+          <button type="button" aria-label={`Open account menu for ${displayName}`} className={cn("flex min-h-12 w-full items-center gap-2.5 whitespace-nowrap rounded-lg px-2 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", compact && "justify-center px-0")}>
             <Avatar className="size-7 shrink-0"><AvatarImage src={userData?.photoURL ?? undefined} /><AvatarFallback className="bg-muted text-xs">{displayName.slice(0, 1).toUpperCase()}</AvatarFallback></Avatar>
             {!compact && <span className="min-w-0 flex-1 truncate text-[13px]">{displayName}</span>}
           </button>
@@ -113,7 +113,7 @@ export function ComputerNavigation({ currentProjectId, mobileOpen, onMobileOpenC
   </nav>
 
   return <>
-    <aside aria-label="Project sidebar" className={cn("hidden h-full shrink-0 overflow-hidden border-r border-border/30 bg-muted/25 lg:block", collapsed ? "w-[68px]" : "w-[256px]")}>{content(collapsed, `${navigationId}-desktop-projects`)}</aside>
+    <aside aria-label="Project sidebar" className={cn("hidden h-full shrink-0 overflow-hidden border-r border-border/30 bg-muted/25 transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none lg:block", collapsed ? "w-[68px]" : "w-[256px]")}>{content(collapsed, `${navigationId}-desktop-projects`)}</aside>
     <Sheet open={mobileOpen} onOpenChange={onMobileOpenChange}>
       <SheetContent id="computer-mobile-navigation" side="left" onCloseAutoFocus={(event) => {
         const trigger = document.getElementById("computer-navigation-toggle")

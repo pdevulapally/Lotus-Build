@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { AuthProvider } from "@/contexts/auth-context"
 import { SettingsDialogProvider } from "@/components/settings/settings-dialog"
 import { ConsentAnalytics } from "@/components/consent-analytics"
+import { MotionProvider } from "@/components/motion-provider"
 import "./globals.css"
 import "@fontsource-variable/manrope/index.css"
 
@@ -110,12 +111,14 @@ export default function RootLayout({
         />
       </head>
       <body className="font-sans antialiased bg-background text-foreground overflow-x-hidden">
-        <AuthProvider>
-          <SettingsDialogProvider>
-            {children}
-          </SettingsDialogProvider>
-        </AuthProvider>
-        <ConsentAnalytics />
+        <MotionProvider>
+          <AuthProvider>
+            <SettingsDialogProvider>
+              {children}
+            </SettingsDialogProvider>
+          </AuthProvider>
+          <ConsentAnalytics />
+        </MotionProvider>
       </body>
     </html>
   )

@@ -29,6 +29,7 @@ import { cancelSession } from "@/lib/backend/cancel-session"
 
 
 import { AnimatePresence, motion } from "framer-motion"
+import { duration, ease, spring } from "@/lib/motion"
 
 
 
@@ -535,12 +536,22 @@ export default function ComputerPage() {
         </aside>
 
         {/* ── Workspace panel ── */}
-        <section
+        <motion.section
           id="computer-preview-sidebar"
           aria-label="Workspace preview and files"
+          initial={false}
+          animate={workspacePanelOpen ? "open" : "closed"}
+          variants={{
+            open: { opacity: 1, x: 0, display: "flex", transition: spring },
+            closed: {
+              opacity: 0,
+              x: 24,
+              transitionEnd: { display: "none" },
+              transition: { duration: duration.fast, ease },
+            },
+          }}
           className={cn(
           "m-2 mt-0 flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card",
-          !workspacePanelOpen && "hidden",
         )}>
           <div className="flex min-h-12 shrink-0 items-center justify-between gap-2 border-b border-border/50 px-2">
             <WorkspaceViewTabs activeTab={activeTab} onChange={setActiveTab} hasBrowser={hasBrowser} hasResearch={hasResearch} />
@@ -606,7 +617,7 @@ export default function ComputerPage() {
             </AnimatePresence>
             </div>
           </div>
-        </section>
+        </motion.section>
 
       </main>
       </div>

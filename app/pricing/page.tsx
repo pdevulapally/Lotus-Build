@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, Check, LoaderCircle } from 'lucide-react'
 import { Navbar } from '@/components/ui/navbar'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { RevealGroup, RevealItem } from '@/components/ui/reveal'
 import { FooterSection } from '@/components/sections/footer-section'
 import { useAuth } from '@/contexts/auth-context'
 import { currentBackend } from '@/lib/backend/browser'
@@ -138,10 +139,10 @@ export default function PricingPage() {
           <Button type="button" variant="outline" className="mt-5" onClick={() => setRevision((value) => value + 1)}>Check again</Button>
         </div>}
 
-        {plans && plans.length > 0 && <div className={styles.plans}>
+        {plans && plans.length > 0 && <RevealGroup className={styles.plans} animateOnMount>
           {plans.map((plan) => {
             const isCurrent = account?.plan.key === plan.key
-            return <article key={plan.key} className={styles.plan} data-current={isCurrent || undefined}>
+            return <RevealItem as="article" key={plan.key} className={styles.plan} data-current={isCurrent || undefined}>
               <h3 className="break-words text-xl font-semibold tracking-tight">{plan.name}</h3>
               <div className={styles.price}>
                 <p className={plan.price ? styles.amount : 'text-lg font-medium'}>{priceLabel(plan)}</p>
@@ -168,9 +169,9 @@ export default function PricingPage() {
                   {busy === plan.key ? <><LoaderCircle aria-hidden="true" className="animate-spin motion-reduce:animate-none" /> Opening checkout…</> : <>Choose {plan.name}<ArrowRight aria-hidden="true" /></>}
                 </Button> : <p className="text-sm leading-relaxed text-muted-foreground">Online checkout isn’t available for this plan.</p>}
               </div>
-            </article>
+            </RevealItem>
           })}
-        </div>}
+        </RevealGroup>}
         <p role="status" className="sr-only">{busy ? 'Opening checkout…' : ''}</p>
       </section>
 
