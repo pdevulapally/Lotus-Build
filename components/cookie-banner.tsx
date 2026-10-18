@@ -313,7 +313,7 @@ export function CookieBanner() {
       <div
         role="region"
         aria-label="Cookie consent"
-        className="fixed bottom-4 right-4 z-[150] w-[calc(100%-2rem)] max-w-[22rem] animate-in slide-in-from-bottom-4 duration-500"
+        className="fixed bottom-4 right-4 z-40 w-[calc(100%-2rem)] max-w-[22rem] animate-in slide-in-from-bottom-4 duration-500"
       >
         <div className="lotus-glass-strong overflow-hidden rounded-2xl border border-border/60 shadow-xl">
           <div className="p-4">

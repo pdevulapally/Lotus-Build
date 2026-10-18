@@ -1,0 +1,17 @@
+.dialog > [data-slot="dialog-close"] {
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  color: var(--muted-foreground);
+  opacity: 1;
+}
+
+.dialog > [data-slot="dialog-close"]:hover {
+  background: var(--accent);
+  color: var(--foreground);
+}

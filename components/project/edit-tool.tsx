@@ -161,7 +161,7 @@ export const EditTool = React.memo(function EditTool({
       : `${isWrite ? "Created" : "Edited"}${fileName ? ` ${fileName}` : ""}`
 
   return (
-    <div className={cn("w-full overflow-hidden rounded-[10px] border border-border bg-muted shadow-sm", className)}>
+    <div className={cn("w-full overflow-hidden rounded-xl border border-border bg-card", className)}>
       <div
         className={cn(
           "flex h-8 items-center justify-between gap-3 bg-muted px-2.5",
@@ -180,8 +180,8 @@ export const EditTool = React.memo(function EditTool({
         </div>
         {stats && !isPending && !isWaiting && (stats.added > 0 || stats.removed > 0) && (
           <span className="inline-flex shrink-0 gap-2 font-mono text-[11px]">
-            {stats.added > 0 && <span className="text-emerald-600">+{stats.added}</span>}
-            {stats.removed > 0 && <span className="text-red-500">-{stats.removed}</span>}
+            {stats.added > 0 && <span className="text-success">+{stats.added}</span>}
+            {stats.removed > 0 && <span className="text-destructive">-{stats.removed}</span>}
           </span>
         )}
       </div>
@@ -193,16 +193,16 @@ export const EditTool = React.memo(function EditTool({
               key={i}
               className={cn(
                 "flex min-w-max items-start",
-                op.type === "add" && "bg-emerald-50 text-emerald-900",
-                op.type === "remove" && "bg-red-50 text-red-900",
+                op.type === "add" && "bg-success/10 text-success",
+                op.type === "remove" && "bg-destructive/10 text-destructive",
                 op.type === "context" && "text-muted-foreground"
               )}
             >
               <span
                 className={cn(
                   "w-5 shrink-0 select-none text-center",
-                  op.type === "add" && "text-emerald-600",
-                  op.type === "remove" && "text-red-500",
+                  op.type === "add" && "text-success",
+                  op.type === "remove" && "text-destructive",
                   op.type === "context" && "text-muted-foreground"
                 )}
               >

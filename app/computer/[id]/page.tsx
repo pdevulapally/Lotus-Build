@@ -44,8 +44,8 @@ import {
   GitBranch,
   KeyRound,
   Loader2,
-  MessageSquare,
-  Monitor,
+  Maximize2,
+  Minimize2,
   Rocket,
   Search,
   X,
@@ -78,6 +78,7 @@ import { AgentFeed } from "@/components/computer/agent-feed"
 
 
 import { ComputerTopBar, type ComputerTheme } from "@/components/computer/computer-top-bar"
+import { ComputerNavigation } from "@/components/computer/computer-navigation"
 
 
 
@@ -94,6 +95,7 @@ import {
   LoadingShell,
   WorkspaceContent,
   WorkspaceTabBar,
+  WorkspaceViewTabs,
 } from "@/components/computer/workspace-panel"
 
 
@@ -285,8 +287,11 @@ export default function ComputerPage() {
   const agentContextUsage = undefined
   const localMessages: LocalMessage[] = []
   const firstPrompt = backend.messages.find((message) => message.role === 'user')?.content
-  const [mobileView, setMobileView] = useState<MobileView>('feed')
-  const [desktopChatCollapsed, setDesktopChatCollapsed] = useState(false)
+  const [workspacePanel, setWorkspacePanel] = useState<"closed" | "split" | "expanded">("closed")
+  const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false)
+  const workspacePanelOpen = workspacePanel !== "closed"
+  const mobileView: MobileView = workspacePanelOpen ? "workspace" : "feed"
+  const setMobileView = (view: MobileView) => setWorkspacePanel(view === "workspace" ? "split" : "closed")
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('preview')
   const [runError, setRunError] = useState<string | null>(null)
   const [isStartingRun, setIsStartingRun] = useState(false)
@@ -344,7 +349,6 @@ export default function ComputerPage() {
   if (error || !session || !backend.project) return <ErrorState message={error ?? "Session or project state is unavailable."} />
 
   const sessionPlatform = normalizePlatform(session.platform)
-  const hasPreview = Boolean(session.previewUrl)
   const hasBrowser    = Boolean(browserInspection)
   const hasResearch   = session.timeline.some((e) => (e.kind === "research" || e.kind === "browser") && e.description?.trim())
   const deploymentLinks = getProjectDeploymentLinks(projectIntegration)
@@ -354,7 +358,7 @@ export default function ComputerPage() {
   return (
     <div
       className={cn(
-        "relative flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground",
+        "relative flex h-[100dvh] overflow-hidden bg-background font-sans text-foreground antialiased",
         computerTheme === "dark" && "dark",
       )}
     >
@@ -365,8 +369,10 @@ export default function ComputerPage() {
         Skip to workspace
       </a>
 
+      <ComputerNavigation currentProjectId={backend.project.id} mobileOpen={mobileNavigationOpen} onMobileOpenChange={setMobileNavigationOpen} onCurrentProjectChanged={() => { void backend.refresh().catch((reason) => setRunError(String(reason))) }} theme={computerTheme} />
+
       {/* ── App shell ── */}
-      <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="relative z-10 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
 
       <ComputerTopBar
         session={session}
@@ -417,14 +423,10 @@ export default function ComputerPage() {
           setDeployOpen(false)
           setIntegrationsOpen(false)
         }}
-        chatPanelCollapsed={desktopChatCollapsed}
-        onToggleChatPanel={() => setDesktopChatCollapsed((c) => !c)}
-        activeTab={activeTab}
-        hasPreview={hasPreview}
-        hasBrowser={hasBrowser}
-        hasResearch={hasResearch}
-        hasCode={true}
-        onTabChange={setActiveTab}
+        onOpenNavigation={() => setMobileNavigationOpen(true)}
+        navigationOpen={mobileNavigationOpen}
+        workspacePanelOpen={workspacePanelOpen}
+        onToggleWorkspacePanel={() => setWorkspacePanel(workspacePanelOpen ? "closed" : "split")}
         contextUsage={agentContextUsage}
         theme={computerTheme}
         onThemeToggle={handleThemeToggle}
@@ -473,19 +475,13 @@ export default function ComputerPage() {
         <aside
           aria-label="Agent conversation"
           className={cn(
-          "lotus-glass-strong flex w-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 ease-in-out",
-          desktopChatCollapsed
-            ? "sm:w-0 sm:overflow-hidden"
-            : "sm:w-[32%] md:w-[31%] lg:w-[340px] xl:w-[370px] 2xl:w-[400px]",
-          mobileView !== "feed" && "hidden sm:flex"
+          "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background",
+          workspacePanel === "expanded" ? "hidden" : workspacePanelOpen && "hidden sm:flex sm:flex-[0_0_42%] lg:flex-[0_0_38%]",
         )}>
           {/* Feed scroll area */}
           <div className="relative min-h-0 flex-1 overflow-hidden">
-            {/* flex + flex-col on the scroller so the inner flex-1 spacer works */}
-            <div className="chat-scrollbar flex h-full flex-col overflow-y-auto px-4 lg:px-5">
-              {/* Top spacer: pushes content to bottom when feed is short (chat-app behavior) */}
-              <div className="flex-1 pt-4" />
-              <div className="pb-4">
+            <div className="chat-scrollbar h-full overflow-y-auto">
+              <div className="mx-auto w-full max-w-[792px] px-4 pb-8 pt-6 sm:px-6">
                 <AgentFeed
                   prompt={firstPrompt} events={session.timeline}
                   canonicalMessages={backend.messages} queuedMessages={backend.queued} streamText={backend.text}
@@ -506,9 +502,9 @@ export default function ComputerPage() {
           </div>
 
           {/* Composer */}
-          <div className="shrink-0 px-3 pt-2 [padding-bottom:max(4.5rem,calc(env(safe-area-inset-bottom)+3.25rem))] sm:pb-3 lg:px-4">
+          <div className="mx-auto w-full max-w-[792px] shrink-0 px-3 pt-2 [padding-bottom:max(1rem,env(safe-area-inset-bottom))] sm:pb-5 lg:px-4">
             {isBuildTokenBlocked && (
-              <div className="lotus-glass-panel mb-3 rounded-xl border border-border/55 px-3 py-2.5 shadow-sm">
+              <div className="mb-3 rounded-xl border border-border bg-muted px-3 py-2.5">
                 <p className="text-sm font-medium text-foreground">You have used all credits for this cycle.</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   Upgrade your plan to continue running the computer agent.{" "}
@@ -517,8 +513,8 @@ export default function ComputerPage() {
               </div>
             )}
             {(runError || backend.streamError || backend.fileError) && !isBuildTokenBlocked && (
-              <div className="lotus-glass-panel mb-3 rounded-xl border border-destructive/20 px-3 py-2.5 shadow-sm">
-                <p className="text-[11.5px] text-destructive">{getRunErrorMessage(runError || backend.streamError || backend.fileError || 'Live connection interrupted.')}</p>
+              <div className="mb-3 rounded-xl border border-destructive/25 bg-card px-3 py-2.5">
+                <p className="text-xs leading-relaxed text-destructive">{getRunErrorMessage(runError || backend.streamError || backend.fileError || 'Live connection interrupted.')}</p>
                 <button type="button" className="mt-1 text-xs underline" onClick={() => { setRunError(null); backend.reconnect() }}>Reconnect</button>
                 <button type="button" className="ml-3 mt-1 text-xs underline" onClick={() => {
                   if (user) sessionStorage.removeItem(pendingMessageKey(user.uid, session.id)); setRunError(null)
@@ -526,26 +522,35 @@ export default function ComputerPage() {
               </div>
             )}
             <details className="mb-2 text-xs text-muted-foreground">
-              <summary className="cursor-pointer">Session usage</summary>
+              <summary className="cursor-pointer rounded-lg py-1 font-medium transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Session usage</summary>
               {backend.usageError ? <p role="alert" className="mt-2 text-destructive">{backend.usageError}</p> : backend.usage === null ? <p role="status" className="mt-2">Loading usage…</p> : backend.usage.length === 0 ? <p className="mt-2">No usage recorded for this session.</p> : <dl className="mt-2 space-y-1">{backend.usage.map((meter) => <div key={meter.meterKey} className="flex justify-between gap-3"><dt>{meter.label}</dt><dd>{meter.settled.toLocaleString()} settled · {meter.open.toLocaleString()} reserved {meter.unit}</dd></div>)}</dl>}
             </details>
             <AnimatedAIInput
-              mode="chat" compact compactSize="slim" initialModel={raw?.model}
+              mode="chat" compact compactSize="slim" appearance="assistant" initialModel={raw?.model}
               isLoading={isRunning} onStop={handleStop} onSubmit={(prompt) => handleRun(prompt)}
-              placeholder="Message the agent..."
+              placeholder="Ask LotusBuild about this project…"
               disabled={isBuildTokenBlocked}
-              wrapperClassName="lotus-glass-control !border-border-strong shadow-sm shadow-foreground/5"
             />
           </div>
         </aside>
 
         {/* ── Workspace panel ── */}
         <section
+          id="computer-preview-sidebar"
           aria-label="Workspace preview and files"
           className={cn(
-          "lotus-glass-strong m-2 flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border/50 shadow-xl shadow-foreground/5",
-          mobileView !== "workspace" && "hidden sm:flex"
+          "m-2 mt-0 flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card",
+          !workspacePanelOpen && "hidden",
         )}>
+          <div className="flex min-h-12 shrink-0 items-center justify-between gap-2 border-b border-border/50 px-2">
+            <WorkspaceViewTabs activeTab={activeTab} onChange={setActiveTab} hasBrowser={hasBrowser} hasResearch={hasResearch} />
+            <div className="flex shrink-0 items-center gap-1">
+              <button type="button" aria-label={workspacePanel === "expanded" ? "Restore split view" : "Expand preview panel"} aria-pressed={workspacePanel === "expanded"} onClick={() => setWorkspacePanel(workspacePanel === "expanded" ? "split" : "expanded")} className="hidden size-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:inline-flex">
+                {workspacePanel === "expanded" ? <Minimize2 className="size-4" aria-hidden /> : <Maximize2 className="size-4" aria-hidden />}
+              </button>
+              <button type="button" aria-label="Close preview panel" onClick={() => { setWorkspacePanel("closed"); document.getElementById("computer-workspace-toggle")?.focus() }} className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><X className="size-4" aria-hidden /></button>
+            </div>
+          </div>
           {/* Workspace content — fills panel edge to edge */}
           <div className="relative min-h-0 flex-1">
             <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
@@ -559,6 +564,7 @@ export default function ComputerPage() {
               <motion.div
                 id="computer-workspace-panel"
                 role="tabpanel"
+                tabIndex={0}
                 aria-labelledby={`workspace-tab-${activeTab}`}
                 key={activeTab}
                 initial={{ opacity: 0 }}
@@ -604,46 +610,6 @@ export default function ComputerPage() {
 
       </main>
       </div>
-
-      {/* ── Mobile view switcher ── */}
-      <nav
-        aria-label="Switch between chat and preview"
-        className="lotus-glass-strong absolute inset-x-3 z-20 mx-auto max-w-xs rounded-full border !border-border-strong px-1 py-1 shadow-xl shadow-foreground/10 focus-within:ring-2 focus-within:ring-border-strong/25 sm:hidden"
-        style={{ bottom: "max(0.875rem, env(safe-area-inset-bottom))" }}
-      >
-        <div className="grid grid-cols-2 gap-1">
-          <button
-            type="button"
-            aria-current={mobileView === "feed" ? "page" : undefined}
-            aria-pressed={mobileView === "feed"}
-            onClick={() => setMobileView("feed")}
-            className={cn(
-              "flex h-10 items-center justify-center gap-1.5 rounded-full text-[12.5px] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              mobileView === "feed"
-                ? "bg-foreground text-background shadow-sm"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground",
-            )}
-          >
-            <MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />
-            Chat
-          </button>
-          <button
-            type="button"
-            aria-current={mobileView === "workspace" ? "page" : undefined}
-            aria-pressed={mobileView === "workspace"}
-            onClick={() => { setMobileView("workspace"); setActiveTab("preview") }}
-            className={cn(
-              "flex h-10 items-center justify-center gap-1.5 rounded-full text-[12.5px] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              mobileView === "workspace"
-                ? "bg-foreground text-background shadow-sm"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground",
-            )}
-          >
-            <Monitor className="h-3.5 w-3.5" aria-hidden="true" />
-            Preview
-          </button>
-        </div>
-      </nav>
 
       <TokenLimitDialog
         open={tokenLimitModalOpen}

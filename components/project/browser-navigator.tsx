@@ -122,7 +122,7 @@ export function BrowserNavigator({
   return (
     <div
       className={cn(
-        "border-b border-border bg-gradient-to-b from-secondary to-secondary text-xs text-secondary-foreground",
+        "border-b border-border bg-background text-xs text-foreground",
         className
       )}
     >
@@ -178,9 +178,9 @@ export function BrowserNavigator({
           <div
             className={cn(
               "flex-1 flex items-center gap-2 px-3 h-8 rounded-lg",
-              "bg-muted/50 border border-input/50",
-              "hover:bg-accent/90 hover:border-input/70 transition-all",
-              isEditing && "bg-card border-primary/50 ring-1 ring-primary/20"
+              "bg-muted/50 border border-input",
+              "hover:bg-muted hover:border-border-strong transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/20",
+              isEditing && "bg-card border-ring ring-2 ring-ring/20"
             )}
             onClick={() => setIsEditing(true)}
           >

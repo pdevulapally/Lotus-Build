@@ -8,14 +8,13 @@
     "start": "next start",
     "type-check": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "test:contracts": "node --import tsx --test test/*.test.ts"
+    "test:contracts": "node --import tsx --test test/*.test.ts test/*.test.tsx"
   },
   "dependencies": {
     "@astryxdesign/core": "0.7.1",
     "@astryxdesign/theme-neutral": "0.7.1",
     "@emotion/is-prop-valid": "latest",
-    "@fontsource/libre-caslon-condensed": "5.3.1",
-    "@fontsource/public-sans": "5.3.0",
+    "@fontsource-variable/manrope": "5.2.8",
     "@hookform/resolvers": "^5.4.0",
     "@monaco-editor/react": "^4.7.0",
     "@radix-ui/react-accordion": "1.2.14",
@@ -65,9 +64,11 @@
     "react-day-picker": "10.0.1",
     "react-dom": "19.2.7",
     "react-hook-form": "^7.80.0",
+    "react-markdown": "^10.1.0",
     "react-qr-code": "^2.2.0",
     "react-resizable-panels": "^4.11.2",
     "recharts": "3.9.0",
+    "remark-gfm": "^4.0.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
     "tailwindcss-animate": "^1.0.7",

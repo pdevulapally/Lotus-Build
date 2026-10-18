@@ -6,6 +6,28 @@ import { sendMessage } from '../lib/backend/send-message'
 import { authErrorMessage } from '../lib/auth/errors'
 import { resolveModelSelection } from '../lib/backend/model-selection'
 import { presentRequestError } from '../lib/backend/error-presentation'
+import { MissingProjectSessionError, projectSessionPath } from '../lib/backend/project-session-path'
+import { clearCheckoutAttempt, readCheckoutAttempt, saveCheckoutAttempt } from '../lib/backend/checkout-attempt'
+
+test('checkout cancellation resumes the original Stripe URL for the same account', () => {
+  const values = new Map<string, string>()
+  const storage = {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => { values.set(key, value) },
+    removeItem: (key: string) => { values.delete(key) },
+  }
+  const url = 'https://checkout.stripe.com/c/pay/cs_test_only_example#return-fragment'
+  saveCheckoutAttempt(storage, { uid: 'user-a', planKey: 'pro', url })
+  assert.deepEqual(readCheckoutAttempt(storage, 'user-a'), { uid: 'user-a', planKey: 'pro', url })
+  assert.equal(readCheckoutAttempt(storage, 'user-b'), null)
+  assert.equal(values.size, 1)
+  values.set('lotus-checkout-attempt:user-a', JSON.stringify({ uid: 'user-a', planKey: 'pro', url: 'https://fake-stripe.example/pay' }))
+  assert.equal(readCheckoutAttempt(storage, 'user-a'), null)
+  assert.throws(() => saveCheckoutAttempt(storage, { uid: 'user-a', planKey: 'pro', url: 'http://checkout.stripe.com/pay' }))
+  saveCheckoutAttempt(storage, { uid: 'user-a', planKey: 'pro', url })
+  clearCheckoutAttempt(storage, 'user-a')
+  assert.equal(readCheckoutAttempt(storage, 'user-a'), null)
+})
 
 test('quota error UI validates server details and keeps used and reserved usage distinct', async () => {
   const details = { label: 'Builds', unit: 'count', limit: 10, consumed: 7, reserved: 3 }
@@ -28,6 +50,22 @@ test('quota error UI validates server details and keeps used and reserved usage 
   assert.equal(presentRequestError(new BackendError(400, 'other/error', 'Not a quota', undefined, details)).isQuota, false)
 })
 
+test('project limit errors offer a clear next step without inventing a limit', () => {
+  const error = new BackendError(403, 'project/limit-reached', 'The Free plan allows 3 projects.', undefined, { limit: 3, current: 3, plan: 'free' })
+  const presentation = presentRequestError(error, 'Free')
+  assert.equal(presentation.isProjectLimit, true)
+  assert.equal(presentation.isQuota, false)
+  assert.equal(presentation.title, 'You’ve reached your project limit')
+  assert.match(presentation.description, /Free plan includes 3 projects/)
+  assert.match(presentation.description, /Your idea is still here/)
+  assert.ok(!presentation.description.includes('Discard'))
+
+  const invalid = presentRequestError(new BackendError(403, 'project/limit-reached', 'Technical limit', undefined, { limit: '3' }))
+  assert.ok(!invalid.description.includes('3'))
+  assert.ok(!invalid.description.includes('Technical limit'))
+  assert.equal(presentRequestError(new BackendError(403, 'project/platform-not-permitted', 'Different restriction')).isProjectLimit, false)
+})
+
 test('model defaults follow the account catalog without replacing explicit or pending choices', () => {
   assert.equal(resolveModelSelection([], ''), '')
   assert.equal(resolveModelSelection(['allowed-a', 'allowed-b'], ''), 'allowed-a')
@@ -41,6 +79,26 @@ const createdAt = '2026-10-17T12:00:00.000Z'
 const project = { id: 'p1', name: 'App', platform: 'web', status: 'draft', publicPreviewEnabled: false, createdAt }
 const session = { id: 's1', projectId: 'p1', status: 'QUEUED', model: 'configured-model', effort: 'standard', mode: 'build', messageCount: 1, createdAt }
 const key = 'client-operation-123'
+
+test('project navigation resolves the computer session for both sidebar actions', async () => {
+  let lookups = 0
+  const client = new BackendClient({
+    origin: 'https://api.example.test',
+    token: async () => 'id-token',
+    fetch: async () => { lookups++; return Response.json({ sessions: [session] }) },
+  })
+  assert.equal(await projectSessionPath(client, { id: 'p1' }), '/computer/s1')
+  assert.equal(lookups, 1)
+  assert.equal(await projectSessionPath(client, { id: 's2', kind: 'computer' }), '/computer/s2')
+  assert.equal(lookups, 1)
+
+  const withoutSession = new BackendClient({
+    origin: 'https://api.example.test',
+    token: async () => 'id-token',
+    fetch: async () => Response.json({ sessions: [] }),
+  })
+  await assert.rejects(projectSessionPath(withoutSession, { id: 'p2' }), MissingProjectSessionError)
+})
 
 test('auth UI distinguishes provider configuration failures without exposing raw error data', () => {
   const sensitiveMessage = 'email=private@example.test token=private-token apiKey=private-key'

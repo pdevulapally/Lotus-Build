@@ -1,73 +1,37 @@
 .popover { font-family: var(--font-sans); }
 .page { background: var(--background); color: var(--foreground); font-family: var(--font-sans); }
-.page h1, .page h2, .page h3 { font-family: var(--font-serif); font-weight: 500; }
-.hero { padding: 64px 32px 76px; text-align: center; background: var(--background); border-top: 1px solid color-mix(in oklch, var(--border) 65%, transparent); }
-.eyebrow { width: fit-content; margin: 0 auto 25px; padding: 7px 14px; border: 1px solid var(--border); border-radius: 999px; color: var(--foreground); font-size: 11px; }
-.heroActions { display: flex; justify-content: center; align-items: center; gap: 12px; margin: 0 auto 32px; }
-.secondary { display: inline-flex; align-items: center; justify-content: center; gap: 14px; border: 1px solid var(--border); border-radius: 999px; padding: 13px 18px; font-size: 13px; font-weight: 500; }
-.secondary:hover { background: var(--muted); }
-.hero h1 { font-size: clamp(50px, 5.4vw, 80px); line-height: 1.15; letter-spacing: -.02em; font-weight: 500; margin: 0 auto; max-width: 1100px; }
-.intro { font-size: 16px; line-height: 1.75; margin: 25px auto 34px; max-width: 640px; color: var(--muted-foreground); }
-.composer { max-width: 720px; margin: auto; text-align: left; }
-.composer > div { max-width: none; }
-.composer > div > div { box-shadow: 0 10px 32px -18px rgb(var(--primary-rgb) / .2); border-color: color-mix(in oklch, var(--border) 80%, transparent); }
-.composer > div > div:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px rgb(var(--primary-rgb) / .08); }
-.inputHint { text-align: right; color: var(--muted-foreground); font-size: 10px; }
-.briefs { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin: 23px auto 0; }
-.briefs button { display: flex; align-items: center; gap: 9px; font-size: 13px; background: var(--card); border: 1px solid color-mix(in oklch, var(--border) 80%, transparent); border-radius: 999px; padding: 11px 16px; cursor: pointer; }
-.briefs button:hover { color: var(--primary); border-color: var(--primary); }
+.page h1, .page h2, .page h3 { font-family: var(--font-heading); font-weight: 600; }
+.hero { padding: 120px 32px 96px; text-align: center; background: var(--background); border-top: 1px solid color-mix(in oklch, var(--border) 65%, transparent); }
+.heroActions { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 12px; margin: 20px auto 0; }
+.heroActions > * { min-height: 44px; }
+.secondary { display: inline-flex; align-items: center; justify-content: center; gap: 10px; padding: 8px 12px; color: var(--muted-foreground); font-size: 13px; font-weight: 500; }
+.secondary:hover { color: var(--foreground); text-decoration: underline; text-underline-offset: 4px; }
+.hero h1 { font-family: var(--font-sans); font-size: clamp(40px, 4.4vw, 60px); line-height: 1.08; letter-spacing: -.05em; font-weight: 600; margin: 0 auto; max-width: 900px; text-wrap: balance; }
+.intro { font-size: 16px; line-height: 1.7; margin: 18px auto 36px; max-width: 520px; color: var(--muted-foreground); text-wrap: pretty; }
+.composer { max-width: 760px; margin: auto; text-align: left; }
+.briefs { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; max-width: 760px; margin: 20px auto 0; }
+.briefs button { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; font-size: 13px; font-weight: 500; color: var(--muted-foreground); background: var(--card); border: 1px solid var(--border); border-radius: 999px; padding: 8px 14px; cursor: pointer; transition: color 150ms ease, border-color 150ms ease; }
+.briefs button:hover { color: var(--foreground); border-color: var(--border-strong); }
 
-.workflow, .saved { padding: 100px 32px; text-align: center; scroll-margin-top: 32px; }
-.workflow { max-width: 1184px; margin: auto; }
 .sectionLabel { display: block; margin: 0 auto 22px; color: var(--muted-foreground); font-size: 11px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; line-height: 1.7; }
-.workflow h2, .saved h2 { font-size: clamp(40px, 4.4vw, 62px); line-height: 1.08; letter-spacing: -.02em; margin: 0 auto; }
-.sectionIntro { max-width: 550px; margin: 24px auto 0; font-size: 15px; line-height: 1.8; color: var(--muted-foreground); }
-.workflowRows { display: grid; grid-template-columns: 1fr 1fr; margin: 48px auto 0; border: 1px solid var(--border); border-radius: 20px; overflow: hidden; background: var(--card); }
-.workflowRows article { display: flex; flex-direction: column; align-items: center; padding: 34px 40px 38px; }
-.workflowRows article + article { border-left: 1px solid var(--border); background: color-mix(in oklch, var(--muted) 38%, var(--card)); }
-.number { display: block; color: var(--muted-foreground); font-size: 10px; font-weight: 500; letter-spacing: .14em; }
-.workflowRows svg { margin: 30px auto 24px; }
-.workflowRows h3 { font-size: 32px; line-height: 1.15; letter-spacing: -.01em; margin: 0 0 16px; }
-.workflowRows p { font-size: 14px; line-height: 1.8; color: var(--muted-foreground); margin: 0 auto 28px; max-width: 330px; flex: 1; }
-.workflowRows button { display: inline-flex; align-items: center; justify-content: center; gap: 22px; font-size: 13px; font-weight: 500; border-bottom: 1px solid var(--border-strong); padding: 10px 0; cursor: pointer; }
-.workflowRows button svg { margin: 0; }
-.workflowRows button:hover { border-bottom-color: var(--primary); }
-.saved { background: var(--muted); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
-.savedItems { display: grid; grid-template-columns: repeat(3, 1fr); max-width: 1120px; margin: 52px auto 0; background: var(--card); border: 1px solid var(--border); border-radius: 20px; overflow: hidden; }
-.savedItems article { padding: 36px 24px 38px; }
-.savedItems article + article { border-left: 1px solid var(--border); }
-.artifactIcon { display: flex; justify-content: center; align-items: center; width: 84px; height: 94px; border: 1px solid var(--border); border-radius: 10px; margin: 0 auto 28px; background: var(--background); box-shadow: 4px 4px 0 var(--muted); }
-.savedItems h3 { font-size: 28px; line-height: 1.2; margin: 15px 0; }
-.savedItems p { max-width: 260px; margin: auto; font-size: 14px; line-height: 1.8; color: var(--muted-foreground); }
 .closing { text-align: center; padding: 100px 24px; background: var(--foreground); color: var(--background); }
 .closing .sectionLabel { color: var(--background); opacity: .75; }
-.closing h2 { font-size: clamp(48px, 5.5vw, 76px); line-height: 1.08; letter-spacing: -.02em; margin: 0; }
+.closing h2 { font-size: clamp(40px, 5vw, 68px); line-height: 1.12; letter-spacing: -.055em; margin: 0; }
 .closing p { font-size: 15px; line-height: 1.8; margin: 26px auto 30px; opacity: .8; }
 .closing :global(.site-action) { background: var(--background); color: var(--foreground); padding: 16px 24px; }
 .closingNote { display: block; font-size: 11px; margin-top: 25px; opacity: .65; }
 .page a:focus-visible, .page button:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; }
 .closing button:focus-visible { outline-color: var(--background); }
 @media(max-width:720px) {
- .hero { padding: 48px 20px 56px; }
- .hero h1 { font-size: clamp(46px, 11vw, 64px); }
- .intro { font-size: 14px; margin: 24px auto 29px; }
+ .hero { padding: 64px 16px 48px; }
+ .hero h1 { font-size: clamp(32px, 9vw, 44px); letter-spacing: -.05em; }
+ .intro { font-size: 15px; margin: 14px auto 28px; }
  .intro br { display: none; }
- .inputHint { display: none; }
  .briefs { gap: 8px; }
  .briefs button { font-size: 11px; padding: 10px 12px; gap: 7px; }
  .heroActions { gap: 10px; }
- .heroActions :global(.site-action), .secondary { padding: 12px 15px; font-size: 12px; }
- .workflow, .saved { padding: 64px 20px; }
+ .secondary { font-size: 12px; }
  .sectionLabel { font-size: 10px; max-width: 280px; }
- .sectionIntro { font-size: 14px; }
- .workflowRows { grid-template-columns: 1fr; margin-top: 34px; }
- .workflowRows article { padding: 30px 24px; }
- .workflowRows article + article { border-left: 0; border-top: 1px solid var(--border); }
- .workflowRows h3 { font-size: 30px; }
- .savedItems { grid-template-columns: 1fr; margin-top: 34px; }
- .savedItems article + article { border-left: 0; border-top: 1px solid var(--border); }
- .savedItems article { padding: 30px 24px; }
- .artifactIcon { width: 72px; height: 80px; }
  .closing { padding: 72px 20px; }
  .closing .sectionLabel { max-width: 240px; }
  .closing p { font-size: 14px; }

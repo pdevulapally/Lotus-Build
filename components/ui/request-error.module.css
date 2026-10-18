@@ -10,9 +10,11 @@
 .banner :global(.astryx-banner-icon[data-status="error"]) { color: var(--destructive); }
 .banner :global(.astryx-banner-content) { background: var(--card); padding: 16px 20px 20px; }
 .heading { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; color: var(--foreground); font-size: 15px; font-weight: 600; line-height: 1.4; }
+.projectLimit .heading { font-size: 18px; letter-spacing: -.025em; }
 .plan { padding: 3px 7px; border-radius: 6px; background: var(--muted); color: var(--muted-foreground); font-size: 11px; font-weight: 500; }
 .body { display: grid; gap: 18px; }
 .description { margin: 0; color: var(--muted-foreground); font-size: 13px; line-height: 1.65; overflow-wrap: anywhere; }
+.projectLimit .description { font-size: 14px; line-height: 1.6; }
 .usage { display: grid; gap: 12px; }
 .usageHeading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; color: var(--foreground); font-size: 13px; font-weight: 500; }
 .amount { white-space: nowrap; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--muted-foreground); }
@@ -28,12 +30,15 @@
 .reservedDot { background: var(--muted); border: 1px solid var(--muted-foreground); }
 .note { margin: 0; color: var(--muted-foreground); font-size: 11px; line-height: 1.5; }
 .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.actions button, .primary { display: inline-flex; flex: 1 1 auto; min-height: 44px; align-items: center; justify-content: center; border-radius: 10px; padding: 8px 12px; font-size: 13px; font-weight: 500; }
-.actions button { color: var(--muted-foreground); border: 1px solid var(--border); }
+.actions button, .primary, .secondary { display: inline-flex; flex: 1 1 auto; min-height: 44px; align-items: center; justify-content: center; border-radius: 12px; padding: 8px 12px; font-size: 13px; font-weight: 600; }
+.actions button, .secondary { color: var(--foreground); border: 1px solid var(--border); text-decoration: none; }
+.secondary:hover { background: var(--muted); }
 .primary { background: var(--primary); color: var(--primary-foreground); text-decoration: none; }
 .primary:hover { opacity: .9; }
-.actions button:focus-visible, .primary:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+.actions button:focus-visible, .primary:focus-visible, .secondary:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
 .notice { position: fixed; z-index: 60; right: 20px; bottom: 20px; width: min(400px, calc(100vw - 32px)); max-height: calc(100dvh - 40px); overflow-y: auto; border-radius: 16px; background: var(--card); box-shadow: 0 8px 28px color-mix(in srgb, var(--foreground) 12%, transparent); }
+.inlineLimit { position: relative; width: min(100%, 480px); margin: 20px auto 0; border-radius: 16px; background: var(--card); }
+.inlineLimit .projectLimit { border-color: var(--border); }
 @media (max-width: 639px) { .notice { right: 16px; bottom: 16px; } }
 .close { position: absolute; top: 14px; right: 8px; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 8px; color: var(--muted-foreground); }
 .close:hover { background: var(--muted); color: var(--foreground); }

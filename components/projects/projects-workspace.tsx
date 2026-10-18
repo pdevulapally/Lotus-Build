@@ -2,15 +2,18 @@
 
 import { BrandWordmark } from "@/components/ui/brand-wordmark"
 import { SidebarToggleIcon } from "@/components/ui/sidebar-toggle-icon"
+import { SideNav } from "@astryxdesign/core/SideNav"
+import { ProjectNavigationRow } from "@/components/projects/project-navigation-row"
 import { ProjectSearchDialog } from "@/components/projects/project-search-dialog"
 import { Suspense, useCallback, useEffect, useId, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { LotusLogo } from "@/components/ui/lotus-logo"
 import { currentBackend } from "@/lib/backend/browser"
+import { projectSessionPath } from "@/lib/backend/project-session-path"
+import { clearCheckoutAttempt } from "@/lib/backend/checkout-attempt"
 import {
   Settings,
-  Trash2,
   LogOut,
   Users,
   CreditCard,
@@ -24,6 +27,9 @@ import {
   Loader2,
   Lock,
   Plus,
+  FolderOpen,
+  SquarePen,
+  ArrowUpRight,
 } from "lucide-react"
 
 
@@ -47,31 +53,14 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { AnimatedAIInput } from "@/components/ui/animated-ai-input"
 import { cn } from "@/lib/utils"
 
-import { useProjectList } from "@/hooks/use-project-list"
+import { useProjectList, type ProjectListItem as ProjectSummary } from "@/hooks/use-project-list"
 import { useSettingsDialog } from "@/components/settings/settings-dialog"
-
-/* ─── types ─────────────────────────────────────────────────────────────── */
-
-type ProjectStatus = "pending" | "generating" | "complete" | "error" | "draft" | "deleting"
-
-type ProjectSummary = {
-  id: string
-  prompt: string
-  model?: string
-  status: ProjectStatus
-  visibility?: "public" | "private" | "link-only"
-  createdAt?: any
-  updatedAt?: any
-  sandboxUrl?: string
-  workspaceId?: string
-  workspaceName?: string
-  kind?: "project" | "computer"
-}
+import styles from "./projects-workspace.module.css"
 
 /* ─── helpers ────────────────────────────────────────────────────────────── */
 
 const sidebarActionClass =
-  "inline-flex items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent-soft hover:text-accent-soft-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+  "inline-flex items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
 
 
 const accountMenuItemClass =
@@ -83,84 +72,6 @@ const PROJECTS_HEADING_ID = "projects-main-heading"
 const PROJECTS_MOBILE_SIDEBAR_ID = "projects-mobile-sidebar"
 const PROJECTS_DESKTOP_SIDEBAR_ID = "projects-desktop-sidebar"
 
-function projectTitle(prompt: string, max = 42): string {
-  const t = (prompt || "").trim()
-  if (!t) return "Untitled build"
-  return t.length > max ? `${t.slice(0, max)}…` : t
-}
-
-const PROJECT_STATUS_META: Record<ProjectStatus, { dot: string; label: string }> = {
-  pending: { dot: "bg-muted-foreground/40", label: "Draft" },
-  generating: { dot: "animate-pulse bg-foreground", label: "Building" },
-  complete: { dot: "bg-success", label: "Ready" },
-  error: { dot: "bg-destructive", label: "Needs attention" },
-  draft: { dot: "bg-muted-foreground/40", label: "Draft" },
-  deleting: { dot: "bg-muted-foreground/40", label: "Deleting" },
-}
-
-function projectKindLabel(kind?: ProjectSummary["kind"]): string {
-  return kind === "computer" ? "Computer agent" : "Software project"
-}
-
-function projectAccessibleSummary(project: ProjectSummary, max = 72): string {
-  const status = PROJECT_STATUS_META[project.status] ?? PROJECT_STATUS_META.pending
-  return `${projectTitle(project.prompt, max)}. ${projectKindLabel(project.kind)}. ${status.label}.`
-}
-
-/* ─── TaskRow ─────────────────────────────────────────────────────────────── */
-
-function TaskRow({
-  p,
-  onNavigate,
-  onDelete,
-}: {
-  p: ProjectSummary
-  onNavigate: () => void
-  onDelete: (e: React.MouseEvent) => void
-}) {
-  const status = PROJECT_STATUS_META[p.status] ?? PROJECT_STATUS_META.pending
-  const title = projectTitle(p.prompt, 34)
-
-  return (
-    <div className="group/row relative px-1" role="listitem">
-      <button
-        type="button"
-        onClick={onNavigate}
-        aria-label={`Open ${projectAccessibleSummary(p, 34)}`}
-        className={cn(
-          "flex min-h-11 w-full items-center gap-3 rounded-lg px-2.5 py-2 pr-9 text-left",
-          "transition-colors hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30"
-        )}
-      >
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[14px] font-normal leading-snug text-foreground/90 group-hover/row:text-foreground">
-            {title}
-          </span>
-          <span className="sr-only">
-            {p.kind === "computer" ? "Computer agent" : "Software project"} · {status.label}
-          </span>
-        </span>
-      </button>
-
-      {/* delete — reveals on row hover */}
-      <button
-        type="button"
-        onClick={onDelete}
-        aria-label={`Delete ${title}`}
-        className={cn(
-          "absolute right-1.5 top-1/2 -translate-y-1/2",
-          "flex h-7 w-7 items-center justify-center rounded-lg",
-          "text-muted-foreground/40 opacity-0 transition-all",
-          "hover:bg-destructive/10 hover:text-destructive",
-          "group-hover/row:opacity-100 focus:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/25"
-        )}
-      >
-        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-      </button>
-    </div>
-  )
-}
-
 /* ─── Sidebar ────────────────────────────────────────────────────────────── */
 
 function Sidebar({
@@ -170,7 +81,7 @@ function Sidebar({
   projectsLoading,
   stats,
   router,
-  handleDeleteProject,
+  onProjectsChanged,
   user,
   signOut,
   onClose,
@@ -178,10 +89,13 @@ function Sidebar({
   isTeamsPlan,
   scope,
   setScope,
+  projectsExpanded,
+  setProjectsExpanded,
   workspaces,
   currentWorkspace,
   switchWorkspace,
   isPaidUser,
+  collapsed = false,
 }: {
   filtered: ProjectSummary[]
   projectListError: string | null
@@ -189,7 +103,7 @@ function Sidebar({
   projectsLoading: boolean
   stats: { planName: string }
   router: ReturnType<typeof useRouter>
-  handleDeleteProject: (e: React.MouseEvent, id: string, kind?: string) => void
+  onProjectsChanged: () => void
   user: any
   signOut: () => void
   onClose?: () => void
@@ -197,10 +111,13 @@ function Sidebar({
   isTeamsPlan: boolean
   scope: "user" | "team"
   setScope: (s: "user" | "team") => void
+  projectsExpanded: boolean
+  setProjectsExpanded: (value: boolean | ((previous: boolean) => boolean)) => void
   workspaces: Array<{ id: string; name: string; slug?: string }>
   currentWorkspace: { id: string; name: string; slug?: string } | null
   switchWorkspace: (workspaceId: string) => Promise<void>
   isPaidUser: boolean
+  collapsed?: boolean
 }) {
   const { openSettings } = useSettingsDialog()
   const [openingProject, setOpeningProject] = useState(false)
@@ -210,12 +127,9 @@ function Sidebar({
     setOpeningProject(true)
     setOpenProjectError(null)
     try {
-      const sessionId = project.kind === "computer"
-        ? project.id
-        : (await currentBackend().sessions(project.id)).sessions[0]?.id
-      if (!sessionId) throw new Error("This project has no saved computer session yet.")
+      const path = await projectSessionPath(currentBackend(), project)
       onClose?.()
-      router.push(`/computer/${encodeURIComponent(sessionId)}`)
+      router.push(path)
     } catch (error) {
       setOpenProjectError(error instanceof Error ? error.message : "Could not open this project's computer session. Try again.")
     } finally {
@@ -223,6 +137,7 @@ function Sidebar({
     }
   }
   const recentBuildsHeadingId = useId()
+  const recentBuildsListId = useId()
   const scopeToggleLabelId = useId()
   const initials = user?.displayName
     ? user.displayName.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
@@ -242,18 +157,20 @@ function Sidebar({
   }
 
   return (
-    <div className="workspace-sidebar relative flex h-full flex-col overflow-visible rounded-xl border border-sidebar-border/65 text-sidebar-foreground">
-
-      {/* ── Logo row ── */}
-      <div className="flex h-14 shrink-0 items-center justify-between gap-1 px-3">
-        <Link href="/" onClick={onClose} className="flex items-center gap-2 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30" aria-label="Go to Lotus home"><BrandWordmark size="compact" /></Link>
-        <div className="flex items-center gap-0.5">
+    <SideNav
+      className={styles.sidebar}
+      header={<>
+      <header className={cn("flex min-h-16 shrink-0 items-center justify-between gap-1 px-3 py-2", collapsed && "flex-col px-2")}>
+        {!collapsed && <Link href="/" onClick={onClose} className="flex items-center gap-2 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Go to Lotus home"><BrandWordmark size="compact" /></Link>}
+        <nav aria-label="Sidebar controls" className={cn("flex items-center gap-0.5", collapsed && "flex-col-reverse")}>
           <ProjectSearchDialog projects={filtered} loading={projectsLoading} error={projectListError} onOpenProject={handleOpenProject} />
           {onToggle ? (
             <button
               type="button"
               onClick={onToggle}
-              aria-label={onClose ? "Close sidebar" : "Collapse sidebar"}
+              aria-label={onClose ? "Close sidebar" : collapsed ? "Show sidebar" : "Collapse sidebar"}
+              aria-expanded={!collapsed}
+              aria-controls={onClose ? PROJECTS_MOBILE_SIDEBAR_ID : PROJECTS_DESKTOP_SIDEBAR_ID}
               className={cn(sidebarActionClass, "workspace-sidebar-toggle h-11 w-11 shrink-0 rounded-lg")}
             >
               <SidebarToggleIcon className="h-5 w-5" />
@@ -263,37 +180,90 @@ function Sidebar({
               type="button"
               onClick={onClose}
               aria-label="Close sidebar"
-              className={cn(sidebarActionClass, "lotus-glass-control absolute -right-3 top-3 z-30 h-9 w-9 border border-border/70")}
+              className={cn(sidebarActionClass, "absolute right-3 top-3 z-30 h-11 w-11 bg-background")}
             >
               <X className="h-3.5 w-3.5" aria-hidden="true" />
             </button>
           ) : null}
-        </div>
-      </div>
+        </nav>
+      </header>
 
-      <div className="mb-7 space-y-2 px-3 pt-2">
-        <button type="button" onClick={() => { onClose?.(); onNewProject() }} className="flex min-h-11 w-full items-center justify-between gap-3 rounded-[10px] bg-primary px-3.5 text-left text-[13px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar">
-          New project
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5.5v13M5.5 12h13" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /></svg>
+      <nav aria-label="Workspace" className="px-2 pb-5">
+        <button type="button" title={collapsed ? "New project" : undefined} onClick={() => { onClose?.(); onNewProject() }} className={cn("flex min-h-11 w-full items-center gap-3 rounded-lg bg-muted/60 px-3 text-left text-[13px] font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", collapsed && "justify-center px-0")}>
+          <SquarePen className="size-4 shrink-0" strokeWidth={1.7} aria-hidden="true" />
+          <span className={cn(collapsed && "sr-only")}>New project</span>
         </button>
-      </div>
+      </nav>
+      </>}
+      footer={
+      <footer className="px-2 pb-3 pt-2">
+        <button type="button" onClick={() => { onClose?.(); openSettings() }} title={collapsed ? "Settings" : undefined} className={cn(sidebarActionClass, "mb-1 flex min-h-11 w-full justify-start gap-3 rounded-lg px-3 text-[13px] text-foreground", collapsed && "justify-center px-0")}>
+          <Settings className="size-4 shrink-0" strokeWidth={1.7} aria-hidden="true" />
+          <span className={cn(collapsed && "sr-only")}>Settings</span>
+        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label={`Open account menu for ${accountName}. ${stats.planName} plan.`}
+              title={collapsed ? accountName : undefined}
+              className={cn(
+                "flex min-h-11 w-full items-center gap-2.5 rounded-lg px-2 text-left",
+                "transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                collapsed && "justify-center px-0"
+              )}
+            >
+              <Avatar className="h-7 w-7 shrink-0 rounded-full">
+                <AvatarImage src={user?.photoURL ?? undefined} alt="" className="rounded-full object-cover" />
+                <AvatarFallback className="rounded-full bg-accent-soft text-[10px] font-semibold text-accent-soft-foreground">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              {!collapsed && <span className="min-w-0 flex-1 truncate text-[13px] text-foreground">{accountName}</span>}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="top" align="start" sideOffset={6} className="w-[calc(100vw-2rem)] max-w-[16rem] rounded-2xl border border-border bg-popover p-2 shadow-lg">
+            <p className="px-3 py-2 text-xs text-muted-foreground">{stats.planName} plan</p>
+            <DropdownMenuItem className={accountMenuItemClass} onClick={() => router.push("/pricing")}>
+              <CreditCard className="mr-2 h-3.5 w-3.5" />
+              Billing &amp; Plans
+            </DropdownMenuItem>
+            <DropdownMenuSeparator className="my-2 bg-border/50" />
+            <DropdownMenuItem className="h-10 cursor-pointer rounded-xl px-3 text-[13px] text-destructive focus:bg-destructive/10 focus:text-destructive" onClick={() => signOut()}>
+              <LogOut className="mr-2 h-3.5 w-3.5" />
+              Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </footer>}
+    >
+      <button
+        id={recentBuildsHeadingId}
+        type="button"
+        title={collapsed ? "Show projects" : undefined}
+        aria-label={collapsed ? "Show projects" : undefined}
+        aria-expanded={!collapsed && projectsExpanded}
+        aria-controls={recentBuildsListId}
+        onClick={() => {
+          if (collapsed) { setProjectsExpanded(true); onToggle?.() }
+          else setProjectsExpanded((expanded) => !expanded)
+        }}
+        className={cn("group mb-1 mx-2 flex min-h-11 w-[calc(100%-1rem)] items-center gap-2 rounded-lg px-3 text-left text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", collapsed && "justify-center px-0")}
+      >
+        {collapsed ? <FolderOpen className="size-4" strokeWidth={1.7} aria-hidden="true" /> : <>
+          <span className="flex-1">{scope === "team" ? "Team projects" : "Projects"}</span>
+          <ChevronDown className={cn("size-3.5 transition-transform motion-reduce:transition-none", !projectsExpanded && "-rotate-90")} aria-hidden="true" />
+        </>}
+      </button>
 
-      {/* ── Section header ── */}
-      <div className="mb-2 flex items-center justify-between px-4">
-        <span id={recentBuildsHeadingId} className="text-xs font-medium text-muted-foreground">
-          {recentBuildsLabel}
-        </span>
-        <span className="text-[11px] text-muted-foreground/75">
-          {recentBuilds.length}{hiddenBuildCount ? `/${filtered.length}` : ""}
-        </span>
-      </div>
-
-      {openingProject && <p role="status" className="px-4 pb-2 text-xs text-muted-foreground">Opening computer workspace…</p>}
-      {openProjectError && <p role="alert" className="px-4 pb-2 text-xs text-destructive">{openProjectError}</p>}
+      {openingProject && <p role="status" className={cn("px-4 pb-2 text-xs text-muted-foreground", collapsed && "sr-only")}>Opening computer workspace…</p>}
+      {openProjectError && <p role="alert" className={cn("px-4 pb-2 text-xs text-destructive", collapsed && "sr-only")}>{openProjectError}</p>}
 
       {/* ── Task list ── */}
       <div
-        className="flex-1 overflow-y-auto pb-2 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]"
+        id={recentBuildsListId}
+        hidden={collapsed || !projectsExpanded}
+        className="pb-2"
         aria-labelledby={recentBuildsHeadingId}
         aria-busy={projectsLoading}
       >
@@ -303,34 +273,39 @@ function Sidebar({
             : `${recentBuilds.length} ${recentBuildsLabel.toLowerCase()} shown`}
         </p>
         {projectsLoading ? (
-          <div className="space-y-2 px-3 pt-1" aria-hidden="true">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div
-                key={i}
-                className="h-12 animate-pulse rounded-lg bg-muted"
-                style={{ opacity: 1 - i * 0.09 }}
-              />
+          <div className="space-y-5 px-5 py-3" aria-hidden="true">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="animate-pulse space-y-2">
+                <div className={cn("h-3 rounded bg-muted", i % 2 ? "w-3/4" : "w-full")} />
+                <div className="h-2 w-12 rounded bg-muted" />
+              </div>
             ))}
           </div>
+        ) : projectListError ? (
+          <div role="alert" className="px-5 py-4">
+            <p className="text-[13px] font-medium text-foreground">Projects couldn’t be loaded</p>
+            <p className="mt-1.5 text-xs leading-relaxed text-destructive">{projectListError}</p>
+          </div>
         ) : recentBuilds.length === 0 ? (
-          <div className="lotus-glass-inset mx-3 rounded-2xl border border-border/55 px-4 py-8 text-center">
+          <div className="px-5 py-5">
+            <FolderOpen className="mb-3 size-5 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
             <p className="text-[13px] font-medium text-foreground">No recent builds</p>
-            <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
-              Start with a prompt and your builds will appear here.
+            <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+              Your projects will appear here when you start building.
             </p>
           </div>
         ) : (
           <div className="space-y-0.5 px-2" role="list" aria-label={recentBuildsLabel}>
             {recentBuilds.map((p) => (
-              <TaskRow
+              <ProjectNavigationRow
                 key={p.id}
-                p={p}
+                project={p}
                 onNavigate={() => { void handleOpenProject(p) }}
-                onDelete={(e) => handleDeleteProject(e, p.id, p.kind)}
+                onChanged={onProjectsChanged}
               />
             ))}
             {hiddenBuildCount > 0 ? (
-              <div className="px-2 pb-1 pt-1.5 text-[11px] text-muted-foreground/80">
+              <div className="px-3 pb-1 pt-3 text-[11px] text-muted-foreground">
                 {hiddenBuildCount} more available in search
               </div>
             ) : null}
@@ -338,72 +313,7 @@ function Sidebar({
         )}
       </div>
 
-      {/* ── User row ── */}
-      <div className="shrink-0 px-2 py-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              aria-label={`Open account menu for ${accountName}. ${stats.planName} plan.`}
-              className={cn(
-                "flex w-full items-center gap-2.5 rounded-lg border border-transparent px-2 py-2",
-                "transition-colors hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30"
-              )}
-            >
-              <Avatar className="h-8 w-8 shrink-0 rounded-full">
-                <AvatarImage
-                  src={user?.photoURL ?? undefined}
-                  alt=""
-                  className="rounded-full object-cover"
-                />
-                <AvatarFallback className="rounded-full bg-accent-soft text-[10px] font-semibold text-accent-soft-foreground">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0 flex-1 text-left">
-                <p className="truncate text-[13px] font-medium leading-tight text-foreground">
-                  {accountName}
-                </p>
-                <p className="truncate text-[11px] leading-tight text-muted-foreground">
-                  {stats.planName} plan
-                </p>
-              </div>
-              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-            </button>
-          </DropdownMenuTrigger>
-
-          <DropdownMenuContent
-            side="top"
-            align="start"
-            sideOffset={6}
-            className="lotus-glass-strong w-[calc(100vw-2rem)] max-w-[16rem] rounded-2xl border border-border/60 p-2 shadow-lg"
-          >
-            <DropdownMenuItem
-              className={accountMenuItemClass}
-              onClick={() => router.push("/pricing")}
-            >
-              <CreditCard className="mr-2 h-3.5 w-3.5" />
-              Billing &amp; Plans
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              className={accountMenuItemClass}
-              onClick={() => openSettings()}
-            >
-              <Settings className="mr-2 h-3.5 w-3.5" />
-              Settings
-            </DropdownMenuItem>
-            <DropdownMenuSeparator className="my-2 bg-border/50" />
-            <DropdownMenuItem
-              className="h-10 cursor-pointer rounded-xl px-3 text-[13px] text-destructive focus:bg-destructive/10 focus:text-destructive"
-              onClick={() => signOut()}
-            >
-              <LogOut className="mr-2 h-3.5 w-3.5" />
-              Sign out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </div>
+    </SideNav>
   )
 }
 
@@ -579,6 +489,19 @@ function ReferralDialog({
 
 /* ─── Page ────────────────────────────────────────────────────────────────── */
 
+function WorkspacePlanControl({ planName, isPaidUser }: { planName: string; isPaidUser: boolean }) {
+  return <nav aria-label="Your plan" className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border/70 bg-card p-1">
+    <span className="whitespace-nowrap px-3 text-xs font-medium text-muted-foreground">{planName} plan</span>
+    <Link
+      href="/pricing"
+      className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full bg-primary px-4 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none"
+    >
+      {isPaidUser ? "View plans" : "Upgrade"}
+      <ArrowUpRight className="size-3.5" aria-hidden="true" />
+    </Link>
+  </nav>
+}
+
 function OnboardingBanner() {
   const searchParams = useSearchParams()
   const { currentWorkspace } = useAuth()
@@ -587,7 +510,7 @@ function OnboardingBanner() {
   if (dismissed || searchParams.get("onboarding") !== "true") return null
 
   return (
-    <div className="lotus-glass-panel mb-6 flex items-start gap-3 rounded-2xl border border-border/55 px-4 py-3.5">
+    <div className="mb-8 flex items-start gap-3 border-b border-border pb-5">
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-[13px] font-bold text-background">
         {(currentWorkspace?.name ?? "W").charAt(0).toUpperCase()}
       </span>
@@ -602,7 +525,7 @@ function OnboardingBanner() {
       <button
         type="button"
         onClick={() => setDismissed(true)}
-        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-muted-foreground/50 transition-colors hover:bg-muted hover:text-foreground"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         aria-label="Dismiss"
       >
         <X className="h-3.5 w-3.5" />
@@ -613,7 +536,7 @@ function OnboardingBanner() {
 
 export function ProjectsWorkspace() {
   const router = useRouter()
-  const { user, userData, workspaces, currentWorkspace, switchWorkspace, signOut, accountError, refreshAccount } = useAuth()
+  const { user, userData, account, workspaces, currentWorkspace, switchWorkspace, signOut, accountError, refreshAccount } = useAuth()
   const { openSettings } = useSettingsDialog()
 
   const isTeamsPlan = !!userData?.planId && userData.planId === "team"
@@ -621,6 +544,7 @@ export function ProjectsWorkspace() {
   const [scope, setScope] = useState<"user" | "team">("user")
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(false)
+  const [projectsExpanded, setProjectsExpanded] = useState(true)
   const [referralOpen, setReferralOpen] = useState(false)
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [checkoutSuccessOpen, setCheckoutSuccessOpen] = useState(false)
@@ -634,12 +558,15 @@ export function ProjectsWorkspace() {
       const params = new URLSearchParams(window.location.search)
       if (params.get("checkout") !== "success") return
       setCheckoutSuccessOpen(true)
-      try { window.sessionStorage.removeItem("lotus_checkout_attempt") } catch {}
       params.delete("checkout")
       const query = params.toString()
       window.history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}`)
     } catch {}
   }, [])
+  useEffect(() => {
+    if (!checkoutSuccessOpen || !user || !account?.subscriptionStatus) return
+    try { clearCheckoutAttempt(window.sessionStorage, user.uid) } catch {}
+  }, [checkoutSuccessOpen, user, account?.subscriptionStatus])
 
   // The user usually lands back before the Stripe webhook has written the new
   // plan to their user doc. The auth context's onSnapshot listener flips
@@ -699,19 +626,6 @@ export function ProjectsWorkspace() {
     if (!open) setConfirmTimedOut(false)
   }
 
-  const handleDeleteProject = async (e: React.MouseEvent, projectId: string, kind?: string) => {
-    e.preventDefault()
-    e.stopPropagation()
-    try {
-      await currentBackend().deleteProject(projectId)
-      refreshProjects()
-    } catch (err) {
-      window.alert(err instanceof Error ? err.message : 'Could not delete project.')
-    }
-  }
-
-  const firstName = user?.displayName?.split(" ")[0] ?? ""
-
   const sidebarProps = {
     filtered: projects,
     projectListError: projectsError,
@@ -719,21 +633,26 @@ export function ProjectsWorkspace() {
     projectsLoading,
     stats,
     router,
-    handleDeleteProject,
+    onProjectsChanged: refreshProjects,
     user,
     signOut,
     isTeamsPlan,
     scope,
     setScope,
+    projectsExpanded,
+    setProjectsExpanded,
     workspaces,
     currentWorkspace,
     switchWorkspace,
     isPaidUser,
   }
 
-  if (user && !userData) return <main className="min-h-screen bg-background p-8 text-foreground">
-    <div role="alert"><p>{accountError || 'Account data is unavailable.'}</p>
-      <button type="button" className="mt-3 underline" onClick={() => { void refreshAccount().catch(() => {}) }}>Retry account connection</button>
+  if (user && !userData) return <main className="flex min-h-dvh items-center justify-center bg-background px-6 py-16 text-foreground">
+    <div role="alert" className="w-full max-w-md">
+      <p className="site-eyebrow mb-4">Workspace</p>
+      <h1 className="text-3xl font-semibold tracking-tight">Let’s reconnect your account</h1>
+      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{accountError || 'Account data is unavailable.'}</p>
+      <Button type="button" className="mt-6" onClick={() => { void refreshAccount().catch(() => {}) }}>Retry account connection</Button>
     </div>
   </main>
 
@@ -764,7 +683,7 @@ export function ProjectsWorkspace() {
           aria-label="Project navigation"
           aria-hidden={!mobileSidebarOpen}
           className={cn(
-            "fixed inset-y-1.5 left-1.5 z-50 w-[min(18rem,calc(100vw-1.5rem))]",
+            "fixed inset-y-0 left-0 z-50 w-[min(19rem,calc(100vw-2rem))]",
             "transition-transform duration-200 ease-in-out lg:hidden",
             mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
           )}
@@ -783,56 +702,38 @@ export function ProjectsWorkspace() {
           id={PROJECTS_DESKTOP_SIDEBAR_ID}
           aria-label="Project navigation"
           className={cn(
-            "hidden shrink-0 transition-[width] duration-200 ease-in-out lg:block",
-            desktopSidebarCollapsed ? "lg:w-0 lg:overflow-hidden" : "lg:w-[260px]"
+            "hidden shrink-0 transition-[width] duration-200 ease-in-out motion-reduce:transition-none lg:block",
+            desktopSidebarCollapsed ? "lg:w-16" : "lg:w-64"
           )}
         >
-          {!desktopSidebarCollapsed && (
-            <div className="relative h-full p-1.5 pr-0">
-              <Sidebar {...sidebarProps} onToggle={() => setDesktopSidebarCollapsed(true)} />
-            </div>
-          )}
+          <Sidebar {...sidebarProps} collapsed={desktopSidebarCollapsed} onToggle={() => setDesktopSidebarCollapsed((collapsed) => !collapsed)} />
         </aside>
 
         {/* ── Main content ── */}
         <main
           id={PROJECTS_MAIN_ID}
           aria-labelledby={PROJECTS_HEADING_ID}
-          className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-transparent"
+          className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-background"
         >
+          <header className="hidden h-20 shrink-0 items-center justify-between gap-4 px-8 lg:flex">
+            <p className="text-xs font-medium text-muted-foreground">Workspace</p>
+            <WorkspacePlanControl planName={stats.planName} isPaidUser={isPaidUser} />
+          </header>
 
           {/* ── Mobile top bar ── */}
-          <header className="lotus-glass relative z-10 flex h-14 shrink-0 items-center gap-3 px-3 lg:hidden">
+          <header className="relative z-10 flex h-16 shrink-0 items-center gap-3 border-b border-border/70 bg-background px-3 lg:hidden">
             <button
               type="button"
               onClick={() => setMobileSidebarOpen(true)}
               aria-label="Open sidebar"
               aria-controls={PROJECTS_MOBILE_SIDEBAR_ID}
               aria-expanded={mobileSidebarOpen}
-              className={cn(sidebarActionClass, "h-9 w-9")}
+              className={cn(sidebarActionClass, "h-11 w-11")}
             >
               <SidebarToggleIcon className="h-5 w-5" />
             </button>
             <Link href="/" className="flex min-w-0 items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30" aria-label="Go to Lotus home"><BrandWordmark /></Link>
           </header>
-
-          {/* ── Desktop: expand sidebar button ── */}
-          {desktopSidebarCollapsed && (
-            <button
-              type="button"
-              onClick={() => setDesktopSidebarCollapsed(false)}
-              aria-label="Show sidebar"
-              aria-controls={PROJECTS_DESKTOP_SIDEBAR_ID}
-              aria-expanded={!desktopSidebarCollapsed}
-              className={cn(
-                "absolute left-4 top-4 z-20 hidden lg:flex",
-                "h-9 w-9 items-center justify-center rounded-lg text-muted-foreground",
-                "transition-colors hover:bg-accent-soft hover:text-accent-soft-foreground"
-              )}
-            >
-              <SidebarToggleIcon className="h-5 w-5" />
-            </button>
-          )}
 
           {/* Composer surface */}
           <div className="relative z-10 flex min-h-0 flex-1">
@@ -841,47 +742,39 @@ export function ProjectsWorkspace() {
                 <div className="relative isolate flex min-h-full w-full flex-col items-center justify-start overflow-hidden bg-transparent px-5 pb-20 md:rounded-t-[1.125rem] sm:px-8 sm:pb-24 lg:rounded-t-[1.25rem]">
 
                   <div className="relative z-10 w-full max-w-[60rem]">
-                    <div className="mx-auto flex min-h-[calc(100dvh-10rem)] w-full max-w-[44rem] flex-col justify-center py-10 sm:min-h-[calc(100dvh-9rem)] sm:py-12 md:py-14 lg:py-16">
+                    <div className="mx-auto flex min-h-[calc(100dvh-10rem)] w-full max-w-[760px] flex-col justify-center py-10 sm:py-12 lg:pb-24 lg:pt-12">
                       <Suspense fallback={null}>
                         <OnboardingBanner />
                       </Suspense>
-                      {(accountError || projectsError) && <div role="alert" className="mb-4 text-sm text-destructive">
+                      {(accountError || projectsError) && <div role="alert" className="mb-8 rounded-xl border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm text-destructive">
                         <p>{accountError || projectsError}</p>
-                        <button type="button" className="mt-1 underline" onClick={() => {
+                        <button type="button" className="mt-1 min-h-11 rounded-lg font-semibold underline underline-offset-4" onClick={() => {
                           void refreshAccount().then(refreshProjects).catch(() => {})
                         }}>Retry connection</button>
                       </div>}
 
-                      <div className="animate-in fade-in slide-in-from-bottom-2 fill-mode-both mb-7 flex justify-center duration-700">
-                        <div className="lotus-glass-control inline-flex items-center gap-3 rounded-full border px-4 py-2 text-sm">
-                          <span className="font-medium text-foreground">{stats.planName} workspace</span>
-                          <span className="h-3.5 w-px bg-border" />
-                          <Link href="/pricing" className="font-semibold text-accent-soft-foreground transition-colors hover:text-accent">
-                            Upgrade
-                          </Link>
-                        </div>
-                      </div>
-
-                      <div className="mb-8 text-center md:mb-10">
+                      <div className="mb-7 text-center sm:mb-8">
                         <h1
                           id={PROJECTS_HEADING_ID}
-                          className="animate-in fade-in slide-in-from-bottom-3 fill-mode-both mx-auto max-w-4xl text-2xl font-medium leading-[1.15] text-foreground duration-700 sm:whitespace-nowrap sm:text-3xl sm:leading-[1.05] lg:text-4xl"
-                          style={{ animationDelay: "80ms" }}
+                          className="mx-auto text-balance text-3xl font-medium leading-tight tracking-[-0.035em] text-foreground sm:text-4xl"
                         >
-                          What can I build for you{firstName ? `, ${firstName}` : ""}?
+                          What would you like to build?
                         </h1>
                       </div>
 
-                      <div
-                        className="animate-in fade-in slide-in-from-bottom-4 fill-mode-both relative duration-700"
-                        style={{ animationDelay: "200ms" }}
-                      >
+                      <div className="relative">
                         <AnimatedAIInput
                           inputId="workspace-brief"
-                          placeholder="Describe what you want to build…"
-                          wrapperClassName="rounded-3xl border-border bg-card shadow-sm focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/15 [&_textarea]:min-h-[96px] [&_textarea]:px-1 [&_textarea]:pt-1 [&_textarea]:text-base [&_textarea]:placeholder:text-muted-foreground [&>div:last-child]:px-3 [&>div:last-child]:pb-3 [&_button]:min-h-11 [&_button]:min-w-11 [&_button]:rounded-full"
-                          footerHintsClassName="text-muted-foreground"
+                          appearance="assistant"
+                          onManageProjects={() => {
+                            setProjectsExpanded(true)
+                            if (window.matchMedia("(min-width: 1024px)").matches) setDesktopSidebarCollapsed(false)
+                            else setMobileSidebarOpen(true)
+                          }}
                         />
+                      </div>
+                      <div className="mt-4 flex justify-center lg:hidden">
+                        <WorkspacePlanControl planName={stats.planName} isPaidUser={isPaidUser} />
                       </div>
                     </div>
 
@@ -898,7 +791,7 @@ export function ProjectsWorkspace() {
 
         {/* ── Checkout success dialog ── */}
         <Dialog open={checkoutSuccessOpen} onOpenChange={handleCheckoutSuccessChange}>
-          <DialogContent className="max-w-md rounded-2xl border-border bg-card p-8 sm:p-10">
+          <DialogContent className="relative max-w-md rounded-2xl border-border bg-card p-6 sm:p-8">
             {isPaidUser ? (
               <>
                 <DialogHeader className="items-center space-y-3 text-center sm:text-center">
@@ -929,14 +822,14 @@ export function ProjectsWorkspace() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-11 w-full rounded-full border-border bg-transparent text-[13px] font-medium hover:bg-muted"
+                    className="h-11 w-full rounded-xl border-border bg-transparent text-[13px] font-medium hover:bg-muted"
                     onClick={() => { handleCheckoutSuccessChange(false); openSettings() }}
                   >
                     Manage plan
                   </Button>
                   <Button
                     type="button"
-                    className="h-11 rounded-full bg-foreground text-[13px] font-medium text-background transition-all hover:bg-foreground/85 active:scale-[0.99]"
+                    className="h-11 rounded-xl bg-primary text-[13px] font-medium text-primary-foreground hover:bg-primary/90"
                     onClick={() => handleCheckoutSuccessChange(false)}
                   >
                     Start building
@@ -953,15 +846,15 @@ export function ProjectsWorkspace() {
                     Confirming your subscription…
                   </DialogTitle>
                   <DialogDescription className="text-[13.5px] leading-relaxed text-muted-foreground">
-                    Your payment went through — we're activating your plan now. This usually takes a few seconds.
+                    We’re checking your account for a plan update. A checkout return alone does not confirm payment.
                   </DialogDescription>
                 </DialogHeader>
               </>
             ) : (
               <>
                 <DialogHeader className="items-center space-y-3 text-center sm:text-center">
-                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-success/15">
-                    <CheckCircle2 className="h-7 w-7 text-success" strokeWidth={1.75} />
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-muted">
+                    <CreditCard className="h-7 w-7 text-muted-foreground" strokeWidth={1.75} />
                   </div>
                   <DialogTitle className="text-[20px] font-semibold tracking-tight text-foreground">
                     Checking your plan
@@ -974,14 +867,14 @@ export function ProjectsWorkspace() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-11 w-full rounded-full border-border bg-transparent text-[13px] font-medium hover:bg-muted"
+                    className="h-11 w-full rounded-xl border-border bg-transparent text-[13px] font-medium hover:bg-muted"
                     onClick={() => { handleCheckoutSuccessChange(false); openSettings() }}
                   >
                     View settings
                   </Button>
                   <Button
                     type="button"
-                    className="h-11 rounded-full bg-foreground text-[13px] font-medium text-background transition-all hover:bg-foreground/85 active:scale-[0.99]"
+                    className="h-11 rounded-xl bg-primary text-[13px] font-medium text-primary-foreground hover:bg-primary/90"
                     onClick={() => handleCheckoutSuccessChange(false)}
                   >
                     Start building

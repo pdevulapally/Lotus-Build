@@ -62,28 +62,28 @@ function ThinkingStepCard({ step, isLast }: { step: ThinkingStep; isLast: boolea
         <div
           className={cn(
             "absolute left-[19px] top-[45px] w-0.5 h-6",
-            isComplete ? "bg-border-strong" : isError ? "bg-red-200" : "bg-border"
+            isComplete ? "bg-border-strong" : isError ? "bg-destructive/25" : "bg-border"
           )}
         />
       )}
 
       <div
         className={cn(
-          "relative flex gap-3 p-3 rounded-lg border transition-all duration-200",
-          isActive && "border-border-strong bg-muted shadow-md shadow-zinc-200/50",
+          "relative flex gap-3 p-3 rounded-xl border transition-colors duration-200 motion-reduce:transition-none",
+          isActive && "border-border-strong bg-muted",
           isComplete && "border-border bg-muted",
           isPending && "border-border bg-muted/50 opacity-60",
-          isError && "border-red-200 bg-red-50/50"
+          isError && "border-destructive/25 bg-destructive/5"
         )}
       >
         {/* Phase badge icon */}
         <div
           className={cn(
-            "flex shrink-0 h-8 w-8 items-center justify-center rounded-full border",
-            isActive && "border-border-strong bg-muted text-foreground animate-pulse",
+            "flex shrink-0 h-8 w-8 items-center justify-center rounded-xl border",
+            isActive && "border-border-strong bg-muted text-foreground animate-pulse motion-reduce:animate-none",
             isComplete && "border-border-strong bg-muted text-foreground",
             isPending && "border-border bg-muted text-muted-foreground",
-            isError && "border-red-300 bg-red-100 text-red-600"
+            isError && "border-destructive/25 bg-destructive/10 text-destructive"
           )}
         >
           {isError ? <AlertTriangle className="h-4 w-4" /> : config.icon}
@@ -100,7 +100,7 @@ function ThinkingStepCard({ step, isLast }: { step: ThinkingStep; isLast: boolea
               <h4
                 className={cn(
                   "text-sm font-semibold",
-                  isComplete ? "text-foreground" : isError ? "text-red-700" : "text-muted-foreground"
+                  isComplete ? "text-foreground" : isError ? "text-destructive" : "text-muted-foreground"
                 )}
               >
                 {step.title}

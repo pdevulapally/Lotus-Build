@@ -197,7 +197,7 @@ function renderResearchBlock(block: ResearchBlock, eventKey: string, index: numb
     case "heading":
       return (
         <p key={`research-${eventKey}-heading-${index}-${block.text}`} className={cn(
-          "mt-4 text-[12px] font-semibold uppercase tracking-[0.18em] text-muted-foreground",
+          "mt-4 text-[13px] font-semibold tracking-[-0.02em] text-foreground",
           block.level === 2 && "",
           block.level === 3 && "text-[11px]",
         )}>
@@ -208,8 +208,8 @@ function renderResearchBlock(block: ResearchBlock, eventKey: string, index: numb
       return (
         <dl key={`research-${eventKey}-meta-${index}-${block.entries.map((entry) => entry.label).join("-")}`} className="grid gap-2 sm:grid-cols-2">
           {block.entries.map((entry) => (
-            <div key={entry.label} className="rounded-2xl border border-border/50 bg-secondary/60 p-3">
-              <dt className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">{entry.label}</dt>
+            <div key={entry.label} className="border-l border-border p-3">
+              <dt className="text-xs font-medium text-muted-foreground">{entry.label}</dt>
               <dd className="mt-1 text-[12px] text-foreground">
                 {formatTextWithLinks(entry.value || "").map((node, nodeIndex) => <span key={nodeIndex}>{node}</span>)}
               </dd>
@@ -255,11 +255,11 @@ function renderResearchBlock(block: ResearchBlock, eventKey: string, index: numb
       return (
         <div key={`colors-${block.colors.map((color) => color.value).join("-")}`} className="grid gap-2 sm:grid-cols-2">
           {block.colors.map((color) => (
-            <div key={color.value} className="flex items-center gap-3 rounded-2xl border border-border/50 bg-secondary/60 px-3 py-3">
-              <span className="h-9 w-9 rounded-xl border border-border/60" style={{ backgroundColor: color.value }} />
+            <div key={color.value} className="flex items-center gap-3 border-l border-border px-3 py-3">
+              <span className="h-9 w-9 rounded-xl border border-border/70" style={{ backgroundColor: color.value }} />
               <div>
-                <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">{color.label || "Color"}</p>
-                <p className="text-[12px] text-foreground">{color.value}</p>
+                <p className="text-xs font-medium text-muted-foreground">{color.label || "Color"}</p>
+                <p className="font-mono text-[12px] text-foreground">{color.value}</p>
               </div>
             </div>
           ))}
@@ -295,7 +295,7 @@ function ResearchPanel({ events }: { events: ComputerTimelineEvent[] }) {
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.12 }}
-            className="border-b border-border/55 pb-4 last:border-0"
+            className="border-b border-border/70 pb-4 last:border-0"
           >
             <p className="text-[13px] font-medium text-foreground">{getEventTitle(event)}</p>
             <div className="mt-3 space-y-3">
@@ -335,8 +335,8 @@ function RuntimeErrorCard({
 }) {
   const [expanded, setExpanded] = useState(false)
   return (
-    <div className="lotus-glass-strong absolute bottom-4 right-4 z-20 w-[340px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-destructive/20">
-      <div className="flex items-center justify-between gap-2 border-b border-border/60 px-3.5 py-2.5">
+    <div className="bg-popover text-popover-foreground absolute bottom-4 right-4 z-20 w-[340px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-destructive/20">
+      <div className="flex items-center justify-between gap-2 border-b border-border/70 px-3.5 py-2.5">
         <div className="flex items-center gap-2">
           <ShieldAlert className="h-3.5 w-3.5 text-destructive" />
           <span className="text-[12px] font-semibold text-foreground">Something went wrong</span>
@@ -351,17 +351,17 @@ function RuntimeErrorCard({
           </button>
         )}
         {expanded && error.stack && (
-          <pre className="lotus-glass-inset mt-1.5 max-h-[120px] overflow-y-auto rounded-lg p-2 text-[10px] leading-relaxed text-muted-foreground [scrollbar-width:thin]">
+          <pre className="bg-muted/40 mt-1.5 max-h-[120px] overflow-y-auto rounded-lg p-2 font-mono text-[11px] leading-relaxed text-muted-foreground [scrollbar-width:thin]">
             {error.stack}
           </pre>
         )}
       </div>
-      <div className="flex items-center gap-2 border-t border-border/60 px-3.5 py-2.5">
+      <div className="flex items-center gap-2 border-t border-border/70 px-3.5 py-2.5">
         <button
           type="button"
           onClick={onFix}
           disabled={fixing}
-          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-accent px-3 py-2 text-[12px] font-semibold text-accent-foreground shadow-sm transition-colors hover:bg-accent/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-60"
+          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-[12px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50"
         >
           <Wrench className="h-3.5 w-3.5" />
           {fixing ? "Fixing..." : "Fix with AI"}
@@ -378,7 +378,7 @@ function LaptopSwitcher({ label, title, onClick, icon }: {
     <button
       type="button"
       onClick={onClick}
-      className="lotus-glass-control absolute bottom-4 right-4 z-10 flex items-center gap-2 rounded-lg border px-3 py-2 text-left transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
+      className="bg-card absolute bottom-4 right-4 z-10 flex items-center gap-2 rounded-lg border px-3 py-2 text-left transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
     >
       <span className="flex h-5 w-5 items-center justify-center text-muted-foreground">{icon}</span>
       <span>
@@ -394,13 +394,13 @@ function SessionProgressSurface({ progress }: { progress: ComputerSessionProgres
     <motion.div key={`progress-${progress.state}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}
       className="flex h-full items-center justify-center p-8 text-center">
       <div className="max-w-sm">
-        <div className="lotus-glass-inset mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground">
+        <div className="bg-muted/40 mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground">
           <Monitor className="h-4 w-4" />
         </div>
         {progress.active ? (
           <TextShimmer className="text-[13px] font-medium">{progress.label}</TextShimmer>
         ) : (
-          <p className="text-[13px] font-medium text-foreground">{progress.label}</p>
+          <p className="text-base font-semibold tracking-[-0.03em] text-foreground">{progress.label}</p>
         )}
         <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground">
           {progress.description}
@@ -580,6 +580,49 @@ function defineLotusMonacoThemes(monaco: Monaco) {
 
 // ─── Workspace tab bar ────────────────────────────────────────────────────────
 
+export function WorkspaceViewTabs({ activeTab, onChange, hasBrowser, hasResearch }: {
+  activeTab: WorkspaceTab
+  onChange: (tab: WorkspaceTab) => void
+  hasBrowser: boolean
+  hasResearch: boolean
+}) {
+  const tabs = [
+    { id: "preview", label: "Preview", visible: true },
+    { id: "code", label: "Files", visible: true },
+    { id: "browser", label: "Browser", visible: hasBrowser },
+    { id: "research", label: "Research", visible: hasResearch },
+  ] as const
+  const visibleTabs = tabs.filter((tab) => tab.visible)
+  return <div role="tablist" aria-label="Workspace views" className="flex min-w-0 items-center gap-1">
+    {visibleTabs.map((tab, index) => <button
+      key={tab.id}
+      id={`workspace-tab-${tab.id}`}
+      type="button"
+      role="tab"
+      tabIndex={activeTab === tab.id ? 0 : -1}
+      aria-selected={activeTab === tab.id}
+      aria-controls="computer-workspace-panel"
+      onClick={() => onChange(tab.id)}
+      onKeyDown={(event) => {
+        const last = visibleTabs.length - 1
+        const destinations: Record<string, number> = {
+          ArrowRight: (index + 1) % visibleTabs.length,
+          ArrowLeft: (index + last) % visibleTabs.length,
+          Home: 0,
+          End: last,
+        }
+        const destination = destinations[event.key]
+        if (destination === undefined) return
+        event.preventDefault()
+        const next = visibleTabs[destination]
+        onChange(next.id)
+        document.getElementById(`workspace-tab-${next.id}`)?.focus()
+      }}
+      className={cn("min-h-9 rounded-lg px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none", activeTab === tab.id && "bg-muted text-foreground")}
+    >{tab.label}</button>)}
+  </div>
+}
+
 export function WorkspaceTabBar({
   activeTab,
   previewUrl,
@@ -617,16 +660,16 @@ export function WorkspaceTabBar({
   if (activeTab !== "preview" || !previewUrl) return null
 
   return (
-    <div className="lotus-glass-inset hidden h-10 shrink-0 items-center justify-center border-b border-border/40 px-4 sm:flex">
+    <div className="bg-muted/40 hidden h-10 shrink-0 items-center justify-center border-b border-border/70 px-4 sm:flex">
       {/* Centered constrained URL pill */}
-      <div className="lotus-glass-control group flex w-full max-w-sm items-center gap-0.5 overflow-hidden rounded-full border border-border/60 px-1 transition-colors focus-within:border-border/80 hover:border-border/70">
+      <div className="bg-background group flex w-full max-w-sm items-center gap-0.5 overflow-hidden rounded-xl border border-border px-1 transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/15 hover:border-border-strong">
 
         {/* Home */}
         <button
           type="button"
           aria-label="Go to root"
           onClick={() => commitNav("/")}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-foreground/70 transition-colors hover:bg-background/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
         >
           <Home className="h-3.5 w-3.5" />
         </button>
@@ -664,7 +707,7 @@ export function WorkspaceTabBar({
           target="_blank"
           rel="noreferrer"
           aria-label="Open in new tab"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-foreground/80 transition-colors hover:bg-background/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
         >
           <ExternalLink className="h-3.5 w-3.5" />
         </a>
@@ -674,7 +717,7 @@ export function WorkspaceTabBar({
           type="button"
           aria-label="Refresh preview"
           onClick={onRefreshPreview}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-foreground/70 transition-colors hover:bg-background/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
         >
           <RotateCcw className="h-3.5 w-3.5" />
         </button>
@@ -769,7 +812,7 @@ export function WorkspaceContent({
           </div>
           <WorkspaceHeaderLink href={browserInspection.url} />
         </div>
-        <div className="lotus-glass-panel relative min-h-0 flex-1 overflow-hidden rounded-xl border border-border/60">
+        <div className="bg-card relative min-h-0 flex-1 overflow-hidden rounded-xl border border-border/70">
           {browserInspection.liveUrl && !browserInspection.isExpired ? (
             <IsolatedPreviewFrame
               src={browserInspection.liveUrl}
@@ -862,7 +905,7 @@ function PreviewPane({
         {/* Loading banner — only while iframe is actually loading */}
         {isIframeLoading && (
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-end justify-center pb-4">
-            <div className="lotus-glass-control flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-medium text-muted-foreground">
+            <div className="bg-card flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-medium text-muted-foreground">
               <Loader2 className="h-3 w-3 animate-spin" />
               Loading preview…
             </div>
@@ -871,9 +914,9 @@ function PreviewPane({
 
         {previewEnsureError && !isEnsuringPreview && (
             <div className="absolute inset-x-0 bottom-0 z-10 flex items-end justify-center p-4">
-              <div className="lotus-glass-strong flex max-w-[360px] items-center gap-2 rounded-xl border border-border/60 px-3 py-2 text-[12px] text-muted-foreground">
+              <div className="bg-popover text-popover-foreground flex max-w-[360px] items-center gap-2 rounded-xl border border-border/70 px-3 py-2 text-[12px] text-muted-foreground">
                 <span className="min-w-0 flex-1">{previewEnsureError}</span>
-                <button type="button" onClick={onRetryPreview} className="shrink-0 rounded-full px-2 py-1 text-[12px] font-medium text-foreground hover:text-foreground/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35">
+                <button type="button" onClick={onRetryPreview} className="shrink-0 rounded-full px-2 py-1 text-[12px] font-medium text-foreground hover:text-foreground/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50">
                   Retry
                 </button>
               </div>
@@ -892,18 +935,29 @@ function PreviewPane({
 }
 
 export function LoadingShell() {
+  const bone = "animate-pulse rounded-md bg-muted"
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-background">
-      <header className="lotus-glass shrink-0 px-4 py-3">
-        <div className="flex h-10 items-center gap-3">
-          <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
-          <div className="h-3 w-36 animate-pulse rounded bg-muted" />
+    <div className="flex h-[100dvh] overflow-hidden bg-background" aria-busy="true" aria-label="Loading workspace">
+      <aside aria-hidden className="hidden w-[256px] shrink-0 border-r border-border/30 bg-muted/25 lg:flex lg:flex-col">
+        <div className="flex h-12 items-center justify-between px-3"><div className={cn(bone, "h-5 w-20")} /><div className={cn(bone, "size-5 rounded-lg")} /></div>
+        <div className="mt-2 space-y-2 px-3">
+          <div className={cn(bone, "h-9 w-full rounded-lg bg-muted/80")} />
+          <div className={cn(bone, "mt-4 h-3 w-16")} />
+          {[0, 1, 2, 3].map((i) => <div key={i} className={cn(bone, "h-8 rounded-lg")} style={{ width: `${88 - i * 9}%` }} />)}
         </div>
-      </header>
-      <div className="flex flex-1 gap-0 overflow-hidden">
-        <div className="hidden w-[380px] shrink-0 animate-pulse border-r border-border/80 bg-card sm:block" />
-        <div className="flex-1 animate-pulse bg-muted/35 p-3">
-          <div className="lotus-glass-panel h-full rounded-lg border border-border/70" />
+        <div className="mt-auto flex items-center gap-2.5 px-3 py-3"><div className={cn(bone, "size-7 rounded-full")} /><div className={cn(bone, "h-3 w-24")} /></div>
+      </aside>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex min-h-12 items-center justify-between gap-2 border-b border-border/50 px-2">
+          <div className="flex items-center gap-2"><div className={cn(bone, "size-5 rounded-lg lg:hidden")} /><div className={cn(bone, "h-4 w-40")} /></div>
+          <div className="flex items-center gap-2"><div className={cn(bone, "hidden h-7 w-28 rounded-full sm:block")} /><div className={cn(bone, "size-7 rounded-lg")} /></div>
+        </header>
+        <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 pt-8">
+          <div className="ml-auto w-[62%] max-w-md"><div className={cn(bone, "h-14 rounded-2xl rounded-br-md")} /></div>
+          <div className="mt-8 space-y-2.5">
+            <div className={cn(bone, "h-3 w-[92%]")} /><div className={cn(bone, "h-3 w-[78%]")} /><div className={cn(bone, "h-3 w-[85%]")} /><div className={cn(bone, "h-3 w-[40%]")} />
+          </div>
+          <div className="mt-auto pb-4"><div className={cn(bone, "h-[88px] rounded-[26px] border border-border/60 bg-card")} /></div>
         </div>
       </div>
     </div>
@@ -915,9 +969,9 @@ export function ErrorState({ message }: { message: string }) {
     <div className="flex h-[100dvh] items-center justify-center bg-background px-4">
       <div className="w-full max-w-md text-center">
         <ShieldAlert className="mx-auto mb-4 h-8 w-8 text-muted-foreground" />
-        <h1 className="text-[15px] font-semibold text-foreground">Session not found</h1>
+        <h1 className="text-2xl font-semibold tracking-[-0.04em] text-foreground">Session not found</h1>
         <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">{message}</p>
-        <Link href="/" className="mt-6 inline-flex items-center gap-1.5 text-[13px] font-medium text-foreground hover:text-foreground/80">
+        <Link href="/" className="mt-6 inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
           Back home
         </Link>
       </div>

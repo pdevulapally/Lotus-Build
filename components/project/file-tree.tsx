@@ -52,7 +52,7 @@ function FileTreeItem({
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className="flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-muted"
+          className="flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 font-mono text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
           style={{ paddingLeft: `${depth * 12 + 8}px` }}
         >
           {isOpen ? (
@@ -98,8 +98,8 @@ function FileTreeItem({
       animate={{ opacity: 1, x: 0 }}
       onClick={() => onSelect({ path: node.path, content: node.content || "" })}
       className={cn(
-        "flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm transition-colors",
-        isSelected ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+        "flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 font-mono text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+        isSelected ? "bg-muted font-semibold text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
       )}
       style={{ paddingLeft: `${depth * 12 + 8}px` }}
     >
@@ -137,7 +137,7 @@ export function ProjectFileTree({ files, selectedFile, onSelectFile, isGeneratin
     <div className="custom-scrollbar w-56 flex-shrink-0 overflow-y-auto border-r border-border bg-card">
       <div className="p-2.5">
         <div className="flex items-center justify-between px-2 py-2.5">
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Files</span>
+          <span className="text-xs font-semibold text-muted-foreground">Files</span>
           <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
             {isGenerating && (
               <>

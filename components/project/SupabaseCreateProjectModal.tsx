@@ -52,14 +52,14 @@ export function SupabaseCreateProjectModal({ open, loading, error, regions = [],
 
   return (
     <Dialog open={open} onOpenChange={(next) => (!next ? handleClose() : null)}>
-      <DialogContent className="border-border bg-card text-foreground sm:max-w-md">
+      <DialogContent className="rounded-2xl border-border bg-popover text-popover-foreground shadow-lg shadow-foreground/5 sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center justify-center">
-            <div className="rounded-full bg-green-50 p-3">
-              <Plus className="h-6 w-6 text-green-600" />
+            <div className="rounded-xl bg-muted p-3">
+              <Plus className="h-6 w-6 text-foreground" />
             </div>
           </div>
-          <DialogTitle className="text-center text-xl">Create Supabase Project</DialogTitle>
+          <DialogTitle className="text-center text-xl font-semibold tracking-[-0.03em]">Create Supabase Project</DialogTitle>
           <DialogDescription className="text-center">
             Create a Supabase project here, then we will link it and continue setup for this website automatically.
           </DialogDescription>
@@ -67,7 +67,7 @@ export function SupabaseCreateProjectModal({ open, loading, error, regions = [],
 
         <div className="space-y-4">
           {error ? (
-            <div className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
+            <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs leading-relaxed text-destructive">
               {error}
             </div>
           ) : null}
@@ -87,8 +87,8 @@ export function SupabaseCreateProjectModal({ open, loading, error, regions = [],
             />
           </div>
 
-          <div className="rounded-2xl border border-border bg-card px-4 py-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">What happens next</p>
+          <div className="border-y border-border px-4 py-4">
+            <p className="text-xs font-semibold text-muted-foreground">What happens next</p>
             <ol className="mt-3 space-y-2 text-sm leading-6 text-foreground">
               <li>1. We create the Supabase project in your account.</li>
               <li>2. We link it to this website.</li>
@@ -101,7 +101,7 @@ export function SupabaseCreateProjectModal({ open, loading, error, regions = [],
               Region
             </Label>
             <Select value={region} onValueChange={setRegion} disabled={isCreating}>
-              <SelectTrigger id="region" className="border-input text-sm">
+              <SelectTrigger id="region" className="rounded-xl border-input text-sm focus:ring-ring/50">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -145,7 +145,7 @@ export function SupabaseCreateProjectModal({ open, loading, error, regions = [],
             <Button
               type="button"
               onClick={handleCreate}
-              className="flex-1 bg-success text-success-foreground hover:bg-success/90"
+              className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
               disabled={isCreating || !projectName.trim() || !dbPassword.trim()}
             >
               {isCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}

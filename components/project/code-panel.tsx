@@ -24,14 +24,14 @@ export function CodePanel({ files, selectedFile, onSelectFile, isGenerating }: C
       />
       <div className="flex flex-1 flex-col bg-card">
         {!selectedFile ? (
-          <div className="flex flex-1 items-center justify-center bg-[radial-gradient(circle_at_top,color-mix(in_oklch,var(--surface-raised)_92%,transparent),var(--card)_56%)]">
+          <div className="flex flex-1 items-center justify-center bg-background">
             <div className="text-center text-muted-foreground">Select a file</div>
           </div>
         ) : (
           <>
-            <div className="flex h-11 items-center border-b border-border bg-card px-4 shadow-sm">
+            <div className="flex h-11 items-center border-b border-border bg-background px-4">
               <FileCode className={cn("mr-2 h-4 w-4 text-muted-foreground")} />
-              <span className="text-sm text-foreground">{selectedFile.path}</span>
+              <span className="font-mono text-sm text-foreground">{selectedFile.path}</span>
             </div>
             <div className="min-h-0 flex-1 bg-card">
               <Editor

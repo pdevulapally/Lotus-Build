@@ -42,6 +42,7 @@ import {
 } from "@/components/computer/session-types"
 import type { ComputerSessionProgress } from "@/components/computer/session-progress-model"
 import { cn } from "@/lib/utils"
+import { Markdown } from "@/components/ui/markdown"
 
 const PROSE_EVENTS = ["Understanding insight", "Research insight", "Browser insight", "Build approach"]
 
@@ -163,14 +164,6 @@ function formatClarificationAnswerSet(
     .join("\n\n")
 }
 
-function renderInline(text: string): React.ReactNode {
-  return text.split(/(\*\*[^*]+\*\*)/).map((part, i) =>
-    part.startsWith("**") && part.endsWith("**")
-      ? <strong key={i} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>
-      : part
-  )
-}
-
 function sanitizePlanText(text: string): string {
   return text
     .split("\n")
@@ -182,28 +175,7 @@ function sanitizePlanText(text: string): string {
 }
 
 function PlanDescription({ text }: { text: string }) {
-  return (
-    <div className="space-y-0.5 text-[13px] leading-relaxed">
-      {text.split("\n").map((line, i) => {
-        const t = line.trim()
-        if (!t) return null
-        if (/^[-*_]{3,}$/.test(t)) return null
-        if (t.match(/^#\s+/)) return null
-        const h2 = t.match(/^##\s+(.+)/)
-        if (h2) return <p key={i} className="pt-2 pb-0.5 text-[13px] font-semibold text-foreground">{renderInline(h2[1])}</p>
-        const h3 = t.match(/^###\s+(.+)/)
-        if (h3) return <p key={i} className="pt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{h3[1]}</p>
-        const li = t.match(/^[-*]\s+(.+)/)
-        if (li) return (
-          <div key={i} className="flex items-start gap-2 font-semibold text-muted-foreground">
-            <span className="mt-[7px] h-[3px] w-[3px] shrink-0 rounded-full bg-border" />
-            <span>{renderInline(li[1])}</span>
-          </div>
-        )
-        return <p key={i} className="font-semibold text-muted-foreground">{renderInline(t)}</p>
-      })}
-    </div>
-  )
+  return <Markdown className="text-[13px] leading-relaxed text-muted-foreground [&_h3]:text-[13px] [&_h4]:text-[11px] [&_h4]:uppercase [&_h4]:tracking-[0.12em] [&_h4]:text-muted-foreground">{text.replace(/^#\s.*$/m, "")}</Markdown>
 }
 
 function SupabaseQuestionCard({ onSetup, onDecline }: { onSetup: () => void; onDecline?: () => void }) {
@@ -213,9 +185,9 @@ function SupabaseQuestionCard({ onSetup, onDecline }: { onSetup: () => void; onD
   if (dismissed) return null
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/55 bg-card/78 shadow-sm backdrop-blur-xl">
+    <div className="overflow-hidden rounded-2xl border border-border bg-card">
       <div className="flex items-start gap-3 px-4 py-3.5">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-border/55 bg-muted/70">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-muted/70">
           <Database className="h-4 w-4 text-foreground/70" />
         </span>
         <div className="min-w-0 flex-1">
@@ -231,7 +203,7 @@ function SupabaseQuestionCard({ onSetup, onDecline }: { onSetup: () => void; onD
                 try { await onSetup() } finally { setSetting(false) }
               }}
               disabled={setting}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border-strong bg-muted px-3 py-1.5 text-[12px] font-semibold text-foreground shadow-sm transition-all hover:bg-muted/70 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50"
             >
               {setting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Database className="h-3 w-3" />}
               {setting ? "Setting up..." : "Set up Supabase"}
@@ -240,7 +212,7 @@ function SupabaseQuestionCard({ onSetup, onDecline }: { onSetup: () => void; onD
               type="button"
               onClick={() => { setDismissed(true); onDecline?.() }}
               disabled={setting}
-              className="rounded-md px-1 py-1 text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35 disabled:opacity-60"
+              className="rounded-md px-1 py-1 text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-60"
             >
               Not now
             </button>
@@ -263,14 +235,14 @@ function PlanTool({ event, onApprovePlan }: { event: ComputerTimelineEvent; onAp
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/55 bg-card/78 shadow-sm backdrop-blur-xl">
-      <div className="flex items-center justify-between gap-2 border-b border-border/35 px-3.5 py-2.5">
+    <div className="overflow-hidden rounded-2xl border border-border bg-card">
+      <div className="flex items-center justify-between gap-2 border-b border-border/70 px-3.5 py-2.5">
         <span className="text-xs font-semibold text-muted-foreground">Plan drafted</span>
         {summary && (
           <button
             type="button"
             onClick={() => setIsExpanded((v) => !v)}
-            className="flex items-center gap-1 rounded-md px-1 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
+            className="flex items-center gap-1 rounded-md px-1 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           >
             {isExpanded ? (
               <ChevronsUp className="h-3 w-3 shrink-0" />
@@ -292,12 +264,12 @@ function PlanTool({ event, onApprovePlan }: { event: ComputerTimelineEvent; onAp
         </div>
       )}
       {onApprovePlan && (
-        <div className="flex items-center gap-3 border-t border-border/35 px-3.5 py-3">
+        <div className="flex items-center gap-3 border-t border-border/70 px-3.5 py-3">
           <button
             type="button"
             onClick={handleApprove}
             disabled={isApproving}
-            className="inline-flex items-center gap-1.5 rounded-full border border-border-strong bg-muted px-3 py-1.5 text-xs font-semibold text-foreground shadow-sm transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-60"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50"
           >
             <Check className="h-3.5 w-3.5 shrink-0" />
             {isApproving ? "Starting build…" : "Approve and build"}
@@ -344,14 +316,14 @@ function FeedFileItem({
     : `${isWrite ? "Created" : "Edited"} ${fileName}`
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/55 bg-card/78 shadow-sm backdrop-blur-xl">
+    <div className="overflow-hidden rounded-2xl border border-border bg-card">
       <button
         type="button"
         disabled={!hasDiff}
         onClick={() => hasDiff && setOpen((v) => !v)}
-        className="flex h-9 w-full items-center gap-2.5 px-3.5 text-left transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/35"
+        className="flex h-9 w-full items-center gap-2.5 px-3.5 text-left transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
       >
-        <FileCode2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+        <FileCode2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         {isPending || isRunning ? (
           <Shimmer className="min-w-0 flex-1 text-xs font-semibold">
             {label}
@@ -368,14 +340,14 @@ function FeedFileItem({
         {hasDiff && (
           <ChevronRight
             className={cn(
-              "h-3 w-3 shrink-0 text-muted-foreground/50 transition-transform duration-150",
+              "h-3 w-3 shrink-0 text-muted-foreground transition-transform duration-150",
               open && "rotate-90",
             )}
           />
         )}
       </button>
       {open && hasDiff && (
-        <div className="max-h-64 overflow-auto border-t border-border/35 bg-muted/55 font-mono text-[11.5px] leading-[1.55] [scrollbar-width:thin]">
+        <div className="max-h-64 overflow-auto border-t border-border/70 bg-muted/55 font-mono text-[11.5px] leading-[1.55] [scrollbar-width:thin]">
           {diffOps!.map((op, i) => (
             <div
               key={i}
@@ -477,9 +449,7 @@ function FeedItem({
   if (event.title === "Response" && event.description) {
     return (
       <div className="py-4 pr-2">
-        <p className="whitespace-pre-wrap break-words text-[14px] leading-[1.75] text-foreground [overflow-wrap:anywhere]">
-          {event.description}
-        </p>
+        <Markdown>{event.description}</Markdown>
       </div>
     )
   }
@@ -504,7 +474,7 @@ function FeedItem({
     if (!isRunning) return null
     return (
       <div className="flex items-center gap-2.5 py-1.5">
-        <FileCode2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40" />
+        <FileCode2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         <Shimmer className="text-xs font-medium">Generating code…</Shimmer>
       </div>
     )
@@ -557,7 +527,7 @@ function FeedItem({
               isError
                 ? "font-semibold text-destructive"
                 : isSkipped
-                  ? "font-semibold text-muted-foreground/60"
+                  ? "font-semibold text-muted-foreground"
                   : "font-semibold text-foreground/80",
             )}
           >
@@ -631,7 +601,7 @@ function UserMessageBubble({
     return (
       <div className="flex justify-end pb-4">
         <div className="w-full max-w-[min(84%,42rem)]">
-          <div className="overflow-hidden rounded-2xl bg-muted shadow-sm">
+          <div className="overflow-hidden rounded-2xl border border-border bg-muted/60 focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/15">
             <textarea
               ref={ref} value={editText} onChange={(e) => onEditChange?.(e.target.value)}
               aria-label="Edit message"
@@ -644,8 +614,8 @@ function UserMessageBubble({
             />
           </div>
           <div className="mt-1.5 flex items-center justify-end gap-2">
-            <button type="button" onClick={onEditCancel} className="min-h-6 rounded-md px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35">Cancel</button>
-            <button type="button" onClick={() => onEditSubmit?.(index)} className="min-h-6 rounded-full border border-border-strong bg-muted px-2.5 py-1 text-[11px] font-medium text-foreground shadow-sm transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40">Submit</button>
+            <button type="button" onClick={onEditCancel} className="min-h-6 rounded-md px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50">Cancel</button>
+            <button type="button" onClick={() => onEditSubmit?.(index)} className="min-h-6 rounded-lg bg-primary px-2.5 py-1 text-[11px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50">Submit</button>
           </div>
         </div>
       </div>
@@ -656,8 +626,8 @@ function UserMessageBubble({
     <>
     <div className="group flex w-full justify-end pb-4">
       <div className="flex w-fit max-w-[min(84%,42rem)] min-w-0 flex-col items-end">
-        <div className="max-w-full rounded-2xl bg-muted px-3.5 py-2.5 text-right shadow-sm">
-          <p className="whitespace-pre-wrap break-words text-left text-[14px] font-medium leading-relaxed text-foreground [overflow-wrap:anywhere]">{content}</p>
+        <div className="max-w-full rounded-2xl bg-muted px-3.5 py-2.5 text-right">
+          <p className="whitespace-pre-wrap break-words text-left text-[14px] leading-relaxed text-foreground [overflow-wrap:anywhere]">{content}</p>
         </div>
 
         {/* Action row — copy, edit, restore */}
@@ -666,10 +636,10 @@ function UserMessageBubble({
             await navigator.clipboard?.writeText(content).catch(() => undefined)
             setCopied(true)
             window.setTimeout(() => setCopied(false), 1200)
-          }} aria-label="Copy message" className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35">
+          }} aria-label="Copy message" className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50">
             {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
           </button>
-          {canEdit && onEditStart && <button type="button" onClick={() => onEditStart?.(index, content)} aria-label="Edit message" className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35">
+          {canEdit && onEditStart && <button type="button" onClick={() => onEditStart?.(index, content)} aria-label="Edit message" className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50">
             <Pencil className="h-3.5 w-3.5" />
           </button>}
           {showRestoreButton && restoreState !== "restoring" && (
@@ -677,7 +647,7 @@ function UserMessageBubble({
               type="button"
               onClick={() => { setRestoreError(null); setRestoreState("confirming") }}
               aria-label="Restore project to this checkpoint"
-              className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
+              className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
             >
               <RotateCcw className="h-3.5 w-3.5" />
             </button>
@@ -702,7 +672,7 @@ function UserMessageBubble({
     >
       <DialogContent showCloseButton={restoreState !== "restoring"} className="max-w-sm">
         <DialogHeader>
-          <div className="lotus-glass-inset mb-1 flex h-10 w-10 items-center justify-center rounded-full">
+          <div className="bg-muted/40 mb-1 flex h-10 w-10 items-center justify-center rounded-full">
             <RotateCcw className="h-4 w-4 text-foreground" />
           </div>
           <DialogTitle>Restore to this point?</DialogTitle>
@@ -718,7 +688,7 @@ function UserMessageBubble({
             type="button"
             disabled={restoreState === "restoring"}
             onClick={() => { setRestoreState("idle"); setRestoreError(null) }}
-            className="lotus-glass-control inline-flex h-9 items-center justify-center rounded-full border px-4 text-[13px] font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+            className="inline-flex h-9 items-center justify-center rounded-xl border border-border bg-card px-4 text-[13px] font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50"
           >
             Cancel
           </button>
@@ -726,7 +696,7 @@ function UserMessageBubble({
             type="button"
             disabled={restoreState === "restoring"}
             onClick={handleConfirmRestore}
-            className="inline-flex h-9 items-center justify-center gap-2 rounded-full border border-border-strong bg-muted px-4 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted/70 disabled:opacity-70"
+            className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50"
           >
             {restoreState === "restoring" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             {restoreState === "restoring" ? "Restoring…" : "Restore"}
@@ -821,7 +791,7 @@ export function AgentFeed({
       </div>)}
       {streamText && <FeedItem event={{ title: 'Response', description: streamText, status: 'running', createdAt: '', index: 0 }} isLatest isSessionRunning={isRunning} />}
       {isRunning && <div className="py-2"><Shimmer className="text-[13px] font-medium">Working…</Shimmer></div>}
-      {onApprovePlan && !isRunning && <button type="button" className="mt-3 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={onApprovePlan}>Build this plan</button>}
+      {onApprovePlan && !isRunning && <button type="button" className="mt-3 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={onApprovePlan}>Build this plan</button>}
       <div ref={endRef} />
     </div>
   }
@@ -902,7 +872,7 @@ export function AgentFeed({
             </Fragment>
           ) : (
             <motion.div key={`sys-${i}`} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.12 }} className="flex justify-center py-2">
-              <span className="text-[11px] text-muted-foreground/60">{msg.content}</span>
+              <span className="text-[11px] text-muted-foreground">{msg.content}</span>
             </motion.div>
           )
         )}
@@ -921,7 +891,7 @@ export function AgentFeed({
               {progress?.label ?? "Working..."}
             </Shimmer>
             {progress?.description && (
-              <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground/70">
+              <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
                 {progress.description}
               </p>
             )}

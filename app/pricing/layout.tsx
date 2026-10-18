@@ -5,16 +5,16 @@ const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://lotus-build.app"
 export const metadata: Metadata = {
   title: "Pricing",
   description:
-    "Lotus.build pricing: Free tier with 10K tokens/month. Upgrade to Pro or Team for more tokens and advanced features. Start building with AI today.",
+    "Compare available LotusBuild plans, prices and included usage for your next project.",
   openGraph: {
     title: "Pricing | Lotus.build",
-    description: "Free tier and paid plans. Get more tokens and features to build full-stack apps with AI.",
+    description: "Compare available plans, prices and included usage for your next project.",
     url: `${siteUrl}/pricing`,
   },
   twitter: {
     card: "summary_large_image",
     title: "Pricing | Lotus.build",
-    description: "Free tier and paid plans. Build full-stack apps with AI.",
+    description: "Compare available plans, prices and included usage for your next project.",
   },
   alternates: { canonical: `${siteUrl}/pricing` },
   robots: { index: true, follow: true },
