@@ -42,6 +42,7 @@ import {
 } from "@/components/computer/session-types"
 import type { ComputerSessionProgress } from "@/components/computer/session-progress-model"
 import { cn } from "@/lib/utils"
+import { Markdown } from "@/components/ui/markdown"
 
 const PROSE_EVENTS = ["Understanding insight", "Research insight", "Browser insight", "Build approach"]
 
@@ -163,14 +164,6 @@ function formatClarificationAnswerSet(
     .join("\n\n")
 }
 
-function renderInline(text: string): React.ReactNode {
-  return text.split(/(\*\*[^*]+\*\*)/).map((part, i) =>
-    part.startsWith("**") && part.endsWith("**")
-      ? <strong key={i} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>
-      : part
-  )
-}
-
 function sanitizePlanText(text: string): string {
   return text
     .split("\n")
@@ -182,28 +175,7 @@ function sanitizePlanText(text: string): string {
 }
 
 function PlanDescription({ text }: { text: string }) {
-  return (
-    <div className="space-y-0.5 text-[13px] leading-relaxed">
-      {text.split("\n").map((line, i) => {
-        const t = line.trim()
-        if (!t) return null
-        if (/^[-*_]{3,}$/.test(t)) return null
-        if (t.match(/^#\s+/)) return null
-        const h2 = t.match(/^##\s+(.+)/)
-        if (h2) return <p key={i} className="pt-2 pb-0.5 text-[13px] font-semibold text-foreground">{renderInline(h2[1])}</p>
-        const h3 = t.match(/^###\s+(.+)/)
-        if (h3) return <p key={i} className="pt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{h3[1]}</p>
-        const li = t.match(/^[-*]\s+(.+)/)
-        if (li) return (
-          <div key={i} className="flex items-start gap-2 text-muted-foreground">
-            <span className="mt-[7px] h-[3px] w-[3px] shrink-0 rounded-full bg-border" />
-            <span>{renderInline(li[1])}</span>
-          </div>
-        )
-        return <p key={i} className="text-muted-foreground">{renderInline(t)}</p>
-      })}
-    </div>
-  )
+  return <Markdown className="text-[13px] leading-relaxed text-muted-foreground [&_h3]:text-[13px] [&_h4]:text-[11px] [&_h4]:uppercase [&_h4]:tracking-[0.12em] [&_h4]:text-muted-foreground">{text.replace(/^#\s.*$/m, "")}</Markdown>
 }
 
 function SupabaseQuestionCard({ onSetup, onDecline }: { onSetup: () => void; onDecline?: () => void }) {
@@ -477,9 +449,7 @@ function FeedItem({
   if (event.title === "Response" && event.description) {
     return (
       <div className="py-4 pr-2">
-        <p className="whitespace-pre-wrap break-words text-[14px] leading-[1.75] text-foreground [overflow-wrap:anywhere]">
-          {event.description}
-        </p>
+        <Markdown>{event.description}</Markdown>
       </div>
     )
   }

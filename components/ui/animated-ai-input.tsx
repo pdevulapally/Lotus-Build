@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import { ArrowUp, Check, Loader2, Crown, Mic, Square, Leaf, X, ChevronUp } from "lucide-react";
+import { ArrowRight, ArrowUp, Check, Loader2, Crown, Mic, Square, Leaf, X, ChevronUp } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -76,8 +76,10 @@ interface AnimatedAIInputProps {
   inputId?: string;
   portalClassName?: string;
   mode?: "create" | "chat";
+  appearance?: "default" | "assistant";
   onSubmit?: (value: string, model: string) => void | Promise<void>;
   onStop?: () => void;
+  onManageProjects?: () => void;
   placeholder?: string;
   isLoading?: boolean;
   compact?: boolean;
@@ -196,9 +198,11 @@ export function AnimatedAIInput({
   inputId,
   portalClassName,
   mode = "create",
+  appearance = "default",
   onSubmit,
   onStop,
-  placeholder = "What can I help you build today?",
+  onManageProjects,
+  placeholder,
   isLoading = false,
   compact = false,
   compactSize = "default",
@@ -224,8 +228,10 @@ export function AnimatedAIInput({
   const [isListening, setIsListening] = useState(false);
   const [speechSupported, setSpeechSupported] = useState(false);
 
+  const isAssistant = appearance === "assistant";
+  const isStart = mode === "create" && isAssistant;
   const isSlimCompact = compact && compactSize === "slim";
-  const minH = compact ? (isSlimCompact ? 60 : 76) : 96;
+  const minH = isAssistant ? 56 : compact ? (isSlimCompact ? 60 : 76) : 96;
   const isSlimChat = mode === "chat" && isSlimCompact;
 
   const { textareaRef, adjustHeight } = useAutoResizeTextarea({
@@ -362,7 +368,7 @@ export function AnimatedAIInput({
   /* ─── render ─────────────────────────────────────────────────────────────── */
 
   return (
-    <div className={cn("w-full", mode === "create" ? "mx-auto max-w-2xl" : "max-w-none")}>
+    <div className={cn("w-full", mode === "create" ? "mx-auto max-w-2xl" : "max-w-none", isStart && "max-w-[760px]")}>
       <div
         className={cn(
           "group/composer relative overflow-hidden rounded-2xl border transition-[border-color,box-shadow] duration-200 motion-reduce:transition-none",
@@ -370,6 +376,7 @@ export function AnimatedAIInput({
           "hover:border-border-strong",
           "focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/15",
           isSlimChat && "rounded-2xl border-border bg-card",
+          isAssistant && "rounded-[28px] p-1 shadow-sm shadow-foreground/5",
           disabled && "pointer-events-none opacity-60",
           wrapperClassName,
         )}
@@ -401,13 +408,13 @@ export function AnimatedAIInput({
           )}
         </AnimatePresence>
 
-        <div className={cn("px-3 pt-3 sm:px-4 sm:pt-4", compact && "pt-2.5 sm:pt-3", isSlimChat && "px-5 pt-4")}>
+        <div className={cn("px-3 pt-3 sm:px-4 sm:pt-4", compact && "pt-2.5 sm:pt-3", isSlimChat && "px-5 pt-4", isAssistant && "px-3.5 pt-3 sm:px-4 sm:pt-4", isAssistant && isSlimChat && "sm:px-3.5 sm:pt-3")}>
           <textarea
             id={inputId}
             ref={textareaRef}
             value={value}
             aria-label={mode === "chat" ? "Message the agent" : "Describe the software you want to build"}
-            placeholder={placeholder}
+            placeholder={placeholder ?? (isStart ? "Ask LotusBuild to build anything…" : "What can I help you build today?")}
             disabled={disabled}
             onKeyDown={handleKeyDown}
             onChange={(e) => { setValue(e.target.value); adjustHeight(); }}
@@ -421,6 +428,8 @@ export function AnimatedAIInput({
                 ? isSlimCompact ? "min-h-[60px]" : "min-h-[76px]"
                 : "min-h-[96px]",
               isSlimChat && "min-h-[54px] text-[14px] leading-[1.55]",
+              isAssistant && "min-h-[56px] text-base placeholder:text-muted-foreground sm:text-[17px]",
+              isAssistant && isSlimChat && "text-base leading-[1.6] sm:text-base",
             )}
           />
         </div>
@@ -430,13 +439,15 @@ export function AnimatedAIInput({
             "flex items-center justify-between gap-2 px-2.5 pb-2 pt-1 sm:px-3 sm:pb-2.5",
             isSlimCompact && "py-1.5",
             isSlimChat && "px-3.5 pb-3 pt-0",
+            isAssistant && "px-2 pb-2 sm:px-2 sm:pb-2",
+            isAssistant && isSlimChat && "pt-0.5",
           )}
         >
           <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {mode === "create" && !compact && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <ToolbarPill className="max-w-[9rem]" aria-label="Choose session mode">
+                  <ToolbarPill className={cn("max-w-[9rem]", isStart && "h-11 rounded-full")} aria-label="Choose session mode">
                     <span className="truncate text-foreground">{selectedSessionMode.label}</span>
                     <ChevronUp className="h-3 w-3 shrink-0 opacity-45" />
                   </ToolbarPill>
@@ -486,9 +497,17 @@ export function AnimatedAIInput({
               </ToolbarPill>
             )}
 
-            {user && <DropdownMenu>
+            {user && (mode === "chat" ? (
+              <span
+                aria-label={`Session model: ${displayModelLabel}`}
+                title={`Session model: ${displayModelLabel}`}
+                className={cn("inline-flex h-8 max-w-[6.5rem] shrink-0 items-center rounded-xl px-2.5 text-xs text-muted-foreground sm:max-w-[9rem]", isAssistant && "h-11 rounded-full")}
+              >
+                <span className="truncate">{displayModelLabel}</span>
+              </span>
+            ) : <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <ToolbarPill className="max-w-[6.5rem] sm:max-w-[9rem]" aria-label={mode === 'chat' ? 'Session model' : 'Choose model'} disabled={mode === 'chat'}>
+                <ToolbarPill className={cn("max-w-[6.5rem] sm:max-w-[9rem]", isAssistant && "h-11 rounded-full")} aria-label="Choose model">
                   <span className="truncate text-foreground">{displayModelLabel}</span>
                   <ChevronUp className="h-3 w-3 shrink-0 opacity-45" />
                 </ToolbarPill>
@@ -563,7 +582,7 @@ export function AnimatedAIInput({
                   );
                 })}
               </DropdownMenuContent>
-            </DropdownMenu>}
+            </DropdownMenu>)}
           </div>
 
           <div className="flex shrink-0 items-center gap-1">
@@ -573,6 +592,7 @@ export function AnimatedAIInput({
                 onClick={handleToggleSpeech}
                 disabled={disabled || isCreating || isLoading || !speechSupported}
                 active={isListening}
+                className={cn(isAssistant && "h-11 w-11 rounded-full")}
               >
                 {isListening
                   ? <Loader2 className="h-4 w-4 animate-spin" />
@@ -583,23 +603,21 @@ export function AnimatedAIInput({
 
             <motion.button
               type="button"
-              aria-label={canStop ? "Stop generating" : (submitLabel?.trim() || "Start computer session")}
+              aria-label={canStop ? "Stop generating" : (submitLabel?.trim() || (mode === "chat" ? "Send message" : "Start project"))}
               disabled={!canSubmit && !canStop}
               onClick={canStop ? onStop : handleSubmit}
               whileTap={canSubmit || canStop ? { scale: 0.94 } : {}}
               className={cn(
-                "flex shrink-0 items-center justify-center rounded-xl font-semibold transition-colors duration-150 disabled:cursor-not-allowed",
+                "flex shrink-0 items-center justify-center rounded-xl border font-semibold transition-colors duration-150 disabled:cursor-not-allowed motion-reduce:transition-none",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2 focus-visible:ring-offset-card",
-                hasSubmitLabel && (canSubmit || canStop)
+                hasSubmitLabel
                   ? "h-9 gap-1.5 px-3.5 text-xs"
                   : "h-9 w-9",
-                canStop
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                  : canSubmit
-                    ? isSlimChat
-                      ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                      : "bg-primary text-primary-foreground hover:bg-primary/90"
-                    : "bg-muted text-muted-foreground",
+                canSubmit || canStop
+                  ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90"
+                  : "border-border bg-muted text-muted-foreground",
+                isAssistant && "h-11 rounded-full",
+                isAssistant && !hasSubmitLabel && "w-11",
                 submitButtonClassName,
               )}
             >
@@ -612,8 +630,10 @@ export function AnimatedAIInput({
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : hasSubmitLabel ? (
                 <>
-                  <ArrowUp className="h-3.5 w-3.5" />
                   <span>{submitLabel}</span>
+                  {mode === "create"
+                    ? <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+                    : <ArrowUp className="h-3.5 w-3.5" aria-hidden />}
                 </>
               ) : (
                 <ArrowUp className="h-4 w-4" />
@@ -623,7 +643,7 @@ export function AnimatedAIInput({
         </div>
       </div>
 
-      {!compact && mode === "create" && (
+      {!compact && !isStart && mode === "create" && (
         <p className={cn("mt-2.5 text-center text-[11px] text-muted-foreground", footerHintsClassName)}>
           <kbd className="rounded-md border border-border bg-muted/60 px-1.5 py-0.5 font-mono text-[10px]">Enter</kbd>
           {" "}to send ·{" "}
@@ -631,7 +651,7 @@ export function AnimatedAIInput({
           {" "}for new line
         </p>
       )}
-      <RequestErrorNotice error={submitError} planName={account?.plan.name} onClose={() => setSubmitError(null)} restoreFocus={() => textareaRef.current?.focus()}>
+      <RequestErrorNotice error={submitError} planName={account?.plan.name} onClose={() => setSubmitError(null)} onManageProjects={onManageProjects} restoreFocus={() => textareaRef.current?.focus()}>
         {mode === 'create' && user && <button type="button" onClick={() => {
           sessionStorage.removeItem(`lotus-current-build:${user.uid}`); setSubmitError(null);
         }}>Discard pending request</button>}

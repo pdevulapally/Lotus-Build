@@ -6,6 +6,7 @@ import { AlertTriangle, ArrowUp, ArrowUpRight, ChevronDown, Info } from "lucide-
 import { FooterSection } from "@/components/sections/footer-section"
 import { Navbar } from "@/components/ui/navbar"
 import { cn } from "@/lib/utils"
+import { legalIdentity, type LegalBlock, type LegalDocumentContent, type LegalRich } from "@/lib/legal/model"
 
 type DocumentSection = { id: string; label: string }
 
@@ -107,8 +108,8 @@ export function LegalDocument({
               <div className="mt-8 border-t border-border pt-5">
                 <p className="text-sm font-semibold">{contact.title}</p>
                 <p className="mt-2 text-xs leading-6 text-muted-foreground">{contact.description}</p>
-                <a href="mailto:arpkwebsitedevelopment@gmail.com" className="mt-3 block break-words rounded-sm text-xs leading-6 text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring">
-                  arpkwebsitedevelopment@gmail.com
+                <a href={`mailto:${legalIdentity.contactEmail}`} className="mt-3 block break-words rounded-sm text-xs leading-6 text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring">
+                  {legalIdentity.contactEmail}
                 </a>
               </div>
             </div>
@@ -163,5 +164,49 @@ export function Callout({ icon, variant = "info", children }: { icon?: ElementTy
       <Icon className="mt-1 size-4 shrink-0" aria-hidden="true" />
       <div className="min-w-0">{children}</div>
     </div>
+  )
+}
+
+function Rich({ value }: { value: LegalRich }) {
+  const parts = Array.isArray(value) ? value : [value]
+  return <>{parts.map((part, i) => typeof part === "string" ? part : "href" in part ? <a key={i} href={part.href} target={part.href.startsWith("http") ? "_blank" : undefined} rel={part.href.startsWith("http") ? "noopener noreferrer" : undefined}>{part.text}</a> : <strong key={i} className="font-semibold text-foreground">{part.strong}</strong>)}</>
+}
+
+function Block({ block }: { block: LegalBlock }) {
+  switch (block.kind) {
+    case "p": return <p className="mb-4 text-muted-foreground"><Rich value={block.text} /></p>
+    case "h3": return <h3 className="mb-3 mt-8 text-base font-semibold tracking-[-0.015em] text-foreground">{block.text}</h3>
+    case "list": {
+      const Tag = block.ordered ? "ol" : "ul"
+      return <Tag className={cn("mb-5 space-y-2 pl-5 text-muted-foreground marker:text-muted-foreground", block.ordered ? "list-decimal" : "list-disc")}>{block.items.map((item, i) => <li key={i} className="pl-1"><Rich value={item} /></li>)}</Tag>
+    }
+    case "callout": return <Callout variant={block.variant}><Rich value={block.text} /></Callout>
+    case "definitions": return (
+      <dl className="mb-6 divide-y divide-border border-y border-border">
+        {block.items.map((item) => <div key={item.term} className="grid gap-1 py-4 sm:grid-cols-[180px_minmax(0,1fr)] sm:gap-6"><dt className="text-sm font-semibold text-foreground">{item.term}</dt><dd className="text-sm leading-7 text-muted-foreground"><Rich value={item.description} /></dd></div>)}
+      </dl>
+    )
+    case "table": return (
+      <div className="my-6 overflow-x-auto border-y border-border focus-visible:outline-2 focus-visible:outline-ring" role="region" aria-label={block.label} tabIndex={0}>
+        <table className="w-full min-w-[560px] text-left text-sm leading-6">
+          <thead><tr className="border-b border-border bg-muted">{block.columns.map((column) => <th key={column} scope="col" className="px-4 py-3 font-semibold text-foreground">{column}</th>)}</tr></thead>
+          <tbody>{block.rows.map((row, i) => <tr key={i} className="border-b border-border last:border-0">{row.map((cell, j) => <td key={j} className={cn("px-4 py-3 align-top", j === 0 ? "font-semibold text-foreground" : "text-muted-foreground")}><Rich value={cell} /></td>)}</tr>)}</tbody>
+        </table>
+      </div>
+    )
+  }
+}
+
+/** Renders a complete legal document from typed content so Privacy and Terms share one layout and one source of facts. */
+export function LegalContentDocument({ content }: { content: LegalDocumentContent }) {
+  return (
+    <LegalDocument title={content.title} description={content.description} effectiveDate={content.effectiveDate} lastUpdated={content.lastUpdated} related={content.related} notice={content.notice} sections={content.sections} contact={content.contact}>
+      {content.sections.map((section, index) => (
+        <section key={section.id} aria-labelledby={section.id}>
+          <SectionTitle id={section.id}>{index + 1}. {section.title}</SectionTitle>
+          {section.blocks.map((block, i) => <Block key={i} block={block} />)}
+        </section>
+      ))}
+    </LegalDocument>
   )
 }

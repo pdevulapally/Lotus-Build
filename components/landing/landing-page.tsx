@@ -1,11 +1,12 @@
 "use client"
 import { useState } from 'react'
 import Link from 'next/link'
-import { ArrowUpRight, FileCode2, History, Download, ListChecks, Code2, Wrench } from 'lucide-react'
+import { ArrowUpRight, ListChecks, Code2, Wrench } from 'lucide-react'
 import { AnimatedAIInput } from '@/components/ui/animated-ai-input'
 import { Navbar } from '@/components/ui/navbar'
 import { FooterSection } from '@/components/sections/footer-section'
 import { CookieBanner } from '@/components/cookie-banner'
+import { SavedWorkSection, StartModesSection } from './landing-sections'
 import styles from './landing-page.module.css'
 
 const briefs = [
@@ -21,45 +22,23 @@ export function LandingPage() {
     <main className={styles.page}>
       <Navbar />
       <section className={styles.hero} aria-labelledby="landing-heading">
-        <p className={styles.eyebrow}>Build with LotusBuild</p>
-        <h1 id="landing-heading">Build what you<br />have in mind.</h1>
-        <p className={styles.intro}>A website, an app, a tool for your team.<br /> Describe your idea. We’ll help you take it from there.</p>
+        <h1 id="landing-heading">What should we build?</h1>
+        <p className={styles.intro}>Describe a website, app or tool. LotusBuild asks the right questions, plans it with you, then builds it.</p>
         <div className={styles.composer}>
           <AnimatedAIInput
             suggestedPrompt={request.id === 0 ? undefined : request.prompt}
             promptRequestId={request.id}
             suggestedMode={request.mode}
+            appearance="assistant"
             inputId="project-brief"
             portalClassName={styles.popover}
-            placeholder="Describe what you’d like to make…"
-            submitLabel="Continue"
-            submitButtonClassName="h-11 w-auto min-w-24 gap-2 px-4"
-            wrapperClassName="rounded-2xl border-border bg-card shadow-none [&_textarea]:min-h-[106px] [&_textarea]:text-base [&_textarea]:placeholder:text-muted-foreground"
-            footerHintsClassName={styles.inputHint}
           />
         </div>
         <div className={styles.briefs} aria-label="Example ideas">{briefs.map((brief) => <button key={brief.label} type="button" onClick={() => setRequest((value) => ({ prompt: brief.prompt, mode: brief.mode, id: value.id + 1 }))}><brief.icon size={15} strokeWidth={1.7} aria-hidden />{brief.label}</button>)}</div>
         <div className={styles.heroActions}><Link href="#workflow" className={styles.secondary}>See how it works<ArrowUpRight size={16} aria-hidden /></Link></div>
       </section>
-      <section id="workflow" className={styles.workflow} aria-labelledby="workflow-heading">
-        <p className={styles.sectionLabel}>From intention to implementation</p>
-        <h2 id="workflow-heading">Choose how you start.</h2>
-        <p className={styles.sectionIntro}>Think it through together, or get straight to the work. One project, two ways forward.</p>
-        <div className={styles.workflowRows}>
-          <article><span className={styles.number}>01 / PLAN</span><ListChecks size={32} strokeWidth={1.2} aria-hidden /><h3>Make room for the thinking.</h3><p>Work through requirements, ask questions, and agree on an approach before making changes.</p><button type="button" onClick={() => chooseMode('plan')}>Start in Plan<ArrowUpRight size={16} aria-hidden /></button></article>
-          <article><span className={styles.number}>02 / BUILD</span><Code2 size={32} strokeWidth={1.2} aria-hidden /><h3>Put the approach to work.</h3><p>Implement your brief, review what changes, and keep refining through the project conversation.</p><button type="button" onClick={() => chooseMode('build')}>Start in Build<ArrowUpRight size={16} aria-hidden /></button></article>
-        </div>
-      </section>
-      <section id="saved-work" className={styles.saved} aria-labelledby="saved-heading">
-        <p className={styles.sectionLabel}>The work stays yours to inspect</p>
-        <h2 id="saved-heading">Open the code.<br />See the changes.</h2>
-        <p className={styles.sectionIntro}>A conversation is only part of the project. Stay close to the source and the work saved along the way.</p>
-        <div className={styles.savedItems}>
-          <article><span className={styles.artifactIcon}><FileCode2 size={38} strokeWidth={1.2} aria-hidden /></span><span className={styles.number}>SOURCE</span><h3>Read what was built.</h3><p>Browse saved files and open the source in your workspace.</p></article>
-          <article><span className={styles.artifactIcon}><History size={38} strokeWidth={1.2} aria-hidden /></span><span className={styles.number}>HISTORY</span><h3>Follow the changes.</h3><p>Review saved versions and compare the differences between them.</p></article>
-          <article><span className={styles.artifactIcon}><Download size={38} strokeWidth={1.2} aria-hidden /></span><span className={styles.number}>DOWNLOAD</span><h3>Take your work with you.</h3><p>Download your saved project as a ZIP from the workspace.</p></article>
-        </div>
-      </section>
+      <StartModesSection onChoose={chooseMode} />
+      <SavedWorkSection />
       <section className={styles.closing} aria-labelledby="start-heading">
         <span className={styles.sectionLabel}>Your next project starts with a conversation</span>
         <h2 id="start-heading">Start a project<br />in LotusBuild.</h2>

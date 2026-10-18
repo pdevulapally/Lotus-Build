@@ -3,12 +3,12 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { ArrowUpRight, Menu, Settings, LogOut } from "lucide-react"
+import { ArrowRight, ArrowUpRight, Menu, Settings, LogOut } from "lucide-react"
 import { BrandWordmark } from "@/components/ui/brand-wordmark"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/contexts/auth-context"
 import { useSettingsDialog } from "@/components/settings/settings-dialog"
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import styles from "./navbar.module.css"
 
@@ -96,42 +96,55 @@ export function Navbar() {
               <Menu size={21} />
             </button>
           </SheetTrigger>
-          <SheetContent side="right" className="bg-background text-foreground">
-            <SheetTitle>Navigation</SheetTitle>
-          {user && <div className="mt-6 flex min-w-0 items-center gap-3 border-b border-border pb-5">
-            <Avatar className="size-10 shrink-0 ring-1 ring-border">
-              <AvatarImage src={user.photoURL ?? undefined} alt="" referrerPolicy="no-referrer" />
-              <AvatarFallback className="bg-accent text-sm font-semibold text-accent-foreground">{accountInitial}</AvatarFallback>
-            </Avatar>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{accountName}</p>
-              {user.email && <p className="truncate text-xs text-muted-foreground">{user.email}</p>}
-            </div>
-          </div>}
-            <nav aria-label="Mobile navigation" className={styles.mobileLinks}>
-              {links.map(link => (
-                <Link key={link.href} href={link.href} aria-current={active(link.href) ? 'page' : undefined} onClick={() => setMenuOpen(false)}>
-                  {link.label}
-                  <ArrowUpRight size={16} aria-hidden />
-                </Link>
-              ))}
-              <Link href={user ? '/' : '/login'} onClick={() => setMenuOpen(false)}>
-                {user ? 'Open workspace' : 'Log in'}
-                <ArrowUpRight size={16} aria-hidden />
+          <SheetContent side="right" className={styles.mobilePanel}>
+            <SheetTitle className="sr-only">Navigation</SheetTitle>
+            <SheetDescription className="sr-only">Explore LotusBuild and access your account.</SheetDescription>
+            <div className={styles.mobileHeader}>
+              <Link href="/welcome" aria-label="LotusBuild home" className={styles.brand} onClick={() => setMenuOpen(false)}>
+                <BrandWordmark size="compact" />
               </Link>
-              {user && (
+            </div>
+            <div className={styles.mobileBody}>
+              <p className={styles.mobileEyebrow}>Explore</p>
+              <nav aria-label="Mobile navigation" className={styles.mobileLinks}>
+                {links.map(link => (
+                  <Link key={link.href} href={link.href} aria-current={active(link.href) ? 'page' : undefined} onClick={() => setMenuOpen(false)}>
+                    {link.label}
+                    <ArrowRight size={18} aria-hidden />
+                  </Link>
+                ))}
+              </nav>
+            </div>
+            <div className={styles.mobileAccount}>
+              {loading ? <p role="status" className={styles.loading}>Loading account…</p> : user ? (
                 <>
-                  <button type="button" onClick={() => { setMenuOpen(false); openSettings() }}>
-                    Settings
-                    <Settings size={16} aria-hidden />
-                  </button>
-                  <button type="button" disabled={signingOut} onClick={() => { setMenuOpen(false); void exit() }}>
-                    {signingOut ? 'Signing out…' : 'Sign out'}
-                    <LogOut size={16} aria-hidden />
-                  </button>
+                  <div className={styles.mobileIdentity}>
+                    <Avatar className="size-10 shrink-0 ring-1 ring-border">
+                      <AvatarImage src={user.photoURL ?? undefined} alt="" referrerPolicy="no-referrer" />
+                      <AvatarFallback className="bg-accent text-sm font-semibold text-accent-foreground">{accountInitial}</AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">{accountName}</p>
+                      {user.email && <p className="mt-1 truncate text-xs text-muted-foreground">{user.email}</p>}
+                    </div>
+                  </div>
+                  <Link href="/" className={styles.mobilePrimary} onClick={() => setMenuOpen(false)}>Open workspace<ArrowRight size={16} aria-hidden /></Link>
+                  <div className={styles.mobileAccountActions}>
+                    <button type="button" onClick={() => { setMenuOpen(false); openSettings() }}>
+                      <Settings size={16} aria-hidden /> Settings
+                    </button>
+                    <button type="button" disabled={signingOut} onClick={() => { setMenuOpen(false); void exit() }}>
+                      <LogOut size={16} aria-hidden /> {signingOut ? 'Signing out…' : 'Sign out'}
+                    </button>
+                  </div>
                 </>
+              ) : (
+                <div className={styles.mobileGuestActions}>
+                  <Link href="/signup" className={styles.mobilePrimary} onClick={() => setMenuOpen(false)}>Create account<ArrowRight size={16} aria-hidden /></Link>
+                  <Link href="/login" className={styles.mobileSecondary} onClick={() => setMenuOpen(false)}>Log in</Link>
+                </div>
               )}
-            </nav>
+            </div>
           </SheetContent>
         </Sheet>
       </div>

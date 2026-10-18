@@ -580,6 +580,49 @@ function defineLotusMonacoThemes(monaco: Monaco) {
 
 // ─── Workspace tab bar ────────────────────────────────────────────────────────
 
+export function WorkspaceViewTabs({ activeTab, onChange, hasBrowser, hasResearch }: {
+  activeTab: WorkspaceTab
+  onChange: (tab: WorkspaceTab) => void
+  hasBrowser: boolean
+  hasResearch: boolean
+}) {
+  const tabs = [
+    { id: "preview", label: "Preview", visible: true },
+    { id: "code", label: "Files", visible: true },
+    { id: "browser", label: "Browser", visible: hasBrowser },
+    { id: "research", label: "Research", visible: hasResearch },
+  ] as const
+  const visibleTabs = tabs.filter((tab) => tab.visible)
+  return <div role="tablist" aria-label="Workspace views" className="flex min-w-0 items-center gap-1">
+    {visibleTabs.map((tab, index) => <button
+      key={tab.id}
+      id={`workspace-tab-${tab.id}`}
+      type="button"
+      role="tab"
+      tabIndex={activeTab === tab.id ? 0 : -1}
+      aria-selected={activeTab === tab.id}
+      aria-controls="computer-workspace-panel"
+      onClick={() => onChange(tab.id)}
+      onKeyDown={(event) => {
+        const last = visibleTabs.length - 1
+        const destinations: Record<string, number> = {
+          ArrowRight: (index + 1) % visibleTabs.length,
+          ArrowLeft: (index + last) % visibleTabs.length,
+          Home: 0,
+          End: last,
+        }
+        const destination = destinations[event.key]
+        if (destination === undefined) return
+        event.preventDefault()
+        const next = visibleTabs[destination]
+        onChange(next.id)
+        document.getElementById(`workspace-tab-${next.id}`)?.focus()
+      }}
+      className={cn("min-h-9 rounded-lg px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none", activeTab === tab.id && "bg-muted text-foreground")}
+    >{tab.label}</button>)}
+  </div>
+}
+
 export function WorkspaceTabBar({
   activeTab,
   previewUrl,
@@ -892,18 +935,29 @@ function PreviewPane({
 }
 
 export function LoadingShell() {
+  const bone = "animate-pulse rounded-md bg-muted"
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-background">
-      <header className="border-b border-border bg-background shrink-0 px-4 py-3">
-        <div className="flex h-10 items-center gap-3">
-          <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
-          <div className="h-3 w-36 animate-pulse rounded bg-muted" />
+    <div className="flex h-[100dvh] overflow-hidden bg-background" aria-busy="true" aria-label="Loading workspace">
+      <aside aria-hidden className="hidden w-[256px] shrink-0 border-r border-border/30 bg-muted/25 lg:flex lg:flex-col">
+        <div className="flex h-12 items-center justify-between px-3"><div className={cn(bone, "h-5 w-20")} /><div className={cn(bone, "size-5 rounded-lg")} /></div>
+        <div className="mt-2 space-y-2 px-3">
+          <div className={cn(bone, "h-9 w-full rounded-lg bg-muted/80")} />
+          <div className={cn(bone, "mt-4 h-3 w-16")} />
+          {[0, 1, 2, 3].map((i) => <div key={i} className={cn(bone, "h-8 rounded-lg")} style={{ width: `${88 - i * 9}%` }} />)}
         </div>
-      </header>
-      <div className="flex flex-1 gap-0 overflow-hidden">
-        <div className="hidden w-[380px] shrink-0 animate-pulse border-r border-border/80 bg-card sm:block" />
-        <div className="flex-1 animate-pulse bg-muted/35 p-3">
-          <div className="bg-card h-full rounded-lg border border-border/70" />
+        <div className="mt-auto flex items-center gap-2.5 px-3 py-3"><div className={cn(bone, "size-7 rounded-full")} /><div className={cn(bone, "h-3 w-24")} /></div>
+      </aside>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex min-h-12 items-center justify-between gap-2 border-b border-border/50 px-2">
+          <div className="flex items-center gap-2"><div className={cn(bone, "size-5 rounded-lg lg:hidden")} /><div className={cn(bone, "h-4 w-40")} /></div>
+          <div className="flex items-center gap-2"><div className={cn(bone, "hidden h-7 w-28 rounded-full sm:block")} /><div className={cn(bone, "size-7 rounded-lg")} /></div>
+        </header>
+        <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 pt-8">
+          <div className="ml-auto w-[62%] max-w-md"><div className={cn(bone, "h-14 rounded-2xl rounded-br-md")} /></div>
+          <div className="mt-8 space-y-2.5">
+            <div className={cn(bone, "h-3 w-[92%]")} /><div className={cn(bone, "h-3 w-[78%]")} /><div className={cn(bone, "h-3 w-[85%]")} /><div className={cn(bone, "h-3 w-[40%]")} />
+          </div>
+          <div className="mt-auto pb-4"><div className={cn(bone, "h-[88px] rounded-[26px] border border-border/60 bg-card")} /></div>
         </div>
       </div>
     </div>

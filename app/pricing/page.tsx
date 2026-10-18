@@ -5,9 +5,11 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, ArrowRight, Check, LoaderCircle } from 'lucide-react'
 import { Navbar } from '@/components/ui/navbar'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { FooterSection } from '@/components/sections/footer-section'
 import { useAuth } from '@/contexts/auth-context'
 import { currentBackend } from '@/lib/backend/browser'
+import { clearCheckoutAttempt, readCheckoutAttempt, saveCheckoutAttempt, type CheckoutAttempt } from '@/lib/backend/checkout-attempt'
 import type { BackendPlan } from '@/lib/backend/client'
 import styles from './pricing.module.css'
 
@@ -19,10 +21,31 @@ function priceLabel(plan: BackendPlan) {
   return format.format(plan.price.amountMinor / 10 ** digits)
 }
 export default function PricingPage() {
-  const { user, account } = useAuth(); const router = useRouter()
+  const { user, account, loading: authLoading } = useAuth(); const router = useRouter()
   const [plans, setPlans] = useState<BackendPlan[] | null>(null)
   const [error, setError] = useState<string | null>(null); const [busy, setBusy] = useState<string | null>(null)
   const submitting = useRef(false); const [revision, setRevision] = useState(0)
+  const [checkoutCancelled, setCheckoutCancelled] = useState(false)
+  const [checkoutAttempt, setCheckoutAttempt] = useState<CheckoutAttempt | null>(null)
+  const canResumeCheckout = Boolean(checkoutAttempt && user?.uid === checkoutAttempt.uid
+    && account && !account.subscriptionStatus)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('checkout') !== 'cancelled') return
+    params.delete('checkout')
+    const query = params.toString()
+    window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`)
+    setCheckoutCancelled(true)
+  }, [])
+  useEffect(() => {
+    if (!checkoutCancelled || authLoading) return
+    setCheckoutAttempt(user ? readCheckoutAttempt(window.sessionStorage, user.uid) : null)
+  }, [checkoutCancelled, authLoading, user])
+  useEffect(() => {
+    if (account?.subscriptionStatus && user) {
+      try { clearCheckoutAttempt(window.sessionStorage, user.uid) } catch {}
+    }
+  }, [account?.subscriptionStatus, user])
   useEffect(() => {
     const controller = new AbortController(); setError(null); setPlans(null)
     void (async () => {
@@ -35,12 +58,40 @@ export default function PricingPage() {
     if (!user) { router.push('/login?redirect=/pricing'); return }
     if (submitting.current) return
     submitting.current = true; setBusy(plan.key); setError(null)
-    try { const result = await currentBackend().checkout(plan.key); window.location.assign(result.url) }
-    catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not start checkout.') }
+    try {
+      const result = await currentBackend().checkout(plan.key)
+      saveCheckoutAttempt(window.sessionStorage, { uid: user.uid, planKey: plan.key, url: result.url })
+      window.location.assign(result.url)
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not open checkout. Please try again.') }
     finally { submitting.current = false; setBusy(null) }
   }
   return <>
     <Navbar />
+    <Dialog open={checkoutCancelled} onOpenChange={setCheckoutCancelled}>
+      <DialogContent overlayClassName="bg-black/10" className="my-auto max-w-[calc(100vw-2rem)] gap-0 rounded-[24px] border-border bg-card px-6 py-7 text-foreground shadow-lg sm:max-w-[420px] sm:px-8 sm:py-8">
+        <DialogHeader className="space-y-3 text-left">
+          <div className="flex size-11 items-center justify-center rounded-2xl bg-muted text-foreground"><ArrowLeft className="size-5" aria-hidden /></div>
+          <DialogTitle className="text-balance text-[22px] font-semibold leading-tight tracking-[-0.035em]">You left checkout</DialogTitle>
+          <DialogDescription className="text-[14px] leading-relaxed text-muted-foreground">
+            {authLoading ? 'Checking your checkout…'
+              : canResumeCheckout
+                ? 'Your secure checkout page is ready when you are. Pick up where you left off without starting again.'
+                : user ? 'Your original checkout link isn’t available in this browser. We won’t start a different checkout for you.'
+                  : 'Log in to pick up your checkout where you left off.'}
+          </DialogDescription>
+        </DialogHeader>
+        <footer className="mt-7 flex flex-col-reverse gap-2.5 sm:flex-row">
+          <Button type="button" variant="outline" className="min-h-12 flex-1 rounded-xl" onClick={() => setCheckoutCancelled(false)}>Cancel</Button>
+          {canResumeCheckout && checkoutAttempt ? <Button asChild className="min-h-12 flex-1 rounded-xl">
+            <a href={checkoutAttempt.url} rel="noreferrer">Resume checkout</a>
+          </Button> : !authLoading && !user ? <Button asChild className="min-h-12 flex-1 rounded-xl">
+            <Link href="/login?redirect=%2Fpricing%3Fcheckout%3Dcancelled">Log in to resume</Link>
+          </Button> : <Button type="button" disabled className="min-h-12 flex-1 rounded-xl" aria-busy={authLoading}>
+            {authLoading ? 'Checking checkout…' : 'Resume checkout'}
+          </Button>}
+        </footer>
+      </DialogContent>
+    </Dialog>
     <main className={`site-shell ${styles.main}`}>
       <Link href="/" className={styles.backLink}>
         <ArrowLeft aria-hidden="true" className="size-4" /> Back to Lotus
