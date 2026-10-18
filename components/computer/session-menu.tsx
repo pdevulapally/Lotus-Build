@@ -1,7 +1,7 @@
 "use client"
 
 import type { ReactNode } from "react"
-import { Copy, ExternalLink, Globe2, History, LogOut, Monitor, Pencil, Settings, Zap } from "lucide-react"
+import { CopyIcon, ExternalIcon, HistoryIcon, LiveSiteIcon, PreviewIcon, RenameIcon, SettingsIcon, UsageIcon } from "@/components/ui/lotus-icons"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { useSettingsDialog } from "@/components/settings/settings-dialog"
@@ -34,7 +34,7 @@ function ExternalRow({ href, icon, children }: { href?: string; icon: ReactNode;
       <a href={href || "#"} target="_blank" rel="noopener noreferrer">
         {icon}
         {children}
-        <ExternalLink className="ml-auto size-3.5 text-muted-foreground/70" aria-hidden="true" />
+        <ExternalIcon className="ml-auto size-3.5 text-muted-foreground/70" />
       </a>
     </DropdownMenuItem>
   )
@@ -44,7 +44,7 @@ function ExternalRow({ href, icon, children }: { href?: string; icon: ReactNode;
 export function SessionMenuContent({
   session, projectFileCount, remainingTokens, planLabel, liveSiteUrl, contextUsage, onRename, onOpenHistory, dark, align,
 }: SessionMenuProps) {
-  const { userData, signOut } = useAuth()
+  const { userData } = useAuth()
   const { openSettings } = useSettingsDialog()
   const name = userData?.displayName || userData?.email?.split("@")[0] || "Account"
   const initials = name.split(/\s+/).map((part) => part[0]).join("").toUpperCase().slice(0, 2)
@@ -71,8 +71,8 @@ export function SessionMenuContent({
       </div>
 
       <DropdownMenuItem onSelect={() => openSettings()} className="mb-1 h-auto gap-3 rounded-xl bg-muted/55 px-2.5 py-2.5 focus:bg-muted">
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-background text-foreground shadow-[0_0_0_1px_var(--border)]">
-          <Zap className="size-3.5" aria-hidden="true" />
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
+          <UsageIcon className="size-[18px] text-background" />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-[13px] font-semibold leading-5 text-foreground">Credits</span>
@@ -103,19 +103,16 @@ export function SessionMenuContent({
           <span className="text-[11.5px] tabular-nums text-muted-foreground/80">{projectFileCount === 1 ? "1 file" : `${projectFileCount} files`}</span>
         )}
       </div>
-      <DropdownMenuItem className={row} onSelect={onRename}><Pencil />Rename</DropdownMenuItem>
+      <DropdownMenuItem className={row} onSelect={onRename}><RenameIcon />Rename</DropdownMenuItem>
       {onOpenHistory && (
-        <DropdownMenuItem className={row} onSelect={onOpenHistory} disabled={!session.projectId}><History />Version history</DropdownMenuItem>
+        <DropdownMenuItem className={row} onSelect={onOpenHistory} disabled={!session.projectId}><HistoryIcon />Version history</DropdownMenuItem>
       )}
-      <ExternalRow href={session.previewUrl || undefined} icon={<Monitor />}>Open preview</ExternalRow>
-      <ExternalRow href={liveSiteUrl} icon={<Globe2 />}>Open live site</ExternalRow>
-      <DropdownMenuItem className={row} onSelect={() => void navigator.clipboard?.writeText(session.id)}><Copy />Copy session ID</DropdownMenuItem>
+      <ExternalRow href={session.previewUrl || undefined} icon={<PreviewIcon />}>Open preview</ExternalRow>
+      <ExternalRow href={liveSiteUrl} icon={<LiveSiteIcon />}>Open live site</ExternalRow>
+      <DropdownMenuItem className={row} onSelect={() => void navigator.clipboard?.writeText(session.id)}><CopyIcon />Copy session ID</DropdownMenuItem>
 
       <DropdownMenuSeparator className="mx-1 my-1.5 bg-border/50" />
-      <DropdownMenuItem className={row} onSelect={() => openSettings()}><Settings />Settings</DropdownMenuItem>
-      <DropdownMenuItem className={cn(row, "text-destructive focus:bg-destructive/10 focus:text-destructive [&>svg:first-child]:text-destructive")} onSelect={() => void signOut()}>
-        <LogOut />Sign out
-      </DropdownMenuItem>
+      <DropdownMenuItem className={row} onSelect={() => openSettings()}><SettingsIcon />Settings</DropdownMenuItem>
     </DropdownMenuContent>
   )
 }

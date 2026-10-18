@@ -9,8 +9,8 @@ import {
 } from "lucide-react"
 import { SidebarToggleIcon } from "@/components/ui/sidebar-toggle-icon"
 import { SessionMenuContent } from "@/components/computer/session-menu"
+import { RenameSessionDialog } from "@/components/computer/rename-session-dialog"
 
-import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import type { ComputerSessionResponse } from "@/components/computer/session-types"
@@ -128,16 +128,6 @@ export function ComputerTopBar({
           {/* ── Mobile: title absolutely centered so it's always mid-screen ── */}
           <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center sm:hidden">
             <div className="pointer-events-auto flex max-w-[38vw] min-w-0 -translate-x-6 items-center">
-              {isEditingTitle ? (
-                <input
-                  value={titleDraft}
-                  onChange={(e) => onTitleDraftChange(e.target.value)}
-                  className="bg-card w-[44vw] rounded-lg border px-2.5 py-1 text-[13px] font-medium text-foreground outline-none focus:border-ring"
-                  placeholder="Session title"
-                  aria-label="Edit session title"
-                  autoFocus
-                />
-              ) : (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button
@@ -153,7 +143,6 @@ export function ComputerTopBar({
                   </DropdownMenuTrigger>
                   <SessionMenuContent align="center" session={session} projectFileCount={projectFileCount} remainingTokens={remainingTokens} planLabel={planLabel} liveSiteUrl={liveSiteUrl} contextUsage={contextUsage} onRename={onEditTitleStart} onOpenHistory={onOpenHistory} dark={theme === "dark"} />
                 </DropdownMenu>
-              )}
             </div>
           </div>
 
@@ -178,38 +167,6 @@ export function ComputerTopBar({
 
             {/* Session title — desktop only (mobile version is absolutely centered above) */}
             <div className="hidden min-w-0 flex-1 overflow-hidden sm:block">
-              {isEditingTitle ? (
-                <div className="flex items-center gap-1.5">
-                  <input
-                    value={titleDraft}
-                    onChange={(e) => onTitleDraftChange(e.target.value)}
-                    className="bg-card min-w-0 flex-1 rounded-lg border px-2.5 py-1 text-[13px] font-medium text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
-                    placeholder="Session title"
-                    aria-label="Edit session title"
-                    autoFocus
-                  />
-                  <div className="flex shrink-0 gap-1">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 px-2 text-[12px]"
-                      onClick={onEditTitleCancel}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="h-7 px-2.5 text-[12px]"
-                      disabled={titleSaving || !titleDraft.trim()}
-                      onClick={() => void onTitleSave()}
-                    >
-                      Save
-                    </Button>
-                  </div>
-                </div>
-              ) : (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button
@@ -226,7 +183,6 @@ export function ComputerTopBar({
 
                   <SessionMenuContent align="start" session={session} projectFileCount={projectFileCount} remainingTokens={remainingTokens} planLabel={planLabel} liveSiteUrl={liveSiteUrl} contextUsage={contextUsage} onRename={onEditTitleStart} onOpenHistory={onOpenHistory} dark={theme === "dark"} />
                 </DropdownMenu>
-              )}
             </div>
 
             {/* Panel toggle — right edge of left section */}
@@ -304,13 +260,11 @@ export function ComputerTopBar({
           )}
         </AnimatePresence>
 
-        {titleError && (
-          <p className="px-4 pb-1.5 text-xs text-destructive">{titleError}</p>
-        )}
       </header>
 
       <></>
 
+      <RenameSessionDialog open={isEditingTitle} draft={titleDraft} saving={titleSaving} error={titleError} onDraftChange={onTitleDraftChange} onCancel={onEditTitleCancel} onSave={onTitleSave} />
     </>
   )
 }
