@@ -6,6 +6,13 @@ import type { BackendMessage, BackendProject, BackendSession, SessionEvent } fro
 import type { ComputerTimelineEvent } from '@/components/computer/session-types'
 import { followSessionEvents } from '@/lib/backend/session-events'
 import { previewUrl } from '@/lib/preview'
+import {
+  commandOutputText,
+  getRunCommandInput,
+  redactSecrets,
+  reduceTerminal,
+  type TerminalEntry,
+} from '@/lib/backend/terminal'
 
 const labels: Record<string, string> = {
   'session.queued': 'Build queued', 'session.running': 'Build running', 'session.idle': 'Ready for your next message',
@@ -16,15 +23,67 @@ const labels: Record<string, string> = {
 }
 export function activity(event: SessionEvent, index: number): ComputerTimelineEvent | null {
   if (!event.id) return null
+  if (event.type === 'agent.tool_call' && event.data.name === 'run_command') {
+    const command = getRunCommandInput(event.data.input)
+    if (command !== null) {
+      const callId = typeof event.data.callId === 'string' && event.data.callId ? event.data.callId : undefined
+      return {
+        id: event.id,
+        title: 'Running command',
+        status: 'running',
+        kind: 'code',
+        createdAt: new Date(Number(event.id.split('-')[0])).toISOString(),
+        index,
+        metadata: { command: redactSecrets(command), ...(callId ? { callId } : {}) },
+      }
+    }
+  }
+  if (event.type === 'agent.tool_result' && event.data.name === 'run_command') return null
+
   const tool = event.type === 'agent.tool_call' || event.type === 'agent.tool_result'
   const title = tool && typeof event.data.name === 'string' ? `${event.type === 'agent.tool_call' ? 'Using' : 'Finished'} ${event.data.name.slice(0, 100)}` : labels[event.type]
   if (!title) return null
-  // Tool input/output can contain generated source or secrets: show actual activity labels only.
+  // run_command input/output is shown after redaction; other tools stay label-only.
   const description = typeof event.data.summary === 'string' ? event.data.summary.slice(0, 2000)
     : typeof event.data.error === 'string' ? event.data.error.slice(0, 2000) : undefined
   return { id: event.id, title, status: event.type.endsWith('failed') || event.data.isError === true ? 'error' : 'complete',
     kind: tool ? 'code' : 'planning', createdAt: new Date(Number(event.id.split('-')[0])).toISOString(), index,
     ...(description ? { description } : {}) }
+}
+
+function updateCommandEvent(events: ComputerTimelineEvent[], event: SessionEvent): ComputerTimelineEvent[] {
+  if (event.type !== 'agent.tool_result' || event.data.name !== 'run_command') return events
+  const callId = typeof event.data.callId === 'string' && event.data.callId ? event.data.callId : undefined
+  let index = -1
+  for (let current = events.length - 1; current >= 0; current -= 1) {
+    const candidate = events[current]
+    if (callId ? candidate.metadata?.callId === callId : candidate.title === 'Running command' && candidate.status === 'running') {
+      index = current
+      break
+    }
+  }
+  if (index < 0) return events
+
+  const rawText = typeof event.data.text === 'string' ? event.data.text : ''
+  const parsed = commandOutputText(redactSecrets(rawText))
+  const current = events[index]
+  const next = events.slice()
+  next[index] = {
+    ...current,
+    status: event.data.isError === true ? 'error' : 'complete',
+    metadata: { ...current.metadata, commandOutput: parsed.output },
+  }
+  return next
+}
+
+function completeRunningCommandEvents(events: ComputerTimelineEvent[]): ComputerTimelineEvent[] {
+  let changed = false
+  const next = events.map((event) => {
+    if (event.title !== 'Running command' || event.status !== 'running') return event
+    changed = true
+    return { ...event, status: 'complete' as const }
+  })
+  return changed ? next : events
 }
 
 export function useBackendSession(id: string, user: User | null, authLoading: boolean) {
@@ -33,6 +92,7 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
   const [messages, setMessages] = useState<BackendMessage[]>([])
   const [queued, setQueued] = useState<{ id: string; prompt: string }[]>([])
   const [events, setEvents] = useState<ComputerTimelineEvent[]>([])
+  const [terminal, setTerminal] = useState<TerminalEntry[]>([])
   const [text, setText] = useState('')
   const [preview, setPreview] = useState<string | null>(null)
   const [fileCount, setFileCount] = useState<number | null>(null)
@@ -49,7 +109,7 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
   useEffect(() => {
     if (authLoading) return
     const controller = new AbortController(); const signal = controller.signal
-    setSession(null); setProject(null); setMessages([]); setQueued([]); setEvents([]); setText(''); setPreview(null)
+    setSession(null); setProject(null); setMessages([]); setQueued([]); setEvents([]); setTerminal([]); setText(''); setPreview(null)
     setError(null); setStreamError(null); setLoading(true)
     setFileCount(null); setFileError(null)
     setUsage(null); setUsageError(null)
@@ -100,9 +160,16 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
               if (streamText.length > 200_000) throw new Error('The live response exceeds the display limit. Reopen the session to load its saved messages.')
               setText(streamText)
             }
+            setTerminal((current) => reduceTerminal(current, event))
+            if (event.type === 'agent.tool_result' && event.data.name === 'run_command') {
+              setEvents((current) => updateCommandEvent(current, event))
+            }
             const item = activity(event, Number(event.id.split('-')[0]))
             if (item) setEvents((current) => [...current, item].slice(-300))
-            if (event.type === 'session.idle' || event.type === 'session.failed') { streamText = ''; setText('') }
+            if (event.type === 'session.idle' || event.type === 'session.failed') {
+              streamText = ''; setText('')
+              setEvents((current) => completeRunningCommandEvents(current))
+            }
             if (['session.running', 'session.queued', 'session.idle', 'session.failed', 'session.message_queued', 'session.message_dequeued', 'project.saved'].includes(event.type)) scheduleRefresh()
             if (!refreshFailed) setStreamError(null)
           },
@@ -110,6 +177,6 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
     })()
     return () => { controller.abort(); if (refreshTimer !== undefined) clearTimeout(refreshTimer); refreshRef.current = async () => { throw new Error('The session connection is closed.') } }
   }, [id, user, authLoading, revision])
-  return { session, project, messages, queued, events, text, preview: project?.publicPreviewEnabled === true ? preview : null,
+  return { session, project, messages, queued, events, terminal, text, preview: project?.publicPreviewEnabled === true ? preview : null,
     fileCount, fileError, usage, usageError, loading, error, streamError, refresh, reconnect }
 }

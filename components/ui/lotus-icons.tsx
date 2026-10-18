@@ -83,3 +83,7 @@ export const SettingsIcon = (props: IconProps) => (
 export const ExternalIcon = (props: IconProps) => (
   <Icon {...props}><path d="M9.75 5.75H7.5a2.75 2.75 0 0 0-2.75 2.75v8A2.75 2.75 0 0 0 7.5 19.25h8a2.75 2.75 0 0 0 2.75-2.75v-2.25" /><path d="M13.75 4.75h5.5v5.5" /><path d="m19.25 4.75-8 8" /></Icon>
 )
+
+export const TerminalIcon = (props: IconProps) => (
+  <Icon {...props}><rect x="3.5" y="4.75" width="17" height="14.5" rx="3" /><path d="M7.25 10.25 10 12.5l-2.75 2.25M12.75 15h4" /></Icon>
+)

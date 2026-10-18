@@ -463,9 +463,9 @@ function FeedItem({
   if (commandMetadata) {
     return (
       <BashTool
-        state={isRunning ? "running" : "idle"}
+        state={event.status === "running" && isRunning ? "running" : "idle"}
         command={commandMetadata.command}
-        output={commandMetadata.output || description}
+        output={commandMetadata.output ?? description}
         className="my-2"
       />
     )

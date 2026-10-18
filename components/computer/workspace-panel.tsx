@@ -22,7 +22,9 @@ import {
 import { SavedProjectFiles as ComputerCodePanel } from "@/components/computer/saved-project-content"
 import { cn } from "@/lib/utils"
 import { IsolatedPreviewFrame } from "@/components/project/isolated-preview-frame"
-import { BrowserIcon, FilesIcon, HomeIcon, LiveSiteIcon, RefreshIcon, ResearchIcon } from "@/components/ui/lotus-icons"
+import { BrowserIcon, FilesIcon, HomeIcon, LiveSiteIcon, RefreshIcon, ResearchIcon, TerminalIcon } from "@/components/ui/lotus-icons"
+import { TerminalPanel } from "@/components/computer/terminal-panel"
+import type { TerminalEntry } from "@/lib/backend/terminal"
 
 function formatBrowserHost(url: string) {
   try {
@@ -591,6 +593,7 @@ export function WorkspaceViewTabs({ activeTab, onChange, hasBrowser, hasResearch
   const tabs = [
     { id: "preview", label: "Preview", icon: LiveSiteIcon, visible: true },
     { id: "code", label: "Files", icon: FilesIcon, visible: true },
+    { id: "terminal", label: "Terminal", icon: TerminalIcon, visible: true },
     { id: "browser", label: "Browser", icon: BrowserIcon, visible: hasBrowser },
     { id: "research", label: "Research", icon: ResearchIcon, visible: hasResearch },
   ] as const
@@ -766,6 +769,7 @@ export function WorkspaceContent({
   iframeReloadNonce = 0,
   files = [],
   codeTheme = "light",
+  terminalEntries = [],
 }: {
   session: ComputerSessionResponse
   status: ComputerSessionStatus
@@ -788,6 +792,7 @@ export function WorkspaceContent({
   iframeReloadNonce?: number
   files?: Array<{ path: string; content: string }>
   codeTheme?: "dark" | "light"
+  terminalEntries?: TerminalEntry[]
 }) {
   const sessionPlatform = normalizePlatform(session.platform)
   const workspaceProgress = progress ?? {
@@ -809,6 +814,10 @@ export function WorkspaceContent({
         />
       </motion.div>
     )
+  }
+
+  if (activeTab === "terminal") {
+    return <TerminalPanel entries={terminalEntries} />
   }
 
   if (activeTab === "research") {

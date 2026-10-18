@@ -20,6 +20,7 @@ import { currentBackend } from "@/lib/backend/browser"
 
 
 import { useBackendSession } from "@/hooks/use-backend-session"
+import { useAutoOpenWorkspace } from "@/hooks/use-auto-open-workspace"
 
 
 
@@ -317,7 +318,17 @@ export default function ComputerPage() {
   const previewEnsureError = backend.streamError
   const [runtimeError, setRuntimeError] = useState<{ message: string; stack: string } | null>(null)
   const [fixingError, setFixingError] = useState(false)
+  const userClosedRef = useRef(false)
   const sessionProgress = session ? deriveComputerSessionProgress({ session, status: effectiveStatus }) : null
+  useAutoOpenWorkspace({
+    isRunning,
+    previewUrl: backend.preview,
+    workspacePanel,
+    activeTab,
+    setWorkspacePanel,
+    setActiveTab,
+    userClosedRef,
+  })
   const handleRun = async (prompt: string, nextMode?: 'build' | 'plan') => {
     if (busyRef.current) throw new Error('A message is already being submitted.')
     if (!raw || !user) throw new Error('Session is not available.')
@@ -343,6 +354,17 @@ export default function ComputerPage() {
   const handleApprovePlan = () => { void handleRun('Build the plan we just reviewed.', 'build').catch(() => { /* handleRun exposes the error in the feed. */ }) }
   const handleHistoryRestored = () => { void backend.refresh().catch((reason) => setRunError(String(reason))) }
   const handleClarificationAnswer = async (answer: string) => { await handleRun(answer) }
+  const closeWorkspacePanel = () => {
+    userClosedRef.current = true
+    setWorkspacePanel("closed")
+  }
+  const toggleWorkspacePanel = () => {
+    if (workspacePanelOpen) {
+      closeWorkspacePanel()
+    } else {
+      setWorkspacePanel("split")
+    }
+  }
 
   if (loading) return <LoadingShell />
   if (error || !session || !backend.project) return <ErrorState message={error ?? "Session or project state is unavailable."} />
@@ -425,7 +447,7 @@ export default function ComputerPage() {
         onOpenNavigation={() => setMobileNavigationOpen(true)}
         navigationOpen={mobileNavigationOpen}
         workspacePanelOpen={workspacePanelOpen}
-        onToggleWorkspacePanel={() => setWorkspacePanel(workspacePanelOpen ? "closed" : "split")}
+        onToggleWorkspacePanel={toggleWorkspacePanel}
         contextUsage={agentContextUsage}
         theme={computerTheme}
         onThemeToggle={handleThemeToggle}
@@ -557,7 +579,7 @@ export default function ComputerPage() {
               <button type="button" aria-label={workspacePanel === "expanded" ? "Restore split view" : "Expand preview panel"} aria-pressed={workspacePanel === "expanded"} onClick={() => setWorkspacePanel(workspacePanel === "expanded" ? "split" : "expanded")} className="hidden size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:inline-flex">
                 {workspacePanel === "expanded" ? <CollapseIcon className="size-4" /> : <ExpandIcon className="size-4" />}
               </button>
-              <button type="button" aria-label="Close preview panel" onClick={() => { setWorkspacePanel("closed"); document.getElementById("computer-workspace-toggle")?.focus() }} className="inline-flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><CloseIcon className="size-4" /></button>
+              <button type="button" aria-label="Close preview panel" onClick={() => { closeWorkspacePanel(); document.getElementById("computer-workspace-toggle")?.focus() }} className="inline-flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><CloseIcon className="size-4" /></button>
             </div>
           </div>
           {/* Workspace content — fills panel edge to edge */}
@@ -610,6 +632,7 @@ export default function ComputerPage() {
                   iframeReloadNonce={previewReloadNonce}
                   files={projectIntegration?.files ?? []}
                   codeTheme={computerTheme}
+                  terminalEntries={backend.terminal}
                 />
               </motion.div>
             </AnimatePresence>
