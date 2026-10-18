@@ -66,3 +66,18 @@ The running browser was correlated with its loaded development bundle: it still 
 The intended live backend https://api.lotusbuild.co.uk was checked without credentials: GET /me returned 401 auth/missing-token; OPTIONS /me for http://127.0.0.1:3107 returned 204 but no Access-Control-Allow-Origin, so that local origin is not currently allowed. No production settings were changed. Actual Firebase sign-in, token validation, authenticated /me models/bootstrap and usage remain unverified. Firebase identity is retained independently of account/usage failures in AuthProvider; consumers render the explicit account error rather than manufacturing account state.
 
 A gitignored .env.local was opened for the user to paste the six actual public Firebase fields locally, with intended app/backend URLs already set. Values are not logged or committed. The old dev-process test variables must be removed and the local preview restarted after the user finishes saving configuration. CORS/provider authorized-domain and provider-enable settings must be verified separately; no wildcard or auth bypass is added.
+
+## Follow-up validation — 2026-10-18
+
+Validated the latest frontend and server rather than reapplying the older migration draft. The workspace layout remains unchanged.
+
+- Expired-token rejections refresh credentials and retry exactly once with the same mutation key/body; uncertain outcomes, revoked credentials and other errors are not automatically retried. A browser client is bound to the account that created it. Account/usage responses must match that identity, and stale account refreshes cannot overwrite newer ones.
+- Cancellation identity now survives reload in session storage, scoped to user/session. SSE replay advances only after successful event application, ignores duplicate/older IDs, refreshes expired stream credentials and bounds clean disconnect retries as well as failures.
+- Preview frames require a separate HTTPS origin (local HTTP only in local development) and suppress referrers. Visual-edit messages validate their origin/source and bounded payloads. Removed the unreachable same-origin navigation-script injection rather than retaining wildcard messaging.
+- All pages deny embedding/object plugins and constrain base URLs; production responses add HSTS without preloading or forcing subdomains. Firebase Auth configuration no longer requires unused Storage/Messaging settings. App/backend origins remain explicit required deployment configuration.
+- Frontend TypeScript, 32 contract/security tests and a production build pass with the saved public Auth configuration, explicit app origin and explicit backend binding. Backend TypeScript and all 639 tests pass locally. No lint was run.
+- Public preview is disabled by default on the server. Replayed preview links are hidden when the current project says public ingress is off. The frontend does not yet expose owner consent or authenticated private previews; this pass does not enable public ingress or imply that the create/build/preview/reopen flow has been validated live.
+
+Live signed-in validation stopped before account/resource creation because no permitted dedicated verified test login is available. The real API permits the `http://localhost:3000` browser origin; missing test authentication, not local CORS, is the current prerequisite. No personal browser/profile, new account, generation, billing action or production mutation was used to bypass that prerequisite.
+
+Earlier render-only configuration and browser results above describe the upstream baseline, not the follow-up validation. A production health read reports the current server revision; no server settings were changed by this pass.

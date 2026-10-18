@@ -4,17 +4,9 @@ import type { User } from 'firebase/auth'
 import { currentBackend } from '@/lib/backend/browser'
 import type { BackendMessage, BackendProject, BackendSession, SessionEvent } from '@/lib/backend/client'
 import type { ComputerTimelineEvent } from '@/components/computer/session-types'
+import { followSessionEvents } from '@/lib/backend/session-events'
+import { previewUrl } from '@/lib/preview'
 
-function newer(left: string, right: string) {
-  const [a, b] = left.split('-').map(BigInt); const [c, d] = right.split('-').map(BigInt)
-  return a > c || (a === c && b > d)
-}
-function previewUrl(value: unknown): string {
-  if (typeof value !== 'string') throw new Error('Invalid preview event.')
-  const url = new URL(value)
-  if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) throw new Error('Invalid preview URL.')
-  return url.href
-}
 const labels: Record<string, string> = {
   'session.queued': 'Build queued', 'session.running': 'Build running', 'session.idle': 'Ready for your next message',
   'session.failed': 'Build stopped', 'session.cancel_requested': 'Cancellation requested',
@@ -93,23 +85,14 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
         })
       }, 150)
     }
-    const pause = (ms: number) => new Promise<void>((resolve) => {
-      if (signal.aborted) { resolve(); return }
-      const finish = () => { clearTimeout(timer); signal.removeEventListener('abort', finish); resolve() }
-      const timer = setTimeout(finish, ms); signal.addEventListener('abort', finish, { once: true })
-    })
     void (async () => {
       try { await reload(); if (!signal.aborted) setLoading(false) }
       catch (reason) { if (!signal.aborted) { setError(reason instanceof Error ? reason.message : 'Could not load session.'); setLoading(false) }; return }
-      let cursor: string | undefined; let failures = 0
-      while (!signal.aborted) {
-        let closing: string | undefined
-        try {
-          await currentBackend().events(id, { signal, after: cursor, onEvent: async (event) => {
+      await followSessionEvents(currentBackend(), id, {
+          signal, refreshToken: () => user.getIdToken(true), onError: setStreamError,
+          onEvent: (event) => {
             if (signal.aborted) return
-            if (event.type === 'stream.closing') { closing = String(event.data.reason); return }
-            if (!event.id || (cursor && !newer(event.id, cursor))) return
-            if (event.type === 'preview.ready') setPreview(previewUrl(event.data.url))
+            if (event.type === 'preview.ready') setPreview(previewUrl(event.data.url, window.location.origin))
             if (event.type === 'session.running') { streamText = ''; setText('') }
             if (event.type === 'agent.text') {
               if (typeof event.data.delta !== 'string') throw new Error('The server returned an invalid text event.')
@@ -120,22 +103,13 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
             const item = activity(event, Number(event.id.split('-')[0]))
             if (item) setEvents((current) => [...current, item].slice(-300))
             if (event.type === 'session.idle' || event.type === 'session.failed') { streamText = ''; setText('') }
-            if (['session.running', 'session.queued', 'session.idle', 'session.failed', 'session.message_queued', 'project.saved'].includes(event.type)) scheduleRefresh()
-            cursor = event.id; failures = 0; if (!refreshFailed) setStreamError(null)
-          } })
-          if (closing === 'authorization-failed') throw new Error('Session access could not be verified. Sign in again or retry the connection.')
-          if (closing === 'token-expired') await user.getIdToken(true)
-          if (!signal.aborted) setStreamError('Live connection interrupted. Reconnecting…')
-        } catch (reason) {
-          if (signal.aborted) return
-          failures++
-          setStreamError(reason instanceof Error ? reason.message : 'Live connection failed.')
-          if (closing === 'authorization-failed' || failures >= 5) return
-        }
-        await pause(Math.min(30_000, 1000 * 2 ** Math.min(failures, 5)))
-      }
+            if (['session.running', 'session.queued', 'session.idle', 'session.failed', 'session.message_queued', 'session.message_dequeued', 'project.saved'].includes(event.type)) scheduleRefresh()
+            if (!refreshFailed) setStreamError(null)
+          },
+      })
     })()
     return () => { controller.abort(); if (refreshTimer !== undefined) clearTimeout(refreshTimer); refreshRef.current = async () => { throw new Error('The session connection is closed.') } }
   }, [id, user, authLoading, revision])
-  return { session, project, messages, queued, events, text, preview, fileCount, fileError, usage, usageError, loading, error, streamError, refresh, reconnect }
+  return { session, project, messages, queued, events, text, preview: project?.publicPreviewEnabled === true ? preview : null,
+    fileCount, fileError, usage, usageError, loading, error, streamError, refresh, reconnect }
 }

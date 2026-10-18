@@ -4,6 +4,7 @@ import React, { useRef, useState, useEffect, useCallback, useMemo } from "react"
 import { cn } from "@/lib/utils"
 import type { DesignSnapshot } from "./visual-edit-design-panel"
 import type { VisualEditSectionItem, VisualEditStructureCommand } from "./visual-edit-structure"
+import { parsePreviewMessage, previewUrl } from "@/lib/preview"
 
 type Rect = { x: number; y: number; width: number; height: number }
 type Viewport = { w: number; h: number }
@@ -54,15 +55,12 @@ export function PreviewWithVisualEdit({
 }: PreviewWithVisualEditProps) {
   const previewAreaRef = useRef<HTMLDivElement>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
-  const previewOrigin = useMemo(() => {
-    if (!src) return null
-    try {
-      const url = new URL(src)
-      if (url.protocol !== "https:" && url.protocol !== "http:") return null
-      if (url.username || url.password) return null
-      return url.origin
-    } catch { return null }
+  const [safeSrc, setSafeSrc] = useState<string | null>(null)
+  useEffect(() => {
+    try { setSafeSrc(src ? previewUrl(src, window.location.origin) : null) }
+    catch { setSafeSrc(null) }
   }, [src])
+  const previewOrigin = useMemo(() => safeSrc ? new URL(safeSrc).origin : null, [safeSrc])
   const [previewSize, setPreviewSize] = useState({ w: 1, h: 1 })
   const [hover, setHover] = useState<{ rect: Rect; viewport: Viewport } | null>(null)
   const [selectedItems, setSelectedItems] = useState<SelectedElement[]>([])
@@ -84,11 +82,9 @@ export function PreviewWithVisualEdit({
   }, [src, updateSize])
 
   useEffect(() => {
-    if (!enabled) {
-      setHover(null)
-      setSelectedItems([])
-    }
-  }, [enabled])
+    setHover(null)
+    setSelectedItems([])
+  }, [enabled, safeSrc])
 
   useEffect(() => {
     if (!enabled) return
@@ -112,8 +108,8 @@ export function PreviewWithVisualEdit({
   useEffect(() => {
     const handler = (e: MessageEvent) => {
       if (!previewOrigin || e.origin !== previewOrigin || e.source !== iframeRef.current?.contentWindow) return
-      const d = e.data
-      if (d && typeof d === "object" && d.type === "preview-navigate" && typeof d.path === "string") {
+      const d = parsePreviewMessage(e.data)
+      if (d?.type === "preview-navigate") {
         onIframeNavigate?.(d.path)
       }
     }
@@ -125,42 +121,21 @@ export function PreviewWithVisualEdit({
     const handler = (e: MessageEvent) => {
       if (!enabled) return
       if (!previewOrigin || e.origin !== previewOrigin || e.source !== iframeRef.current?.contentWindow) return
-      const d = e.data
-      if (!d || typeof d !== "object" || d.type === undefined) return
+      const d = parsePreviewMessage(e.data)
+      if (!d) return
 
       if (d.type === "preview-hover") {
         setHover(d.rect && d.viewport ? { rect: d.rect, viewport: d.viewport } : null)
         return
       }
 
-      if (d.type === "preview-structure" && Array.isArray(d.sections)) {
-        const sections = d.sections
-          .map((item: any, index: number): VisualEditSectionItem | null => {
-            if (!item || typeof item !== "object") return null
-            const id = typeof item.id === "string" ? item.id : ""
-            const label = typeof item.label === "string" ? item.label : `Section ${index + 1}`
-            const kind = typeof item.kind === "string" ? item.kind : "generic"
-            if (!id) return null
-            return { id, label, kind: kind as VisualEditSectionItem["kind"], index }
-          })
-          .filter((item: VisualEditSectionItem | null): item is VisualEditSectionItem => item !== null)
+      if (d.type === "preview-structure") {
+        const sections = d.sections.map((item, index) => ({ ...item, index }))
         onStructureChange?.(sections)
         return
       }
 
       if (d.type !== "preview-select") return
-
-      const raw = d.snapshot && typeof d.snapshot === "object" ? d.snapshot : null
-      const content =
-        typeof raw?.content === "string"
-          ? raw.content
-          : typeof d.description === "string"
-            ? (() => {
-                const match = d.description.match(/"([^"]*)"/)
-                return match ? match[1].trim() : undefined
-              })()
-            : undefined
-      const styles = raw?.styles && typeof raw.styles === "object" ? { ...raw.styles } : undefined
 
       if (!(d.rect && d.viewport && d.id)) {
         setSelectedItems([])
@@ -173,7 +148,7 @@ export function PreviewWithVisualEdit({
         viewport: d.viewport,
         description: d.description ?? null,
         sectionId: typeof d.sectionId === "string" ? d.sectionId : null,
-        snapshot: { content, styles },
+        snapshot: d.snapshot ?? {},
       }
 
       setSelectedItems((prev) => {
@@ -210,48 +185,6 @@ export function PreviewWithVisualEdit({
       previewOrigin
     )
 
-    try {
-      const doc = iframeRef.current.contentDocument
-      if (!doc) return
-
-      const script = doc.createElement("script")
-      script.textContent = `
-        (function() {
-          let currentPath = window.location.pathname + window.location.search + window.location.hash;
-          const originalPushState = window.history.pushState;
-          const originalReplaceState = window.history.replaceState;
-
-          window.history.pushState = function(...args) {
-            originalPushState.apply(this, args);
-            const newPath = window.location.pathname + window.location.search + window.location.hash;
-            if (newPath !== currentPath) {
-              currentPath = newPath;
-              window.parent.postMessage({ type: 'preview-navigate', path: newPath }, '*');
-            }
-          };
-
-          window.history.replaceState = function(...args) {
-            originalReplaceState.apply(this, args);
-            const newPath = window.location.pathname + window.location.search + window.location.hash;
-            if (newPath !== currentPath) {
-              currentPath = newPath;
-              window.parent.postMessage({ type: 'preview-navigate', path: newPath }, '*');
-            }
-          };
-
-          window.addEventListener('popstate', function() {
-            const newPath = window.location.pathname + window.location.search + window.location.hash;
-            if (newPath !== currentPath) {
-              currentPath = newPath;
-              window.parent.postMessage({ type: 'preview-navigate', path: newPath }, '*');
-            }
-          });
-        })();
-      `
-      doc.head.appendChild(script)
-    } catch {
-      // Cross-origin iframe, script injection not allowed.
-    }
   }, [canEdit, enabled, previewOrigin])
 
   useEffect(() => {
@@ -285,10 +218,11 @@ export function PreviewWithVisualEdit({
         <iframe
           ref={iframeRef}
           key={iframeKey}
-          src={previewOrigin ? src! : undefined}
+          src={safeSrc ?? undefined}
           className="absolute inset-0 h-full w-full min-h-0 border-0"
           title="Preview"
           sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+          referrerPolicy="no-referrer"
           onLoad={handleIframeLoad}
         />
 

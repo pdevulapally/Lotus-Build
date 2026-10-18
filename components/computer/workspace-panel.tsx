@@ -20,6 +20,7 @@ import {
 } from "@/components/computer/session-types"
 import { SavedProjectFiles as ComputerCodePanel } from "@/components/computer/saved-project-content"
 import { cn } from "@/lib/utils"
+import { IsolatedPreviewFrame } from "@/components/project/isolated-preview-frame"
 
 function formatBrowserHost(url: string) {
   try {
@@ -770,11 +771,9 @@ export function WorkspaceContent({
         </div>
         <div className="lotus-glass-panel relative min-h-0 flex-1 overflow-hidden rounded-xl border border-border/60">
           {browserInspection.liveUrl && !browserInspection.isExpired ? (
-            <iframe
+            <IsolatedPreviewFrame
               src={browserInspection.liveUrl}
               className="h-full w-full bg-card"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-              referrerPolicy="no-referrer"
               title="Remote browser"
             />
           ) : (
@@ -852,11 +851,10 @@ function PreviewPane({
     <motion.div key="preview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}
       className="flex h-full min-h-0 flex-col bg-background">
       <div className="relative min-h-0 flex-1 overflow-hidden">
-        <iframe
+        <IsolatedPreviewFrame
           key={iframeKey}
           src={src}
           className="h-full w-full bg-card"
-          sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
           title="Live preview"
           onLoad={() => setIsIframeLoading(false)}
         />
