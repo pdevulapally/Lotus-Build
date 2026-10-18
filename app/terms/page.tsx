@@ -1,11 +1,8 @@
 ﻿"use client"
 
-import { useEffect, useRef, useState, useCallback } from "react"
 import Link from "next/link"
-import { Navbar } from "@/components/ui/navbar"
-import { FooterSection } from "@/components/sections/footer-section"
-import { Scale, AlertTriangle, ExternalLink, ChevronRight, ArrowUp } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { AlertTriangle } from "lucide-react"
+import { Callout, LegalDocument, SectionTitle } from "@/components/content/legal-document"
 
 const EFFECTIVE_DATE = "12 May 2026"
 const LAST_UPDATED   = "12 May 2026"
@@ -31,172 +28,20 @@ const TOC = [
   { id: "contact",           label: "Contact Us" },
 ] as const
 
-type SectionId = (typeof TOC)[number]["id"]
-
-function useActiveSection(ids: readonly string[]) {
-  const [active, setActive] = useState<string>(ids[0])
-  useEffect(() => {
-    const observers: IntersectionObserver[] = []
-    const map = new Map<string, number>()
-    ids.forEach((id) => {
-      const el = document.getElementById(id)
-      if (!el) return
-      const ob = new IntersectionObserver(
-        ([entry]) => {
-          map.set(id, entry.intersectionRatio)
-          let best = ""
-          let bestRatio = -1
-          map.forEach((ratio, key) => {
-            if (ratio > bestRatio) { bestRatio = ratio; best = key }
-          })
-          if (best) setActive(best)
-        },
-        { rootMargin: "-15% 0px -70% 0px", threshold: [0, 0.25, 0.5, 0.75, 1] }
-      )
-      ob.observe(el)
-      observers.push(ob)
-    })
-    return () => observers.forEach((ob) => ob.disconnect())
-  }, [ids])
-  return active
-}
-
-function scrollTo(id: string) {
-  const el = document.getElementById(id)
-  if (!el) return
-  const top = el.getBoundingClientRect().top + window.scrollY - 96
-  window.scrollTo({ top, behavior: "smooth" })
-}
-
-function SectionAnchor({ id }: { id: string }) {
-  return <div id={id} className="relative -top-24 invisible" aria-hidden />
-}
-
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="mt-12 mb-5 text-xl font-semibold tracking-tight text-foreground first:mt-0">
-      {children}
-    </h2>
-  )
-}
-
-function Callout({
-  icon: Icon = AlertTriangle,
-  variant = "warn",
-  children,
-}: {
-  icon?: React.ElementType
-  variant?: "warn" | "info"
-  children: React.ReactNode
-}) {
-  return (
-    <div
-      className={cn(
-        "my-6 flex gap-3 rounded-xl border p-4 text-sm leading-relaxed",
-        variant === "warn"
-          ? "border-border bg-warning-soft text-warning-soft-foreground"
-          : "border-border bg-info-soft text-info-soft-foreground"
-      )}
-    >
-      <Icon className="mt-0.5 h-4 w-4 shrink-0" />
-      <div>{children}</div>
-    </div>
-  )
-}
-
 export default function TermsPage() {
-  const sectionIds = TOC.map((t) => t.id)
-  const active = useActiveSection(sectionIds)
-  const [showBack, setShowBack] = useState(false)
-
-  useEffect(() => {
-    const onScroll = () => setShowBack(window.scrollY > 400)
-    window.addEventListener("scroll", onScroll, { passive: true })
-    return () => window.removeEventListener("scroll", onScroll)
-  }, [])
-
   return (
-    <div className="min-h-screen bg-background font-sans">
-      <Navbar />
-
-      {/* â”€â”€ Hero header â”€â”€ */}
-      <div className="border-b border-border bg-white">
-        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-muted-foreground">
-            <Scale className="h-3.5 w-3.5" />
-            <span>Legal</span>
-            <ChevronRight className="h-3 w-3" />
-            <span>Terms of Service</span>
-          </div>
-          <h1 className="mt-4 text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
-            Terms of Service
-          </h1>
-          <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted-foreground">
-            Please read these terms carefully before using Lotus.build. By accessing or using our
-            service you agree to be bound by these terms.
-          </p>
-          <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-            <span>
-              <span className="font-medium text-foreground">Effective:</span> {EFFECTIVE_DATE}
-            </span>
-            <span className="hidden sm:inline text-muted-foreground">|</span>
-            <span>
-              <span className="font-medium text-foreground">Last updated:</span> {LAST_UPDATED}
-            </span>
-            <span className="hidden sm:inline text-muted-foreground">|</span>
-            <Link href="/privacy" className="inline-flex items-center gap-1 font-medium text-foreground underline-offset-2 hover:underline">
-              Privacy Policy <ExternalLink className="h-3 w-3" />
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* â”€â”€ Main body â”€â”€ */}
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-        <div className="flex gap-12 lg:gap-16">
-
-          {/* â”€â”€ Sidebar â”€â”€ */}
-          <aside className="hidden lg:block w-56 xl:w-64 shrink-0">
-            <div className="sticky top-24">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                On this page
-              </p>
-              <nav className="space-y-0.5">
-                {TOC.map(({ id, label }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => scrollTo(id)}
-                    className={cn(
-                      "block w-full text-left rounded-lg px-3 py-1.5 text-sm transition-colors",
-                      active === id
-                        ? "bg-accent text-accent-foreground font-medium"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    )}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </nav>
-              <div className="mt-8 rounded-xl border border-border bg-white p-4">
-                <p className="text-xs font-semibold text-foreground">Questions?</p>
-                <p className="mt-1 text-xs text-muted-foreground">Our team is happy to help.</p>
-                <a
-                  href="mailto:arpkwebsitedevelopment@gmail.com"
-                  className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-foreground underline-offset-2 hover:underline"
-                >
-                  arpkwebsitedevelopment@gmail.com
-                </a>
-              </div>
-            </div>
-          </aside>
-
-          {/* â”€â”€ Article â”€â”€ */}
-          <article className="min-w-0 flex-1 text-sm leading-7 text-foreground">
-
+    <LegalDocument
+      title="Terms of Service"
+      description={<>Please read these terms carefully before using Lotus.build. By accessing or using our
+            service you agree to be bound by these terms.</>}
+      effectiveDate={EFFECTIVE_DATE}
+      lastUpdated={LAST_UPDATED}
+      related={{ href: "/privacy", label: "Privacy Policy" }}
+      sections={TOC}
+      contact={{ title: "Questions?", description: "Our team is happy to help." }}
+    >
             {/* 1. Acceptance */}
-            <SectionAnchor id="acceptance" />
-            <SectionTitle>1. Acceptance of Terms</SectionTitle>
+            <SectionTitle id="acceptance">1. Acceptance of Terms</SectionTitle>
             <p>
               These Terms of Service (&ldquo;Terms&rdquo;) constitute a legally binding agreement
               between you (&ldquo;User&rdquo;, &ldquo;you&rdquo;, or &ldquo;your&rdquo;) and
@@ -224,8 +69,7 @@ export default function TermsPage() {
             </p>
 
             {/* 2. Services */}
-            <SectionAnchor id="services" />
-            <SectionTitle>2. Description of Services</SectionTitle>
+            <SectionTitle id="services">2. Description of Services</SectionTitle>
             <p>
               LotusBuild is an AI software workspace for planning projects, implementing changes,
               and reviewing saved work using natural language prompts. The Service includes:
@@ -250,8 +94,7 @@ export default function TermsPage() {
             </p>
 
             {/* 3. Eligibility */}
-            <SectionAnchor id="eligibility" />
-            <SectionTitle>3. Eligibility</SectionTitle>
+            <SectionTitle id="eligibility">3. Eligibility</SectionTitle>
             <p>To use the Service, you must:</p>
             <ul className="mt-4 space-y-2 list-none pl-0">
               {[
@@ -272,8 +115,7 @@ export default function TermsPage() {
             </p>
 
             {/* 4. Accounts */}
-            <SectionAnchor id="accounts" />
-            <SectionTitle>4. User Accounts</SectionTitle>
+            <SectionTitle id="accounts">4. User Accounts</SectionTitle>
             <p>
               To access most features of the Service, you must register for an account. When
               registering, you agree to:
@@ -299,8 +141,7 @@ export default function TermsPage() {
             </p>
 
             {/* 5. Billing */}
-            <SectionAnchor id="billing" />
-            <SectionTitle>5. Billing &amp; Subscriptions</SectionTitle>
+            <SectionTitle id="billing">5. Billing &amp; Subscriptions</SectionTitle>
             <p>
               Certain features of the Service require a paid subscription or the purchase of usage
               credits (&ldquo;Tokens&rdquo;). All billing is processed through Stripe, Inc., our
@@ -344,8 +185,7 @@ export default function TermsPage() {
             </p>
 
             {/* 6. AI-Generated Content */}
-            <SectionAnchor id="ai-content" />
-            <SectionTitle>6. AI-Generated Content</SectionTitle>
+            <SectionTitle id="ai-content">6. AI-Generated Content</SectionTitle>
             <Callout icon={AlertTriangle} variant="warn">
               <strong>Important â€” AI Limitations:</strong> The AI systems powering Lotus.build
               are sophisticated but not infallible. Generated code, content, designs, and
@@ -379,8 +219,7 @@ export default function TermsPage() {
             </p>
 
             {/* 7. IP */}
-            <SectionAnchor id="ip" />
-            <SectionTitle>7. Intellectual Property</SectionTitle>
+            <SectionTitle id="ip">7. Intellectual Property</SectionTitle>
             <p className="font-medium text-foreground">Our Intellectual Property</p>
             <p className="mt-2">
               The Service and its original content (excluding user-provided content and AI-generated
@@ -414,8 +253,7 @@ export default function TermsPage() {
             </p>
 
             {/* 8. Acceptable Use */}
-            <SectionAnchor id="acceptable-use" />
-            <SectionTitle>8. Acceptable Use Policy</SectionTitle>
+            <SectionTitle id="acceptable-use">8. Acceptable Use Policy</SectionTitle>
             <p>
               You agree to use the Service only for lawful purposes and in accordance with these
               Terms. You must not use the Service to:
@@ -448,13 +286,12 @@ export default function TermsPage() {
             </p>
 
             {/* 9. Third-Party */}
-            <SectionAnchor id="third-party" />
-            <SectionTitle>9. Third-Party Services &amp; Integrations</SectionTitle>
+            <SectionTitle id="third-party">9. Third-Party Services &amp; Integrations</SectionTitle>
             <p>
               The Service integrates with and relies upon various third-party platforms and services,
               including:
             </p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="mt-6 divide-y divide-border">
               {[
                 { name: "OpenAI & Anthropic", desc: "AI model providers powering code generation and agent features" },
                 { name: "Firebase / Google Cloud", desc: "Authentication, database, and infrastructure" },
@@ -464,9 +301,9 @@ export default function TermsPage() {
                 { name: "Vercel & Netlify", desc: "Application deployment and hosting" },
                 { name: "E2B", desc: "Sandboxed code execution environments" },
               ].map(({ name, desc }) => (
-                <div key={name} className="rounded-lg border border-border bg-white p-3">
+                <div key={name} className="py-5 first:pt-0 last:pb-0">
                   <p className="text-sm font-medium text-foreground">{name}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{desc}</p>
+                  <p className="mt-2 text-sm leading-7 text-muted-foreground">{desc}</p>
                 </div>
               ))}
             </div>
@@ -484,8 +321,7 @@ export default function TermsPage() {
             </p>
 
             {/* 10. Data */}
-            <SectionAnchor id="data" />
-            <SectionTitle>10. Data &amp; Privacy</SectionTitle>
+            <SectionTitle id="data">10. Data &amp; Privacy</SectionTitle>
             <p>
               Your privacy is important to us. Our{" "}
               <Link href="/privacy" className="font-medium text-foreground underline-offset-2 hover:underline">
@@ -509,8 +345,7 @@ export default function TermsPage() {
             </p>
 
             {/* 11. Security */}
-            <SectionAnchor id="security" />
-            <SectionTitle>11. Security</SectionTitle>
+            <SectionTitle id="security">11. Security</SectionTitle>
             <p>
               We implement reasonable technical and organisational security measures to protect
               your data and the Service. However, no method of transmission over the internet or
@@ -532,8 +367,7 @@ export default function TermsPage() {
             </p>
 
             {/* 12. Disclaimers */}
-            <SectionAnchor id="disclaimers" />
-            <SectionTitle>12. Disclaimers of Warranties</SectionTitle>
+            <SectionTitle id="disclaimers">12. Disclaimers of Warranties</SectionTitle>
             <Callout variant="warn">
               <strong>Important:</strong> The Service is provided on an &ldquo;as is&rdquo; and
               &ldquo;as available&rdquo; basis. To the fullest extent permitted by applicable law,
@@ -563,8 +397,7 @@ export default function TermsPage() {
             </p>
 
             {/* 13. Liability */}
-            <SectionAnchor id="liability" />
-            <SectionTitle>13. Limitation of Liability</SectionTitle>
+            <SectionTitle id="liability">13. Limitation of Liability</SectionTitle>
             <p>
               To the fullest extent permitted by applicable law, Lotus.build, its directors,
               employees, agents, affiliates, licensors, and service providers shall not be liable
@@ -605,8 +438,7 @@ export default function TermsPage() {
             </p>
 
             {/* 14. Indemnification */}
-            <SectionAnchor id="indemnification" />
-            <SectionTitle>14. Indemnification</SectionTitle>
+            <SectionTitle id="indemnification">14. Indemnification</SectionTitle>
             <p>
               You agree to defend, indemnify, and hold harmless Lotus.build and its officers,
               directors, employees, and agents from and against any claims, liabilities, damages,
@@ -629,8 +461,7 @@ export default function TermsPage() {
             </ul>
 
             {/* 15. Termination */}
-            <SectionAnchor id="termination" />
-            <SectionTitle>15. Termination</SectionTitle>
+            <SectionTitle id="termination">15. Termination</SectionTitle>
             <p className="font-medium text-foreground">By You</p>
             <p className="mt-2">
               You may stop using the Service at any time and may delete your account through your
@@ -655,8 +486,7 @@ export default function TermsPage() {
             </p>
 
             {/* 16. Governing Law */}
-            <SectionAnchor id="governing-law" />
-            <SectionTitle>16. Governing Law &amp; Dispute Resolution</SectionTitle>
+            <SectionTitle id="governing-law">16. Governing Law &amp; Dispute Resolution</SectionTitle>
             <p>
               These Terms and any dispute arising out of or in connection with them, including any
               question regarding their existence, validity, or termination, shall be governed by
@@ -681,8 +511,7 @@ export default function TermsPage() {
             </p>
 
             {/* 17. Changes */}
-            <SectionAnchor id="changes" />
-            <SectionTitle>17. Changes to Terms</SectionTitle>
+            <SectionTitle id="changes">17. Changes to Terms</SectionTitle>
             <p>
               We reserve the right to modify these Terms at any time. We will notify you of
               material changes by posting the updated Terms on this page with a new &ldquo;Last
@@ -696,12 +525,11 @@ export default function TermsPage() {
             </p>
 
             {/* 18. Contact */}
-            <SectionAnchor id="contact" />
-            <SectionTitle>18. Contact Us</SectionTitle>
+            <SectionTitle id="contact">18. Contact Us</SectionTitle>
             <p>
               If you have any questions about these Terms or the Service, please contact us:
             </p>
-            <div className="mt-4 rounded-xl border border-border bg-white p-5 space-y-2 text-sm">
+            <div className="my-6 border-l border-border pl-5 space-y-2 text-sm">
               <p><span className="font-medium text-foreground">Email:</span>{" "}
                 <a href="mailto:arpkwebsitedevelopment@gmail.com" className="text-foreground underline-offset-2 hover:underline">
                   arpkwebsitedevelopment@gmail.com
@@ -729,24 +557,6 @@ export default function TermsPage() {
                 </Link>
               </p>
             </div>
-          </article>
-        </div>
-      </div>
-
-      {/* â”€â”€ Back to top â”€â”€ */}
-      {showBack && (
-        <button
-          type="button"
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="fixed bottom-6 right-6 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-lg transition-opacity hover:bg-accent/90"
-          aria-label="Back to top"
-        >
-          <ArrowUp className="h-4 w-4" />
-        </button>
-      )}
-
-      <FooterSection />
-    </div>
+    </LegalDocument>
   )
 }
-

@@ -1,11 +1,8 @@
 ﻿"use client"
 
-import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Navbar } from "@/components/ui/navbar"
-import { FooterSection } from "@/components/sections/footer-section"
-import { Shield, AlertTriangle, ExternalLink, ChevronRight, ArrowUp, Info } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { Info } from "lucide-react"
+import { Callout, LegalDocument, SectionTitle } from "@/components/content/legal-document"
 
 const EFFECTIVE_DATE = "12 May 2026"
 const LAST_UPDATED   = "12 May 2026"
@@ -29,97 +26,26 @@ const TOC = [
   { id: "contact",           label: "Contact & Complaints" },
 ] as const
 
-function useActiveSection(ids: readonly string[]) {
-  const [active, setActive] = useState<string>(ids[0])
-  useEffect(() => {
-    const observers: IntersectionObserver[] = []
-    const map = new Map<string, number>()
-    ids.forEach((id) => {
-      const el = document.getElementById(id)
-      if (!el) return
-      const ob = new IntersectionObserver(
-        ([entry]) => {
-          map.set(id, entry.intersectionRatio)
-          let best = ""
-          let bestRatio = -1
-          map.forEach((ratio, key) => {
-            if (ratio > bestRatio) { bestRatio = ratio; best = key }
-          })
-          if (best) setActive(best)
-        },
-        { rootMargin: "-15% 0px -70% 0px", threshold: [0, 0.25, 0.5, 0.75, 1] }
-      )
-      ob.observe(el)
-      observers.push(ob)
-    })
-    return () => observers.forEach((ob) => ob.disconnect())
-  }, [ids])
-  return active
-}
-
-function scrollTo(id: string) {
-  const el = document.getElementById(id)
-  if (!el) return
-  const top = el.getBoundingClientRect().top + window.scrollY - 96
-  window.scrollTo({ top, behavior: "smooth" })
-}
-
-function SectionAnchor({ id }: { id: string }) {
-  return <div id={id} className="relative -top-24 invisible" aria-hidden />
-}
-
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="mt-12 mb-5 text-xl font-semibold tracking-tight text-foreground first:mt-0">
-      {children}
-    </h2>
-  )
-}
-
 function SubTitle({ children }: { children: React.ReactNode }) {
   return (
-    <p className="mt-5 mb-2 font-semibold text-foreground">{children}</p>
-  )
-}
-
-function Callout({
-  icon: Icon = Info,
-  variant = "info",
-  children,
-}: {
-  icon?: React.ElementType
-  variant?: "info" | "warn"
-  children: React.ReactNode
-}) {
-  return (
-    <div
-      className={cn(
-        "my-6 flex gap-3 rounded-xl border p-4 text-sm leading-relaxed",
-        variant === "info"
-          ? "border-border bg-info-soft text-info-soft-foreground"
-          : "border-border bg-warning-soft text-warning-soft-foreground"
-      )}
-    >
-      <Icon className="mt-0.5 h-4 w-4 shrink-0" />
-      <div>{children}</div>
-    </div>
+    <p className="mt-7 mb-3 font-semibold tracking-[-0.015em] text-foreground">{children}</p>
   )
 }
 
 function DataTable({ rows }: { rows: { category: string; examples: string; purpose: string }[] }) {
   return (
-    <div className="my-4 overflow-x-auto rounded-xl border border-border">
-      <table className="w-full text-sm">
+    <div className="my-6 overflow-x-auto border-y border-border focus-visible:outline-2 focus-visible:outline-ring" role="region" aria-label="Information we collect" tabIndex={0}>
+      <table className="w-full min-w-[560px] text-left text-sm leading-6">
         <thead>
           <tr className="border-b border-border bg-muted text-left">
-            <th className="px-4 py-3 font-semibold text-foreground w-1/4">Category</th>
-            <th className="px-4 py-3 font-semibold text-foreground w-2/5">Examples</th>
-            <th className="px-4 py-3 font-semibold text-foreground">Purpose</th>
+            <th scope="col" className="px-4 py-3 font-semibold text-foreground w-1/4">Category</th>
+            <th scope="col" className="px-4 py-3 font-semibold text-foreground w-2/5">Examples</th>
+            <th scope="col" className="px-4 py-3 font-semibold text-foreground">Purpose</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, i) => (
-            <tr key={row.category} className={cn("border-b border-border last:border-0", i % 2 === 0 ? "bg-white" : "bg-muted/50")}>
+          {rows.map((row) => (
+            <tr key={row.category} className="border-b border-border last:border-0">
               <td className="px-4 py-3 font-medium text-foreground align-top">{row.category}</td>
               <td className="px-4 py-3 text-muted-foreground align-top">{row.examples}</td>
               <td className="px-4 py-3 text-muted-foreground align-top">{row.purpose}</td>
@@ -133,110 +59,28 @@ function DataTable({ rows }: { rows: { category: string; examples: string; purpo
 
 function RightCard({ right, desc }: { right: string; desc: string }) {
   return (
-    <div className="rounded-xl border border-border bg-white p-4">
+    <div className="py-5 first:pt-0 last:pb-0">
       <p className="text-sm font-semibold text-foreground">{right}</p>
-      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{desc}</p>
+      <p className="mt-2 text-sm leading-7 text-muted-foreground">{desc}</p>
     </div>
   )
 }
 
 export default function PrivacyPage() {
-  const sectionIds = TOC.map((t) => t.id)
-  const active = useActiveSection(sectionIds)
-  const [showBack, setShowBack] = useState(false)
-
-  useEffect(() => {
-    const onScroll = () => setShowBack(window.scrollY > 400)
-    window.addEventListener("scroll", onScroll, { passive: true })
-    return () => window.removeEventListener("scroll", onScroll)
-  }, [])
-
   return (
-    <div className="min-h-screen bg-background font-sans">
-      <Navbar />
-
-      {/* â”€â”€ Hero header â”€â”€ */}
-      <div className="border-b border-border bg-white">
-        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-muted-foreground">
-            <Shield className="h-3.5 w-3.5" />
-            <span>Legal</span>
-            <ChevronRight className="h-3 w-3" />
-            <span>Privacy Policy</span>
-          </div>
-          <h1 className="mt-4 text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
-            Privacy Policy
-          </h1>
-          <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted-foreground">
-            We take your privacy seriously. This policy explains what data we collect, why we
-            collect it, and how we keep it safe â€” in plain language.
-          </p>
-          <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-            <span>
-              <span className="font-medium text-foreground">Effective:</span> {EFFECTIVE_DATE}
-            </span>
-            <span className="hidden sm:inline text-muted-foreground">|</span>
-            <span>
-              <span className="font-medium text-foreground">Last updated:</span> {LAST_UPDATED}
-            </span>
-            <span className="hidden sm:inline text-muted-foreground">|</span>
-            <Link href="/terms" className="inline-flex items-center gap-1 font-medium text-foreground underline-offset-2 hover:underline">
-              Terms of Service <ExternalLink className="h-3 w-3" />
-            </Link>
-          </div>
-          <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-border bg-info-soft px-4 py-2 text-xs text-info-soft-foreground">
-            <Shield className="h-3.5 w-3.5 shrink-0" />
-            This policy covers GDPR (EU &amp; UK), CCPA (California), and global privacy requirements.
-          </div>
-        </div>
-      </div>
-
-      {/* â”€â”€ Main body â”€â”€ */}
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-        <div className="flex gap-12 lg:gap-16">
-
-          {/* â”€â”€ Sidebar â”€â”€ */}
-          <aside className="hidden lg:block w-56 xl:w-64 shrink-0">
-            <div className="sticky top-24">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                On this page
-              </p>
-              <nav className="space-y-0.5">
-                {TOC.map(({ id, label }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => scrollTo(id)}
-                    className={cn(
-                      "block w-full text-left rounded-lg px-3 py-1.5 text-sm transition-colors",
-                      active === id
-                        ? "bg-accent text-accent-foreground font-medium"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    )}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </nav>
-              <div className="mt-8 rounded-xl border border-border bg-white p-4">
-                <p className="text-xs font-semibold text-foreground">Data requests</p>
-                <p className="mt-1 text-xs text-muted-foreground">Exercise your rights or ask questions.</p>
-                <a
-                  href="mailto:arpkwebsitedevelopment@gmail.com"
-                  className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-foreground underline-offset-2 hover:underline"
-                >
-                  arpkwebsitedevelopment@gmail.com
-                </a>
-              </div>
-            </div>
-          </aside>
-
-          {/* â”€â”€ Article â”€â”€ */}
-          <article className="min-w-0 flex-1 text-sm leading-7 text-foreground">
-
+    <LegalDocument
+      title="Privacy Policy"
+      description={<>We take your privacy seriously. This policy explains what data we collect, why we
+            collect it, and how we keep it safe â€” in plain language.</>}
+      effectiveDate={EFFECTIVE_DATE}
+      lastUpdated={LAST_UPDATED}
+      related={{ href: "/terms", label: "Terms of Service" }}
+      notice={<>This policy covers GDPR (EU &amp; UK), CCPA (California), and global privacy requirements.</>}
+      sections={TOC}
+      contact={{ title: "Data requests", description: "Exercise your rights or ask questions." }}
+    >
             {/* 1. Overview */}
-            <SectionAnchor id="overview" />
-            <SectionTitle>1. Overview</SectionTitle>
+            <SectionTitle id="overview">1. Overview</SectionTitle>
             <p>
               This Privacy Policy explains how Lotus.build (&ldquo;Lotus.build&rdquo;,
               &ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;) collects, uses, shares, and
@@ -258,14 +102,13 @@ export default function PrivacyPage() {
             </p>
 
             {/* 2. Controller */}
-            <SectionAnchor id="controller" />
-            <SectionTitle>2. Data Controller Information</SectionTitle>
+            <SectionTitle id="controller">2. Data Controller Information</SectionTitle>
             <p>
               For the purposes of the UK General Data Protection Regulation (UK GDPR) and the EU
               General Data Protection Regulation (EU GDPR), the data controller responsible for
               your personal data is:
             </p>
-            <div className="mt-4 rounded-xl border border-border bg-white p-5 space-y-1.5 text-sm">
+            <div className="my-6 border-l border-border pl-5 space-y-2 text-sm">
               <p><span className="font-medium text-foreground">Organisation:</span> Lotus.build</p>
               <p>
                 <span className="font-medium text-foreground">Website:</span>{" "}
@@ -283,8 +126,7 @@ export default function PrivacyPage() {
             </p>
 
             {/* 3. What We Collect */}
-            <SectionAnchor id="what-we-collect" />
-            <SectionTitle>3. Information We Collect</SectionTitle>
+            <SectionTitle id="what-we-collect">3. Information We Collect</SectionTitle>
             <p>
               We collect personal data in three main ways: information you provide to us directly,
               information collected automatically, and information from third-party services.
@@ -362,8 +204,7 @@ export default function PrivacyPage() {
             </ul>
 
             {/* 4. How We Use */}
-            <SectionAnchor id="how-we-use" />
-            <SectionTitle>4. How We Use Your Data</SectionTitle>
+            <SectionTitle id="how-we-use">4. How We Use Your Data</SectionTitle>
             <p>We use the personal data we collect for the following purposes:</p>
             <ul className="mt-4 space-y-2 list-none pl-0">
               {[
@@ -391,13 +232,12 @@ export default function PrivacyPage() {
             </Callout>
 
             {/* 5. Legal Basis */}
-            <SectionAnchor id="legal-basis" />
-            <SectionTitle>5. Legal Basis for Processing (GDPR)</SectionTitle>
+            <SectionTitle id="legal-basis">5. Legal Basis for Processing (GDPR)</SectionTitle>
             <p>
               If you are located in the European Economic Area (EEA) or United Kingdom, we process
               your personal data on the following legal bases under Article 6 of the UK/EU GDPR:
             </p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="mt-6 divide-y divide-border">
               {[
                 {
                   basis: "Contractual necessity",
@@ -416,16 +256,15 @@ export default function PrivacyPage() {
                   desc: "Processing for optional communications (marketing emails), certain cookies, and any use of your data for AI model training. You may withdraw consent at any time.",
                 },
               ].map(({ basis, desc }) => (
-                <div key={basis} className="rounded-xl border border-border bg-white p-4">
+                <div key={basis} className="py-5 first:pt-0 last:pb-0">
                   <p className="font-semibold text-foreground">{basis}</p>
-                  <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{desc}</p>
+                  <p className="mt-2 text-sm leading-7 text-muted-foreground">{desc}</p>
                 </div>
               ))}
             </div>
 
             {/* 6. Sharing */}
-            <SectionAnchor id="sharing" />
-            <SectionTitle>6. Data Sharing &amp; Disclosure</SectionTitle>
+            <SectionTitle id="sharing">6. Data Sharing &amp; Disclosure</SectionTitle>
             <p>
               We do not sell, rent, or trade your personal data. We share data only in the
               following limited circumstances:
@@ -435,13 +274,13 @@ export default function PrivacyPage() {
               We use carefully selected third-party service providers who process data on our
               behalf under Data Processing Agreements:
             </p>
-            <div className="mt-3 overflow-x-auto rounded-xl border border-border">
-              <table className="w-full text-sm">
+            <div className="my-6 overflow-x-auto border-y border-border focus-visible:outline-2 focus-visible:outline-ring" role="region" aria-label="Service providers" tabIndex={0}>
+              <table className="w-full min-w-[560px] text-left text-sm leading-6">
                 <thead>
                   <tr className="border-b border-border bg-muted text-left">
-                    <th className="px-4 py-3 font-semibold text-foreground">Provider</th>
-                    <th className="px-4 py-3 font-semibold text-foreground">Purpose</th>
-                    <th className="px-4 py-3 font-semibold text-foreground">Location</th>
+                    <th scope="col" className="px-4 py-3 font-semibold text-foreground">Provider</th>
+                    <th scope="col" className="px-4 py-3 font-semibold text-foreground">Purpose</th>
+                    <th scope="col" className="px-4 py-3 font-semibold text-foreground">Location</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -478,8 +317,7 @@ export default function PrivacyPage() {
             </p>
 
             {/* 7. Retention */}
-            <SectionAnchor id="retention" />
-            <SectionTitle>7. Data Retention</SectionTitle>
+            <SectionTitle id="retention">7. Data Retention</SectionTitle>
             <p>
               We retain personal data only for as long as necessary to fulfil the purposes set out
               in this policy and to comply with our legal obligations:
@@ -505,8 +343,7 @@ export default function PrivacyPage() {
             </p>
 
             {/* 8. Rights */}
-            <SectionAnchor id="your-rights" />
-            <SectionTitle>8. Your Rights</SectionTitle>
+            <SectionTitle id="your-rights">8. Your Rights</SectionTitle>
             <p>
               Depending on your location, you have the following rights in relation to your
               personal data. To exercise any of these rights, contact us at{" "}
@@ -515,7 +352,7 @@ export default function PrivacyPage() {
               </a>
               . We will respond within 30 days (or within the timeframe required by applicable law).
             </p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="mt-6 divide-y divide-border">
               <RightCard
                 right="Right of Access"
                 desc="Request a copy of the personal data we hold about you, along with information about how we use it."
@@ -555,8 +392,7 @@ export default function PrivacyPage() {
             </p>
 
             {/* 9. International */}
-            <SectionAnchor id="international" />
-            <SectionTitle>9. International Data Transfers</SectionTitle>
+            <SectionTitle id="international">9. International Data Transfers</SectionTitle>
             <p>
               Lotus.build is operated with infrastructure and service providers located primarily
               in the United States. If you are accessing the Service from the EEA, UK, or other
@@ -588,8 +424,7 @@ export default function PrivacyPage() {
             </p>
 
             {/* 10. Security */}
-            <SectionAnchor id="security" />
-            <SectionTitle>10. Security</SectionTitle>
+            <SectionTitle id="security">10. Security</SectionTitle>
             <p>
               We implement technical and organisational security measures appropriate to the risk,
               including:
@@ -624,20 +459,19 @@ export default function PrivacyPage() {
             </p>
 
             {/* 11. Cookies */}
-            <SectionAnchor id="cookies" />
-            <SectionTitle>11. Cookies &amp; Tracking Technologies</SectionTitle>
+            <SectionTitle id="cookies">11. Cookies &amp; Tracking Technologies</SectionTitle>
             <p>
               We use cookies and similar technologies to operate and improve the Service. Cookies
               are small text files stored on your device.
             </p>
             <SubTitle>Types of cookies we use</SubTitle>
-            <div className="mt-3 overflow-x-auto rounded-xl border border-border">
-              <table className="w-full text-sm">
+            <div className="my-6 overflow-x-auto border-y border-border focus-visible:outline-2 focus-visible:outline-ring" role="region" aria-label="Cookies and tracking technologies" tabIndex={0}>
+              <table className="w-full min-w-[560px] text-left text-sm leading-6">
                 <thead>
                   <tr className="border-b border-border bg-muted text-left">
-                    <th className="px-4 py-3 font-semibold text-foreground">Type</th>
-                    <th className="px-4 py-3 font-semibold text-foreground">Purpose</th>
-                    <th className="px-4 py-3 font-semibold text-foreground">Duration</th>
+                    <th scope="col" className="px-4 py-3 font-semibold text-foreground">Type</th>
+                    <th scope="col" className="px-4 py-3 font-semibold text-foreground">Purpose</th>
+                    <th scope="col" className="px-4 py-3 font-semibold text-foreground">Duration</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -662,8 +496,7 @@ export default function PrivacyPage() {
             </p>
 
             {/* 12. AI Processing */}
-            <SectionAnchor id="ai-processing" />
-            <SectionTitle>12. AI Data Processing</SectionTitle>
+            <SectionTitle id="ai-processing">12. AI Data Processing</SectionTitle>
             <Callout variant="info" icon={Info}>
               This section explains the specific privacy implications of our AI features.
             </Callout>
@@ -688,8 +521,7 @@ export default function PrivacyPage() {
             </ul>
 
             {/* 13. Children */}
-            <SectionAnchor id="children" />
-            <SectionTitle>13. Children&rsquo;s Privacy</SectionTitle>
+            <SectionTitle id="children">13. Children&rsquo;s Privacy</SectionTitle>
             <p>
               The Service is not directed to, and we do not knowingly collect personal data from,
               individuals under the age of 18. If you are a parent or guardian and believe your
@@ -701,13 +533,12 @@ export default function PrivacyPage() {
             </p>
 
             {/* 14. California */}
-            <SectionAnchor id="california" />
-            <SectionTitle>14. California Privacy Rights (CCPA / CPRA)</SectionTitle>
+            <SectionTitle id="california">14. California Privacy Rights (CCPA / CPRA)</SectionTitle>
             <p>
               If you are a California resident, you have specific rights under the California
               Consumer Privacy Act (CCPA), as amended by the California Privacy Rights Act (CPRA):
             </p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="mt-6 divide-y divide-border">
               <RightCard
                 right="Right to Know"
                 desc="Request disclosure of the categories and specific pieces of personal information we collect, use, disclose, and sell."
@@ -751,8 +582,7 @@ export default function PrivacyPage() {
             </p>
 
             {/* 15. Changes */}
-            <SectionAnchor id="changes" />
-            <SectionTitle>15. Changes to This Policy</SectionTitle>
+            <SectionTitle id="changes">15. Changes to This Policy</SectionTitle>
             <p>
               We may update this Privacy Policy from time to time. We will post any changes on this
               page with an updated &ldquo;Last Updated&rdquo; date. For material changes, we will
@@ -766,13 +596,12 @@ export default function PrivacyPage() {
             </p>
 
             {/* 16. Contact */}
-            <SectionAnchor id="contact" />
-            <SectionTitle>16. Contact &amp; Complaints</SectionTitle>
+            <SectionTitle id="contact">16. Contact &amp; Complaints</SectionTitle>
             <p>
               For any questions, concerns, or requests relating to your personal data or this
               Privacy Policy, please contact us:
             </p>
-            <div className="mt-4 rounded-xl border border-border bg-white p-5 space-y-2 text-sm">
+            <div className="my-6 border-l border-border pl-5 space-y-2 text-sm">
               <p><span className="font-medium text-foreground">Email:</span>{" "}
                 <a href="mailto:arpkwebsitedevelopment@gmail.com" className="text-foreground underline-offset-2 hover:underline">
                   arpkwebsitedevelopment@gmail.com
@@ -815,24 +644,6 @@ export default function PrivacyPage() {
                 </Link>
               </p>
             </div>
-          </article>
-        </div>
-      </div>
-
-      {/* â”€â”€ Back to top â”€â”€ */}
-      {showBack && (
-        <button
-          type="button"
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="fixed bottom-6 right-6 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-lg transition-opacity hover:bg-accent/90"
-          aria-label="Back to top"
-        >
-          <ArrowUp className="h-4 w-4" />
-        </button>
-      )}
-
-      <FooterSection />
-    </div>
+    </LegalDocument>
   )
 }
-
