@@ -25,8 +25,9 @@ function SettingsRedirect() {
   }, [openSettings, router])
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-background px-6 text-center" role="status">
+      <Loader2 className="size-5 animate-spin text-muted-foreground" aria-hidden="true" />
+      <p className="text-sm font-medium text-muted-foreground">Opening your settings…</p>
     </div>
   )
 }

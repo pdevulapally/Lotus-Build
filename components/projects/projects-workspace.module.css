@@ -1,0 +1,31 @@
+.canvas .composer {
+  border-color: var(--border);
+  border-radius: 1.25rem;
+  background: var(--card);
+  box-shadow: none;
+}
+
+.canvas .composer:hover {
+  border-color: var(--border-strong);
+  box-shadow: none;
+}
+
+.canvas .composer:focus-within {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--ring) 12%, transparent);
+}
+
+.deleteProject {
+  opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .deleteProject {
+    opacity: 0;
+  }
+
+  .projectRow:hover .deleteProject,
+  .projectRow:focus-within .deleteProject {
+    opacity: 1;
+  }
+}
