@@ -30,10 +30,10 @@ export const LiveSiteIcon = (props: IconProps) => (
   <Icon {...props}><circle cx="12" cy="12" r="8.25" /><path d="M3.75 12h16.5" /><path d="M12 3.75c2.2 2.3 3.25 5 3.25 8.25S14.2 17.95 12 20.25C9.8 17.95 8.75 15.25 8.75 12S9.8 6.05 12 3.75Z" /></Icon>
 )
 
-export const BrowserIcon = LiveSiteIcon
+export const BrowserIcon = PreviewIcon
 
 export const FilesIcon = (props: IconProps) => (
-  <Icon {...props}><path d="M7 3.75h6.75l4.5 4.5v12A1.75 1.75 0 0 1 16.5 22h-9A1.75 1.75 0 0 1 5.75 20.25V5.5A1.75 1.75 0 0 1 7.5 3.75Z" /><path d="M13.75 4v4.5h4.5M9.75 11l-2 1.75 2 1.75m4.5-3.5 2 1.75-2 1.75m-.75-4.5-1.5 5" /></Icon>
+  <Icon {...props}><path d="M3.75 7.5a2.25 2.25 0 0 1 2.25-2.25h3.6l2.1 2.25h6.3a2.25 2.25 0 0 1 2.25 2.25v7.5a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25Z" /><path d="m10.25 11.5-1.9 1.75 1.9 1.75m3.5-3.5 1.9 1.75-1.9 1.75" /></Icon>
 )
 
 export const ResearchIcon = (props: IconProps) => (

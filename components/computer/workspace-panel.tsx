@@ -22,7 +22,7 @@ import {
 import { SavedProjectFiles as ComputerCodePanel } from "@/components/computer/saved-project-content"
 import { cn } from "@/lib/utils"
 import { IsolatedPreviewFrame } from "@/components/project/isolated-preview-frame"
-import { BrowserIcon, FilesIcon, HomeIcon, PreviewIcon, RefreshIcon, ResearchIcon } from "@/components/ui/lotus-icons"
+import { BrowserIcon, FilesIcon, HomeIcon, LiveSiteIcon, RefreshIcon, ResearchIcon } from "@/components/ui/lotus-icons"
 
 function formatBrowserHost(url: string) {
   try {
@@ -589,7 +589,7 @@ export function WorkspaceViewTabs({ activeTab, onChange, hasBrowser, hasResearch
   hasResearch: boolean
 }) {
   const tabs = [
-    { id: "preview", label: "Preview", icon: PreviewIcon, visible: true },
+    { id: "preview", label: "Preview", icon: LiveSiteIcon, visible: true },
     { id: "code", label: "Files", icon: FilesIcon, visible: true },
     { id: "browser", label: "Browser", icon: BrowserIcon, visible: hasBrowser },
     { id: "research", label: "Research", icon: ResearchIcon, visible: hasResearch },
