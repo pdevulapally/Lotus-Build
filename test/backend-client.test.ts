@@ -184,6 +184,65 @@ test('server auth and idempotency errors retain stable codes without retrying mu
   await assert.rejects(anonymous.me(), { code: 'auth/missing-token' })
 })
 
+test('email verification client calls match the server routes and preserve retry details', async () => {
+  const calls: { url: string; init?: RequestInit }[] = []
+  const client = new BackendClient({
+    origin: 'https://api.example.test',
+    token: async () => 'id-token',
+    fetch: async (input, init) => {
+      calls.push({ url: String(input), init })
+      return String(input).endsWith('/code')
+        ? Response.json({ verified: false, expiresInSeconds: 600, resendAfterSeconds: 60 })
+        : Response.json({ verified: true })
+    },
+  })
+
+  assert.deepEqual(await client.sendEmailVerificationCode(), {
+    verified: false,
+    expiresInSeconds: 600,
+    resendAfterSeconds: 60,
+  })
+  assert.deepEqual(await client.verifyEmailCode('123456'), { verified: true })
+  assert.deepEqual(calls.map(({ url, init }) => ({
+    url,
+    method: init?.method,
+    body: init?.body,
+    authorization: new Headers(init?.headers).get('authorization'),
+  })), [
+    {
+      url: 'https://api.example.test/auth/email-verification/code',
+      method: 'POST',
+      body: undefined,
+      authorization: 'Bearer id-token',
+    },
+    {
+      url: 'https://api.example.test/auth/email-verification/verify',
+      method: 'POST',
+      body: JSON.stringify({ code: '123456' }),
+      authorization: 'Bearer id-token',
+    },
+  ])
+  assert.throws(() => client.verifyEmailCode('12345'))
+
+  const rejected = new BackendClient({
+    origin: 'https://api.example.test',
+    token: async () => 'id-token',
+    fetch: async () => Response.json({
+      error: {
+        code: 'email/daily-limit-reached',
+        message: 'Daily limit reached',
+        details: { retryAfterSeconds: 3600 },
+      },
+    }, { status: 503 }),
+  })
+  await assert.rejects(rejected.sendEmailVerificationCode(), (error: unknown) => {
+    assert.ok(error instanceof BackendError)
+    assert.equal(error.code, 'email/daily-limit-reached')
+    assert.deepEqual(error.details, { retryAfterSeconds: 3600 })
+    return true
+  })
+})
+
 test('unexpected response data fails validation instead of manufacturing project state', async () => {
   const client = new BackendClient({ origin: 'https://api.example.test', token: async () => 'token', fetch: async () => Response.json({ id: 'p1' }) })
   await assert.rejects(client.project('p1'), { code: 'response/invalid' })

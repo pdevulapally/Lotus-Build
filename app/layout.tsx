@@ -1,6 +1,8 @@
 import type React from "react"
+import { Suspense } from "react"
 import type { Metadata } from "next"
 import { AuthProvider } from "@/contexts/auth-context"
+import { VerifiedEmailGate } from "@/components/auth/verified-email-gate"
 import { SettingsDialogProvider } from "@/components/settings/settings-dialog"
 import { ConsentAnalytics } from "@/components/consent-analytics"
 import { MotionProvider } from "@/components/motion-provider"
@@ -114,7 +116,9 @@ export default function RootLayout({
         <MotionProvider>
           <AuthProvider>
             <SettingsDialogProvider>
-              {children}
+              <Suspense fallback={<main className="grid min-h-svh place-items-center bg-background text-sm text-muted-foreground" role="status">Checking your account…</main>}>
+                <VerifiedEmailGate>{children}</VerifiedEmailGate>
+              </Suspense>
             </SettingsDialogProvider>
           </AuthProvider>
           <ConsentAnalytics />

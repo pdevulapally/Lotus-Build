@@ -63,7 +63,7 @@ export default function SignupPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirect = getSafeRedirectPath(searchParams.get("redirect"))
-  const { signInWithGoogle, signUpWithEmail, user, loading } = useAuth()
+  const { signInWithGoogle, signUpWithEmail, user, account, loading } = useAuth()
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -75,8 +75,8 @@ export default function SignupPage() {
   const passwordPolicyIssues = getPasswordPolicyIssues(password)
 
   useEffect(() => {
-    if (user && !loading) router.push(redirect)
-  }, [user, loading, router, redirect])
+    if (user && !loading && account?.emailVerified) router.push(redirect)
+  }, [user, account?.emailVerified, loading, router, redirect])
 
   useEffect(() => {
     const ref = searchParams.get("ref")?.trim()
@@ -101,7 +101,7 @@ export default function SignupPage() {
     setIsLoading(true)
     try {
       await signUpWithEmail(email, password)
-      router.push(redirect)
+      router.push(`/verify-email?redirect=${encodeURIComponent(redirect)}`)
     } catch (error) {
       setError(authErrorMessage(error, 'sign-up'))
     } finally {

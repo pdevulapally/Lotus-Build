@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { onAuthStateChanged, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword,
-  sendEmailVerification, signOut as firebaseSignOut, sendPasswordResetEmail, type User } from 'firebase/auth'
+  signOut as firebaseSignOut, sendPasswordResetEmail, type User } from 'firebase/auth'
 import { auth, googleProvider, githubProvider } from '@/lib/firebase'
 import { currentBackend } from '@/lib/backend/browser'
 import type { BackendAccount, BackendUsage } from '@/lib/backend/client'
@@ -79,10 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signInWithGoogle: async () => { await signInWithPopup(auth, googleProvider) },
     signInWithGithub: async () => { await signInWithPopup(auth, githubProvider) },
     signInWithEmail: async (email, password) => { await signInWithEmailAndPassword(auth, email, password) },
-    signUpWithEmail: async (email, password) => {
-      const result = await createUserWithEmailAndPassword(auth, email, password)
-      await sendEmailVerification(result.user)
-    },
+    signUpWithEmail: async (email, password) => { await createUserWithEmailAndPassword(auth, email, password) },
     sendPasswordResetEmail: async (email) => { await sendPasswordResetEmail(auth, email) },
     signOut: async () => { await firebaseSignOut(auth) },
     updateTokensUsed: refreshAccount,

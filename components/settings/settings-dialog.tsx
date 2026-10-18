@@ -2,11 +2,11 @@
 
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
 import Link from 'next/link'
-import { sendEmailVerification } from 'firebase/auth'
 import { CreditCard, Gauge, RefreshCw, UserRound, type LucideIcon } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import { currentBackend } from '@/lib/backend/browser'
 import type { BackendUsage } from '@/lib/backend/client'
+import { EmailCodeVerification } from '@/components/auth/email-code-verification'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import styles from './settings-dialog.module.css'
@@ -257,32 +257,11 @@ export function SettingsDialog({
                         <p className="text-sm leading-relaxed text-muted-foreground">
                           Verify your email address to keep your account information up to date.
                         </p>
-                        <div className="flex flex-wrap gap-3 pt-1">
-                          <Button
-                            type="button"
-                            disabled={busy}
-                            onClick={() => void perform(async () => {
-                              if (!user) throw new Error('Sign in first.')
-                              await sendEmailVerification(user)
-                              setMessage('Verification email sent.')
-                            })}
-                          >
-                            Send verification email
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            disabled={busy}
-                            onClick={() => void perform(async () => {
-                              if (!user) throw new Error('Sign in first.')
-                              await user.reload()
-                              await user.getIdToken(true)
-                              await refreshAccount()
-                            })}
-                          >
-                            I have verified my email
-                          </Button>
-                        </div>
+                        <EmailCodeVerification
+                          email={user?.email ?? account.email}
+                          autoSend={false}
+                          onVerified={() => setMessage('Email verified.')}
+                        />
                       </section>
                     )}
 
