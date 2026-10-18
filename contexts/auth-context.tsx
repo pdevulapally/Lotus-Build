@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { onAuthStateChanged, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword,
   sendEmailVerification, signOut as firebaseSignOut, sendPasswordResetEmail, type User } from 'firebase/auth'
 import { auth, googleProvider, githubProvider } from '@/lib/firebase'
@@ -33,17 +33,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [usage, setUsage] = useState<BackendUsage | null>(null)
   const [loading, setLoading] = useState(true)
   const [accountError, setAccountError] = useState<string | null>(null)
+  const accountRequest = useRef(0)
   const refreshAccount = useCallback(async () => {
+    const request = ++accountRequest.current
     const identity = auth.currentUser
     if (!identity) throw new Error('Sign in to load your account.')
     try {
       const client = currentBackend()
       const nextAccount = await client.me()
       const nextUsage = await client.usage()
-      if (auth.currentUser !== identity) return
+      if (auth.currentUser !== identity || request !== accountRequest.current) return
+      if (nextAccount.uid !== identity.uid || nextUsage.uid !== identity.uid) throw new Error('The server returned data for a different account.')
       setAccount(nextAccount); setUsage(nextUsage); setAccountError(null)
     } catch (error) {
-      if (auth.currentUser === identity) {
+      if (auth.currentUser === identity && request === accountRequest.current) {
         setAccount(null); setUsage(null)
         setAccountError(error instanceof Error ? error.message : 'Could not load account.')
       }
@@ -54,11 +57,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let version = 0
     const unsubscribe = onAuthStateChanged(auth, async (identity) => {
       const current = ++version
+      accountRequest.current++
       setUser(identity); setAccount(null); setUsage(null); setAccountError(null); setLoading(true)
       try { if (identity) await refreshAccount() } catch { /* The explicit account error is rendered by consumers. */ }
       finally { if (current === version) setLoading(false) }
     })
-    return () => { version++; unsubscribe() }
+    return () => { version++; accountRequest.current++; unsubscribe() }
   }, [refreshAccount])
   const userData = useMemo<UserData | null>(() => account ? {
     uid: account.uid, email: account.email, displayName: account.displayName ?? null, photoURL: account.photoUrl ?? null,

@@ -92,7 +92,7 @@ const keySchema = z.string().regex(/^[A-Za-z0-9_-]{16,128}$/)
 const streamId = z.string().regex(/^\d{1,20}-\d{1,20}$/)
 const errorSchema = z.object({ error: z.object({ code: z.string(), message: z.string(), details: z.unknown().optional() }), requestId: z.string().optional() })
 
-/** No automatic mutation retries. The UI must retain the same key when an outcome is uncertain. */
+/** Uncertain mutations are never retried; only a rejected expired token is refreshed once. */
 export class BackendClient {
   private readonly origin: string
   private readonly token: (forceRefresh?: boolean) => Promise<string>
@@ -104,8 +104,9 @@ export class BackendClient {
     this.fetcher = (...args) => fetcher(...args)
   }
 
-  private async response(path: string, options: { method?: string; body?: unknown; key?: string; signal?: AbortSignal; after?: string; public?: true } = {}) {
-    const token = options.public ? undefined : await this.token()
+  private async response(path: string, options: { method?: string; body?: unknown; key?: string; signal?: AbortSignal; after?: string; public?: true } = {}, forceRefresh = false): Promise<Response> {
+    const token = options.public ? undefined : await this.token(forceRefresh)
+    options.signal?.throwIfAborted()
     if (!options.public && !token) throw new BackendError(401, 'auth/missing-token', 'Sign in to continue.')
     const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
     if (options.body !== undefined) headers['Content-Type'] = 'application/json'
@@ -119,6 +120,9 @@ export class BackendClient {
     if (!response.ok) {
       const body: unknown = await response.json().catch(() => null)
       const error = errorSchema.safeParse(body)
+      if (!options.public && !forceRefresh && response.status === 401 && error.success && error.data.error.code === 'auth/token-expired') {
+        return this.response(path, options, true)
+      }
       throw error.success
         ? new BackendError(response.status, error.data.error.code, error.data.error.message, error.data.requestId, error.data.error.details)
         : new BackendError(response.status, 'response/invalid-error', 'The server returned an invalid error response.')

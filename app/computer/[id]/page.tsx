@@ -24,6 +24,7 @@ import { useBackendSession } from "@/hooks/use-backend-session"
 
 
 import { sendMessage, pendingMessageKey } from "@/lib/backend/send-message"
+import { cancelSession } from "@/lib/backend/cancel-session"
 
 
 
@@ -290,7 +291,6 @@ export default function ComputerPage() {
   const [runError, setRunError] = useState<string | null>(null)
   const [isStartingRun, setIsStartingRun] = useState(false)
   const busyRef = useRef(false)
-  const cancelAttempt = useRef<string | null>(null)
   const isRunning = effectiveStatus === 'running' || isStartingRun
   const optimisticStart = isStartingRun
   const isBuildTokenBlocked = false
@@ -327,10 +327,9 @@ export default function ComputerPage() {
     } finally { busyRef.current = false; setIsStartingRun(false) }
   }
   const handleStop = async () => {
-    if (!raw || busyRef.current) return
+    if (!raw || !user || busyRef.current) return
     busyRef.current = true; setRunError(null)
-    cancelAttempt.current ??= crypto.randomUUID()
-    try { await currentBackend().cancel(raw.id, cancelAttempt.current); cancelAttempt.current = null;
+    try { await cancelSession(currentBackend(), sessionStorage, user.uid, raw.id);
       void backend.refresh().catch((reason) => setRunError(`Cancellation accepted, but refresh failed: ${reason instanceof Error ? reason.message : 'Request failed.'}`)) }
     catch (reason) { setRunError(reason instanceof Error ? reason.message : 'Could not cancel session.') }
     finally { busyRef.current = false }

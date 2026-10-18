@@ -8,7 +8,7 @@
     "start": "next start",
     "type-check": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "test:contracts": "node --import tsx --test test/backend-client.test.ts"
+    "test:contracts": "node --import tsx --test test/*.test.ts"
   },
   "dependencies": {
     "@astryxdesign/core": "0.7.1",
