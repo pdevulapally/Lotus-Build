@@ -6,8 +6,16 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Eye, EyeOff, Loader2, Mail } from "lucide-react"
-import { LotusLogo } from "@/components/ui/lotus-logo"
 import { AuthMarketingPanel } from "@/components/auth/auth-marketing-panel"
+import {
+  AuthFormHeader,
+  GoogleMark,
+  authGoogleButtonClassName,
+  authInputClassName,
+  authLinkClassName,
+  authPasswordToggleClassName,
+  authPrimaryButtonClassName,
+} from "@/components/auth/auth-presentation"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -19,20 +27,6 @@ import {
 import { useAuth } from "@/contexts/auth-context"
 import { getSafeRedirectPath } from "@/lib/auth/redirect"
 import { authErrorMessage } from "@/lib/auth/errors"
-
-const authInputClassName =
-  "lotus-glass-control w-full rounded-2xl border px-4 py-3.5 text-sm text-foreground shadow-none outline-none transition-colors placeholder:text-muted-foreground focus:border-border-strong"
-
-function GoogleMark() {
-  return (
-    <img
-      src="/Images/google-icon-logo-svgrepo-com.svg"
-      alt=""
-      aria-hidden
-      className="h-5 w-5 shrink-0"
-    />
-  )
-}
 
 export default function LoginPage() {
   const router = useRouter()
@@ -106,7 +100,7 @@ export default function LoginPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
+      <div role="status" aria-label="Loading your account" className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
     )
@@ -117,27 +111,17 @@ export default function LoginPage() {
       <main className="auth-backdrop relative flex min-h-[100dvh] flex-col text-foreground">
         <Navbar />
 
-        <div className="flex flex-1 items-center justify-center px-5 py-10 sm:px-8 lg:px-12">
-          <div className="flex w-full max-w-5xl items-center justify-center gap-16 lg:justify-between">
+        <div className="site-shell flex flex-1 items-center justify-center py-8 sm:py-12 lg:py-16">
+          <div className="grid w-full max-w-md items-start gap-12 lg:max-w-none lg:grid-cols-[minmax(0,1fr)_minmax(0,460px)] xl:gap-24">
             <AuthMarketingPanel />
 
-            <div className="w-full max-w-md rounded-2xl border border-border bg-card p-7 shadow-xl sm:p-8">
-              <div className="flex items-center justify-center gap-6 border-b border-border pb-4">
-                <Link
-                  href={`/signup?redirect=${encodeURIComponent(redirect)}`}
-                  className="-mb-px pb-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  Sign Up
-                </Link>
-                <span className="-mb-px border-b-2 border-foreground pb-3 text-sm font-semibold text-foreground">
-                  Log In
-                </span>
-              </div>
+            <section className="min-w-0 rounded-3xl border border-border bg-card p-6 sm:p-8" aria-label="Sign in">
+              <AuthFormHeader title="Welcome back." description="Sign in to pick up where you left off." />
 
             {error ? (
               <div
                 role="alert"
-                className="mt-5 rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+                className="mb-5 rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm leading-6 text-destructive"
               >
                 {error}
               </div>
@@ -147,23 +131,24 @@ export default function LoginPage() {
               type="button"
               onClick={handleGoogleSignIn}
               disabled={isLoading}
-              className="lotus-glass-control mt-5 flex h-12 w-full items-center justify-center gap-3 rounded-2xl border text-sm font-medium text-foreground transition-colors hover:border-border-strong disabled:pointer-events-none disabled:opacity-50"
+              aria-busy={isLoading}
+              className={authGoogleButtonClassName}
             >
               <GoogleMark />
               Continue with Google
             </button>
 
-            <div className="mt-5 flex items-center gap-3">
+            <div className="my-6 flex items-center gap-4">
               <span className="h-px flex-1 bg-border" />
-              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Or continue with
+              <span className="text-xs text-muted-foreground">
+                or use your email
               </span>
               <span className="h-px flex-1 bg-border" />
             </div>
 
-            <form className="mt-5 space-y-5" onSubmit={handleEmailSignIn}>
+            <form className="space-y-5" onSubmit={handleEmailSignIn}>
               <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium text-muted-foreground">
+                <label htmlFor="email" className="text-sm font-medium text-foreground">
                   Email address
                 </label>
                 <input
@@ -183,14 +168,14 @@ export default function LoginPage() {
                 <div className="flex items-center justify-between gap-4">
                   <label
                     htmlFor="password"
-                    className="text-sm font-medium text-muted-foreground"
+                    className="text-sm font-medium text-foreground"
                   >
                     Password
                   </label>
                   <button
                     type="button"
                     onClick={handleForgotOpen}
-                    className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                    className="rounded-sm text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
                   >
                     Reset password
                   </button>
@@ -210,7 +195,7 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword((value) => !value)}
-                    className="absolute inset-y-0 right-3 flex items-center rounded-lg px-1 text-muted-foreground transition-colors hover:text-foreground"
+                    className={authPasswordToggleClassName}
                     aria-label={showPassword ? "Hide password" : "Show password"}
                   >
                     {showPassword ? (
@@ -225,49 +210,51 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="h-12 w-full rounded-2xl bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                aria-label="Sign in"
+                aria-busy={isLoading}
+                className={authPrimaryButtonClassName}
               >
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Sign in"}
               </Button>
             </form>
 
-              <p className="mt-5 text-center text-sm text-muted-foreground">
+              <p className="mt-6 text-center text-sm leading-6 text-muted-foreground">
                 New to Lotus?{" "}
                 <Link
                   href={`/signup?redirect=${encodeURIComponent(redirect)}`}
-                  className="font-medium text-foreground underline-offset-2 hover:underline"
+                  className={authLinkClassName}
                 >
                   Create account
                 </Link>
               </p>
 
-              <div className="mt-6 text-center text-xs leading-5 text-muted-foreground">
-                <Link href="/terms" className="underline-offset-2 hover:text-foreground hover:underline">
+              <div className="mt-6 flex items-center justify-center gap-3 border-t border-border pt-5 text-xs leading-5 text-muted-foreground">
+                <Link href="/terms" className={authLinkClassName}>
                   Terms
                 </Link>
-                <span> / </span>
-                <Link href="/privacy" className="underline-offset-2 hover:text-foreground hover:underline">
+                <span aria-hidden>·</span>
+                <Link href="/privacy" className={authLinkClassName}>
                   Privacy
                 </Link>
               </div>
-            </div>
+            </section>
           </div>
         </div>
       </main>
 
       <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
-        <DialogContent className="rounded-2xl border-border bg-card sm:max-w-md">
+        <DialogContent className="rounded-3xl border-border bg-card p-6 shadow-none sm:max-w-md sm:p-8">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-foreground">
+            <DialogTitle className="flex items-center gap-3 text-xl tracking-[-0.035em] text-foreground">
               <Mail className="h-4 w-4 text-muted-foreground" />
               Reset your password
             </DialogTitle>
-            <DialogDescription className="text-sm text-muted-foreground">
+            <DialogDescription className="text-sm leading-6 text-muted-foreground">
               Enter your email and we will send you a reset link.
             </DialogDescription>
           </DialogHeader>
           {resetSent ? (
-            <div className="rounded-2xl border border-border bg-muted px-4 py-3 text-sm text-foreground">
+            <div role="status" className="rounded-xl border border-border bg-muted px-4 py-4 text-sm leading-6 text-foreground">
               Check your inbox for the reset link. If you do not see it, check your spam
               folder.
             </div>
@@ -276,7 +263,7 @@ export default function LoginPage() {
               {resetError ? (
                 <div
                   role="alert"
-                  className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+                  className="rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm leading-6 text-destructive"
                 >
                   {resetError}
                 </div>
@@ -284,7 +271,7 @@ export default function LoginPage() {
               <div className="space-y-2">
                 <label
                   htmlFor="reset-email"
-                  className="text-sm font-medium text-muted-foreground"
+                  className="text-sm font-medium text-foreground"
                 >
                   Email address
                 </label>
@@ -302,7 +289,9 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 disabled={resetLoading}
-                className="h-12 w-full rounded-2xl bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                aria-label="Send reset link"
+                aria-busy={resetLoading}
+                className={authPrimaryButtonClassName}
               >
                 {resetLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send reset link"}
               </Button>
