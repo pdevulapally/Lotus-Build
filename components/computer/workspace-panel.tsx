@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import Link from "next/link"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
-import { BookOpen, Check, ChevronDown, ChevronRight, Copy, ExternalLink, FileCode, Folder, FolderOpen, Globe2, Home, Laptop, Loader2, Monitor, RotateCcw, ShieldAlert, Wrench } from "lucide-react"
+import { duration, ease, spring } from "@/lib/motion"
+import { BookOpen, Check, ChevronDown, ChevronRight, Copy, ExternalLink, FileCode, Folder, FolderOpen, Globe2, Laptop, Loader2, Monitor, ShieldAlert, Wrench } from "lucide-react"
 import Editor, { DiffEditor, type Monaco } from "@monaco-editor/react"
 import { TextShimmer } from "@/components/prompt-kit/text-shimmer"
 import { normalizePlatform } from "@/lib/projects/platform"
@@ -21,6 +22,9 @@ import {
 import { SavedProjectFiles as ComputerCodePanel } from "@/components/computer/saved-project-content"
 import { cn } from "@/lib/utils"
 import { IsolatedPreviewFrame } from "@/components/project/isolated-preview-frame"
+import { BrowserIcon, FilesIcon, HomeIcon, LiveSiteIcon, RefreshIcon, ResearchIcon, TerminalIcon } from "@/components/ui/lotus-icons"
+import { TerminalPanel } from "@/components/computer/terminal-panel"
+import type { TerminalEntry } from "@/lib/backend/terminal"
 
 function formatBrowserHost(url: string) {
   try {
@@ -391,7 +395,7 @@ function LaptopSwitcher({ label, title, onClick, icon }: {
 
 function SessionProgressSurface({ progress }: { progress: ComputerSessionProgress }) {
   return (
-    <motion.div key={`progress-${progress.state}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}
+    <motion.div key={`progress-${progress.state}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: duration.fast, ease }}
       className="flex h-full items-center justify-center p-8 text-center">
       <div className="max-w-sm">
         <div className="bg-muted/40 mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground">
@@ -587,39 +591,56 @@ export function WorkspaceViewTabs({ activeTab, onChange, hasBrowser, hasResearch
   hasResearch: boolean
 }) {
   const tabs = [
-    { id: "preview", label: "Preview", visible: true },
-    { id: "code", label: "Files", visible: true },
-    { id: "browser", label: "Browser", visible: hasBrowser },
-    { id: "research", label: "Research", visible: hasResearch },
+    { id: "preview", label: "Preview", icon: LiveSiteIcon, visible: true },
+    { id: "code", label: "Files", icon: FilesIcon, visible: true },
+    { id: "terminal", label: "Terminal", icon: TerminalIcon, visible: true },
+    { id: "browser", label: "Browser", icon: BrowserIcon, visible: hasBrowser },
+    { id: "research", label: "Research", icon: ResearchIcon, visible: hasResearch },
   ] as const
   const visibleTabs = tabs.filter((tab) => tab.visible)
-  return <div role="tablist" aria-label="Workspace views" className="flex min-w-0 items-center gap-1">
-    {visibleTabs.map((tab, index) => <button
-      key={tab.id}
-      id={`workspace-tab-${tab.id}`}
-      type="button"
-      role="tab"
-      tabIndex={activeTab === tab.id ? 0 : -1}
-      aria-selected={activeTab === tab.id}
-      aria-controls="computer-workspace-panel"
-      onClick={() => onChange(tab.id)}
-      onKeyDown={(event) => {
-        const last = visibleTabs.length - 1
-        const destinations: Record<string, number> = {
-          ArrowRight: (index + 1) % visibleTabs.length,
-          ArrowLeft: (index + last) % visibleTabs.length,
-          Home: 0,
-          End: last,
-        }
-        const destination = destinations[event.key]
-        if (destination === undefined) return
-        event.preventDefault()
-        const next = visibleTabs[destination]
-        onChange(next.id)
-        document.getElementById(`workspace-tab-${next.id}`)?.focus()
-      }}
-      className={cn("min-h-9 rounded-lg px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none", activeTab === tab.id && "bg-muted text-foreground")}
-    >{tab.label}</button>)}
+  return <div role="tablist" aria-label="Workspace views" className="flex min-w-0 items-center rounded-full bg-muted/70 p-1">
+    {visibleTabs.map((tab, index) => {
+      const Icon = tab.icon
+      const isActive = activeTab === tab.id
+      return <button
+        key={tab.id}
+        id={`workspace-tab-${tab.id}`}
+        type="button"
+        role="tab"
+        tabIndex={isActive ? 0 : -1}
+        aria-selected={isActive}
+        aria-controls="computer-workspace-panel"
+        onClick={() => onChange(tab.id)}
+        onKeyDown={(event) => {
+          const last = visibleTabs.length - 1
+          const destinations: Record<string, number> = {
+            ArrowRight: (index + 1) % visibleTabs.length,
+            ArrowLeft: (index + last) % visibleTabs.length,
+            Home: 0,
+            End: last,
+          }
+          const destination = destinations[event.key]
+          if (destination === undefined) return
+          event.preventDefault()
+          const next = visibleTabs[destination]
+          onChange(next.id)
+          document.getElementById(`workspace-tab-${next.id}`)?.focus()
+        }}
+        className={cn(
+          "relative isolate inline-flex h-8 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none",
+          isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+        )}
+      >
+        {isActive && <motion.span
+          layoutId="workspace-tab-pill"
+          aria-hidden="true"
+          transition={spring}
+          className="absolute inset-0 rounded-full bg-background shadow-[0_1px_2px_rgb(0_0_0/0.08)] ring-1 ring-border/60"
+        />}
+        <Icon className="relative z-10 size-4" />
+        <span className={cn("relative z-10", isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground")}>{tab.label}</span>
+      </button>
+    })}
   </div>
 }
 
@@ -662,28 +683,28 @@ export function WorkspaceTabBar({
   return (
     <div className="bg-muted/40 hidden h-10 shrink-0 items-center justify-center border-b border-border/70 px-4 sm:flex">
       {/* Centered constrained URL pill */}
-      <div className="bg-background group flex w-full max-w-sm items-center gap-0.5 overflow-hidden rounded-xl border border-border px-1 transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/15 hover:border-border-strong">
+      <div className="bg-background group flex w-full max-w-sm items-center gap-0.5 overflow-hidden rounded-full border border-border px-1 transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/15 hover:border-border-strong">
 
         {/* Home */}
         <button
           type="button"
           aria-label="Go to root"
           onClick={() => commitNav("/")}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
         >
-          <Home className="h-3.5 w-3.5" />
+          <HomeIcon className="size-4" />
         </button>
 
         {/* Host (dimmed, truncated) */}
         {previewOrigin && (
-          <span className="max-w-[130px] shrink truncate select-none text-[11px] text-foreground/50">
+          <span className="max-w-[130px] shrink truncate select-none text-[11px] font-medium text-foreground/50">
             {previewOrigin.replace(/^https?:\/\//, "")}
           </span>
         )}
 
         {/* Slash + path */}
         <div className="flex min-w-[40px] flex-1 items-center">
-          <span className="shrink-0 select-none text-[12px] text-foreground/40">/</span>
+          <span className="shrink-0 select-none text-[12px] font-medium text-foreground/40">/</span>
           <input
             ref={inputRef}
             aria-label="Preview path"
@@ -694,7 +715,7 @@ export function WorkspaceTabBar({
               if (e.key === "Escape") inputRef.current?.blur()
             }}
             onClick={() => inputRef.current?.select()}
-            className="min-w-0 flex-1 bg-transparent py-0.5 text-[12px] text-foreground outline-none placeholder:text-foreground/30"
+            className="min-w-0 flex-1 bg-transparent py-0.5 text-[12px] font-medium text-foreground outline-none placeholder:text-foreground/30"
             spellCheck={false}
             autoCorrect="off"
             autoCapitalize="off"
@@ -707,7 +728,7 @@ export function WorkspaceTabBar({
           target="_blank"
           rel="noreferrer"
           aria-label="Open in new tab"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
         >
           <ExternalLink className="h-3.5 w-3.5" />
         </a>
@@ -717,9 +738,9 @@ export function WorkspaceTabBar({
           type="button"
           aria-label="Refresh preview"
           onClick={onRefreshPreview}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
         >
-          <RotateCcw className="h-3.5 w-3.5" />
+          <RefreshIcon className="size-4" />
         </button>
       </div>
     </div>
@@ -748,6 +769,7 @@ export function WorkspaceContent({
   iframeReloadNonce = 0,
   files = [],
   codeTheme = "light",
+  terminalEntries = [],
 }: {
   session: ComputerSessionResponse
   status: ComputerSessionStatus
@@ -770,6 +792,7 @@ export function WorkspaceContent({
   iframeReloadNonce?: number
   files?: Array<{ path: string; content: string }>
   codeTheme?: "dark" | "light"
+  terminalEntries?: TerminalEntry[]
 }) {
   const sessionPlatform = normalizePlatform(session.platform)
   const workspaceProgress = progress ?? {
@@ -781,7 +804,7 @@ export function WorkspaceContent({
 
   if (activeTab === "code") {
     return (
-      <motion.div key="code" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}
+      <motion.div key="code" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: duration.fast, ease }}
         className="h-full min-h-0">
         <ComputerCodePanel
           files={files}
@@ -793,13 +816,17 @@ export function WorkspaceContent({
     )
   }
 
+  if (activeTab === "terminal") {
+    return <TerminalPanel entries={terminalEntries} />
+  }
+
   if (activeTab === "research") {
     return <ResearchPanel events={session.timeline} />
   }
 
   if (activeTab === "browser" && browserInspection) {
     return (
-      <motion.div key="browser" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}
+      <motion.div key="browser" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: duration.fast, ease }}
         className="flex h-full min-h-0 flex-col bg-background p-3 lg:p-4">
         <div className="mb-2 flex min-w-0 items-center justify-between gap-3">
           <div className="min-w-0">
@@ -891,7 +918,7 @@ function PreviewPane({
   }, [iframeKey])
 
   return (
-    <motion.div key="preview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.16 }}
+    <motion.div key="preview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: duration.fast, ease }}
       className="flex h-full min-h-0 flex-col bg-background">
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <IsolatedPreviewFrame

@@ -164,8 +164,8 @@
 }
 
 @theme inline {
-  --font-weight-normal: 500;
-  --font-weight-medium: 600;
+  --font-weight-normal: 550;
+  --font-weight-medium: 650;
   --font-sans: var(--font-ui);
   --font-mono: var(--font-mono);
   --font-serif: var(--font-serif);

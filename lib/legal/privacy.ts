@@ -50,7 +50,8 @@ export const privacyPolicy: LegalDocumentContent = {
     { id: 'sharing', label: 'Who we share with', title: 'Who we share personal data with', blocks: [
       { kind: 'p', text: 'We share personal data only with providers that help us run the Service, under written contracts that require them to protect it and to use it only on our instructions, or where the law requires us to.' },
       { kind: 'table', label: 'Service providers', columns: ['Provider', 'What they do for us', 'Data involved'], rows: [
-        ['Google (Firebase Authentication, Cloud Firestore, Cloud Storage)', 'Sign-in, account and project database, saved project files, verification emails', 'Account, projects, workspace activity'],
+        ['Google (Firebase Authentication, Cloud Firestore, Cloud Storage)', 'Sign-in, account and project database, saved project files', 'Account, projects, workspace activity'],
+        ['Brevo (Sendinblue SAS, France/EU)', 'Transactional email for email verification', 'Email address and one-time verification code'],
         ['Anthropic', 'AI model that powers Plan and Build sessions', 'Prompts, conversation, project files'],
         ['E2B', 'Isolated sandboxes that build and preview your project', 'Project files and the commands the agent runs'],
         ['Stripe', 'Checkout, subscriptions, invoices and the billing portal. Stripe is also an independent controller for its own fraud and regulatory obligations', 'Billing data, email address'],

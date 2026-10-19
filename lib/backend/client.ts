@@ -54,6 +54,12 @@ const acceptedMessageSchema = z.union([
   z.object({ queued: z.literal(true), queuedMessage: queuedSchema }),
   z.object({ queued: z.literal(false), session: sessionSchema }),
 ])
+const emailVerificationCodeSentSchema = z.object({
+  verified: z.boolean(),
+  expiresInSeconds: z.number().int().nonnegative(),
+  resendAfterSeconds: z.number().int().nonnegative(),
+})
+const emailVerificationResultSchema = z.object({ verified: z.boolean() })
 export type BackendProject = z.infer<typeof projectSchema>
 export type BackendSession = z.infer<typeof sessionSchema>
 export type BackendAccount = z.infer<typeof accountSchema>
@@ -141,6 +147,13 @@ export class BackendClient {
   }
 
   me(signal?: AbortSignal) { return this.json(accountSchema, '/me', { signal }) }
+  sendEmailVerificationCode() {
+    return this.json(emailVerificationCodeSentSchema, '/auth/email-verification/code', { method: 'POST' })
+  }
+  verifyEmailCode(code: string) {
+    const body = z.object({ code: z.string().regex(/^[0-9]{6}$/) }).strict().parse({ code })
+    return this.json(emailVerificationResultSchema, '/auth/email-verification/verify', { method: 'POST', body })
+  }
   usage(signal?: AbortSignal) { return this.json(usageSchema, '/me/usage', { signal }) }
   sessionUsage(sessionId: string, signal?: AbortSignal) { return this.json(z.object({ sessionId: id,
     meters: z.array(z.object({ meterKey: z.string(), unit: z.string(), label: z.string(), settled: z.number().nonnegative(), open: z.number().nonnegative() })) }), `/sessions/${id.parse(sessionId)}/usage`, { signal }) }

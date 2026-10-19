@@ -20,6 +20,7 @@ import { currentBackend } from "@/lib/backend/browser"
 
 
 import { useBackendSession } from "@/hooks/use-backend-session"
+import { useAutoOpenWorkspace } from "@/hooks/use-auto-open-workspace"
 
 
 
@@ -29,6 +30,7 @@ import { cancelSession } from "@/lib/backend/cancel-session"
 
 
 import { AnimatePresence, motion } from "framer-motion"
+import { duration, ease, spring } from "@/lib/motion"
 
 
 
@@ -44,16 +46,14 @@ import {
   GitBranch,
   KeyRound,
   Loader2,
-  Maximize2,
-  Minimize2,
   Rocket,
   Search,
-  X,
 } from "lucide-react"
 
 
 
 import { AnimatedAIInput } from "@/components/ui/animated-ai-input"
+import { CloseIcon, CollapseIcon, ExpandIcon } from "@/components/ui/lotus-icons"
 
 
 
@@ -318,7 +318,17 @@ export default function ComputerPage() {
   const previewEnsureError = backend.streamError
   const [runtimeError, setRuntimeError] = useState<{ message: string; stack: string } | null>(null)
   const [fixingError, setFixingError] = useState(false)
+  const userClosedRef = useRef(false)
   const sessionProgress = session ? deriveComputerSessionProgress({ session, status: effectiveStatus }) : null
+  useAutoOpenWorkspace({
+    isRunning,
+    previewUrl: backend.preview,
+    workspacePanel,
+    activeTab,
+    setWorkspacePanel,
+    setActiveTab,
+    userClosedRef,
+  })
   const handleRun = async (prompt: string, nextMode?: 'build' | 'plan') => {
     if (busyRef.current) throw new Error('A message is already being submitted.')
     if (!raw || !user) throw new Error('Session is not available.')
@@ -344,6 +354,17 @@ export default function ComputerPage() {
   const handleApprovePlan = () => { void handleRun('Build the plan we just reviewed.', 'build').catch(() => { /* handleRun exposes the error in the feed. */ }) }
   const handleHistoryRestored = () => { void backend.refresh().catch((reason) => setRunError(String(reason))) }
   const handleClarificationAnswer = async (answer: string) => { await handleRun(answer) }
+  const closeWorkspacePanel = () => {
+    userClosedRef.current = true
+    setWorkspacePanel("closed")
+  }
+  const toggleWorkspacePanel = () => {
+    if (workspacePanelOpen) {
+      closeWorkspacePanel()
+    } else {
+      setWorkspacePanel("split")
+    }
+  }
 
   if (loading) return <LoadingShell />
   if (error || !session || !backend.project) return <ErrorState message={error ?? "Session or project state is unavailable."} />
@@ -426,7 +447,7 @@ export default function ComputerPage() {
         onOpenNavigation={() => setMobileNavigationOpen(true)}
         navigationOpen={mobileNavigationOpen}
         workspacePanelOpen={workspacePanelOpen}
-        onToggleWorkspacePanel={() => setWorkspacePanel(workspacePanelOpen ? "closed" : "split")}
+        onToggleWorkspacePanel={toggleWorkspacePanel}
         contextUsage={agentContextUsage}
         theme={computerTheme}
         onThemeToggle={handleThemeToggle}
@@ -535,20 +556,30 @@ export default function ComputerPage() {
         </aside>
 
         {/* ── Workspace panel ── */}
-        <section
+        <motion.section
           id="computer-preview-sidebar"
           aria-label="Workspace preview and files"
+          initial={false}
+          animate={workspacePanelOpen ? "open" : "closed"}
+          variants={{
+            open: { opacity: 1, x: 0, display: "flex", transition: spring },
+            closed: {
+              opacity: 0,
+              x: 24,
+              transitionEnd: { display: "none" },
+              transition: { duration: duration.fast, ease },
+            },
+          }}
           className={cn(
           "m-2 mt-0 flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card",
-          !workspacePanelOpen && "hidden",
         )}>
-          <div className="flex min-h-12 shrink-0 items-center justify-between gap-2 border-b border-border/50 px-2">
+          <div className="flex min-h-14 shrink-0 items-center justify-between gap-2 border-b border-border/50 px-3">
             <WorkspaceViewTabs activeTab={activeTab} onChange={setActiveTab} hasBrowser={hasBrowser} hasResearch={hasResearch} />
             <div className="flex shrink-0 items-center gap-1">
-              <button type="button" aria-label={workspacePanel === "expanded" ? "Restore split view" : "Expand preview panel"} aria-pressed={workspacePanel === "expanded"} onClick={() => setWorkspacePanel(workspacePanel === "expanded" ? "split" : "expanded")} className="hidden size-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:inline-flex">
-                {workspacePanel === "expanded" ? <Minimize2 className="size-4" aria-hidden /> : <Maximize2 className="size-4" aria-hidden />}
+              <button type="button" aria-label={workspacePanel === "expanded" ? "Restore split view" : "Expand preview panel"} aria-pressed={workspacePanel === "expanded"} onClick={() => setWorkspacePanel(workspacePanel === "expanded" ? "split" : "expanded")} className="hidden size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:inline-flex">
+                {workspacePanel === "expanded" ? <CollapseIcon className="size-4" /> : <ExpandIcon className="size-4" />}
               </button>
-              <button type="button" aria-label="Close preview panel" onClick={() => { setWorkspacePanel("closed"); document.getElementById("computer-workspace-toggle")?.focus() }} className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><X className="size-4" aria-hidden /></button>
+              <button type="button" aria-label="Close preview panel" onClick={() => { closeWorkspacePanel(); document.getElementById("computer-workspace-toggle")?.focus() }} className="inline-flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><CloseIcon className="size-4" /></button>
             </div>
           </div>
           {/* Workspace content — fills panel edge to edge */}
@@ -601,12 +632,13 @@ export default function ComputerPage() {
                   iframeReloadNonce={previewReloadNonce}
                   files={projectIntegration?.files ?? []}
                   codeTheme={computerTheme}
+                  terminalEntries={backend.terminal}
                 />
               </motion.div>
             </AnimatePresence>
             </div>
           </div>
-        </section>
+        </motion.section>
 
       </main>
       </div>

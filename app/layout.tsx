@@ -1,8 +1,11 @@
 import type React from "react"
+import { Suspense } from "react"
 import type { Metadata } from "next"
 import { AuthProvider } from "@/contexts/auth-context"
+import { VerifiedEmailGate } from "@/components/auth/verified-email-gate"
 import { SettingsDialogProvider } from "@/components/settings/settings-dialog"
 import { ConsentAnalytics } from "@/components/consent-analytics"
+import { MotionProvider } from "@/components/motion-provider"
 import "./globals.css"
 import "@fontsource-variable/manrope/index.css"
 
@@ -110,12 +113,16 @@ export default function RootLayout({
         />
       </head>
       <body className="font-sans antialiased bg-background text-foreground overflow-x-hidden">
-        <AuthProvider>
-          <SettingsDialogProvider>
-            {children}
-          </SettingsDialogProvider>
-        </AuthProvider>
-        <ConsentAnalytics />
+        <MotionProvider>
+          <AuthProvider>
+            <SettingsDialogProvider>
+              <Suspense fallback={<main className="grid min-h-svh place-items-center bg-background text-sm text-muted-foreground" role="status">Checking your account…</main>}>
+                <VerifiedEmailGate>{children}</VerifiedEmailGate>
+              </Suspense>
+            </SettingsDialogProvider>
+          </AuthProvider>
+          <ConsentAnalytics />
+        </MotionProvider>
       </body>
     </html>
   )
