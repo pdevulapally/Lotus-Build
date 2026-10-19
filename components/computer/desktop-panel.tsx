@@ -48,14 +48,14 @@ export function DesktopPanelView({
   )
 }
 
-export function DesktopPanel({ sessionId, desktop }: { sessionId: string; desktop: DesktopState }) {
+export function DesktopPanel({ sessionId, desktop, active }: { sessionId: string; desktop: DesktopState; active: boolean }) {
   const targetRef = useRef<HTMLDivElement | null>(null)
   const [connectionState, setConnectionState] = useState<DesktopViewState>("connecting")
   const [retryAllowed, setRetryAllowed] = useState(false)
   const [retryVersion, setRetryVersion] = useState(0)
 
   useEffect(() => {
-    if (desktop.status !== "ready") return
+    if (!active || desktop.status !== "ready") return
     let disposed = false
     let waitingForReady = false
     let retries = 0
@@ -89,6 +89,9 @@ export function DesktopPanel({ sessionId, desktop }: { sessionId: string; deskto
         ticketRetryUsed = true
         setConnectionState("connecting")
         void connect()
+      } else if (action === "retry-once") {
+        setConnectionState("failed")
+        setRetryAllowed(true)
       } else if (action === "wait-ready") {
         waitingForReady = true
         setConnectionState("connecting")
@@ -138,6 +141,7 @@ export function DesktopPanel({ sessionId, desktop }: { sessionId: string; deskto
         nextClient.addEventListener("connect", () => {
           if (disposed) return
           retries = 0
+          ticketRetryUsed = false
           setConnectionState("live")
           setRetryAllowed(false)
         })
@@ -175,7 +179,7 @@ export function DesktopPanel({ sessionId, desktop }: { sessionId: string; deskto
       client?.disconnect()
       client = null
     }
-  }, [desktop, retryVersion, sessionId])
+  }, [active, desktop, retryVersion, sessionId])
 
   const retry = () => setRetryVersion((version) => version + 1)
 

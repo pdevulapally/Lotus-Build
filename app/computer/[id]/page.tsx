@@ -610,6 +610,7 @@ export default function ComputerPage() {
               >
                 <WorkspaceContent
                   session={session} status={effectiveStatus} activeTab={activeTab}
+                  panelOpen={workspacePanelOpen}
                   progress={sessionProgress}
                   browserInspection={browserInspection}
                   hasProjectFiles={hasProjectFiles}

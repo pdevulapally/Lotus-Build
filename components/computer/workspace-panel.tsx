@@ -756,6 +756,7 @@ export function WorkspaceContent({
   status,
   progress,
   activeTab,
+  panelOpen,
   browserInspection,
   hasProjectFiles,
   projectFileCount,
@@ -780,6 +781,7 @@ export function WorkspaceContent({
   status: ComputerSessionStatus
   progress?: ComputerSessionProgress | null
   activeTab: WorkspaceTab
+  panelOpen: boolean
   browserInspection: BrowserInspection | null
   hasProjectFiles: boolean
   projectFileCount: number | null
@@ -827,7 +829,7 @@ export function WorkspaceContent({
   }
 
   if (activeTab === "desktop") {
-    return <DesktopPanel sessionId={session.id} desktop={desktop} />
+    return <DesktopPanel sessionId={session.id} desktop={desktop} active={panelOpen} />
   }
 
   if (activeTab === "research") {
