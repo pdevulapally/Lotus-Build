@@ -88,6 +88,10 @@ export const TerminalIcon = (props: IconProps) => (
   <Icon {...props}><rect x="3.5" y="4.75" width="17" height="14.5" rx="3" /><path d="M7.25 10.25 10 12.5l-2.75 2.25M12.75 15h4" /></Icon>
 )
 
+export const DesktopIcon = (props: IconProps) => (
+  <Icon {...props}><rect x="3.25" y="4.25" width="17.5" height="12.75" rx="2.75" /><path d="M12 17v3m-3.25 0h6.5" /></Icon>
+)
+
 export const WebsiteIcon = (props: IconProps) => (
   <Icon {...props}><rect x="3.25" y="4.75" width="17.5" height="14.5" rx="3.25" /><path d="M3.25 9.25h17.5" /><path d="M7 13h5.5M7 15.75h3" /><rect x="14.75" y="12.5" width="2.75" height="3.75" rx=".75" /></Icon>
 )

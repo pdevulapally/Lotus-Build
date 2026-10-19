@@ -6,6 +6,7 @@ import type { BackendMessage, BackendProject, BackendSession, SessionEvent } fro
 import type { ComputerTimelineEvent } from '@/components/computer/session-types'
 import { followSessionEvents } from '@/lib/backend/session-events'
 import { previewUrl } from '@/lib/preview'
+import { computerActionLabel, isComputerAction, reduceDesktop, type DesktopState } from '@/lib/backend/desktop'
 import {
   commandOutputText,
   getRunCommandInput,
@@ -41,7 +42,13 @@ export function activity(event: SessionEvent, index: number): ComputerTimelineEv
   if (event.type === 'agent.tool_result' && event.data.name === 'run_command') return null
 
   const tool = event.type === 'agent.tool_call' || event.type === 'agent.tool_result'
-  const title = tool && typeof event.data.name === 'string' ? `${event.type === 'agent.tool_call' ? 'Using' : 'Finished'} ${event.data.name.slice(0, 100)}` : labels[event.type]
+  const name = typeof event.data.name === 'string' ? event.data.name : ''
+  const input = event.data.input && typeof event.data.input === 'object' && !Array.isArray(event.data.input)
+    ? event.data.input as Record<string, unknown>
+    : {}
+  const title = event.type === 'agent.tool_call' && isComputerAction(name)
+    ? computerActionLabel(name, input)
+    : tool && name ? `${event.type === 'agent.tool_call' ? 'Using' : 'Finished'} ${name.slice(0, 100)}` : labels[event.type]
   if (!title) return null
   // run_command input/output is shown after redaction; other tools stay label-only.
   const description = typeof event.data.summary === 'string' ? event.data.summary.slice(0, 2000)
@@ -93,6 +100,7 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
   const [queued, setQueued] = useState<{ id: string; prompt: string }[]>([])
   const [events, setEvents] = useState<ComputerTimelineEvent[]>([])
   const [terminal, setTerminal] = useState<TerminalEntry[]>([])
+  const [desktop, setDesktop] = useState<DesktopState>({ status: 'none' })
   const [text, setText] = useState('')
   const [preview, setPreview] = useState<string | null>(null)
   const [fileCount, setFileCount] = useState<number | null>(null)
@@ -110,6 +118,7 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
     if (authLoading) return
     const controller = new AbortController(); const signal = controller.signal
     setSession(null); setProject(null); setMessages([]); setQueued([]); setEvents([]); setTerminal([]); setText(''); setPreview(null)
+    setDesktop({ status: 'none' })
     setError(null); setStreamError(null); setLoading(true)
     setFileCount(null); setFileError(null)
     setUsage(null); setUsageError(null)
@@ -153,6 +162,7 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
           onEvent: (event) => {
             if (signal.aborted) return
             if (event.type === 'preview.ready') setPreview(previewUrl(event.data.url, window.location.origin))
+            setDesktop((current) => reduceDesktop(current, event))
             if (event.type === 'session.running') { streamText = ''; setText('') }
             if (event.type === 'agent.text') {
               if (typeof event.data.delta !== 'string') throw new Error('The server returned an invalid text event.')
@@ -177,6 +187,6 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
     })()
     return () => { controller.abort(); if (refreshTimer !== undefined) clearTimeout(refreshTimer); refreshRef.current = async () => { throw new Error('The session connection is closed.') } }
   }, [id, user, authLoading, revision])
-  return { session, project, messages, queued, events, terminal, text, preview: project?.publicPreviewEnabled === true ? preview : null,
+  return { session, project, messages, queued, events, terminal, desktop, text, preview: project?.publicPreviewEnabled === true ? preview : null,
     fileCount, fileError, usage, usageError, loading, error, streamError, refresh, reconnect }
 }

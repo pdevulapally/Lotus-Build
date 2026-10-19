@@ -31,7 +31,7 @@ export type ComputerSessionResponse = {
   platform?: ProjectPlatform
 }
 
-export type WorkspaceTab = "preview" | "browser" | "research" | "code" | "terminal"
+export type WorkspaceTab = "preview" | "desktop" | "browser" | "research" | "code" | "terminal"
 
 export type BrowserInspection = {
   url: string
