@@ -60,6 +60,11 @@ const emailVerificationCodeSentSchema = z.object({
   resendAfterSeconds: z.number().int().nonnegative(),
 })
 const emailVerificationResultSchema = z.object({ verified: z.boolean() })
+const desktopTicketSchema = z.object({
+  ticket: z.string().min(1).max(2048),
+  expiresInSeconds: z.number().positive(),
+  path: z.string(),
+})
 export type BackendProject = z.infer<typeof projectSchema>
 export type BackendSession = z.infer<typeof sessionSchema>
 export type BackendAccount = z.infer<typeof accountSchema>
@@ -194,6 +199,14 @@ export class BackendClient {
     return this.json(sessionSchema, `/projects/${id.parse(projectId)}/sessions`, { method: 'POST', body, key: keySchema.parse(key) })
   }
   session(sessionId: string, signal?: AbortSignal) { return this.json(sessionSchema, `/sessions/${id.parse(sessionId)}`, { signal }) }
+  async desktopTicket(sessionId: string) {
+    const encodedId = encodeURIComponent(id.parse(sessionId))
+    const ticket = await this.json(desktopTicketSchema, `/sessions/${encodedId}/desktop-ticket`, { method: 'POST' })
+    if (ticket.path !== `/sessions/${encodedId}/desktop`) {
+      throw new BackendError(502, 'response/invalid', 'The server returned an invalid desktop ticket.')
+    }
+    return ticket
+  }
   messages(sessionId: string, signal?: AbortSignal) { return this.json(z.object({ messages: z.array(messageSchema) }), `/sessions/${id.parse(sessionId)}/messages?limit=200`, { signal }) }
   queuedMessages(sessionId: string, signal?: AbortSignal) { return this.json(z.object({ queuedMessages: z.array(queuedSchema), nextCursor: z.string().nullable() }), `/sessions/${id.parse(sessionId)}/queued-messages?limit=100`, { signal }) }
   sendMessage(sessionId: string, input: { prompt: string; steer?: boolean; mode?: 'build' | 'plan' }, key: string) {

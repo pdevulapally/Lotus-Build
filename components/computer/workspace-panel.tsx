@@ -22,9 +22,11 @@ import {
 import { SavedProjectFiles as ComputerCodePanel } from "@/components/computer/saved-project-content"
 import { cn } from "@/lib/utils"
 import { IsolatedPreviewFrame } from "@/components/project/isolated-preview-frame"
-import { BrowserIcon, FilesIcon, HomeIcon, LiveSiteIcon, RefreshIcon, ResearchIcon, TerminalIcon } from "@/components/ui/lotus-icons"
+import { BrowserIcon, DesktopIcon, FilesIcon, HomeIcon, LiveSiteIcon, RefreshIcon, ResearchIcon, TerminalIcon } from "@/components/ui/lotus-icons"
 import { TerminalPanel } from "@/components/computer/terminal-panel"
 import type { TerminalEntry } from "@/lib/backend/terminal"
+import type { DesktopState } from "@/lib/backend/desktop"
+import { DesktopPanel } from "@/components/computer/desktop-panel"
 
 function formatBrowserHost(url: string) {
   try {
@@ -584,14 +586,16 @@ function defineLotusMonacoThemes(monaco: Monaco) {
 
 // ─── Workspace tab bar ────────────────────────────────────────────────────────
 
-export function WorkspaceViewTabs({ activeTab, onChange, hasBrowser, hasResearch }: {
+export function WorkspaceViewTabs({ activeTab, onChange, hasBrowser, hasResearch, hasDesktop }: {
   activeTab: WorkspaceTab
   onChange: (tab: WorkspaceTab) => void
   hasBrowser: boolean
   hasResearch: boolean
+  hasDesktop: boolean
 }) {
   const tabs = [
     { id: "preview", label: "Preview", icon: LiveSiteIcon, visible: true },
+    { id: "desktop", label: "Desktop", icon: DesktopIcon, visible: hasDesktop },
     { id: "code", label: "Files", icon: FilesIcon, visible: true },
     { id: "terminal", label: "Terminal", icon: TerminalIcon, visible: true },
     { id: "browser", label: "Browser", icon: BrowserIcon, visible: hasBrowser },
@@ -770,6 +774,7 @@ export function WorkspaceContent({
   files = [],
   codeTheme = "light",
   terminalEntries = [],
+  desktop = { status: "none" },
 }: {
   session: ComputerSessionResponse
   status: ComputerSessionStatus
@@ -793,6 +798,7 @@ export function WorkspaceContent({
   files?: Array<{ path: string; content: string }>
   codeTheme?: "dark" | "light"
   terminalEntries?: TerminalEntry[]
+  desktop?: DesktopState
 }) {
   const sessionPlatform = normalizePlatform(session.platform)
   const workspaceProgress = progress ?? {
@@ -818,6 +824,10 @@ export function WorkspaceContent({
 
   if (activeTab === "terminal") {
     return <TerminalPanel entries={terminalEntries} />
+  }
+
+  if (activeTab === "desktop") {
+    return <DesktopPanel sessionId={session.id} desktop={desktop} />
   }
 
   if (activeTab === "research") {

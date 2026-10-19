@@ -100,6 +100,39 @@ test('project navigation resolves the computer session for both sidebar actions'
   await assert.rejects(projectSessionPath(withoutSession, { id: 'p2' }), MissingProjectSessionError)
 })
 
+test('desktop tickets use an authenticated POST and validate the session-specific socket path', async () => {
+  const requests: { url: string; method?: string; body?: string }[] = []
+  const client = new BackendClient({
+    origin: 'https://api.example.test',
+    token: async () => 'id-token',
+    fetch: async (input, init) => {
+      requests.push({ url: String(input), method: init?.method, body: init?.body as string | undefined })
+      return Response.json({ ticket: 'one-use-ticket', expiresInSeconds: 30, path: '/sessions/session_1/desktop' })
+    },
+  })
+  assert.deepEqual(await client.desktopTicket('session_1'), {
+    ticket: 'one-use-ticket',
+    expiresInSeconds: 30,
+    path: '/sessions/session_1/desktop',
+  })
+  assert.deepEqual(requests, [{
+    url: 'https://api.example.test/sessions/session_1/desktop-ticket',
+    method: 'POST',
+    body: undefined,
+  }])
+
+  const invalidPath = new BackendClient({
+    origin: 'https://api.example.test',
+    token: async () => 'id-token',
+    fetch: async () => Response.json({ ticket: 'one-use-ticket', expiresInSeconds: 30, path: '/sessions/other/desktop' }),
+  })
+  await assert.rejects(invalidPath.desktopTicket('session_1'), (error: unknown) => {
+    assert.ok(error instanceof BackendError)
+    assert.equal(error.code, 'response/invalid')
+    return true
+  })
+})
+
 test('auth UI distinguishes provider configuration failures without exposing raw error data', () => {
   const sensitiveMessage = 'email=private@example.test token=private-token apiKey=private-key'
   for (const code of ['auth/invalid-api-key', 'auth/unauthorized-domain', 'auth/operation-not-allowed', 'auth/popup-blocked', 'auth/network-request-failed']) {

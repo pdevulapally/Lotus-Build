@@ -10,6 +10,7 @@ import {
 export function useAutoOpenWorkspace({
   isRunning,
   previewUrl,
+  desktopReady,
   workspacePanel,
   activeTab,
   setWorkspacePanel,
@@ -18,6 +19,7 @@ export function useAutoOpenWorkspace({
 }: {
   isRunning: boolean
   previewUrl: string | null
+  desktopReady: boolean
   workspacePanel: WorkspacePanelMode
   activeTab: WorkspaceTab
   setWorkspacePanel: Dispatch<SetStateAction<WorkspacePanelMode>>
@@ -26,6 +28,7 @@ export function useAutoOpenWorkspace({
 }) {
   const wasRunningRef = useRef(false)
   const previousPreviewUrlRef = useRef<string | null>(null)
+  const previousDesktopReadyRef = useRef(false)
 
   useEffect(() => {
     const decision = decideWorkspaceAutoOpen({
@@ -34,16 +37,19 @@ export function useAutoOpenWorkspace({
       wasRunning: wasRunningRef.current,
       previewUrl,
       previousPreviewUrl: previousPreviewUrlRef.current,
+      desktopReady,
+      previousDesktopReady: previousDesktopReadyRef.current,
       workspacePanel,
       activeTab,
       userClosed: userClosedRef.current,
     })
     wasRunningRef.current = isRunning
     previousPreviewUrlRef.current = previewUrl
+    previousDesktopReadyRef.current = desktopReady
     if (decision.resetUserClosed) userClosedRef.current = false
     if (decision.workspacePanel && workspacePanel === 'closed') {
       setWorkspacePanel(decision.workspacePanel)
     }
     if (decision.activeTab) setActiveTab(decision.activeTab)
-  }, [activeTab, isRunning, previewUrl, setActiveTab, setWorkspacePanel, userClosedRef, workspacePanel])
+  }, [activeTab, desktopReady, isRunning, previewUrl, setActiveTab, setWorkspacePanel, userClosedRef, workspacePanel])
 }
