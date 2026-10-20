@@ -2,7 +2,7 @@
 .hero { position: relative; overflow: hidden; padding: 132px 24px 0; text-align: center; isolation: isolate; }
 .grid { position: absolute; inset: 0; z-index: -1; background-image: radial-gradient(color-mix(in oklch, var(--foreground) 11%, transparent) 1.1px, transparent 1.1px); background-size: 22px 22px; mask-image: linear-gradient(to bottom, rgba(0,0,0,.9), rgba(0,0,0,.55) 55%, transparent 92%); }
 .inner { position: relative; max-width: 1040px; margin: 0 auto; }
-.hero h1 { margin: 0 auto; font-family: var(--font-heading); font-size: clamp(46px, 7vw, 100px); line-height: .98; letter-spacing: -.055em; font-weight: 700; text-wrap: balance; }
+.hero h1 { margin: 0 auto; font-family: var(--font-heading); font-size: clamp(30px, 8.8vw, 86px); line-height: 1.02; letter-spacing: -.055em; font-weight: 700; white-space: nowrap; }
 .intro { max-width: 620px; margin: 28px auto 40px; font-size: 18px; line-height: 1.6; font-weight: 500; color: var(--muted-foreground); text-wrap: pretty; }
 .composer { max-width: 780px; margin: 0 auto; text-align: left; }
 
@@ -70,7 +70,6 @@
 
 @media (max-width: 760px) {
   .hero { padding: 84px 16px 0; }
-  .hero h1 { font-size: clamp(40px, 12vw, 56px); }
   .intro { margin: 18px auto 28px; font-size: 15.5px; }
   .categories { display: flex; width: 100%; overflow-x: auto; scrollbar-width: none; }
   .categories button { flex: 1 0 auto; }
