@@ -9,53 +9,27 @@ export type StartMode = 'plan' | 'build'
 export type LandingIcon = ComponentType<SVGProps<SVGSVGElement>>
 
 export type Brief = { label: string; mode: StartMode; prompt: string }
-export type HeroCategory = { key: string; label: string; icon: LandingIcon; briefs: readonly Brief[] }
+export type HeroCategory = Brief & { key: string; icon: LandingIcon }
 
 export const heroCategories = [
-  {
-    key: 'websites', label: 'Websites', icon: WebsiteIcon,
-    briefs: [
-      { label: 'Business website', mode: 'build', prompt: 'Help me build a website for my business. Ask about the business, its customers, and the pages it needs before proposing an approach.' },
-      { label: 'Booking site', mode: 'build', prompt: 'Build a booking website for my salon with services, prices and an appointment calendar. Ask what you need to know first.' },
-      { label: 'Launch page', mode: 'plan', prompt: 'Help me plan a launch page for a new product. Ask about the audience and the one action visitors should take.' },
-    ],
-  },
-  {
-    key: 'apps', label: 'Apps', icon: TeamAppIcon,
-    briefs: [
-      { label: 'App for my team', mode: 'build', prompt: 'Help me create an app for my team. Ask about our workflow, who will use it, and what it needs to do first.' },
-      { label: 'Client portal', mode: 'plan', prompt: 'Help me plan a client portal where customers can see project progress, files and invoices. Ask about my clients first.' },
-      { label: 'Inventory tracker', mode: 'build', prompt: 'Build an inventory tracker for a small shop: stock levels, low-stock alerts and a simple history. Ask what I sell first.' },
-    ],
-  },
-  {
-    key: 'tools', label: 'Internal tools', icon: ToolIcon,
-    briefs: [
-      { label: 'Approvals dashboard', mode: 'build', prompt: 'Build an internal tool where managers approve expense and leave requests. Ask about our approval rules first.' },
-      { label: 'Onboarding checklist', mode: 'build', prompt: 'Build an onboarding checklist app for new starters with tasks, owners and due dates. Ask about our onboarding steps first.' },
-      { label: 'Weekly report', mode: 'plan', prompt: 'Help me plan a reporting tool that turns our weekly numbers into one clear page. Ask where the numbers come from first.' },
-    ],
-  },
-  {
-    key: 'plans', label: 'Just planning', icon: PlanIcon,
-    briefs: [
-      { label: 'Plan an idea', mode: 'plan', prompt: 'Help me plan a software project. Ask about the problem, the users, and the requirements before proposing an approach.' },
-      { label: 'Scope an MVP', mode: 'plan', prompt: 'Help me scope a first version of my product. Ask what matters most, then propose the smallest version worth launching.' },
-      { label: 'Compare approaches', mode: 'plan', prompt: 'Help me compare two ways to build my idea. Ask about budget, timeline and who maintains it, then recommend one.' },
-    ],
-  },
+  { key: 'websites', label: 'Websites', icon: WebsiteIcon, mode: 'build', prompt: 'Help me build a website for my business. Ask about the business, its customers, and the pages it needs before proposing an approach.' },
+  { key: 'apps', label: 'Apps', icon: TeamAppIcon, mode: 'build', prompt: 'Help me create an app for my team. Ask about our workflow, who will use it, and what it needs to do first.' },
+  { key: 'tools', label: 'Internal tools', icon: ToolIcon, mode: 'build', prompt: 'Help me build an internal tool for my team. Ask about the process it should replace and who will use it first.' },
+  { key: 'plans', label: 'Just planning', icon: PlanIcon, mode: 'plan', prompt: 'Help me plan a software project. Ask about the problem, the users, and the requirements before proposing an approach.' },
 ] as const satisfies readonly HeroCategory[]
 
+export type HeroCategoryKey = (typeof heroCategories)[number]['key']
+
 export type ShowcaseKind = 'bookings' | 'calendar' | 'invoice' | 'board' | 'stat' | 'storefront'
-export type ShowcaseTile = { kind: ShowcaseKind; title: string; caption: string; tone: 'light' | 'dark' | 'soft'; mode: StartMode; prompt: string }
+export type ShowcaseTile = { kind: ShowcaseKind; category: HeroCategoryKey; title: string; caption: string; tone: 'light' | 'dark' | 'soft'; mode: StartMode; prompt: string }
 
 export const showcaseTiles = [
-  { kind: 'stat', title: 'Bookings this week', caption: 'Salon dashboard', tone: 'dark', mode: 'build', prompt: 'Build a dashboard for my salon showing bookings, revenue and busiest days. Ask what I track today first.' },
-  { kind: 'calendar', title: 'Pick a time', caption: 'Booking website', tone: 'light', mode: 'build', prompt: 'Build a booking website for my salon with services, prices and an appointment calendar. Ask what you need to know first.' },
-  { kind: 'board', title: 'Approvals', caption: 'Internal tool', tone: 'soft', mode: 'build', prompt: 'Build an internal tool where managers approve expense and leave requests. Ask about our approval rules first.' },
-  { kind: 'invoice', title: 'Invoice #1042', caption: 'Client portal', tone: 'light', mode: 'plan', prompt: 'Help me plan a client portal where customers can see project progress, files and invoices. Ask about my clients first.' },
-  { kind: 'bookings', title: 'Stock levels', caption: 'Inventory tracker', tone: 'dark', mode: 'build', prompt: 'Build an inventory tracker for a small shop: stock levels, low-stock alerts and a simple history. Ask what I sell first.' },
-  { kind: 'storefront', title: 'Fresh bread, daily', caption: 'Business website', tone: 'soft', mode: 'build', prompt: 'Help me build a website for my bakery. Ask about the shop, its customers, and the pages it needs before proposing an approach.' },
+  { kind: 'stat', category: 'apps', title: 'Bookings this week', caption: 'Salon dashboard', tone: 'dark', mode: 'build', prompt: 'Build a dashboard for my salon showing bookings, revenue and busiest days. Ask what I track today first.' },
+  { kind: 'calendar', category: 'websites', title: 'Pick a time', caption: 'Booking website', tone: 'light', mode: 'build', prompt: 'Build a booking website for my salon with services, prices and an appointment calendar. Ask what you need to know first.' },
+  { kind: 'board', category: 'tools', title: 'Approvals', caption: 'Internal tool', tone: 'soft', mode: 'build', prompt: 'Build an internal tool where managers approve expense and leave requests. Ask about our approval rules first.' },
+  { kind: 'invoice', category: 'plans', title: 'Invoice #1042', caption: 'Client portal', tone: 'light', mode: 'plan', prompt: 'Help me plan a client portal where customers can see project progress, files and invoices. Ask about my clients first.' },
+  { kind: 'bookings', category: 'apps', title: 'Stock levels', caption: 'Inventory tracker', tone: 'dark', mode: 'build', prompt: 'Build an inventory tracker for a small shop: stock levels, low-stock alerts and a simple history. Ask what I sell first.' },
+  { kind: 'storefront', category: 'websites', title: 'Fresh bread, daily', caption: 'Business website', tone: 'soft', mode: 'build', prompt: 'Help me build a website for my bakery. Ask about the shop, its customers, and the pages it needs before proposing an approach.' },
 ] as const satisfies readonly ShowcaseTile[]
 
 export type DemoSceneKey = 'plan' | 'build' | 'preview'

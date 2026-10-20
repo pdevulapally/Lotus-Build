@@ -6,23 +6,18 @@
 .intro { max-width: 620px; margin: 28px auto 40px; font-size: 18px; line-height: 1.6; font-weight: 500; color: var(--muted-foreground); text-wrap: pretty; }
 .composer { max-width: 780px; margin: 0 auto; text-align: left; }
 
-.categories { position: relative; display: inline-flex; gap: 2px; margin: 28px auto 0; padding: 4px; border-radius: 999px; background: color-mix(in oklch, var(--foreground) 5%, transparent); }
+.categories { position: relative; display: inline-flex; gap: 2px; margin: 24px auto 0; padding: 4px; border-radius: 999px; background: color-mix(in oklch, var(--foreground) 5%, transparent); }
 .categories button { position: relative; display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; border: 0; border-radius: 999px; background: transparent; color: var(--muted-foreground); font-size: 13px; font-weight: 650; cursor: pointer; transition: color 160ms ease; }
 .categories button:hover, .categories button[data-active] { color: var(--foreground); }
 .categoryPill { position: absolute; inset: 0; border-radius: 999px; background: var(--card); box-shadow: 0 1px 2px color-mix(in oklch, var(--foreground) 10%, transparent), 0 0 0 1px color-mix(in oklch, var(--border) 80%, transparent); }
 .categoryLabel { position: relative; display: inline-flex; align-items: center; gap: 7px; }
 
-.briefRow { display: flex; justify-content: center; min-height: 40px; margin-top: 14px; }
-.briefs { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
-.briefs button { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px 0 14px; border: 0; border-radius: 999px; background: transparent; color: var(--foreground); font-size: 13.5px; font-weight: 600; letter-spacing: -.005em; cursor: pointer; box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--border) 85%, transparent); transition: background-color 160ms ease, box-shadow 160ms ease, color 160ms ease; }
-.briefs button svg { color: var(--muted-foreground); transition: transform 160ms ease, color 160ms ease; }
-.briefs button:hover { background: var(--foreground); color: var(--background); box-shadow: none; }
-.briefs button:hover svg { color: inherit; transform: translateX(2px); }
-
 /* Showcase strip */
 .showcase { position: relative; margin-top: 72px; padding-bottom: 56px; overflow: hidden; }
 .tiles { display: flex; justify-content: center; align-items: flex-end; gap: 16px; position: relative; left: 50%; width: max-content; min-width: 100%; margin: 0; padding: 0 16px; list-style: none; transform: translateX(-50%); }
-.tile { flex: 0 0 auto; }
+.tile { flex: 0 0 auto; transition: opacity 240ms ease; }
+.tile[data-dimmed] { opacity: .38; }
+.tile[data-dimmed]:hover { opacity: 1; }
 .tile button { display: flex; flex-direction: column; gap: 14px; width: 260px; height: 230px; padding: 18px 18px 16px; border: 0; border-radius: 18px; background: var(--card); color: var(--foreground); text-align: left; cursor: pointer; box-shadow: 0 1px 2px color-mix(in oklch, var(--foreground) 8%, transparent), 0 0 0 1px color-mix(in oklch, var(--border) 70%, transparent); transition: transform 220ms cubic-bezier(.22,1,.36,1), box-shadow 220ms ease; }
 .tile:nth-child(2) button, .tile:nth-child(5) button { width: 300px; height: 250px; }
 .tile:nth-child(3) button { height: 210px; }
@@ -79,8 +74,6 @@
   .intro { margin: 18px auto 28px; font-size: 15.5px; }
   .categories { display: flex; width: 100%; overflow-x: auto; scrollbar-width: none; }
   .categories button { flex: 1 0 auto; }
-  .briefs { gap: 6px; }
-  .briefs button { font-size: 13px; }
   .showcase { margin-top: 48px; padding-bottom: 40px; }
   .tiles { left: 0; justify-content: flex-start; transform: none; overflow-x: auto; width: 100%; scrollbar-width: none; scroll-snap-type: x mandatory; }
   .tile { scroll-snap-align: start; }

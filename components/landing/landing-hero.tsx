@@ -1,26 +1,21 @@
 "use client"
 import { useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { AnimatedAIInput } from '@/components/ui/animated-ai-input'
 import { RevealGroup, RevealItem } from '@/components/ui/reveal'
-import { ArrowRightIcon } from '@/components/ui/lotus-icons'
-import { duration, ease, spring } from '@/lib/motion'
-import { heroCategories, showcaseTiles, type Brief } from './landing-content'
+import { spring } from '@/lib/motion'
+import { heroCategories, showcaseTiles, type Brief, type HeroCategoryKey } from './landing-content'
 import { showcaseVisuals } from './showcase-tiles'
 import styles from './landing-hero.module.css'
 
 export type BriefRequest = { prompt?: string; mode?: Brief['mode']; id: number }
 
-const swap = {
-  initial: { opacity: 0, y: 6 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -6 },
-  transition: { duration: duration.fast, ease },
-}
-
 export function LandingHero({ request, onBrief }: { request: BriefRequest; onBrief: (brief: Brief) => void }) {
-  const [categoryKey, setCategoryKey] = useState<string>(heroCategories[0].key)
-  const category = heroCategories.find((entry) => entry.key === categoryKey) ?? heroCategories[0]
+  const [categoryKey, setCategoryKey] = useState<HeroCategoryKey | null>(null)
+  const chooseCategory = (category: (typeof heroCategories)[number]) => {
+    setCategoryKey(category.key)
+    onBrief(category)
+  }
 
   return (
     <section className={styles.hero} aria-labelledby="landing-heading">
@@ -40,27 +35,16 @@ export function LandingHero({ request, onBrief }: { request: BriefRequest; onBri
             portalClassName={styles.popover}
           />
         </RevealItem>
-        <RevealItem className={styles.categories} role="tablist" aria-label="What are you building?">
+        <RevealItem className={styles.categories} role="group" aria-label="Start from a type of project">
           {heroCategories.map((entry) => {
-            const active = entry.key === category.key
+            const active = entry.key === categoryKey
             return (
-              <button key={entry.key} type="button" role="tab" aria-selected={active} onClick={() => setCategoryKey(entry.key)} data-active={active || undefined}>
+              <button key={entry.key} type="button" aria-pressed={active} onClick={() => chooseCategory(entry)} data-active={active || undefined}>
                 {active && <motion.span layoutId="hero-category" className={styles.categoryPill} transition={spring} />}
                 <span className={styles.categoryLabel}><entry.icon width={14} height={14} />{entry.label}</span>
               </button>
             )
           })}
-        </RevealItem>
-        <RevealItem className={styles.briefRow}>
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div key={category.key} className={styles.briefs} role="group" aria-label={`Example ${category.label.toLowerCase()} briefs`} {...swap}>
-              {category.briefs.map((brief) => (
-                <button key={brief.label} type="button" onClick={() => onBrief(brief)}>
-                  {brief.label}<ArrowRightIcon width={13} height={13} />
-                </button>
-              ))}
-            </motion.div>
-          </AnimatePresence>
         </RevealItem>
       </RevealGroup>
 
@@ -69,7 +53,7 @@ export function LandingHero({ request, onBrief }: { request: BriefRequest; onBri
           {showcaseTiles.map((tile) => {
             const Visual = showcaseVisuals[tile.kind]
             return (
-              <RevealItem as="li" key={tile.title} className={styles.tile} data-tone={tile.tone}>
+              <RevealItem as="li" key={tile.title} className={styles.tile} data-tone={tile.tone} data-dimmed={(categoryKey !== null && tile.category !== categoryKey) || undefined}>
                 <button type="button" onClick={() => onBrief({ label: tile.caption, mode: tile.mode, prompt: tile.prompt })} aria-label={`Start a ${tile.caption.toLowerCase()} like this`}>
                   <span className={styles.tileHead}><strong>{tile.title}</strong><small>{tile.caption}</small></span>
                   <Visual />
