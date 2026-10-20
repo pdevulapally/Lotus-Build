@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import { ArrowRight, ArrowUp, Check, Loader2, Crown, Mic, Square, Leaf, X, ChevronUp } from "lucide-react";
+import { ArrowRight, ArrowUp, Check, Crown, Mic, Square, Leaf, X, ChevronUp } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -594,10 +594,7 @@ export function AnimatedAIInput({
                 active={isListening}
                 className={cn(isAssistant && "h-11 w-11 rounded-full")}
               >
-                {isListening
-                  ? <Loader2 className="h-4 w-4 animate-spin" />
-                  : <Mic className="h-4 w-4" />
-                }
+                <Mic className={cn("h-4 w-4", isListening && "animate-pulse")} />
               </IconButton>
             )}
 
@@ -627,7 +624,7 @@ export function AnimatedAIInput({
                   {hasSubmitLabel && <span>Stop</span>}
                 </>
               ) : isCreating || isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <ArrowUp className="h-4 w-4 animate-pulse opacity-60" />
               ) : hasSubmitLabel ? (
                 <>
                   <span>{submitLabel}</span>

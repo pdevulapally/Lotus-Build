@@ -91,7 +91,7 @@ test('repeated clean stream closures are bounded rather than silently reconnecti
   let calls = 0; const errors: string[] = []
   const client = new BackendClient({ origin: 'https://api.example.test', token: async () => 'token', fetch: async () => { calls++; return eventStream('') } })
   await followSessionEvents(client, 's1', { signal: new AbortController().signal, refreshToken: async () => {}, onEvent: () => {}, onError: (error) => errors.push(error) }, noWait)
-  assert.equal(calls, 5); assert.match(errors.at(-1)!, /stopped after repeated interruptions/)
+  assert.equal(calls, 6); assert.match(errors.at(-1)!, /stopped after repeated interruptions/)
 })
 
 test('revoked stream access stops without retrying or refreshing credentials', async () => {

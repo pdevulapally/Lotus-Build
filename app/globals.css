@@ -493,7 +493,8 @@
     animation: none !important;
   }
 
-  .animate-shimmer {
+  .animate-shimmer,
+  .skeleton-shimmer {
     animation: none !important;
     background-position: 0 0 !important;
   }
@@ -778,6 +779,18 @@ html::-webkit-scrollbar {
 
 .animate-shimmer {
   animation: shimmer 6s linear infinite;
+}
+
+.skeleton-shimmer {
+  background-color: var(--muted);
+  background-image: linear-gradient(
+    100deg,
+    var(--muted) 35%,
+    color-mix(in srgb, var(--card) 70%, var(--muted)) 50%,
+    var(--muted) 65%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s linear infinite;
 }
 
 @layer utilities {

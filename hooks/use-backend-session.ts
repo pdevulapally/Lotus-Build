@@ -144,8 +144,6 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
   const [preview, setPreview] = useState<string | null>(null)
   const [fileCount, setFileCount] = useState<number | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
-  const [usage, setUsage] = useState<{ meterKey: string; unit: string; label: string; settled: number; open: number }[] | null>(null)
-  const [usageError, setUsageError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [streamError, setStreamError] = useState<string | null>(null)
@@ -160,7 +158,6 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
     setDesktop({ status: 'none' })
     setError(null); setStreamError(null); setLoading(true)
     setFileCount(null); setFileError(null)
-    setUsage(null); setUsageError(null)
     if (!user) { setError('Sign in to open this session.'); setLoading(false); return }
     let loadVersion = 0
     let streamText = ''
@@ -177,10 +174,6 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
       if (next.id !== id || parent.id !== next.projectId) throw new Error('The server returned a mismatched session or project.')
       if (signal.aborted || version !== loadVersion) return
       setSession(next); setProject(parent); setMessages(history.messages); setQueued(waiting.queuedMessages)
-      void client.sessionUsage(id, signal).then((value) => {
-        if (value.sessionId !== id) throw new Error('The server returned usage for a different session.')
-        if (!signal.aborted && version === loadVersion) { setUsage(value.meters); setUsageError(null) }
-      }).catch((reason) => { if (!signal.aborted && version === loadVersion) { setUsage(null); setUsageError(reason instanceof Error ? reason.message : 'Could not load session usage.') } })
       void client.files(parent.id, signal).then((tree) => {
         if (!signal.aborted && version === loadVersion) { setFileCount(tree.truncated ? null : tree.files.length); setFileError(tree.truncated ? 'File listing is limited by the server. Open Code to inspect the saved files.' : null) }
       }).catch((reason) => { if (!signal.aborted && version === loadVersion) { setFileCount(null); setFileError(reason instanceof Error ? reason.message : 'Could not load saved files.') } })
@@ -200,7 +193,7 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
       try { await reload(); if (!signal.aborted) setLoading(false) }
       catch (reason) { if (!signal.aborted) { setError(reason instanceof Error ? reason.message : 'Could not load session.'); setLoading(false) }; return }
       await followSessionEvents(currentBackend(), id, {
-          signal, refreshToken: () => user.getIdToken(true), onError: setStreamError,
+          signal, refreshToken: () => user.getIdToken(true), onError: setStreamError, onConnected: () => setStreamError(null),
           onEvent: (event) => {
             if (signal.aborted) return
             if (event.type === 'preview.ready') setPreview(previewUrl(event.data.url, window.location.origin))
@@ -230,5 +223,5 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
     return () => { controller.abort(); if (refreshTimer !== undefined) clearTimeout(refreshTimer); if (textFrame !== undefined) cancelAnimationFrame(textFrame); refreshRef.current = async () => { throw new Error('The session connection is closed.') } }
   }, [id, user, authLoading, revision])
   return { session, project, messages, queued, events, terminal, desktop, text, preview: project?.publicPreviewEnabled === true ? preview : null,
-    fileCount, fileError, usage, usageError, loading, error, streamError, refresh, reconnect }
+    fileCount, fileError, loading, error, streamError, refresh, reconnect }
 }

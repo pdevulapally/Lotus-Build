@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, type ReactNode } from "react"
-import { Loader2 } from "lucide-react"
+import { Shimmer } from "@/components/ai-elements/shimmer"
 import { Button } from "@/components/ui/button"
 import { BackendError } from "@/lib/backend/client"
 import { currentBackend } from "@/lib/backend/browser"
@@ -37,8 +37,9 @@ export function DesktopPanelView({
       </div>
       {state !== "live" && (
         <div role="status" className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
-          {state === "connecting" && <Loader2 className="size-4 animate-spin text-muted-foreground" aria-hidden />}
-          <p className="text-sm font-medium text-muted-foreground">{stateCopy[state]}</p>
+          {state === "connecting"
+            ? <Shimmer className="text-sm font-medium">{stateCopy[state]}</Shimmer>
+            : <p className="text-sm font-medium text-muted-foreground">{stateCopy[state]}</p>}
           {onRetry && (state === "failed" || state === "capacity" || state === "slow") && (
             <Button type="button" variant="outline" size="sm" onClick={onRetry}>Try again</Button>
           )}

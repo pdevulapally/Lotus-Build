@@ -19,7 +19,6 @@ import {
   Copy,
   Database,
   FileCode2,
-  Loader2,
   Pencil,
   RotateCcw,
 } from "lucide-react"
@@ -206,8 +205,8 @@ function SupabaseQuestionCard({ onSetup, onDecline }: { onSetup: () => void; onD
               disabled={setting}
               className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50"
             >
-              {setting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Database className="h-3 w-3" />}
-              {setting ? "Setting up..." : "Set up Supabase"}
+              <Database className="h-3 w-3" />
+              {setting ? "Setting up…" : "Set up Supabase"}
             </button>
             <button
               type="button"
@@ -449,7 +448,7 @@ function FeedItem({
 
   if (event.title === "Response" && event.description) {
     return (
-      <div className="py-4 pr-2">
+      <div className="py-3 pr-2">
         <Markdown>{event.description}</Markdown>
       </div>
     )
@@ -512,15 +511,9 @@ function FeedItem({
     <div className={cn(isRunning ? "py-2.5" : "py-1")}>
       <div className="min-w-0 flex-1">
         {isRunning ? (
-          <div className="flex items-center gap-2.5">
-            <span className="relative flex h-2 w-2 shrink-0">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-foreground/20" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-foreground/50" />
-            </span>
-            <Shimmer className="text-[13.5px] font-semibold">
-              {title}
-            </Shimmer>
-          </div>
+          <Shimmer className="text-[13.5px] font-semibold">
+            {title}
+          </Shimmer>
         ) : (
           <p
             className={cn(
@@ -654,7 +647,7 @@ function UserMessageBubble({
             </button>
           )}
           {showRestoreButton && restoreState === "restoring" && (
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+            <Shimmer className="text-[11px] font-medium">Restoring…</Shimmer>
           )}
         </div>
 
@@ -699,7 +692,6 @@ function UserMessageBubble({
             onClick={handleConfirmRestore}
             className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50"
           >
-            {restoreState === "restoring" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             {restoreState === "restoring" ? "Restoring…" : "Restore"}
           </button>
         </DialogFooter>
@@ -779,7 +771,7 @@ export function AgentFeed({
       ...events.map((event) => ({ time: Date.parse(event.createdAt), key: `event-${event.id}`, message: undefined, event })),
     ].sort((left, right) => left.time - right.time)
     return <div className="space-y-2.5 pb-4">
-      {rows.map(({ key, message, event }) => <div key={key} className={message?.role === 'user' ? 'pt-5 pb-5' : ''}>
+      {rows.map(({ key, message, event }) => <div key={key} className={message?.role === 'user' ? 'pt-6 pb-3' : ''}>
         {message?.role === 'user' ? <UserMessageBubble canEdit={false} content={message.content} index={message.seq} isEditing={false} editText=""
           onEditStart={onEditStart} onEditChange={onEditChange} onEditSubmit={onEditSubmit} onEditCancel={onEditCancel} />
           : <FeedItem event={event ?? { title: 'Response', description: message!.content, status: 'complete', createdAt: message!.createdAt, index: message!.seq }}

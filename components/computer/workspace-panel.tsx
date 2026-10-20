@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react"
 import Link from "next/link"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
 import { duration, ease, spring } from "@/lib/motion"
-import { BookOpen, Check, ChevronDown, ChevronRight, Copy, ExternalLink, FileCode, Folder, FolderOpen, Globe2, Laptop, Loader2, Monitor, ShieldAlert, Wrench } from "lucide-react"
+import { BookOpen, Check, ChevronDown, ChevronRight, Copy, ExternalLink, FileCode, Folder, FolderOpen, Globe2, Laptop, Monitor, ShieldAlert, Wrench } from "lucide-react"
 import Editor, { DiffEditor, type Monaco } from "@monaco-editor/react"
 import { TextShimmer } from "@/components/prompt-kit/text-shimmer"
 import { normalizePlatform } from "@/lib/projects/platform"
@@ -21,6 +21,8 @@ import {
 } from "@/components/computer/session-types"
 import { SavedProjectFiles as ComputerCodePanel } from "@/components/computer/saved-project-content"
 import { cn } from "@/lib/utils"
+import { Shimmer } from "@/components/ai-elements/shimmer"
+import { skeletonClass } from "@/components/ui/skeleton"
 import { IsolatedPreviewFrame } from "@/components/project/isolated-preview-frame"
 import { BrowserIcon, DesktopIcon, FilesIcon, HomeIcon, LiveSiteIcon, RefreshIcon, ResearchIcon, TerminalIcon } from "@/components/ui/lotus-icons"
 import { TerminalPanel } from "@/components/computer/terminal-panel"
@@ -945,8 +947,7 @@ function PreviewPane({
         {isIframeLoading && (
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-end justify-center pb-4">
             <div className="bg-card flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-medium text-muted-foreground">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              Loading preview…
+              <Shimmer className="text-[11px] font-medium">Loading preview…</Shimmer>
             </div>
           </div>
         )}
@@ -974,7 +975,7 @@ function PreviewPane({
 }
 
 export function LoadingShell() {
-  const bone = "animate-pulse rounded-md bg-muted"
+  const bone = skeletonClass
   return (
     <div className="flex h-[100dvh] overflow-hidden bg-background" aria-busy="true" aria-label="Loading workspace">
       <aside aria-hidden className="hidden w-[256px] shrink-0 border-r border-border/30 bg-muted/25 lg:flex lg:flex-col">

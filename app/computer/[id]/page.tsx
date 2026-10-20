@@ -45,7 +45,6 @@ import {
   Globe,
   GitBranch,
   KeyRound,
-  Loader2,
   Rocket,
   Search,
 } from "lucide-react"
@@ -546,10 +545,6 @@ export default function ComputerPage() {
                 }}>Discard pending message</button>
               </div>
             )}
-            <details className="mb-2 text-xs text-muted-foreground">
-              <summary className="cursor-pointer rounded-lg py-1 font-medium transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Session usage</summary>
-              {backend.usageError ? <p role="alert" className="mt-2 text-destructive">{backend.usageError}</p> : backend.usage === null ? <p role="status" className="mt-2">Loading usage…</p> : backend.usage.length === 0 ? <p className="mt-2">No usage recorded for this session.</p> : <dl className="mt-2 space-y-1">{backend.usage.map((meter) => <div key={meter.meterKey} className="flex justify-between gap-3"><dt>{meter.label}</dt><dd>{meter.settled.toLocaleString()} settled · {meter.open.toLocaleString()} reserved {meter.unit}</dd></div>)}</dl>}
-            </details>
             <AnimatedAIInput
               mode="chat" compact compactSize="slim" appearance="assistant" initialModel={raw?.model}
               isLoading={isRunning} onStop={handleStop} onSubmit={(prompt) => handleRun(prompt)}

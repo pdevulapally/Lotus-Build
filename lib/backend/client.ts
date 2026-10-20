@@ -216,11 +216,12 @@ export class BackendClient {
   cancel(sessionId: string, key: string) { return this.json(sessionSchema, `/sessions/${id.parse(sessionId)}/cancel`, { method: 'POST', key: keySchema.parse(key) }) }
 
   /** One connection. Caller owns reconnect UI/backoff; control frames never advance the resume cursor. */
-  async events(sessionId: string, options: { signal: AbortSignal; after?: string; onEvent: (event: SessionEvent) => void | Promise<void> }) {
+  async events(sessionId: string, options: { signal: AbortSignal; after?: string; onOpen?: () => void; onEvent: (event: SessionEvent) => void | Promise<void> }) {
     const response = await this.response(`/sessions/${id.parse(sessionId)}/events`, { signal: options.signal, after: options.after })
     if (!response.headers.get('content-type')?.toLowerCase().startsWith('text/event-stream') || !response.body) {
       throw new BackendError(502, 'stream/invalid', 'The server did not return an event stream.')
     }
+    options.onOpen?.()
     await readEvents(response.body, options.onEvent)
   }
 }

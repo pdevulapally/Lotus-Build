@@ -2,17 +2,15 @@
 
 import { useEffect, useRef } from "react"
 import { motion } from "framer-motion"
-import { Check, Loader2, XCircle } from "lucide-react"
+import { Check, XCircle } from "lucide-react"
+import { Shimmer } from "@/components/ai-elements/shimmer"
 import { duration, ease } from "@/lib/motion"
 import type { TerminalEntry } from "@/lib/backend/terminal"
 
 function EntryStatus({ entry }: { entry: TerminalEntry }) {
   if (entry.status === "running") {
     return (
-      <span className="inline-flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
-        <Loader2 className="size-3.5 animate-spin" aria-hidden />
-        Running
-      </span>
+      <Shimmer className="shrink-0 text-xs font-medium">Running</Shimmer>
     )
   }
 
