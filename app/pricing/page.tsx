@@ -2,7 +2,8 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, ArrowRight, Check, LoaderCircle } from 'lucide-react'
+import { ArrowLeft, LoaderCircle } from 'lucide-react'
+import { ArrowRightIcon, CheckIcon } from '@/components/ui/lotus-icons'
 import { Navbar } from '@/components/ui/navbar'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -12,15 +13,9 @@ import { useAuth } from '@/contexts/auth-context'
 import { currentBackend } from '@/lib/backend/browser'
 import { clearCheckoutAttempt, readCheckoutAttempt, saveCheckoutAttempt, type CheckoutAttempt } from '@/lib/backend/checkout-attempt'
 import type { BackendPlan } from '@/lib/backend/client'
+import { describeAllowance, featuredPlanKey, formatPlanPrice } from '@/lib/plans/format'
 import styles from './pricing.module.css'
 
-function priceLabel(plan: BackendPlan) {
-  if (!plan.price) return 'Price not listed'
-  const format = new Intl.NumberFormat(undefined, { style: 'currency', currency: plan.price.currency })
-  const digits = format.resolvedOptions().maximumFractionDigits
-  if (typeof digits !== 'number') throw new Error('Currency precision is unavailable.')
-  return format.format(plan.price.amountMinor / 10 ** digits)
-}
 export default function PricingPage() {
   const { user, account, loading: authLoading } = useAuth(); const router = useRouter()
   const [plans, setPlans] = useState<BackendPlan[] | null>(null)
@@ -93,81 +88,69 @@ export default function PricingPage() {
         </footer>
       </DialogContent>
     </Dialog>
-    <main className={`site-shell ${styles.main}`}>
-      <Link href="/" className={styles.backLink}>
-        <ArrowLeft aria-hidden="true" className="size-4" /> Back to Lotus
-      </Link>
-
-      <header className={styles.intro}>
-        <div>
-          <p className="site-eyebrow">Plans & pricing</p>
-          <h1 className={`site-title ${styles.title}`}>Make room for<br />your next idea.</h1>
-        </div>
-        <p className={`site-lead ${styles.lead}`}>
-          Compare what’s included and choose a plan for what you want to build.
-          Prices and usage limits are listed below, side by side.
-        </p>
-      </header>
+    <main className={styles.main}>
+      <RevealGroup as="header" className={styles.intro} animateOnMount>
+        <RevealItem as="p" className={styles.eyebrow}>Plans & pricing</RevealItem>
+        <RevealItem as="h1" className={styles.title}>Simple plans. Serious software.</RevealItem>
+        <RevealItem as="p" className={styles.lead}>Every plan includes the full workspace: planning, building, live preview, terminal and saved versions. Pick the usage that fits.</RevealItem>
+      </RevealGroup>
 
       <section aria-labelledby="compare-plans-heading" className={styles.comparison}>
-        <div className={styles.sectionHeading}>
-          <h2 id="compare-plans-heading" className="text-lg font-semibold tracking-tight">Compare plans</h2>
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            {account ? 'Your current plan is highlighted below.' : 'Compare included usage and limits before you choose.'}
-          </p>
-        </div>
+        <h2 id="compare-plans-heading" className="sr-only">Compare plans</h2>
 
         {error && <div role="alert" className={styles.statePanel}>
-          <h3 className="text-base font-semibold">{plans ? 'Checkout couldn’t open' : 'We couldn’t load the plans'}</h3>
-          <p className="mt-2 break-words text-sm leading-relaxed text-destructive">{error}</p>
-          <Button type="button" variant="outline" disabled={busy !== null} className="mt-5" onClick={() => setRevision((value) => value + 1)}>
-            Reload plans
-          </Button>
+          <h3>{plans ? 'Checkout couldn’t open' : 'We couldn’t load the plans'}</h3>
+          <p className="text-destructive">{error}</p>
+          <Button type="button" variant="outline" disabled={busy !== null} className="mt-5 rounded-full" onClick={() => setRevision((value) => value + 1)}>Reload plans</Button>
         </div>}
 
         {!plans && !error && <div role="status" className={styles.statePanel}>
           <div className="flex items-center gap-3">
             <LoaderCircle aria-hidden="true" className="size-5 shrink-0 animate-spin text-muted-foreground motion-reduce:animate-none" />
-            <h3 className="text-base font-semibold">Loading plans…</h3>
+            <h3>Loading plans…</h3>
           </div>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Getting the latest prices and included usage.</p>
+          <p>Getting the latest prices and included usage.</p>
         </div>}
 
         {plans?.length === 0 && <div role="status" className={styles.statePanel}>
-          <h3 className="text-base font-semibold">No plans available right now</h3>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">There are no plans to compare yet. You can check again below.</p>
-          <Button type="button" variant="outline" className="mt-5" onClick={() => setRevision((value) => value + 1)}>Check again</Button>
+          <h3>No plans available right now</h3>
+          <p>There are no plans to compare yet. You can check again below.</p>
+          <Button type="button" variant="outline" className="mt-5 rounded-full" onClick={() => setRevision((value) => value + 1)}>Check again</Button>
         </div>}
 
-        {plans && plans.length > 0 && <RevealGroup className={styles.plans} animateOnMount>
+        {plans && plans.length > 0 && <RevealGroup className={styles.plans} animateOnMount delayChildren={0.15} step={0.08}>
           {plans.map((plan) => {
             const isCurrent = account?.plan.key === plan.key
-            return <RevealItem as="article" key={plan.key} className={styles.plan} data-current={isCurrent || undefined}>
-              <h3 className="break-words text-xl font-semibold tracking-tight">{plan.name}</h3>
+            const featured = !account && plan.key === featuredPlanKey(plans)
+            const price = plan.price ? formatPlanPrice(plan.price) : null
+            return <RevealItem as="article" key={plan.key} className={styles.plan} data-current={isCurrent || undefined} data-featured={featured || undefined}>
+              <div className={styles.planHead}>
+                <h3>{plan.name}</h3>
+                {isCurrent && <span className={styles.badge}>Your plan</span>}
+                {featured && <span className={styles.badge}>Most popular</span>}
+              </div>
               <div className={styles.price}>
-                <p className={plan.price ? styles.amount : 'text-lg font-medium'}>{priceLabel(plan)}</p>
-                {plan.price && <p className="mt-2 text-sm text-muted-foreground">{plan.price.currency.toUpperCase()} / {plan.price.interval}</p>}
+                {price ? <><span className={styles.amount}>{price.amount}</span><span className={styles.interval}>{price.interval}</span></>
+                  : <><span className={styles.amount}>{plan.name}</span><span className={styles.interval}>included with every account</span></>}
               </div>
-
-              <div className={styles.allowances}>
-                <p className="mb-5 text-xs font-semibold text-muted-foreground">Included usage & limits</p>
-                {plan.allowances.length > 0 ? <dl className={styles.allowanceList}>
-                  {plan.allowances.map((allowance) => <div key={allowance.key}>
-                    <dt className="text-sm font-medium">{allowance.label}</dt>
-                    <dd className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                      <span className="font-semibold tabular-nums text-foreground">{allowance.included.toLocaleString()}</span> {allowance.unit} included
-                      <span className="mt-1 block">Limit: <span className="tabular-nums">{allowance.limit.toLocaleString()}</span> {allowance.unit}</span>
-                    </dd>
-                  </div>)}
-                </dl> : <p className="text-sm leading-relaxed text-muted-foreground">No usage allowances are listed for this plan.</p>}
-              </div>
-
               <div className={styles.planAction}>
-                {isCurrent ? <Button type="button" variant="outline" disabled className="h-auto min-h-12 w-full whitespace-normal opacity-100 disabled:opacity-100">
-                  <Check aria-hidden="true" /> Current plan
-                </Button> : plan.price ? <Button type="button" disabled={busy !== null} onClick={() => void subscribe(plan)} className="h-auto min-h-12 w-full whitespace-normal py-3" aria-busy={busy === plan.key}>
-                  {busy === plan.key ? <><LoaderCircle aria-hidden="true" className="animate-spin motion-reduce:animate-none" /> Opening checkout…</> : <>Choose {plan.name}<ArrowRight aria-hidden="true" /></>}
-                </Button> : <p className="text-sm leading-relaxed text-muted-foreground">Online checkout isn’t available for this plan.</p>}
+                {isCurrent ? <span className={styles.currentAction}><CheckIcon width={16} height={16} />Current plan</span>
+                  : plan.price ? <button type="button" disabled={busy !== null} onClick={() => void subscribe(plan)} className={styles.choose} aria-busy={busy === plan.key}>
+                    {busy === plan.key ? <><LoaderCircle aria-hidden="true" className="size-4 animate-spin motion-reduce:animate-none" /> Opening checkout…</> : <>Choose {plan.name}<ArrowRightIcon width={16} height={16} /></>}
+                  </button>
+                  : <Link href={user ? '/' : '/signup'} className={styles.chooseQuiet}>{user ? 'Open workspace' : 'Create a free account'}<ArrowRightIcon width={16} height={16} /></Link>}
+              </div>
+              <div className={styles.allowances}>
+                <p className={styles.allowanceLabel}>What’s included</p>
+                {plan.allowances.length > 0 ? <ul className={styles.allowanceList}>
+                  {plan.allowances.map((allowance) => {
+                    const described = describeAllowance(allowance)
+                    return <li key={allowance.key}>
+                      <span className={styles.allowanceName}>{allowance.label}</span>
+                      <span className={styles.allowanceValue}>{described.included}{described.ceiling && <small>{described.ceiling}</small>}</span>
+                    </li>
+                  })}
+                </ul> : <p className={styles.allowanceEmpty}>No usage allowances are listed for this plan.</p>}
               </div>
             </RevealItem>
           })}
@@ -177,10 +160,10 @@ export default function PricingPage() {
 
       <aside className={styles.help} aria-labelledby="pricing-help-heading">
         <div>
-          <h2 id="pricing-help-heading" className="text-base font-semibold">A question before you choose?</h2>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Visit Help for more about using LotusBuild.</p>
+          <h2 id="pricing-help-heading">Not sure which plan?</h2>
+          <p>Start free and upgrade when you need more usage. Your projects and history come with you.</p>
         </div>
-        <Button asChild variant="outline" className="min-h-11"><Link href="/help">Visit Help<ArrowRight aria-hidden="true" /></Link></Button>
+        <Link href="/help" className={styles.helpLink}>Visit Help<ArrowRightIcon width={16} height={16} /></Link>
       </aside>
     </main>
     <FooterSection />
