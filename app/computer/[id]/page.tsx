@@ -26,6 +26,7 @@ import { useAutoOpenWorkspace } from "@/hooks/use-auto-open-workspace"
 
 import { sendMessage, pendingMessageKey } from "@/lib/backend/send-message"
 import { cancelSession } from "@/lib/backend/cancel-session"
+import type { AttachmentRef } from "@/lib/backend/attachments"
 
 
 
@@ -334,12 +335,12 @@ export default function ComputerPage() {
   useEffect(() => {
     if (backend.desktop.status === 'none' && activeTab === 'desktop') setActiveTab('preview')
   }, [activeTab, backend.desktop.status])
-  const handleRun = async (prompt: string, nextMode?: 'build' | 'plan') => {
+  const handleRun = async (prompt: string, nextMode?: 'build' | 'plan', attachments: AttachmentRef[] = []) => {
     if (busyRef.current) throw new Error('A message is already being submitted.')
     if (!raw || !user) throw new Error('Session is not available.')
     busyRef.current = true; setIsStartingRun(true); setRunError(null)
     try {
-      await sendMessage(currentBackend(), sessionStorage, user.uid, raw.id, prompt, nextMode)
+      await sendMessage(currentBackend(), sessionStorage, user.uid, raw.id, prompt, nextMode, attachments)
       void backend.refresh().catch((reason) => setRunError(`Message accepted, but history refresh failed: ${reason instanceof Error ? reason.message : 'Request failed.'}`))
     } catch (reason) {
       setRunError(reason instanceof Error ? reason.message : 'Could not send message.')
@@ -549,7 +550,7 @@ export default function ComputerPage() {
             )}
             <AnimatedAIInput
               mode="chat" compact compactSize="slim" appearance="assistant" initialModel={raw?.model}
-              isLoading={isRunning} isStopping={isStopping} onStop={handleStop} onSubmit={(prompt) => handleRun(prompt)}
+              isLoading={isRunning} isStopping={isStopping} onStop={handleStop} onSubmit={(prompt, _model, attachments) => handleRun(prompt, undefined, attachments)}
               placeholder="Ask LotusBuild about this project…"
               disabled={isBuildTokenBlocked}
             />

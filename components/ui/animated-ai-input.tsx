@@ -1,11 +1,14 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import { ArrowRight, ArrowUp, Check, Crown, Mic, Square, Leaf, X, ChevronUp } from "lucide-react";
+import { ArrowRight, ArrowUp, Check, Crown, Mic, Paperclip, Square, Leaf, X, ChevronUp } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { VoiceWaveform } from "@/components/ui/voice-waveform";
+import { AttachmentStrip } from "@/components/ui/attachment-strip";
+import { imageFilesFrom, useComposerAttachments } from "@/hooks/use-composer-attachments";
+import type { AttachmentRef } from "@/lib/backend/attachments";
 import { useVoiceDictation, VOICE_ERRORS } from "@/hooks/use-voice-dictation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/auth-context";
@@ -80,7 +83,7 @@ interface AnimatedAIInputProps {
   portalClassName?: string;
   mode?: "create" | "chat";
   appearance?: "default" | "assistant";
-  onSubmit?: (value: string, model: string) => void | Promise<void>;
+  onSubmit?: (value: string, model: string, attachments: AttachmentRef[]) => void | Promise<void>;
   onStop?: () => void;
   /** Cancel has been requested; the stop control waits for the server to confirm. */
   isStopping?: boolean;
@@ -225,6 +228,9 @@ export function AnimatedAIInput({
     : resolveModelSelection(models, selectedModel);
   const displayModelLabel = account?.models.find((model) => model.id === effectiveModel)?.name || effectiveModel || 'Select model';
   const selectedSessionMode = getComputerSessionModeConfig(sessionMode);
+  const attachments = useComposerAttachments((file) => currentBackend().uploadAttachment(file));
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [dragging, setDragging] = useState(false);
   const voice = useVoiceDictation((text) => {
     setValue((current) => (current.trimEnd() ? `${current.trimEnd()} ${text}` : text));
     requestAnimationFrame(() => { textareaRef.current?.focus(); adjustHeight(); });
@@ -274,7 +280,7 @@ export function AnimatedAIInput({
     if (mode === "chat" && onSubmit) {
       const v = value.trim();
       submittingRef.current = true;
-      try { await onSubmit(v, effectiveModel); setValue(''); adjustHeight(true); }
+      try { await onSubmit(v, effectiveModel, attachments.refs); setValue(''); attachments.clear(); adjustHeight(true); }
       catch (error) { setSubmitError(error instanceof Error ? error : new Error('Could not send message.')); }
       finally { submittingRef.current = false; }
       return;
@@ -291,7 +297,8 @@ export function AnimatedAIInput({
       if (!user || !account) throw new Error(accountError || 'Account details are not available.');
       if (!effectiveModel) throw new Error(models.length ? 'The selected model is no longer available. Choose another model.' : 'No models are currently available for your account. Refresh your account details and try again.');
       if (sessionMode !== 'build' && sessionMode !== 'plan') throw new Error('Choose Build or Plan.');
-      const data = await createBuild(currentBackend(), sessionStorage, { uid: user.uid, prompt: value.trim(), model: effectiveModel, mode: sessionMode });
+      const data = await createBuild(currentBackend(), sessionStorage, { uid: user.uid, prompt: value.trim(), model: effectiveModel, mode: sessionMode, attachments: attachments.refs });
+      attachments.clear();
       sessionStorage.removeItem(draftKey);
       router.push(`/computer/${data.id}`);
     } catch (err) {
@@ -302,13 +309,14 @@ export function AnimatedAIInput({
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const isSubmit = (e.key === "Enter" && !e.shiftKey) || ((e.ctrlKey || e.metaKey) && e.key === "Enter");
-    if (isSubmit && value.trim() && !isCreating && !isLoading && !disabled) {
+    if (isSubmit && value.trim() && !isCreating && !isLoading && !disabled && !attachments.uploading && !attachments.failed) {
       e.preventDefault();
       handleSubmit();
     }
   };
 
-  const canSubmit = value.trim().length > 0 && !isCreating && !isLoading && !disabled;
+  const attachmentsSettled = !attachments.uploading && !attachments.failed;
+  const canSubmit = value.trim().length > 0 && !isCreating && !isLoading && !disabled && attachmentsSettled;
   const canStop = mode === "chat" && isLoading && !disabled && !isStopping && typeof onStop === "function";
   const showStop = canStop || (mode === "chat" && isLoading && isStopping);
   const hasSubmitLabel = Boolean(submitLabel?.trim());
@@ -318,6 +326,9 @@ export function AnimatedAIInput({
   return (
     <div className={cn("w-full", mode === "create" ? "mx-auto max-w-2xl" : "max-w-none", isStart && "max-w-[760px]")}>
       <div
+        onDragOver={(e) => { if (!disabled && imageFilesFrom(e.dataTransfer).length === 0 && !Array.from(e.dataTransfer.types).includes("Files")) return; e.preventDefault(); if (!disabled) setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => { e.preventDefault(); setDragging(false); if (!disabled) attachments.add(imageFilesFrom(e.dataTransfer)); }}
         className={cn(
           "group/composer relative overflow-hidden rounded-2xl border transition-[border-color,box-shadow] duration-200 motion-reduce:transition-none",
           "border-border bg-card",
@@ -326,6 +337,7 @@ export function AnimatedAIInput({
           isSlimChat && "rounded-2xl border-border bg-card",
           isAssistant && "rounded-[28px] p-1 shadow-sm shadow-foreground/5",
           disabled && "pointer-events-none opacity-60",
+          dragging && "border-ring ring-2 ring-ring/20",
           wrapperClassName,
         )}
       >
@@ -357,6 +369,13 @@ export function AnimatedAIInput({
         </AnimatePresence>
 
         <div className={cn("px-3 pt-3 sm:px-4 sm:pt-4", compact && "pt-2.5 sm:pt-3", isSlimChat && "px-5 pt-4", isAssistant && "px-3.5 pt-3 sm:px-4 sm:pt-4", isAssistant && isSlimChat && "sm:px-3.5 sm:pt-3")}>
+          <AttachmentStrip items={attachments.items} onRemove={attachments.remove} className="mb-3" />
+          {attachments.notice && (
+            <p role="alert" className="mb-2 flex items-center gap-2 text-xs text-destructive">
+              {attachments.notice}
+              <button type="button" onClick={attachments.dismissNotice} aria-label="Dismiss" className="rounded-md p-0.5 hover:bg-accent"><X className="h-3 w-3" /></button>
+            </p>
+          )}
           {isListening ? (
             <VoiceWaveform levels={voice.levels} transcript={voice.transcript} onCancel={voice.cancel} onDone={voice.finish} />
           ) : (
@@ -368,6 +387,7 @@ export function AnimatedAIInput({
             placeholder={placeholder ?? (isStart ? "Ask LotusBuild to build anything…" : "What can I help you build today?")}
             disabled={disabled}
             onKeyDown={handleKeyDown}
+            onPaste={(e) => { const files = imageFilesFrom(e.clipboardData); if (files.length) { e.preventDefault(); attachments.add(files); } }}
             onChange={(e) => { setValue(e.target.value); adjustHeight(); }}
             className={cn(
               "w-full resize-none appearance-none border-0 bg-transparent p-0",
@@ -540,6 +560,26 @@ export function AnimatedAIInput({
           </div>
 
           <div className="flex shrink-0 items-center gap-1">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              multiple
+              className="hidden"
+              aria-hidden
+              tabIndex={-1}
+              onChange={(e) => { attachments.add(Array.from(e.target.files ?? [])); e.target.value = ""; }}
+            />
+            {!canStop && (
+              <IconButton
+                label="Attach images"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={disabled || isCreating || isLoading || isListening}
+                className={cn(isAssistant && "h-11 w-11 rounded-full")}
+              >
+                <Paperclip className="h-4 w-4" />
+              </IconButton>
+            )}
             {!canStop && (
               <IconButton
                 label={voice.supported ? "Start voice input" : VOICE_ERRORS.unsupported}

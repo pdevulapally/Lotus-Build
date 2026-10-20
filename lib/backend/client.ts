@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { attachmentRefSchema, attachmentRefsSchema, isAttachmentMediaType, storedAttachmentSchema, type AttachmentRef } from './attachments'
 
 const id = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/)
 const timestamp = z.string().datetime({ offset: true })
@@ -25,6 +26,7 @@ export const sessionSchema = z.object({
 })
 export const messageSchema = z.object({
   seq: z.number().int().nonnegative(), role: z.enum(['user', 'assistant']), content: z.string(), createdAt: timestamp,
+  attachments: z.array(attachmentRefSchema).default([]),
 })
 const capabilitySchema = z.discriminatedUnion('kind', [
   z.object({ key: z.string(), kind: z.literal('boolean'), value: z.boolean() }),
@@ -48,7 +50,7 @@ export const usageSchema = z.object({ uid: z.string(), plan: z.object({ key: z.s
     includedAllowance: z.number(), hardLimit: z.number(), overageEnabled: z.boolean(), periodStart: timestamp,
   })),
 })
-const queuedSchema = z.object({ id, sessionId: id, prompt: z.string(), createdAt: timestamp })
+const queuedSchema = z.object({ id, sessionId: id, prompt: z.string(), attachments: z.array(attachmentRefSchema).default([]), createdAt: timestamp })
 const acceptedMessageSchema = z.union([
   z.object({ steered: z.literal(true), sessionId: id }),
   z.object({ queued: z.literal(true), queuedMessage: queuedSchema }),
@@ -115,17 +117,20 @@ export class BackendClient {
     this.fetcher = (...args) => fetcher(...args)
   }
 
-  private async response(path: string, options: { method?: string; body?: unknown; key?: string; signal?: AbortSignal; after?: string; public?: true } = {}, forceRefresh = false): Promise<Response> {
+  private async response(path: string, options: { method?: string; body?: unknown; raw?: { body: Blob; contentType: string }; key?: string; signal?: AbortSignal; after?: string; public?: true } = {}, forceRefresh = false): Promise<Response> {
     const token = options.public ? undefined : await this.token(forceRefresh)
     options.signal?.throwIfAborted()
     if (!options.public && !token) throw new BackendError(401, 'auth/missing-token', 'Sign in to continue.')
     const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
+    if (options.body !== undefined && options.raw !== undefined) throw new Error('A request carries either JSON or a raw body, not both.')
     if (options.body !== undefined) headers['Content-Type'] = 'application/json'
+    if (options.raw !== undefined) headers['Content-Type'] = options.raw.contentType
     if (options.key !== undefined) headers['Idempotency-Key'] = keySchema.parse(options.key)
     if (options.after !== undefined) headers['Last-Event-ID'] = streamId.parse(options.after)
     const response = await this.fetcher(`${this.origin}${path}`, {
       method: options.method ?? 'GET', headers, cache: 'no-store', credentials: 'omit', redirect: 'error',
       ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
+      ...(options.raw === undefined ? {} : { body: options.raw.body }),
       ...(options.signal === undefined ? {} : { signal: options.signal }),
     })
     if (!response.ok) {
@@ -193,9 +198,9 @@ export class BackendClient {
   }
   async deleteProject(projectId: string) { await this.response(`/projects/${id.parse(projectId)}`, { method: 'DELETE' }) }
   sessions(projectId: string, signal?: AbortSignal) { return this.json(z.object({ sessions: z.array(sessionSchema) }), `/projects/${id.parse(projectId)}/sessions?limit=100`, { signal }) }
-  createSession(projectId: string, input: { prompt: string; model: string; mode?: 'build' | 'plan'; effort?: 'low' | 'standard' | 'high' | 'xhigh' }, key: string) {
+  createSession(projectId: string, input: { prompt: string; model: string; mode?: 'build' | 'plan'; effort?: 'low' | 'standard' | 'high' | 'xhigh'; attachments?: AttachmentRef[] }, key: string) {
     const body = z.object({ prompt: promptSchema, model: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/),
-      mode: z.enum(['build', 'plan']).optional(), effort: z.enum(['low', 'standard', 'high', 'xhigh']).optional() }).strict().parse(input)
+      mode: z.enum(['build', 'plan']).optional(), effort: z.enum(['low', 'standard', 'high', 'xhigh']).optional(), attachments: attachmentRefsSchema.optional() }).strict().parse(input)
     return this.json(sessionSchema, `/projects/${id.parse(projectId)}/sessions`, { method: 'POST', body, key: keySchema.parse(key) })
   }
   session(sessionId: string, signal?: AbortSignal) { return this.json(sessionSchema, `/sessions/${id.parse(sessionId)}`, { signal }) }
@@ -209,9 +214,21 @@ export class BackendClient {
   }
   messages(sessionId: string, signal?: AbortSignal) { return this.json(z.object({ messages: z.array(messageSchema) }), `/sessions/${id.parse(sessionId)}/messages?limit=200`, { signal }) }
   queuedMessages(sessionId: string, signal?: AbortSignal) { return this.json(z.object({ queuedMessages: z.array(queuedSchema), nextCursor: z.string().nullable() }), `/sessions/${id.parse(sessionId)}/queued-messages?limit=100`, { signal }) }
-  sendMessage(sessionId: string, input: { prompt: string; steer?: boolean; mode?: 'build' | 'plan' }, key: string) {
-    const body = z.object({ prompt: promptSchema, steer: z.boolean().optional(), mode: z.enum(['build', 'plan']).optional() }).strict().parse(input)
+  sendMessage(sessionId: string, input: { prompt: string; steer?: boolean; mode?: 'build' | 'plan'; attachments?: AttachmentRef[] }, key: string) {
+    const body = z.object({ prompt: promptSchema, steer: z.boolean().optional(), mode: z.enum(['build', 'plan']).optional(), attachments: attachmentRefsSchema.optional() }).strict().parse(input)
     return this.json(acceptedMessageSchema, `/sessions/${id.parse(sessionId)}/messages`, { method: 'POST', body, key: keySchema.parse(key) })
+  }
+  /** Uploads one image as a raw body; the server answers with the reference a message can carry. */
+  uploadAttachment(file: Blob, signal?: AbortSignal) {
+    if (!isAttachmentMediaType(file.type)) throw new BackendError(415, 'attachment/unsupported-type', 'Attach a PNG, JPEG, WebP or GIF image.')
+    return this.json(storedAttachmentSchema, '/attachments', { method: 'POST', raw: { body: file, contentType: file.type }, signal })
+  }
+  /** The caller's own upload, as bytes; the server refuses anyone else's. */
+  async attachmentBlob(attachmentId: string, signal?: AbortSignal) {
+    const response = await this.response(`/attachments/${z.string().uuid().parse(attachmentId)}`, { signal })
+    const type = response.headers.get('content-type')?.split(';')[0]?.trim() ?? ''
+    if (!isAttachmentMediaType(type)) throw new BackendError(502, 'response/invalid', 'The server returned an unexpected attachment type.')
+    return response.blob()
   }
   cancel(sessionId: string, key: string) { return this.json(sessionSchema, `/sessions/${id.parse(sessionId)}/cancel`, { method: 'POST', key: keySchema.parse(key) }) }
 

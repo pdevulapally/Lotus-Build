@@ -1,6 +1,8 @@
 "use client"
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react"
+import { MessageAttachments } from "@/components/computer/message-attachments"
+import type { AttachmentRef } from "@/lib/backend/attachments"
 import { AnimatePresence, motion } from "framer-motion"
 import { duration, ease } from "@/lib/motion"
 import {
@@ -547,11 +549,12 @@ type CheckpointRestoreState = "idle" | "confirming" | "restoring"
 
 function UserMessageBubble({
   canEdit = true,
-  content, index, isEditing, editText,
+  content, attachments, index, isEditing, editText,
   runId, isLastCheckpoint, onRestoreCheckpoint,
   onEditStart, onEditChange, onEditSubmit, onEditCancel,
 }: {
   content: string
+  attachments?: readonly AttachmentRef[]
   canEdit?: boolean
   index: number
   isEditing: boolean
@@ -620,6 +623,7 @@ function UserMessageBubble({
     <>
     <div className="group flex w-full justify-end pb-4">
       <div className="flex w-fit max-w-[min(84%,42rem)] min-w-0 flex-col items-end">
+        <MessageAttachments attachments={attachments} className="mb-2" />
         <div className="max-w-full rounded-2xl bg-muted px-3.5 py-2.5 text-right">
           <p className="whitespace-pre-wrap break-words text-left text-[14px] leading-relaxed text-foreground [overflow-wrap:anywhere]">{content}</p>
         </div>
@@ -709,8 +713,8 @@ export function AgentFeed({
   onRestoreCheckpoint,
   canonicalMessages, queuedMessages, streamText,
 }: {
-  canonicalMessages?: { seq: number; role: 'user' | 'assistant'; content: string; createdAt: string }[]
-  queuedMessages?: { id: string; prompt: string }[]
+  canonicalMessages?: { seq: number; role: 'user' | 'assistant'; content: string; createdAt: string; attachments?: AttachmentRef[] }[]
+  queuedMessages?: { id: string; prompt: string; attachments?: AttachmentRef[] }[]
   streamText?: string
   prompt?: string
   events: ComputerTimelineEvent[]
@@ -772,13 +776,13 @@ export function AgentFeed({
     ].sort((left, right) => left.time - right.time)
     return <div className="space-y-2.5 pb-4">
       {rows.map(({ key, message, event }) => <div key={key} className={message?.role === 'user' ? 'pt-6 pb-3' : ''}>
-        {message?.role === 'user' ? <UserMessageBubble canEdit={false} content={message.content} index={message.seq} isEditing={false} editText=""
+        {message?.role === 'user' ? <UserMessageBubble canEdit={false} content={message.content} attachments={message.attachments} index={message.seq} isEditing={false} editText=""
           onEditStart={onEditStart} onEditChange={onEditChange} onEditSubmit={onEditSubmit} onEditCancel={onEditCancel} />
           : <FeedItem event={event ?? { title: 'Response', description: message!.content, status: 'complete', createdAt: message!.createdAt, index: message!.seq }}
             isLatest={false} isSessionRunning={isRunning} />}
       </div>)}
       {queuedMessages?.map((message) => <div key={message.id} className="pt-5">
-        <UserMessageBubble canEdit={false} content={message.prompt} index={-1} isEditing={false} editText=""
+        <UserMessageBubble canEdit={false} content={message.prompt} attachments={message.attachments} index={-1} isEditing={false} editText=""
           onEditStart={onEditStart} onEditChange={onEditChange} onEditSubmit={onEditSubmit} onEditCancel={onEditCancel} />
         <p className="mt-1 text-xs text-muted-foreground">Queued</p>
       </div>)}
