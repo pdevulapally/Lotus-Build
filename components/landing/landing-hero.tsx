@@ -26,7 +26,7 @@ export function LandingHero({ request, onBrief }: { request: BriefRequest; onBri
     <section className={styles.hero} aria-labelledby="landing-heading">
       <div className={styles.grid} aria-hidden />
       <RevealGroup className={styles.inner} animateOnMount>
-        <RevealItem as="h1" id="landing-heading">Build software<br />by describing it.</RevealItem>
+        <RevealItem as="h1" id="landing-heading">What should we build today?</RevealItem>
         <RevealItem as="p" className={styles.intro}>
           Websites, apps and internal tools for your business. LotusBuild asks the right questions, plans it with you, then builds it while you watch.
         </RevealItem>

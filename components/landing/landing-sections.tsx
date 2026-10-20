@@ -162,7 +162,7 @@ export function ClosingSection({ onStart }: { onStart: () => void }) {
   return (
     <RevealGroup as="section" className={styles.closing} aria-labelledby="start-heading">
       <RevealItem as="p" className={styles.eyebrowLight}>Your next project starts with a conversation</RevealItem>
-      <RevealItem as="h2" id="start-heading">What should we build?</RevealItem>
+      <RevealItem as="h2" id="start-heading">Start a project<br />in LotusBuild.</RevealItem>
       <RevealItem as="p" className={styles.closingLead}>A problem to solve. A tool to make. Tell LotusBuild where you want to begin.</RevealItem>
       <RevealItem className={styles.closingActions}>
         <button type="button" onClick={onStart} className={styles.closingPrimary}>Describe your idea<ArrowRightIcon width={16} height={16} /></button>
