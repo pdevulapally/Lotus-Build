@@ -107,3 +107,43 @@ export const PlanIcon = (props: IconProps) => (
 export const ArrowDownIcon = (props: IconProps) => (
   <Icon {...props}><path d="M12 5v14" /><path d="m6.75 13.75 5.25 5.25 5.25-5.25" /></Icon>
 )
+
+export const ArrowRightIcon = (props: IconProps) => (
+  <Icon {...props}><path d="M5 12h14" /><path d="m13.75 6.75 5.25 5.25-5.25 5.25" /></Icon>
+)
+
+export const CheckIcon = (props: IconProps) => (
+  <Icon strokeWidth="2.2" {...props}><path d="m5.5 12.5 4 4 9-9.5" /></Icon>
+)
+
+export const ToolIcon = (props: IconProps) => (
+  <Icon {...props}><path d="M14.5 6.5a4 4 0 0 0 5 5L12 19a2.1 2.1 0 0 1-3-3l7.5-7.5Z" /><path d="M9.5 4.5 5 9" opacity=".55" /><path d="m4.5 15.5 4 4" opacity=".55" /></Icon>
+)
+
+export const BlocksIcon = (props: IconProps) => (
+  <Icon {...props}><rect x="4" y="12.5" width="7.25" height="7.25" rx="1.75" /><rect x="12.75" y="12.5" width="7.25" height="7.25" rx="1.75" /><rect x="8.4" y="4" width="7.25" height="7.25" rx="1.75" /></Icon>
+)
+
+export const VersionsIcon = (props: IconProps) => (
+  <Icon {...props}><rect x="6.5" y="9.5" width="13.5" height="10.5" rx="2.25" /><path d="M4 15.5V7.75A2.75 2.75 0 0 1 6.75 5H15" opacity=".55" /><path d="m10 15 2 2 4-4.25" /></Icon>
+)
+
+export const DownloadIcon = (props: IconProps) => (
+  <Icon {...props}><path d="M12 4.5v10" /><path d="m7.75 10.5 4.25 4.25 4.25-4.25" /><path d="M4.75 16.5v1.25a2 2 0 0 0 2 2h10.5a2 2 0 0 0 2-2V16.5" opacity=".6" /></Icon>
+)
+
+export const ShieldIcon = (props: IconProps) => (
+  <Icon {...props}><path d="M12 3.75 5.25 6.5v5c0 4.1 2.85 7.3 6.75 8.75 3.9-1.45 6.75-4.65 6.75-8.75v-5L12 3.75Z" /><path d="m9.25 12 2 2 3.75-4" /></Icon>
+)
+
+export const LockIcon = (props: IconProps) => (
+  <Icon {...props}><rect x="5" y="10.5" width="14" height="9.5" rx="2.25" /><path d="M8.25 10.5V8a3.75 3.75 0 0 1 7.5 0v2.5" /><circle cx="12" cy="15.25" r="1.1" fill="currentColor" stroke="none" /></Icon>
+)
+
+export const MailCodeIcon = (props: IconProps) => (
+  <Icon {...props}><rect x="3.25" y="5.5" width="17.5" height="13" rx="2.75" /><path d="m3.75 7.5 8.25 6 8.25-6" /></Icon>
+)
+
+export const ArrowUpIcon = (props: IconProps) => (
+  <Icon strokeWidth="2" {...props}><path d="M12 19V5" /><path d="m6.75 10.25 5.25-5.25 5.25 5.25" /></Icon>
+)

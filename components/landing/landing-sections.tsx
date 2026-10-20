@@ -1,196 +1,170 @@
-import { ArrowRight, Check, Download, FileCode2, Folder, History } from 'lucide-react'
+"use client"
+import Link from 'next/link'
 import { Reveal, RevealGroup, RevealItem } from '@/components/ui/reveal'
+import { ArrowRightIcon, CheckIcon, DownloadIcon, FilesIcon, VersionsIcon } from '@/components/ui/lotus-icons'
+import { capabilities, demoProject, featureRows, savedWork, startModes, trustPoints, type StartMode } from './landing-content'
 import styles from './landing-sections.module.css'
 
-type StartMode = 'plan' | 'build'
-
-const planQuestion = {
-  prompt: 'A booking site for my salon',
-  question: 'Who will be booking appointments?',
-  options: ['New clients', 'Regulars', 'Both'],
-  selected: 'Both',
+export function CapabilitiesSection() {
+  return (
+    <section className={styles.capabilities} aria-label="What the workspace includes">
+      <RevealGroup as="ul" className={styles.capabilityList} step={0.05}>
+        {capabilities.map((item) => (
+          <RevealItem as="li" key={item.label}>
+            <span className={styles.capabilityIcon}><item.icon width={18} height={18} /></span>
+            <strong>{item.label}</strong>
+            <small>{item.detail}</small>
+          </RevealItem>
+        ))}
+      </RevealGroup>
+    </section>
+  )
 }
 
-const buildSteps = ['Booking page and calendar', 'Services and prices', 'Confirmation emails']
-
-const startModes = [
-  {
-    mode: 'plan',
-    tag: 'Plan',
-    title: 'Talk it through first',
-    copy: 'LotusBuild asks a few questions, then proposes a plan you can change before anything is built.',
-    action: 'Start with a plan',
-  },
-  {
-    mode: 'build',
-    tag: 'Build',
-    title: 'Go straight to building',
-    copy: 'Describe what you want and watch it come together, then keep refining in the same conversation.',
-    action: 'Start building',
-  },
-] as const satisfies ReadonlyArray<{ mode: StartMode; tag: string; title: string; copy: string; action: string }>
-
-const files = [
-  { name: 'app', depth: 0, folder: true },
-  { name: 'booking', depth: 1, folder: true },
-  { name: 'page.tsx', depth: 2, folder: false, active: true },
-  { name: 'services.ts', depth: 1, folder: false },
-  { name: 'layout.tsx', depth: 1, folder: false },
-]
-
-const codeLines = [
-  'import { Calendar } from "./calendar"',
-  '',
-  'export default function Booking() {',
-  '  return (',
-  '    <main>',
-  '      <h1>Find your next appointment</h1>',
-  '      <p>Pick a time that suits you.</p>',
-  '      <Calendar />',
-  '    </main>',
-  '  )',
-  '}',
-]
-
-const versions = [
-  { label: 'Added confirmation emails', added: 42, removed: 6 },
-  { label: 'Updated service prices', added: 8, removed: 8 },
-  { label: 'First version', added: 316, removed: 0 },
-]
+export function FeatureRowsSection() {
+  return (
+    <section className={styles.features} aria-labelledby="features-heading">
+      <div className={styles.featuresInner}>
+        <Reveal className={styles.featuresIntro}>
+          <h2 id="features-heading">The whole build.<br />One conversation.</h2>
+          <p>No handoffs between a brief, a developer and a deploy. LotusBuild plans with you, builds in front of you and keeps everything it makes.</p>
+          <Link href="/pricing" className="site-action">See plans and pricing<ArrowRightIcon width={16} height={16} /></Link>
+        </Reveal>
+        <RevealGroup as="ol" className={styles.rows} step={0.07}>
+          {featureRows.map((row, index) => (
+            <RevealItem as="li" key={row.title}>
+              <span className={styles.rowIndex}>{String(index + 1).padStart(2, '0')}</span>
+              <span className={styles.rowText}><h3>{row.title}</h3><p>{row.copy}</p></span>
+              <span className={styles.rowArrow}><ArrowRightIcon width={18} height={18} /></span>
+            </RevealItem>
+          ))}
+        </RevealGroup>
+      </div>
+    </section>
+  )
+}
 
 function PlanVisual() {
   return (
-    <div className={styles.chat} aria-hidden>
-      <p className={styles.userBubble}>{planQuestion.prompt}</p>
-      <div className={styles.aiTurn}>
-        <span className={styles.aiMark}>L</span>
-        <div>
-          <p>{planQuestion.question}</p>
-          <div className={styles.options}>
-            {planQuestion.options.map((option) => (
-              <span key={option} data-selected={option === planQuestion.selected || undefined}>{option}</span>
-            ))}
-          </div>
-        </div>
-      </div>
+    <div className={styles.miniChat} aria-hidden>
+      <p className={styles.miniUser}>{demoProject.prompt}</p>
+      <p className={styles.miniQuestion}>{demoProject.question}</p>
+      <div className={styles.miniOptions}>{demoProject.options.map((option) => <span key={option} data-selected={option === demoProject.selected || undefined}>{option}</span>)}</div>
     </div>
   )
 }
 
 function BuildVisual() {
   return (
-    <div className={styles.build} aria-hidden>
-      <span className={styles.buildName}>Salon booking website</span>
-      <ul className={styles.steps}>
-        {buildSteps.map((step) => (
-          <li key={step}>
-            <span className={styles.stepIcon}><Check size={12} strokeWidth={2.4} /></span>
-            {step}
-          </li>
-        ))}
-      </ul>
-    </div>
+    <ul className={styles.miniSteps} aria-hidden>
+      {demoProject.buildSteps.map((step) => <li key={step.title}><span className={styles.miniMark}><CheckIcon width={11} height={11} /></span>{step.title}</li>)}
+    </ul>
   )
 }
 
-const visuals: Record<StartMode, () => React.JSX.Element> = { plan: PlanVisual, build: BuildVisual }
+const modeVisuals: Record<StartMode, () => React.JSX.Element> = { plan: PlanVisual, build: BuildVisual }
 
 export function StartModesSection({ onChoose }: { onChoose: (mode: StartMode) => void }) {
   return (
-    <section id="workflow" className={styles.section} aria-labelledby="workflow-heading">
-      <Reveal as="header" className={styles.header}>
-        <p className={styles.label}>Two ways to start</p>
-        <h2 id="workflow-heading">Plan it with LotusBuild, or build right away.</h2>
-        <p className={styles.intro}>Either way it’s one conversation and one project.</p>
-      </Reveal>
-      <RevealGroup className={styles.modes}>
-        {startModes.map(({ mode, tag, title, copy, action }) => {
-          const Visual = visuals[mode]
-          return (
-            <RevealItem as="article" key={mode} className={styles.modeCard}>
-              <div className={styles.visual}>
-                <Visual />
-                <span className={styles.example}>Illustrative example</span>
-              </div>
-              <div className={styles.modeBody}>
-                <span className={styles.tag}>{tag}</span>
-                <h3>{title}</h3>
-                <p>{copy}</p>
-                <button type="button" onClick={() => onChoose(mode)} className={styles.modeAction}>
-                  {action}<ArrowRight size={16} aria-hidden />
-                </button>
-              </div>
-            </RevealItem>
-          )
-        })}
-      </RevealGroup>
+    <section id="start" className={styles.modes} aria-labelledby="modes-heading">
+      <div className={styles.modesInner}>
+        <Reveal className={styles.modesStatement}>
+          <p className={styles.eyebrowLight}>Two ways to start</p>
+          <h2 id="modes-heading">Plan it first.<br />Or just build.</h2>
+          <p>Either way it is one conversation and one project. Switch between the two whenever you like.</p>
+        </Reveal>
+        <RevealGroup className={styles.modeCards} step={0.1}>
+          {startModes.map((option) => {
+            const Visual = modeVisuals[option.mode]
+            return (
+              <RevealItem as="article" key={option.mode} className={styles.modeCard}>
+                <div className={styles.modeVisual}><Visual /></div>
+                <div className={styles.modeBody}>
+                  <span className={styles.modeTag}>{option.tag}</span>
+                  <h3>{option.title}</h3>
+                  <p>{option.copy}</p>
+                  <button type="button" onClick={() => onChoose(option.mode)}>{option.action}<ArrowRightIcon width={15} height={15} /></button>
+                </div>
+              </RevealItem>
+            )
+          })}
+        </RevealGroup>
+      </div>
     </section>
   )
 }
 
 export function SavedWorkSection() {
   return (
-    <section id="saved-work" className={`${styles.section} ${styles.savedSection}`} aria-labelledby="saved-heading">
-      <Reveal as="header" className={styles.header}>
-        <p className={styles.label}>Your work, always yours</p>
-        <h2 id="saved-heading">See the code. Track every change.</h2>
-        <p className={styles.intro}>Everything LotusBuild makes is saved to your project, ready to inspect or take with you.</p>
+    <section id="saved-work" className={styles.saved} aria-labelledby="saved-heading">
+      <Reveal as="header" className={styles.savedHeader}>
+        <p className={styles.eyebrow}>Your work, always yours</p>
+        <h2 id="saved-heading">See the code. Keep every version.</h2>
+        <p>Everything LotusBuild makes is saved to your project, ready to inspect, compare or take with you.</p>
       </Reveal>
-      <RevealGroup className={styles.bento}>
+      <RevealGroup className={styles.bento} step={0.08}>
         <RevealItem as="article" className={`${styles.tile} ${styles.codeTile}`}>
-          <div className={styles.tileText}>
-            <FileCode2 size={20} strokeWidth={1.6} aria-hidden />
-            <h3>Read what was built</h3>
-            <p>Browse every file and open the source right in your workspace.</p>
-          </div>
+          <div className={styles.tileText}><FilesIcon width={20} height={20} /><h3>Read what was built</h3><p>Browse every file and open the source right in your workspace.</p></div>
           <div className={styles.editor} aria-label="Illustrative code example">
-            <div className={styles.editorBar}>
-              <span>booking / page.tsx</span>
-              <span>Example source</span>
-            </div>
+            <div className={styles.editorBar}><span>booking / page.tsx</span><span>Example source</span></div>
             <div className={styles.editorBody}>
               <ul className={styles.tree} aria-hidden>
-                {files.map((file) => (
-                  <li key={file.name} style={{ paddingLeft: `${file.depth * 12 + 10}px` }} data-active={'active' in file || undefined}>
-                    {file.folder ? <Folder size={13} /> : <FileCode2 size={13} />}{file.name}
-                  </li>
-                ))}
+                {savedWork.files.map((file) => <li key={file.name} style={{ paddingLeft: `${file.depth * 12 + 10}px` }} data-active={file.active || undefined} data-folder={file.folder || undefined}>{file.name}</li>)}
               </ul>
               <pre className={styles.code} tabIndex={0} aria-label="Example source code, scroll horizontally to read">
-                <code>{codeLines.map((line, index) => <span className={styles.codeLine} key={index}><span aria-hidden>{index + 1}</span>{line || '\u00a0'}</span>)}</code>
+                <code>{savedWork.code.map((line, index) => <span className={styles.codeLine} key={index}><span aria-hidden>{index + 1}</span>{line || '\u00a0'}</span>)}</code>
               </pre>
             </div>
           </div>
         </RevealItem>
         <RevealItem as="article" className={styles.tile}>
-          <div className={styles.tileText}>
-            <History size={20} strokeWidth={1.6} aria-hidden />
-            <h3>Follow every change</h3>
-            <p>Compare saved versions and see exactly what changed.</p>
-          </div>
+          <div className={styles.tileText}><VersionsIcon width={20} height={20} /><h3>Follow every change</h3><p>Compare saved versions and see exactly what changed.</p></div>
           <ol className={styles.versions} aria-hidden>
-            {versions.map((version) => (
-              <li key={version.label}>
-                <span>{version.label}</span>
-                <span className={styles.diff}><em>+{version.added}</em><b>−{version.removed}</b></span>
-              </li>
-            ))}
+            {savedWork.versions.map((version) => <li key={version.label}><span>{version.label}</span><span className={styles.diff}><em>+{version.added}</em><b>−{version.removed}</b></span></li>)}
           </ol>
-          <span className={styles.exampleNote}>Illustrative version history</span>
         </RevealItem>
         <RevealItem as="article" className={styles.tile}>
-          <div className={styles.tileText}>
-            <Download size={20} strokeWidth={1.6} aria-hidden />
-            <h3>Take it with you</h3>
-            <p>Download your whole project as a ZIP whenever you like.</p>
-          </div>
-          <div className={styles.zip} aria-hidden>
-            <span className={styles.zipIcon}><Download size={15} /></span>
-            <span><strong>salon-booking.zip</strong><small>Full source code</small></span>
-          </div>
-          <span className={styles.exampleNote}>Example download</span>
+          <div className={styles.tileText}><DownloadIcon width={20} height={20} /><h3>Take it with you</h3><p>Download your whole project as a ZIP whenever you like.</p></div>
+          <div className={styles.zip} aria-hidden><span className={styles.zipIcon}><DownloadIcon width={16} height={16} /></span><span><strong>{savedWork.archive}</strong><small>Full source code</small></span></div>
         </RevealItem>
       </RevealGroup>
     </section>
+  )
+}
+
+export function TrustSection() {
+  return (
+    <section className={styles.trust} aria-labelledby="trust-heading">
+      <div className={styles.trustInner}>
+        <Reveal className={styles.trustIntro}>
+          <p className={styles.eyebrow}>Built for serious use</p>
+          <h2 id="trust-heading">Ready for your business from day one.</h2>
+        </Reveal>
+        <RevealGroup as="ul" className={styles.trustList} step={0.08}>
+          {trustPoints.map((point) => (
+            <RevealItem as="li" key={point.title}>
+              <span className={styles.trustIcon}><point.icon width={20} height={20} /></span>
+              <h3>{point.title}</h3>
+              <p>{point.copy}</p>
+            </RevealItem>
+          ))}
+        </RevealGroup>
+        <Reveal className={styles.trustLinks}><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/help">Help centre</Link></Reveal>
+      </div>
+    </section>
+  )
+}
+
+export function ClosingSection({ onStart }: { onStart: () => void }) {
+  return (
+    <RevealGroup as="section" className={styles.closing} aria-labelledby="start-heading">
+      <RevealItem as="p" className={styles.eyebrowLight}>Your next project starts with a conversation</RevealItem>
+      <RevealItem as="h2" id="start-heading">What should we build?</RevealItem>
+      <RevealItem as="p" className={styles.closingLead}>A problem to solve. A tool to make. Tell LotusBuild where you want to begin.</RevealItem>
+      <RevealItem className={styles.closingActions}>
+        <button type="button" onClick={onStart} className={styles.closingPrimary}>Describe your idea<ArrowRightIcon width={16} height={16} /></button>
+        <Link href="/pricing" className={styles.closingSecondary}>View pricing</Link>
+      </RevealItem>
+    </RevealGroup>
   )
 }
