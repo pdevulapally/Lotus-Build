@@ -4,6 +4,9 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import { ArrowRight, ArrowUp, Check, Crown, Mic, Square, Leaf, X, ChevronUp } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { Shimmer } from "@/components/ai-elements/shimmer";
+import { VoiceWaveform } from "@/components/ui/voice-waveform";
+import { useVoiceDictation, VOICE_ERRORS } from "@/hooks/use-voice-dictation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/auth-context";
 import { currentBackend } from "@/lib/backend/browser";
@@ -79,6 +82,8 @@ interface AnimatedAIInputProps {
   appearance?: "default" | "assistant";
   onSubmit?: (value: string, model: string) => void | Promise<void>;
   onStop?: () => void;
+  /** Cancel has been requested; the stop control waits for the server to confirm. */
+  isStopping?: boolean;
   onManageProjects?: () => void;
   placeholder?: string;
   isLoading?: boolean;
@@ -93,30 +98,6 @@ interface AnimatedAIInputProps {
   wrapperClassName?: string;
   footerHintsClassName?: string;
 }
-
-type SpeechRecognitionResultLike = {
-  isFinal: boolean;
-  0?: { transcript?: string };
-};
-
-type SpeechRecognitionEventLike = Event & {
-  resultIndex: number;
-  results: ArrayLike<SpeechRecognitionResultLike>;
-};
-
-type SpeechRecognitionLike = EventTarget & {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  start: () => void;
-  stop: () => void;
-  abort: () => void;
-  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
-  onend: (() => void) | null;
-  onerror: (() => void) | null;
-};
-
-type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
 
 /* ─── model metadata ─────────────────────────────────────────────────────────── */
 
@@ -201,6 +182,7 @@ export function AnimatedAIInput({
   appearance = "default",
   onSubmit,
   onStop,
+  isStopping = false,
   onManageProjects,
   placeholder,
   isLoading = false,
@@ -225,8 +207,6 @@ export function AnimatedAIInput({
   const [sessionMode, setSessionMode] = useState<ComputerSessionMode>("build");
   const [wasLoading, setWasLoading] = useState(false);
   const [selectedModel, setSelectedModel] = useState("");
-  const [isListening, setIsListening] = useState(false);
-  const [speechSupported, setSpeechSupported] = useState(false);
 
   const isAssistant = appearance === "assistant";
   const isStart = mode === "create" && isAssistant;
@@ -245,10 +225,13 @@ export function AnimatedAIInput({
     : resolveModelSelection(models, selectedModel);
   const displayModelLabel = account?.models.find((model) => model.id === effectiveModel)?.name || effectiveModel || 'Select model';
   const selectedSessionMode = getComputerSessionModeConfig(sessionMode);
+  const voice = useVoiceDictation((text) => {
+    setValue((current) => (current.trimEnd() ? `${current.trimEnd()} ${text}` : text));
+    requestAnimationFrame(() => { textareaRef.current?.focus(); adjustHeight(); });
+  });
+  const isListening = voice.listening;
 
   const draftRestoredRef = useRef(false);
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
-  const speechBaseValueRef = useRef("");
 
   const syncTextareaHeight = useCallback(() => {
     requestAnimationFrame(() => adjustHeight());
@@ -264,13 +247,6 @@ export function AnimatedAIInput({
   useEffect(() => { if (suggestedMode) setSessionMode(suggestedMode); }, [suggestedMode, promptRequestId]);
 
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    setSpeechSupported(Boolean(
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    ));
-    return () => { recognitionRef.current?.abort(); recognitionRef.current = null; };
-  }, []);
 
 
 
@@ -294,8 +270,6 @@ export function AnimatedAIInput({
   const handleSubmit = async () => {
     if (!value.trim() || isCreating || isLoading || disabled || submittingRef.current) return;
     setSubmitError(null);
-    recognitionRef.current?.stop();
-    setIsListening(false);
 
     if (mode === "chat" && onSubmit) {
       const v = value.trim();
@@ -326,33 +300,6 @@ export function AnimatedAIInput({
     } finally { submittingRef.current = false; }
   };
 
-  const handleToggleSpeech = () => {
-    if (disabled || isCreating || isLoading || !speechSupported) return;
-    if (isListening) { recognitionRef.current?.stop(); setIsListening(false); return; }
-
-    const Ctor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!Ctor) { setSpeechSupported(false); return; }
-
-    const rec = new Ctor() as SpeechRecognitionLike;
-    recognitionRef.current = rec;
-    speechBaseValueRef.current = value.trimEnd();
-    rec.continuous = true;
-    rec.interimResults = true;
-    rec.lang = navigator.language || "en-US";
-
-    rec.onresult = (e) => {
-      let t = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) t += e.results[i]?.[0]?.transcript ?? "";
-      if (!t.trim()) return;
-      const p = speechBaseValueRef.current;
-      setValue(p ? `${p} ${t.trim()}` : t.trim());
-      syncTextareaHeight();
-    };
-    rec.onerror = () => setIsListening(false);
-    rec.onend = () => setIsListening(false);
-    try { rec.start(); setIsListening(true); } catch { setIsListening(false); }
-  };
-
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const isSubmit = (e.key === "Enter" && !e.shiftKey) || ((e.ctrlKey || e.metaKey) && e.key === "Enter");
     if (isSubmit && value.trim() && !isCreating && !isLoading && !disabled) {
@@ -362,7 +309,8 @@ export function AnimatedAIInput({
   };
 
   const canSubmit = value.trim().length > 0 && !isCreating && !isLoading && !disabled;
-  const canStop = mode === "chat" && isLoading && !disabled && typeof onStop === "function";
+  const canStop = mode === "chat" && isLoading && !disabled && !isStopping && typeof onStop === "function";
+  const showStop = canStop || (mode === "chat" && isLoading && isStopping);
   const hasSubmitLabel = Boolean(submitLabel?.trim());
 
   /* ─── render ─────────────────────────────────────────────────────────────── */
@@ -409,6 +357,9 @@ export function AnimatedAIInput({
         </AnimatePresence>
 
         <div className={cn("px-3 pt-3 sm:px-4 sm:pt-4", compact && "pt-2.5 sm:pt-3", isSlimChat && "px-5 pt-4", isAssistant && "px-3.5 pt-3 sm:px-4 sm:pt-4", isAssistant && isSlimChat && "sm:px-3.5 sm:pt-3")}>
+          {isListening ? (
+            <VoiceWaveform levels={voice.levels} transcript={voice.transcript} onCancel={voice.cancel} onDone={voice.finish} />
+          ) : (
           <textarea
             id={inputId}
             ref={textareaRef}
@@ -432,6 +383,8 @@ export function AnimatedAIInput({
               isAssistant && isSlimChat && "text-base leading-[1.6] sm:text-base",
             )}
           />
+          )}
+          {voice.error && !isListening && <p role="alert" className="mt-2 text-xs text-destructive">{voice.error}</p>}
         </div>
 
         <div
@@ -583,25 +536,28 @@ export function AnimatedAIInput({
                 })}
               </DropdownMenuContent>
             </DropdownMenu>)}
+            {isStopping && <Shimmer className="ml-1 shrink-0 text-xs font-medium" role="status">Stopping…</Shimmer>}
           </div>
 
           <div className="flex shrink-0 items-center gap-1">
             {!canStop && (
               <IconButton
-                label={isListening ? "Stop voice input" : "Start voice input"}
-                onClick={handleToggleSpeech}
-                disabled={disabled || isCreating || isLoading || !speechSupported}
+                label={voice.supported ? "Start voice input" : VOICE_ERRORS.unsupported}
+                onClick={voice.start}
+                disabled={disabled || isCreating || isLoading || isListening || !voice.supported}
+                title={voice.supported ? undefined : VOICE_ERRORS.unsupported}
                 active={isListening}
                 className={cn(isAssistant && "h-11 w-11 rounded-full")}
               >
-                <Mic className={cn("h-4 w-4", isListening && "animate-pulse")} />
+                <Mic className="h-4 w-4" />
               </IconButton>
             )}
 
             <motion.button
               type="button"
-              aria-label={canStop ? "Stop generating" : (submitLabel?.trim() || (mode === "chat" ? "Send message" : "Start project"))}
+              aria-label={isStopping ? "Stopping" : canStop ? "Stop generating" : (submitLabel?.trim() || (mode === "chat" ? "Send message" : "Start project"))}
               disabled={!canSubmit && !canStop}
+              aria-busy={isStopping || undefined}
               onClick={canStop ? onStop : handleSubmit}
               whileTap={canSubmit || canStop ? { scale: 0.94 } : {}}
               className={cn(
@@ -618,9 +574,9 @@ export function AnimatedAIInput({
                 submitButtonClassName,
               )}
             >
-              {canStop ? (
+              {showStop ? (
                 <>
-                  <Square className="h-3.5 w-3.5 fill-current" />
+                  <Square className={cn("h-3.5 w-3.5 fill-current", isStopping && "animate-pulse opacity-60")} />
                   {hasSubmitLabel && <span>Stop</span>}
                 </>
               ) : isCreating || isLoading ? (

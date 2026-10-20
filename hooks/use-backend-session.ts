@@ -147,6 +147,7 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [streamError, setStreamError] = useState<string | null>(null)
+  const [stopping, setStopping] = useState(false)
   const [revision, setRevision] = useState(0)
   const refreshRef = useRef<() => Promise<void>>(async () => { throw new Error('Session data is not loaded.') })
   const refresh = useCallback(() => refreshRef.current(), [])
@@ -156,7 +157,7 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
     const controller = new AbortController(); const signal = controller.signal
     setSession(null); setProject(null); setMessages([]); setQueued([]); setEvents([]); setTerminal([]); setText(''); setPreview(null)
     setDesktop({ status: 'none' })
-    setError(null); setStreamError(null); setLoading(true)
+    setError(null); setStreamError(null); setStopping(false); setLoading(true)
     setFileCount(null); setFileError(null)
     if (!user) { setError('Sign in to open this session.'); setLoading(false); return }
     let loadVersion = 0
@@ -211,7 +212,9 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
             }
             const item = activity(event, Number(event.id.split('-')[0]))
             if (item) setEvents((current) => [...current, item].slice(-300))
+            if (event.type === 'session.cancel_requested') setStopping(true)
             if (event.type === 'session.idle' || event.type === 'session.failed') {
+              setStopping(false)
               streamText = ''; if (textFrame !== undefined) { cancelAnimationFrame(textFrame); textFrame = undefined }; setText('')
               setEvents((current) => completeRunningCommandEvents(current))
             }
@@ -222,6 +225,6 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
     })()
     return () => { controller.abort(); if (refreshTimer !== undefined) clearTimeout(refreshTimer); if (textFrame !== undefined) cancelAnimationFrame(textFrame); refreshRef.current = async () => { throw new Error('The session connection is closed.') } }
   }, [id, user, authLoading, revision])
-  return { session, project, messages, queued, events, terminal, desktop, text, preview: project?.publicPreviewEnabled === true ? preview : null,
+  return { session, project, messages, queued, events, terminal, desktop, text, stopping, setStopping, preview: project?.publicPreviewEnabled === true ? preview : null,
     fileCount, fileError, loading, error, streamError, refresh, reconnect }
 }

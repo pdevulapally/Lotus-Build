@@ -296,6 +296,8 @@ export default function ComputerPage() {
   const [isStartingRun, setIsStartingRun] = useState(false)
   const busyRef = useRef(false)
   const isRunning = effectiveStatus === 'running' || isStartingRun
+  const isStopping = isRunning && backend.stopping
+  const feedStatus: ComputerSessionStatus = isStopping ? 'idle' : effectiveStatus
   const optimisticStart = isStartingRun
   const isBuildTokenBlocked = false
   const [editText, setEditText] = useState('')
@@ -346,10 +348,10 @@ export default function ComputerPage() {
   }
   const handleStop = async () => {
     if (!raw || !user || busyRef.current) return
-    busyRef.current = true; setRunError(null)
+    busyRef.current = true; setRunError(null); backend.setStopping(true)
     try { await cancelSession(currentBackend(), sessionStorage, user.uid, raw.id);
       void backend.refresh().catch((reason) => setRunError(`Cancellation accepted, but refresh failed: ${reason instanceof Error ? reason.message : 'Request failed.'}`)) }
-    catch (reason) { setRunError(reason instanceof Error ? reason.message : 'Could not cancel session.') }
+    catch (reason) { backend.setStopping(false); setRunError(reason instanceof Error ? reason.message : 'Could not cancel session.') }
     finally { busyRef.current = false }
   }
   const requestPreviewRecovery = () => { backend.reconnect(); setPreviewNavSrc(null); setPreviewReloadNonce((value) => value + 1) }
@@ -509,7 +511,7 @@ export default function ComputerPage() {
                 <AgentFeed
                   prompt={firstPrompt} events={session.timeline}
                   canonicalMessages={backend.messages} queuedMessages={backend.queued} streamText={backend.text}
-                  localMessages={localMessages} status={effectiveStatus}
+                  localMessages={localMessages} status={feedStatus}
                   progress={sessionProgress}
                   optimisticStart={optimisticStart}
                   editingIndex={null} editText=""
@@ -547,7 +549,7 @@ export default function ComputerPage() {
             )}
             <AnimatedAIInput
               mode="chat" compact compactSize="slim" appearance="assistant" initialModel={raw?.model}
-              isLoading={isRunning} onStop={handleStop} onSubmit={(prompt) => handleRun(prompt)}
+              isLoading={isRunning} isStopping={isStopping} onStop={handleStop} onSubmit={(prompt) => handleRun(prompt)}
               placeholder="Ask LotusBuild about this project…"
               disabled={isBuildTokenBlocked}
             />
