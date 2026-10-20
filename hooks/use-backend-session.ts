@@ -22,6 +22,29 @@ const labels: Record<string, string> = {
   'project.saved': 'Project saved', 'project.save_failed': 'Project save failed', 'agent.finished': 'Agent finished',
   'agent.blocked': 'Agent needs attention', 'agent.specialist_started': 'Review started', 'agent.specialist_completed': 'Review completed',
 }
+const fileTools = ['write_file', 'edit_file'] as const
+type FileTool = (typeof fileTools)[number]
+function isFileTool(name: unknown): name is FileTool { return typeof name === 'string' && (fileTools as readonly string[]).includes(name) }
+
+/** The file path and before/after text a write_file or edit_file call carries, so the feed can draw the diff. */
+export function getFileToolInput(name: FileTool, input: unknown): { filePath: string; editVariant: 'edit' | 'write'; oldContent?: string; newContent: string } | null {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return null
+  const record = input as Record<string, unknown>
+  const filePath = typeof record.path === 'string' ? record.path.trim() : ''
+  if (!filePath) return null
+  if (name === 'edit_file') {
+    if (typeof record.old_string !== 'string' || typeof record.new_string !== 'string') return null
+    return { filePath, editVariant: 'edit', oldContent: record.old_string, newContent: record.new_string }
+  }
+  if (typeof record.content !== 'string') return null
+  return { filePath, editVariant: 'write', newContent: record.content }
+}
+
+const runningToolTitles = ['Running command', 'Editing file', 'Creating file'] as const
+function isRunningToolItem(item: ComputerTimelineEvent): boolean {
+  return item.status === 'running' && (runningToolTitles as readonly string[]).includes(item.title)
+}
+
 export function activity(event: SessionEvent, index: number): ComputerTimelineEvent | null {
   if (!event.id) return null
   if (event.type === 'agent.tool_call' && event.data.name === 'run_command') {
@@ -40,6 +63,22 @@ export function activity(event: SessionEvent, index: number): ComputerTimelineEv
     }
   }
   if (event.type === 'agent.tool_result' && event.data.name === 'run_command') return null
+  if (event.type === 'agent.tool_call' && isFileTool(event.data.name)) {
+    const file = getFileToolInput(event.data.name, event.data.input)
+    if (file !== null) {
+      const callId = typeof event.data.callId === 'string' && event.data.callId ? event.data.callId : undefined
+      return {
+        id: event.id,
+        title: file.editVariant === 'edit' ? 'Editing file' : 'Creating file',
+        status: 'running',
+        kind: 'code',
+        createdAt: new Date(Number(event.id.split('-')[0])).toISOString(),
+        index,
+        metadata: { ...file, ...(callId ? { callId } : {}) },
+      }
+    }
+  }
+  if (event.type === 'agent.tool_result' && isFileTool(event.data.name)) return null
 
   const tool = event.type === 'agent.tool_call' || event.type === 'agent.tool_result'
   const name = typeof event.data.name === 'string' ? event.data.name : ''
@@ -59,12 +98,12 @@ export function activity(event: SessionEvent, index: number): ComputerTimelineEv
 }
 
 function updateCommandEvent(events: ComputerTimelineEvent[], event: SessionEvent): ComputerTimelineEvent[] {
-  if (event.type !== 'agent.tool_result' || event.data.name !== 'run_command') return events
+  if (event.type !== 'agent.tool_result' || (event.data.name !== 'run_command' && !isFileTool(event.data.name))) return events
   const callId = typeof event.data.callId === 'string' && event.data.callId ? event.data.callId : undefined
   let index = -1
   for (let current = events.length - 1; current >= 0; current -= 1) {
     const candidate = events[current]
-    if (callId ? candidate.metadata?.callId === callId : candidate.title === 'Running command' && candidate.status === 'running') {
+    if (callId ? candidate.metadata?.callId === callId : isRunningToolItem(candidate)) {
       index = current
       break
     }
@@ -86,7 +125,7 @@ function updateCommandEvent(events: ComputerTimelineEvent[], event: SessionEvent
 function completeRunningCommandEvents(events: ComputerTimelineEvent[]): ComputerTimelineEvent[] {
   let changed = false
   const next = events.map((event) => {
-    if (event.title !== 'Running command' || event.status !== 'running') return event
+    if (!isRunningToolItem(event)) return event
     changed = true
     return { ...event, status: 'complete' as const }
   })
@@ -127,6 +166,9 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
     let streamText = ''
     let refreshFailed = false
     let refreshTimer: ReturnType<typeof setTimeout> | undefined
+    let textFrame: number | undefined
+    const flushText = () => { textFrame = undefined; setText(streamText) }
+    const scheduleText = () => { if (textFrame === undefined) textFrame = requestAnimationFrame(flushText) }
     const reload = async () => {
       const version = ++loadVersion
       const client = currentBackend()
@@ -163,21 +205,21 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
             if (signal.aborted) return
             if (event.type === 'preview.ready') setPreview(previewUrl(event.data.url, window.location.origin))
             setDesktop((current) => reduceDesktop(current, event))
-            if (event.type === 'session.running') { streamText = ''; setText('') }
+            if (event.type === 'session.running') { streamText = ''; if (textFrame !== undefined) { cancelAnimationFrame(textFrame); textFrame = undefined }; setText('') }
             if (event.type === 'agent.text') {
               if (typeof event.data.delta !== 'string') throw new Error('The server returned an invalid text event.')
               streamText += event.data.delta
               if (streamText.length > 200_000) throw new Error('The live response exceeds the display limit. Reopen the session to load its saved messages.')
-              setText(streamText)
+              scheduleText()
             }
             setTerminal((current) => reduceTerminal(current, event))
-            if (event.type === 'agent.tool_result' && event.data.name === 'run_command') {
+            if (event.type === 'agent.tool_result' && (event.data.name === 'run_command' || isFileTool(event.data.name))) {
               setEvents((current) => updateCommandEvent(current, event))
             }
             const item = activity(event, Number(event.id.split('-')[0]))
             if (item) setEvents((current) => [...current, item].slice(-300))
             if (event.type === 'session.idle' || event.type === 'session.failed') {
-              streamText = ''; setText('')
+              streamText = ''; if (textFrame !== undefined) { cancelAnimationFrame(textFrame); textFrame = undefined }; setText('')
               setEvents((current) => completeRunningCommandEvents(current))
             }
             if (['session.running', 'session.queued', 'session.idle', 'session.failed', 'session.message_queued', 'session.message_dequeued', 'project.saved'].includes(event.type)) scheduleRefresh()
@@ -185,7 +227,7 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
           },
       })
     })()
-    return () => { controller.abort(); if (refreshTimer !== undefined) clearTimeout(refreshTimer); refreshRef.current = async () => { throw new Error('The session connection is closed.') } }
+    return () => { controller.abort(); if (refreshTimer !== undefined) clearTimeout(refreshTimer); if (textFrame !== undefined) cancelAnimationFrame(textFrame); refreshRef.current = async () => { throw new Error('The session connection is closed.') } }
   }, [id, user, authLoading, revision])
   return { session, project, messages, queued, events, terminal, desktop, text, preview: project?.publicPreviewEnabled === true ? preview : null,
     fileCount, fileError, usage, usageError, loading, error, streamError, refresh, reconnect }
