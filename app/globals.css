@@ -516,7 +516,7 @@
 }
 
 .auth-backdrop {
-  background: var(--background);
+  background: var(--background) radial-gradient(color-mix(in oklch, var(--foreground) 10%, transparent) 1.1px, transparent 1.1px) 0 0 / 22px 22px;
 }
 
 .font-heading {

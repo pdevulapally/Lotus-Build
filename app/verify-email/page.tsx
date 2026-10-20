@@ -3,10 +3,9 @@
 import { Suspense, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Loader2, RefreshCw } from "lucide-react"
-import { AuthMarketingPanel } from "@/components/auth/auth-marketing-panel"
+import { AuthShell } from "@/components/auth/auth-shell"
 import { EmailCodeVerification } from "@/components/auth/email-code-verification"
 import { AuthFormHeader } from "@/components/auth/auth-presentation"
-import { Navbar } from "@/components/ui/navbar"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/auth-context"
 import { getSafeRedirectPath } from "@/lib/auth/redirect"
@@ -62,18 +61,13 @@ function VerifyEmailContent() {
   }
 
   return (
-    <main className="auth-backdrop relative flex min-h-[100dvh] flex-col text-foreground">
-      <Navbar />
-      <div className="site-shell flex flex-1 items-center justify-center py-8 sm:py-12 lg:py-16">
-        <div className="grid w-full max-w-md items-start gap-12 lg:max-w-none lg:grid-cols-[minmax(0,1fr)_minmax(0,460px)] xl:gap-24">
-          <AuthMarketingPanel />
-          <section className="min-w-0 rounded-3xl border border-border bg-card p-6 sm:p-8" aria-label="Verify your email">
-            <AuthFormHeader
+    <AuthShell label="Verify your email">
+      <AuthFormHeader
               title="Check your email."
               description="Enter the 6-digit code to finish setting up your LotusBuild account."
             />
             {accountError ? (
-              <div role="alert" className="mb-5 rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm leading-6 text-destructive">
+              <div role="alert" className="mb-5 rounded-xl bg-destructive/10 px-4 py-3 text-[13.5px] font-medium leading-6 text-destructive">
                 {accountError}
                 <Button
                   type="button"
@@ -102,9 +96,6 @@ function VerifyEmailContent() {
             >
               {signingOut ? "Signing out…" : "Use a different account"}
             </button>
-          </section>
-        </div>
-      </div>
-    </main>
+    </AuthShell>
   )
 }

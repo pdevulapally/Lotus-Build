@@ -1,15 +1,16 @@
 "use client"
 
-import { Navbar } from "@/components/ui/navbar"
+import { AuthShell } from "@/components/auth/auth-shell"
 import type { FormEvent } from "react"
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Eye, EyeOff, Loader2, Mail } from "lucide-react"
-import { AuthMarketingPanel } from "@/components/auth/auth-marketing-panel"
 import {
   AuthFormHeader,
   GoogleMark,
+  authDividerClassName,
+  authLabelClassName,
   authGoogleButtonClassName,
   authInputClassName,
   authLinkClassName,
@@ -108,20 +109,13 @@ export default function LoginPage() {
 
   return (
     <>
-      <main className="auth-backdrop relative flex min-h-[100dvh] flex-col text-foreground">
-        <Navbar />
-
-        <div className="site-shell flex flex-1 items-center justify-center py-8 sm:py-12 lg:py-16">
-          <div className="grid w-full max-w-md items-start gap-12 lg:max-w-none lg:grid-cols-[minmax(0,1fr)_minmax(0,460px)] xl:gap-24">
-            <AuthMarketingPanel />
-
-            <section className="min-w-0 rounded-3xl border border-border bg-card p-6 sm:p-8" aria-label="Sign in">
-              <AuthFormHeader title="Welcome back." description="Sign in to pick up where you left off." />
+      <AuthShell label="Sign in">
+        <AuthFormHeader title="Welcome back." description="Sign in to pick up where you left off." />
 
             {error ? (
               <div
                 role="alert"
-                className="mb-5 rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm leading-6 text-destructive"
+                className="mb-5 rounded-xl bg-destructive/10 px-4 py-3 text-[13.5px] font-medium leading-6 text-destructive"
               >
                 {error}
               </div>
@@ -138,17 +132,11 @@ export default function LoginPage() {
               Continue with Google
             </button>
 
-            <div className="my-6 flex items-center gap-4">
-              <span className="h-px flex-1 bg-border" />
-              <span className="text-xs text-muted-foreground">
-                or use your email
-              </span>
-              <span className="h-px flex-1 bg-border" />
-            </div>
+            <div className={authDividerClassName} aria-hidden>or use your email</div>
 
             <form className="space-y-5" onSubmit={handleEmailSignIn}>
               <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium text-foreground">
+                <label htmlFor="email" className={authLabelClassName}>
                   Email address
                 </label>
                 <input
@@ -168,14 +156,14 @@ export default function LoginPage() {
                 <div className="flex items-center justify-between gap-4">
                   <label
                     htmlFor="password"
-                    className="text-sm font-medium text-foreground"
+                    className={authLabelClassName}
                   >
                     Password
                   </label>
                   <button
                     type="button"
                     onClick={handleForgotOpen}
-                    className="rounded-sm text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+                    className="rounded-sm text-[13px] font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
                   >
                     Reset password
                   </button>
@@ -218,8 +206,8 @@ export default function LoginPage() {
               </Button>
             </form>
 
-              <p className="mt-6 text-center text-sm leading-6 text-muted-foreground">
-                New to Lotus?{" "}
+              <p className="mt-6 text-center text-[14px] font-medium leading-6 text-muted-foreground">
+                New to LotusBuild?{" "}
                 <Link
                   href={`/signup?redirect=${encodeURIComponent(redirect)}`}
                   className={authLinkClassName}
@@ -228,7 +216,7 @@ export default function LoginPage() {
                 </Link>
               </p>
 
-              <div className="mt-6 flex items-center justify-center gap-3 border-t border-border pt-5 text-xs leading-5 text-muted-foreground">
+              <div className="mt-6 flex items-center justify-center gap-3 border-t border-border pt-5 text-[12.5px] font-medium leading-5 text-muted-foreground">
                 <Link href="/terms" className={authLinkClassName}>
                   Terms
                 </Link>
@@ -237,10 +225,7 @@ export default function LoginPage() {
                   Privacy
                 </Link>
               </div>
-            </section>
-          </div>
-        </div>
-      </main>
+      </AuthShell>
 
       <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
         <DialogContent className="rounded-3xl border-border bg-card p-6 shadow-none sm:max-w-md sm:p-8">
@@ -271,7 +256,7 @@ export default function LoginPage() {
               <div className="space-y-2">
                 <label
                   htmlFor="reset-email"
-                  className="text-sm font-medium text-foreground"
+                  className={authLabelClassName}
                 >
                   Email address
                 </label>

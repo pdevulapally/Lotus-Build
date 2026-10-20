@@ -1,43 +1,33 @@
 import { LotusLogo } from "@/components/ui/lotus-logo"
+import { BlocksIcon, PlanIcon, PreviewIcon, VersionsIcon } from "@/components/ui/lotus-icons"
 
-const features = [
-  {
-    title: "Plan before you build.",
-    description: "Plan your approach before implementing changes.",
-  },
-  {
-    title: "Stay close to your code.",
-    description: "Read your saved source files in the workspace.",
-  },
-  {
-    title: "See what changed.",
-    description: "Review saved versions and compare what changed.",
-  },
+const points = [
+  { icon: PlanIcon, title: "Asks before it builds", description: "A few plain questions, then a plan you can change." },
+  { icon: BlocksIcon, title: "Builds in front of you", description: "Every command and step visible while it runs." },
+  { icon: PreviewIcon, title: "Live preview", description: "Click through what was built the moment it is ready." },
+  { icon: VersionsIcon, title: "Every version kept", description: "Compare saved versions and see exactly what changed." },
 ]
 
 export function AuthMarketingPanel() {
   return (
-    <aside className="hidden max-w-lg py-4 lg:block" aria-labelledby="auth-workspace-title">
-      <div className="flex items-center gap-3 text-muted-foreground">
-        <LotusLogo size={28} className="text-foreground" />
-        <span className="site-eyebrow">From idea to software</span>
+    <aside className="flex h-full min-h-[640px] flex-col rounded-[28px] bg-foreground p-10 text-background" aria-labelledby="auth-workspace-title">
+      <div className="flex items-center gap-3">
+        <LotusLogo size={28} className="text-background" />
+        <span className="text-[12.5px] font-bold uppercase tracking-[0.04em] opacity-70">Your AI software workspace</span>
       </div>
-      <h2 id="auth-workspace-title" className="mt-8 text-balance text-5xl font-semibold leading-[1.08] tracking-[-0.055em] text-foreground xl:text-6xl">
-        Build what you<br />have in mind.
+      <h2 id="auth-workspace-title" className="mt-auto text-balance text-[clamp(40px,4.2vw,58px)] font-bold leading-[0.98] tracking-[-0.055em]">
+        Your next build<br />starts here.
       </h2>
-      <p className="mt-6 max-w-sm text-base leading-7 text-muted-foreground">
-        Describe the software you want to build. Plan the approach, make changes and review your saved work in one place.
+      <p className="mt-6 max-w-sm text-[16px] font-medium leading-relaxed opacity-75">
+        Describe a website, app or tool. LotusBuild plans it with you, builds it while you watch and keeps everything it makes.
       </p>
-
-      <ul className="mt-12 max-w-sm divide-y divide-border border-y border-border">
-        {features.map(({ title, description }, index) => (
-          <li key={title} className="flex gap-5 py-5">
-            <span className="pt-0.5 text-xs font-medium tabular-nums text-muted-foreground" aria-hidden>
-              0{index + 1}
-            </span>
+      <ul className="mt-10 grid grid-cols-2 gap-x-8 gap-y-6 border-t border-background/15 pt-8">
+        {points.map(({ icon: Icon, title, description }) => (
+          <li key={title} className="flex gap-3">
+            <Icon className="mt-0.5 size-[18px] shrink-0" />
             <div>
-              <p className="text-sm font-semibold text-foreground">{title}</p>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
+              <p className="text-[14px] font-bold tracking-[-0.01em]">{title}</p>
+              <p className="mt-1 text-[13px] font-medium leading-relaxed opacity-70">{description}</p>
             </div>
           </li>
         ))}
