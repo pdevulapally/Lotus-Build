@@ -147,3 +147,7 @@ export const MailCodeIcon = (props: IconProps) => (
 export const ArrowUpIcon = (props: IconProps) => (
   <Icon strokeWidth="2" {...props}><path d="M12 19V5" /><path d="m6.75 10.25 5.25-5.25 5.25 5.25" /></Icon>
 )
+
+export const GitBranchIcon = (props: IconProps) => (
+  <Icon {...props}><circle cx="7" cy="5.5" r="2.25" /><circle cx="7" cy="18.5" r="2.25" /><circle cx="17" cy="8.5" r="2.25" /><path d="M7 7.75v8.5" /><path d="M17 10.75c0 2.5-1.6 3.9-4.25 4.4-2.1.4-4.2.8-5.75 1.1" opacity=".7" /></Icon>
+)

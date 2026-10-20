@@ -1,7 +1,7 @@
 "use client"
 import Link from 'next/link'
 import { Reveal, RevealGroup, RevealItem } from '@/components/ui/reveal'
-import { ArrowRightIcon, CheckIcon, DownloadIcon, FilesIcon, VersionsIcon } from '@/components/ui/lotus-icons'
+import { ArrowRightIcon, CheckIcon, FilesIcon, GitBranchIcon, VersionsIcon } from '@/components/ui/lotus-icons'
 import { capabilities, demoProject, featureRows, savedWork, startModes, trustPoints, type StartMode } from './landing-content'
 import styles from './landing-sections.module.css'
 
@@ -124,8 +124,11 @@ export function SavedWorkSection() {
           </ol>
         </RevealItem>
         <RevealItem as="article" className={styles.tile}>
-          <div className={styles.tileText}><DownloadIcon width={20} height={20} /><h3>Take it with you</h3><p>Download your whole project as a ZIP whenever you like.</p></div>
-          <div className={styles.zip} aria-hidden><span className={styles.zipIcon}><DownloadIcon width={16} height={16} /></span><span><strong>{savedWork.archive}</strong><small>Full source code</small></span></div>
+          <div className={styles.tileText}><GitBranchIcon width={20} height={20} /><h3>Real Git underneath</h3><p>Every project is a proper Git repository with a full commit history, not a black box.</p></div>
+          <ol className={styles.commits} aria-hidden>
+            {savedWork.commits.map((commit) => <li key={commit.hash}><code>{commit.hash}</code><span>{commit.message}</span></li>)}
+          </ol>
+          <span className={styles.soon}>GitHub connection coming soon</span>
         </RevealItem>
       </RevealGroup>
     </section>

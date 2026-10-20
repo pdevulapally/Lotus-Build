@@ -104,7 +104,7 @@ export const featureRows = [
   { title: 'Shows its work as it goes', copy: 'Commands, output and screen activity appear in the workspace while it runs.' },
   { title: 'A live preview, not a promise', copy: 'Click through what was built the moment it is ready, from any device.' },
   { title: 'Every version kept', copy: 'Compare saved versions and see exactly what changed, line by line.' },
-  { title: 'Your code, downloadable', copy: 'Take the whole project with you as a ZIP whenever you like. No lock-in.' },
+  { title: 'Real Git, not a black box', copy: 'Every project is a proper Git repository with a full commit history. GitHub connection is on the way.' },
   { title: 'Built for serious use', copy: 'Verified accounts, isolated previews and clear UK terms from day one.' },
 ] as const satisfies readonly FeatureRow[]
 
@@ -140,7 +140,11 @@ export const savedWork = {
     { label: 'Updated service prices', added: 8, removed: 8 },
     { label: 'First version', added: 316, removed: 0 },
   ],
-  archive: 'salon-booking.zip',
+  commits: [
+    { hash: 'f3a9c1e', message: 'Add confirmation emails' },
+    { hash: 'b71d4a0', message: 'Update service prices' },
+    { hash: '2e8c0f9', message: 'First version of the booking site' },
+  ],
 } as const
 
 export type TrustPoint = { icon: LandingIcon; title: string; copy: string }

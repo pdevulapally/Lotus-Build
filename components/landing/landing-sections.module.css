@@ -80,10 +80,11 @@
 .diff { display: inline-flex; gap: 10px; font-family: var(--font-mono); font-size: 12.5px; font-weight: 500; }
 .diff em { color: #2f9e6a; font-style: normal; }
 .diff b { color: #b8463b; font-weight: 500; }
-.zip { display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: 16px; background: var(--muted); }
-.zipIcon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: var(--foreground); color: var(--background); }
-.zip strong { display: block; font-size: 14.5px; font-weight: 700; }
-.zip small { color: var(--muted-foreground); font-size: 12.5px; font-weight: 550; }
+.commits { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.commits li { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--border); font-size: 14px; font-weight: 600; }
+.commits li::before { content: ''; width: 9px; height: 9px; border-radius: 999px; background: var(--foreground); flex-shrink: 0; }
+.commits code { color: var(--muted-foreground); font-family: var(--font-mono); font-size: 12.5px; font-weight: 500; }
+.soon { align-self: flex-start; padding: 5px 10px; border-radius: 999px; background: var(--muted); color: var(--muted-foreground); font-size: 12px; font-weight: 650; }
 
 /* Trust */
 .trust { padding: 0 24px 120px; }
