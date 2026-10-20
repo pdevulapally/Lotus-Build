@@ -1,7 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { Check, Loader2, Terminal, X } from "lucide-react"
+import { Check, Terminal, X } from "lucide-react"
+import { Shimmer } from "@/components/ai-elements/shimmer"
 import { TextShimmer } from "@/components/prompt-kit/text-shimmer"
 import { cn } from "@/lib/utils"
 
@@ -115,7 +116,7 @@ export const BashTool = React.memo(function BashTool({
             <span className="truncate text-xs font-semibold text-muted-foreground">Ran command: {summary}</span>
           )}
         </div>
-        {isRunning && <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />}
+        {isRunning && <Shimmer className="shrink-0 text-[11px] font-medium">Running</Shimmer>}
       </div>
 
       <div className="border-t border-border/70 bg-muted/55 px-3 py-2 font-mono text-[12px] leading-5">

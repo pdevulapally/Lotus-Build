@@ -3,7 +3,7 @@
 import type { ReactNode } from "react"
 import { useEffect } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import { Loader2 } from "lucide-react"
+import { Shimmer } from "@/components/ai-elements/shimmer"
 import { useAuth } from "@/contexts/auth-context"
 import { getSafeRedirectPath } from "@/lib/auth/redirect"
 import { requiresVerifiedEmail } from "@/lib/auth/verified-email-route"
@@ -12,8 +12,7 @@ import { Button } from "@/components/ui/button"
 function AccountLoading() {
   return (
     <main className="flex min-h-svh flex-col items-center justify-center gap-3 bg-background text-sm text-muted-foreground" role="status">
-      <Loader2 className="size-5 animate-spin" aria-hidden="true" />
-      <p>Checking your account…</p>
+      <Shimmer as="p" className="font-medium">Checking your account…</Shimmer>
     </main>
   )
 }
