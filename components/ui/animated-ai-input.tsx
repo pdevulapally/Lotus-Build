@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import { ArrowRight, ArrowUp, Check, Crown, Mic, Paperclip, Square, Leaf, X, ChevronUp } from "lucide-react";
+import { ArrowRight, ArrowUp, Check, Crown, ImagePlus, Mic, Plus, Square, Leaf, X, ChevronUp } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Shimmer } from "@/components/ai-elements/shimmer";
@@ -341,6 +341,11 @@ export function AnimatedAIInput({
           wrapperClassName,
         )}
       >
+        {dragging && (
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-[inherit] bg-card/90 backdrop-blur-[2px]">
+            <span className="flex items-center gap-2 text-sm font-medium text-foreground"><ImagePlus className="h-4 w-4" />Drop images to attach</span>
+          </div>
+        )}
         <AnimatePresence>
           {contextBadge && (
             <motion.div
@@ -470,6 +475,33 @@ export function AnimatedAIInput({
               </ToolbarPill>
             )}
 
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <IconButton
+                  label="Add to message"
+                  disabled={disabled || isCreating || isLoading || isListening}
+                  active={attachments.items.length > 0}
+                  className={cn("rounded-full", isAssistant && "h-11 w-11")}
+                >
+                  <Plus className="h-[18px] w-[18px]" />
+                  {attachments.items.length > 0 && (
+                    <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
+                      {attachments.items.length}
+                    </span>
+                  )}
+                </IconButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" sideOffset={8} className="w-64 rounded-2xl p-1.5">
+                <DropdownMenuItem onSelect={() => fileInputRef.current?.click()} className="cursor-pointer gap-3 rounded-xl px-2.5 py-2">
+                  <ImagePlus className="h-4 w-4 text-muted-foreground" />
+                  <span className="flex flex-col">
+                    <span className="text-[13px] font-medium">Upload image</span>
+                    <span className="text-[11px] text-muted-foreground">PNG, JPEG, WebP or GIF, up to 5 MB</span>
+                  </span>
+                </DropdownMenuItem>
+                <p className="px-2.5 pb-1 pt-2 text-[11px] text-muted-foreground">You can also paste or drop images here.</p>
+              </DropdownMenuContent>
+            </DropdownMenu>
             {user && (mode === "chat" ? (
               <span
                 aria-label={`Session model: ${displayModelLabel}`}
@@ -570,16 +602,6 @@ export function AnimatedAIInput({
               tabIndex={-1}
               onChange={(e) => { attachments.add(Array.from(e.target.files ?? [])); e.target.value = ""; }}
             />
-            {!canStop && (
-              <IconButton
-                label="Attach images"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={disabled || isCreating || isLoading || isListening}
-                className={cn(isAssistant && "h-11 w-11 rounded-full")}
-              >
-                <Paperclip className="h-4 w-4" />
-              </IconButton>
-            )}
             {!canStop && (
               <IconButton
                 label={voice.supported ? "Start voice input" : VOICE_ERRORS.unsupported}

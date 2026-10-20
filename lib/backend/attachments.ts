@@ -9,7 +9,8 @@ export const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024
 export const attachmentRefSchema = z.object({ id: z.string().uuid(), mediaType: z.enum(attachmentMediaTypes) }).strict()
 export const attachmentRefsSchema = z.array(attachmentRefSchema).max(MAX_ATTACHMENTS)
 export type AttachmentRef = z.infer<typeof attachmentRefSchema>
-export const storedAttachmentSchema = attachmentRefSchema.extend({ bytes: z.number().int().nonnegative() })
+/** The server may add what it learned from the bytes (dimensions); unknown fields are dropped, not fatal. */
+export const storedAttachmentSchema = attachmentRefSchema.extend({ bytes: z.number().int().nonnegative(), width: z.number().int().positive().optional(), height: z.number().int().positive().optional() }).strip()
 
 export const ATTACHMENT_ERRORS = {
   type: 'Attach a PNG, JPEG, WebP or GIF image.',
