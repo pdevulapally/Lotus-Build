@@ -34,7 +34,7 @@ export function FeatureRowsSection() {
           {featureRows.map((row, index) => (
             <RevealItem as="li" key={row.title}>
               <span className={styles.rowIndex}>{String(index + 1).padStart(2, '0')}</span>
-              <span className={styles.rowText}><h3>{row.title}</h3><p>{row.copy}</p></span>
+              <div className={styles.rowText}><h3>{row.title}</h3><p>{row.copy}</p></div>
               <span className={styles.rowArrow}><ArrowRightIcon width={18} height={18} /></span>
             </RevealItem>
           ))}
