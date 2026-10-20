@@ -100,7 +100,7 @@ export function SavedWorkSection() {
       <Reveal as="header" className={styles.savedHeader}>
         <p className={styles.eyebrow}>Your work, always yours</p>
         <h2 id="saved-heading">See the code. Keep every version.</h2>
-        <p>Everything LotusBuild makes is saved to your project, ready to inspect, compare or take with you.</p>
+        <p>Everything LotusBuild makes is saved to your project, ready to inspect and compare, with real Git history underneath.</p>
       </Reveal>
       <RevealGroup className={styles.bento} step={0.08}>
         <RevealItem as="article" className={`${styles.tile} ${styles.codeTile}`}>
