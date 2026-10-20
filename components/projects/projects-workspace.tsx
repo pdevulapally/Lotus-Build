@@ -5,7 +5,7 @@ import { SidebarToggleIcon } from "@/components/ui/sidebar-toggle-icon"
 import { SideNav } from "@astryxdesign/core/SideNav"
 import { ProjectNavigationRow } from "@/components/projects/project-navigation-row"
 import { ProjectSearchDialog } from "@/components/projects/project-search-dialog"
-import { Suspense, useCallback, useEffect, useId, useMemo, useState } from "react"
+import { Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { LotusLogo } from "@/components/ui/lotus-logo"
@@ -55,6 +55,8 @@ import { AnimatedAIInput } from "@/components/ui/animated-ai-input"
 import { cn } from "@/lib/utils"
 
 import { useProjectList, type ProjectListItem as ProjectSummary } from "@/hooks/use-project-list"
+import { heroCategories, type Brief } from "@/components/landing/landing-content"
+import { ArrowRightIcon } from "@/components/ui/lotus-icons"
 import { useSettingsDialog } from "@/components/settings/settings-dialog"
 import styles from "./projects-workspace.module.css"
 
@@ -491,9 +493,62 @@ function ReferralDialog({
 
 /* ─── Page ────────────────────────────────────────────────────────────────── */
 
-function WorkspacePlanControl({ planName, isPaidUser }: { planName: string; isPaidUser: boolean }) {
+const projectStatusLabel: Record<ProjectSummary["status"], string> = {
+  pending: "Draft", draft: "Draft", generating: "Building", complete: "Ready", error: "Needs attention", deleting: "Deleting",
+}
+
+function relativeTime(iso?: string): string | null {
+  if (!iso) return null
+  const then = new Date(iso).getTime()
+  if (Number.isNaN(then)) return null
+  const minutes = Math.round((Date.now() - then) / 60_000)
+  if (minutes < 1) return "Just now"
+  if (minutes < 60) return `${minutes} min ago`
+  const hours = Math.round(minutes / 60)
+  if (hours < 24) return `${hours} h ago`
+  const days = Math.round(hours / 24)
+  return days < 7 ? `${days} d ago` : new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+}
+
+function RecentProjects({ projects, loading, onOpen, onShowAll }: { projects: ProjectSummary[]; loading: boolean; onOpen: (project: ProjectSummary) => void; onShowAll: () => void }) {
+  const recent = projects.slice(0, 6)
+  if (!loading && recent.length === 0) return null
+  return (
+    <section aria-labelledby="recent-projects-heading" className="mt-14 w-full sm:mt-16">
+      <div className="mb-4 flex items-baseline justify-between gap-4">
+        <h2 id="recent-projects-heading" className="text-[15px] font-bold tracking-[-0.01em] text-foreground">Recent projects</h2>
+        {projects.length > recent.length && <button type="button" onClick={onShowAll} className="text-[13px] font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">All projects</button>}
+      </div>
+      {loading ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-hidden>
+          {Array.from({ length: 3 }, (_, index) => <div key={index} className="h-[108px] animate-pulse rounded-2xl bg-muted/70" />)}
+        </div>
+      ) : (
+        <RevealGroup as="ul" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" step={0.05} animateOnMount>
+          {recent.map((project) => {
+            const title = project.prompt.trim() || "Untitled build"
+            const when = relativeTime(project.updatedAt ?? project.createdAt)
+            return (
+              <RevealItem as="li" key={project.id}>
+                <button type="button" onClick={() => onOpen(project)} className="group flex h-full min-h-[108px] w-full flex-col justify-between gap-4 rounded-2xl bg-card p-4 text-left ring-1 ring-border/70 transition-[box-shadow,transform] hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-20px_rgb(0_0_0/0.35)] hover:ring-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none">
+                  <span className="line-clamp-2 text-[14px] font-semibold leading-snug text-foreground">{title}</span>
+                  <span className="flex items-center justify-between gap-3 text-[12px] font-semibold text-muted-foreground">
+                    <span className="inline-flex items-center gap-1.5"><span className={cn("size-1.5 rounded-full", project.status === "generating" ? "animate-pulse bg-success" : project.status === "error" ? "bg-destructive" : "bg-muted-foreground/60")} />{projectStatusLabel[project.status]}{when && <span className="font-medium">· {when}</span>}</span>
+                    <ArrowRightIcon className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground motion-reduce:transition-none" />
+                  </span>
+                </button>
+              </RevealItem>
+            )
+          })}
+        </RevealGroup>
+      )}
+    </section>
+  )
+}
+
+function WorkspacePlanControl({ planName, isPaidUser, compact = false }: { planName: string; isPaidUser: boolean; compact?: boolean }) {
   return <nav aria-label="Your plan" className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border/70 bg-card p-1">
-    <span className="whitespace-nowrap px-3 text-xs font-medium text-muted-foreground">{planName} plan</span>
+    <span className={cn("whitespace-nowrap px-3 text-xs font-semibold text-muted-foreground", compact && "hidden min-[400px]:inline")}>{planName} plan</span>
     <Link
       href="/pricing"
       className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full bg-primary px-4 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none"
@@ -543,6 +598,26 @@ export function ProjectsWorkspace() {
 
   const isTeamsPlan = !!userData?.planId && userData.planId === "team"
   const isPaidUser = !!userData?.planId && userData.planId !== "free"
+  const [briefRequest, setBriefRequest] = useState<{ prompt?: string; mode?: Brief["mode"]; id: number }>({ id: 0 })
+  const [openError, setOpenError] = useState<string | null>(null)
+  const openRequest = useRef<AbortController | null>(null)
+  useEffect(() => () => openRequest.current?.abort(), [])
+  const chooseBrief = (brief: Brief) => {
+    setBriefRequest((value) => ({ prompt: brief.prompt, mode: brief.mode, id: value.id + 1 }))
+    requestAnimationFrame(() => document.getElementById("workspace-brief")?.focus())
+  }
+  const openRecentProject = async (project: ProjectSummary) => {
+    openRequest.current?.abort()
+    const controller = new AbortController()
+    openRequest.current = controller
+    setOpenError(null)
+    try {
+      const path = await projectSessionPath(currentBackend(), project, controller.signal)
+      if (!controller.signal.aborted) router.push(path)
+    } catch (reason) {
+      if (!controller.signal.aborted) setOpenError(reason instanceof Error ? reason.message : "Couldn’t open this project. Please try again.")
+    }
+  }
   const [scope, setScope] = useState<"user" | "team">("user")
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(false)
@@ -717,8 +792,7 @@ export function ProjectsWorkspace() {
           aria-labelledby={PROJECTS_HEADING_ID}
           className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-background"
         >
-          <header className="hidden h-20 shrink-0 items-center justify-between gap-4 px-8 lg:flex">
-            <p className="text-xs font-medium text-muted-foreground">Workspace</p>
+          <header className="hidden h-20 shrink-0 items-center justify-end gap-4 px-8 lg:flex">
             <WorkspacePlanControl planName={stats.planName} isPaidUser={isPaidUser} />
           </header>
 
@@ -734,7 +808,8 @@ export function ProjectsWorkspace() {
             >
               <SidebarToggleIcon className="h-5 w-5" />
             </button>
-            <Link href="/" className="flex min-w-0 items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30" aria-label="Go to Lotus home"><BrandWordmark /></Link>
+            <Link href="/" className="flex min-w-0 items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30" aria-label="Go to Lotus home"><BrandWordmark size="nav" /></Link>
+            <div className="ml-auto"><WorkspacePlanControl planName={stats.planName} isPaidUser={isPaidUser} compact /></div>
           </header>
 
           {/* Composer surface */}
@@ -744,30 +819,31 @@ export function ProjectsWorkspace() {
                 <div className="relative isolate flex min-h-full w-full flex-col items-center justify-start overflow-hidden bg-transparent px-5 pb-20 md:rounded-t-[1.125rem] sm:px-8 sm:pb-24 lg:rounded-t-[1.25rem]">
 
                   <div className="relative z-10 w-full max-w-[60rem]">
-                    <div className="mx-auto flex min-h-[calc(100dvh-10rem)] w-full max-w-[760px] flex-col justify-center py-10 sm:py-12 lg:pb-24 lg:pt-12">
+                    <div className="mx-auto flex w-full max-w-[760px] flex-col pb-16 pt-8 sm:pt-12 lg:pt-[9vh]">
                       <Suspense fallback={null}>
                         <OnboardingBanner />
                       </Suspense>
-                      {(accountError || projectsError) && <div role="alert" className="mb-8 rounded-xl border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-                        <p>{accountError || projectsError}</p>
-                        <button type="button" className="mt-1 min-h-11 rounded-lg font-semibold underline underline-offset-4" onClick={() => {
+                      {(accountError || projectsError || openError) && <div role="alert" className="mb-8 rounded-xl bg-destructive/10 px-4 py-3 text-[13.5px] font-medium text-destructive">
+                        <p>{accountError || projectsError || openError}</p>
+                        {(accountError || projectsError) && <button type="button" className="mt-1 min-h-11 rounded-lg font-semibold underline underline-offset-4" onClick={() => {
                           void refreshAccount().then(refreshProjects).catch(() => {})
-                        }}>Retry connection</button>
+                        }}>Retry connection</button>}
                       </div>}
 
-                      <div className="mb-7 text-center sm:mb-8">
-                        <h1
-                          id={PROJECTS_HEADING_ID}
-                          className="mx-auto text-balance text-3xl font-medium leading-tight tracking-[-0.035em] text-foreground sm:text-4xl"
-                        >
-                          What would you like to build?
-                        </h1>
-                      </div>
+                      <RevealGroup className="mb-7 text-center sm:mb-8" animateOnMount>
+                        <RevealItem as="h1" id={PROJECTS_HEADING_ID} className="mx-auto text-[clamp(30px,5vw,48px)] font-bold leading-[1.02] tracking-[-0.05em] text-foreground">
+                          What should we build today?
+                        </RevealItem>
+                        <RevealItem as="p" className="mx-auto mt-3 max-w-md text-[15px] font-medium leading-relaxed text-muted-foreground">Describe a website, app or tool. LotusBuild asks the right questions, then builds it while you watch.</RevealItem>
+                      </RevealGroup>
 
                       <div className="relative">
                         <AnimatedAIInput
                           inputId="workspace-brief"
                           appearance="assistant"
+                          suggestedPrompt={briefRequest.id === 0 ? undefined : briefRequest.prompt}
+                          promptRequestId={briefRequest.id}
+                          suggestedMode={briefRequest.mode}
                           onManageProjects={() => {
                             setProjectsExpanded(true)
                             if (window.matchMedia("(min-width: 1024px)").matches) setDesktopSidebarCollapsed(false)
@@ -775,9 +851,19 @@ export function ProjectsWorkspace() {
                           }}
                         />
                       </div>
-                      <div className="mt-4 flex justify-center lg:hidden">
-                        <WorkspacePlanControl planName={stats.planName} isPaidUser={isPaidUser} />
+                      <div className="mt-4 flex flex-wrap justify-center gap-1.5" role="group" aria-label="Start from a type of project">
+                        {heroCategories.map((category) => (
+                          <button key={category.key} type="button" onClick={() => chooseBrief(category)} className="inline-flex min-h-9 items-center gap-2 rounded-full px-3.5 text-[13px] font-semibold text-muted-foreground ring-1 ring-border/80 transition-colors hover:bg-foreground hover:text-background hover:ring-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none">
+                            <category.icon width={14} height={14} />{category.label}
+                          </button>
+                        ))}
                       </div>
+
+                      <RecentProjects projects={projects} loading={projectsLoading} onOpen={(project) => { void openRecentProject(project) }} onShowAll={() => {
+                        setProjectsExpanded(true)
+                        if (window.matchMedia("(min-width: 1024px)").matches) setDesktopSidebarCollapsed(false)
+                        else setMobileSidebarOpen(true)
+                      }} />
                     </div>
 
                   </div>
