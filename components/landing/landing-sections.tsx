@@ -11,7 +11,7 @@ export function CapabilitiesSection() {
       <RevealGroup as="ul" className={styles.capabilityList} step={0.05}>
         {capabilities.map((item) => (
           <RevealItem as="li" key={item.label}>
-            <span className={styles.capabilityIcon}><item.icon width={18} height={18} /></span>
+            <span className={styles.capabilityIcon}><item.icon /></span>
             <strong>{item.label}</strong>
             <small>{item.detail}</small>
           </RevealItem>

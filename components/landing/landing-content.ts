@@ -64,11 +64,11 @@ export const demoProject = {
 
 export type Capability = { icon: LandingIcon; label: string; detail: string }
 export const capabilities = [
-  { icon: PlanIcon, label: 'Plan mode', detail: 'Questions before code.' },
+  { icon: PlanIcon, label: 'Plan mode', detail: 'Questions first.' },
   { icon: BlocksIcon, label: 'Build mode', detail: 'Straight to a first version.' },
-  { icon: PreviewIcon, label: 'Live preview', detail: 'Opens as soon as it is ready.' },
-  { icon: TerminalIcon, label: 'Terminal', detail: 'Every command, in the open.' },
-  { icon: DesktopIcon, label: 'Desktop view', detail: 'Watch when a build needs a screen.' },
+  { icon: PreviewIcon, label: 'Live preview', detail: 'Opens the moment it is ready.' },
+  { icon: TerminalIcon, label: 'Terminal', detail: 'Every command in the open.' },
+  { icon: DesktopIcon, label: 'Desktop view', detail: 'Watch the agent’s screen.' },
   { icon: VersionsIcon, label: 'Versions', detail: 'Every change, saved.' },
 ] as const satisfies readonly Capability[]
 

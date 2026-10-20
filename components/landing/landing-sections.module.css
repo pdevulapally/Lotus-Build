@@ -2,12 +2,14 @@
 .eyebrowLight { margin: 0 0 16px; color: var(--background); opacity: .7; font-size: 12.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 
 /* Capabilities strip */
-.capabilities { padding: 0 24px 96px; }
-.capabilityList { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; max-width: 1200px; margin: 0 auto; padding: 0; list-style: none; }
-.capabilityList li { display: grid; gap: 4px; padding: 20px 18px; border-radius: 18px; background: var(--card); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--border) 75%, transparent); }
-.capabilityIcon { display: grid; place-items: center; width: 36px; height: 36px; margin-bottom: 10px; border-radius: 11px; background: var(--foreground); color: var(--background); }
-.capabilityList strong { font-size: 14.5px; font-weight: 700; letter-spacing: -.015em; }
-.capabilityList small { color: var(--muted-foreground); font-size: 12.5px; font-weight: 550; line-height: 1.45; }
+.capabilities { padding: 0 24px 104px; }
+.capabilityList { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); max-width: 1200px; margin: 0 auto; padding: 0; list-style: none; border-block: 1px solid var(--border); }
+.capabilityList li { display: flex; flex-direction: column; gap: 6px; padding: 28px 24px 30px; border-left: 1px solid var(--border); }
+.capabilityList li:first-child { border-left: 0; }
+.capabilityIcon { display: grid; place-items: center; width: 24px; height: 24px; margin-bottom: 14px; color: var(--foreground); }
+.capabilityIcon svg { width: 22px; height: 22px; }
+.capabilityList strong { font-size: 15px; font-weight: 700; letter-spacing: -.015em; line-height: 1.2; }
+.capabilityList small { color: var(--muted-foreground); font-size: 13px; font-weight: 550; line-height: 1.45; text-wrap: balance; }
 
 /* Bold feature rows */
 .features { padding: 112px 24px; border-top: 1px solid var(--border); background: var(--muted); }
@@ -112,6 +114,8 @@
 
 @media (max-width: 1000px) {
   .capabilityList { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .capabilityList li:nth-child(3n + 1) { border-left: 0; }
+  .capabilityList li:nth-child(n + 4) { border-top: 1px solid var(--border); }
   .featuresInner { grid-template-columns: 1fr; gap: 40px; }
   .featuresIntro { position: static; }
   .modesInner { grid-template-columns: 1fr; }
@@ -122,8 +126,12 @@
 }
 @media (max-width: 680px) {
   .capabilities { padding: 0 16px 72px; }
-  .capabilityList { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .capabilityList li { padding: 16px 14px; }
+  .capabilityList { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .capabilityList li { padding: 20px 16px 22px; border-left: 1px solid var(--border); }
+  .capabilityList li:nth-child(3n + 1) { border-left: 1px solid var(--border); }
+  .capabilityList li:nth-child(odd) { border-left: 0; }
+  .capabilityList li:nth-child(n + 3) { border-top: 1px solid var(--border); }
+  .capabilityList li:nth-child(n + 4) { border-top: 1px solid var(--border); }
   .features { padding: 80px 16px; }
   .rows li { grid-template-columns: 32px minmax(0, 1fr) 36px; gap: 10px; padding: 20px 0; }
   .rows li:hover { padding-left: 0; }
