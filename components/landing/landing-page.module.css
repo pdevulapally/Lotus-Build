@@ -1,3 +1,17 @@
-.page { background: var(--background); color: var(--foreground); font-family: var(--font-sans); }
+/* Public landing only: task, account and shared-site routes keep their theme. */
+.page {
+  --background: #0b0d0c;
+  --foreground: #f1f2ed;
+  --card: #151816;
+  --card-foreground: #f1f2ed;
+  --muted: #202420;
+  --muted-foreground: #a6ada4;
+  --border: #343a33;
+  --primary: #eff3e9;
+  --primary-foreground: #111510;
+  --ring: #c7d4bc;
+  background: var(--background); color: var(--foreground); font-family: var(--font-sans);
+}
 .page h1, .page h2, .page h3 { font-family: var(--font-heading); }
 .page a:focus-visible, .page button:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; }
+.page img[src='/Images/lotusbuild-logokit.png'] { filter: invert(1); mix-blend-mode: screen; }

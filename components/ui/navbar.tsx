@@ -2,12 +2,11 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { ArrowRight, ArrowUpRight, Menu, Settings, LogOut } from "lucide-react"
 import { BrandWordmark } from "@/components/ui/brand-wordmark"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/contexts/auth-context"
-import { useSettingsDialog } from "@/components/settings/settings-dialog"
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import styles from "./navbar.module.css"
@@ -23,7 +22,7 @@ const links = [
 export function Navbar() {
   const pathname = usePathname()
   const { user, loading, signOut } = useAuth()
-  const { openSettings } = useSettingsDialog()
+  const router = useRouter()
   const [menuOpen, setMenuOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [signingOut, setSigningOut] = useState(false)
@@ -47,7 +46,7 @@ export function Navbar() {
       <div className={styles.actions}>
         {loading ? <span role="status" className={styles.loading}>Loading account…</span> : <>
           {!user && <Link href="/login" className={styles.login} aria-current={pathname === '/login' ? 'page' : undefined}>Log in</Link>}
-          <Link href={user ? '/' : '/signup'} className="site-action" aria-current={!user && pathname === '/signup' ? 'page' : undefined}>{user ? 'Open workspace' : 'Start building'}<ArrowUpRight size={15} aria-hidden /></Link>
+          <Link href={user ? '/tasks' : '/signup'} className="site-action" aria-current={!user && pathname === '/signup' ? 'page' : undefined}>{user ? 'Open workspace' : 'Start building'}<ArrowUpRight size={15} aria-hidden /></Link>
           {user && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -74,7 +73,7 @@ export function Navbar() {
                   )}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="rounded-lg px-3 py-2" onSelect={() => openSettings()}>
+                <DropdownMenuItem className="rounded-lg px-3 py-2" onSelect={() => router.push("/settings")}>
                   <Settings size={16} />
                   Settings
                 </DropdownMenuItem>
@@ -130,7 +129,7 @@ export function Navbar() {
                   </div>
                   <Link href="/" className={styles.mobilePrimary} onClick={() => setMenuOpen(false)}>Open workspace<ArrowRight size={16} aria-hidden /></Link>
                   <div className={styles.mobileAccountActions}>
-                    <button type="button" onClick={() => { setMenuOpen(false); openSettings() }}>
+                    <button type="button" onClick={() => { setMenuOpen(false); router.push("/settings") }}>
                       <Settings size={16} aria-hidden /> Settings
                     </button>
                     <button type="button" disabled={signingOut} onClick={() => { setMenuOpen(false); void exit() }}>

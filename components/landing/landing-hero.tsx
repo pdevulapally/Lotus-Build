@@ -1,7 +1,8 @@
 "use client"
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { AnimatedAIInput } from '@/components/ui/animated-ai-input'
+import { TaskEntry } from './task-entry'
+import { BrandHero } from './brand/brand-hero'
 import { RevealGroup, RevealItem } from '@/components/ui/reveal'
 import { spring } from '@/lib/motion'
 import { heroCategories, showcaseTiles, type Brief, type HeroCategoryKey } from './landing-content'
@@ -19,21 +20,14 @@ export function LandingHero({ request, onBrief }: { request: BriefRequest; onBri
 
   return (
     <section className={styles.hero} aria-labelledby="landing-heading">
-      <div className={styles.grid} aria-hidden />
+      <BrandHero />
       <RevealGroup className={styles.inner} animateOnMount>
         <RevealItem as="h1" id="landing-heading">What should we build today?</RevealItem>
         <RevealItem as="p" className={styles.intro}>
           Websites, apps and internal tools for your business. LotusBuild asks the right questions, plans it with you, then builds it while you watch.
         </RevealItem>
         <RevealItem className={styles.composer}>
-          <AnimatedAIInput
-            suggestedPrompt={request.id === 0 ? undefined : request.prompt}
-            promptRequestId={request.id}
-            suggestedMode={request.mode}
-            appearance="assistant"
-            inputId="project-brief"
-            portalClassName={styles.popover}
-          />
+          <TaskEntry suggestedPrompt={request.prompt} promptRequestId={request.id} />
         </RevealItem>
         <RevealItem className={styles.categories} role="group" aria-label="Start from a type of project">
           {heroCategories.map((entry) => {

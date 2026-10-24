@@ -1,90 +1,28 @@
 "use client"
-
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { onAuthStateChanged, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword,
   signOut as firebaseSignOut, sendPasswordResetEmail, type User } from 'firebase/auth'
 import { auth, googleProvider, githubProvider } from '@/lib/firebase'
-import { currentBackend } from '@/lib/backend/browser'
-import type { BackendAccount, BackendUsage } from '@/lib/backend/client'
-
-type UserData = {
-  uid: string; email: string | null; displayName: string | null; photoURL: string | null; planId: string; planName: string
-  // Legacy UI fields are unavailable in the current contract, not invented balances.
-  tokenUsage?: { used: number; remaining: number; periodStart: Date; periodEnd: Date }
-  tokensLimit?: number; currentWorkspaceId?: string; referralCount?: number; referralCreditsEarned?: number; createdAt?: Date
-}
-type Workspace = { id: string; name: string; slug: string; ownerId: string; createdAt: Date; updatedAt: Date }
 type AuthState = {
-  user: User | null; userData: UserData | null; account: BackendAccount | null; usage: BackendUsage | null
-  loading: boolean; accountError: string | null; refreshAccount: () => Promise<void>
-  workspaces: Workspace[]; currentWorkspace: Workspace | null; switchWorkspace: (id: string) => Promise<void>
-  getOptionalAuthHeader: () => Promise<Record<string, string>>
+  user: User | null; loading: boolean
   signInWithGoogle: () => Promise<void>; signInWithGithub: () => Promise<void>
   signInWithEmail: (email: string, password: string) => Promise<void>
   signUpWithEmail: (email: string, password: string) => Promise<void>
   sendPasswordResetEmail: (email: string) => Promise<void>; signOut: () => Promise<void>
-  updateTokensUsed: (tokens: number) => Promise<void>; hasTokens: (required: number) => boolean; remainingTokens: number | null
 }
 const AuthContext = createContext<AuthState | undefined>(undefined)
-
+/** Identity only. No legacy account, balances, billing or workspace bootstrap calls. */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [account, setAccount] = useState<BackendAccount | null>(null)
-  const [usage, setUsage] = useState<BackendUsage | null>(null)
   const [loading, setLoading] = useState(true)
-  const [accountError, setAccountError] = useState<string | null>(null)
-  const accountRequest = useRef(0)
-  const refreshAccount = useCallback(async () => {
-    const request = ++accountRequest.current
-    const identity = auth.currentUser
-    if (!identity) throw new Error('Sign in to load your account.')
-    try {
-      const client = currentBackend()
-      const nextAccount = await client.me()
-      const nextUsage = await client.usage()
-      if (auth.currentUser !== identity || request !== accountRequest.current) return
-      if (nextAccount.uid !== identity.uid || nextUsage.uid !== identity.uid) throw new Error('The server returned data for a different account.')
-      setAccount(nextAccount); setUsage(nextUsage); setAccountError(null)
-    } catch (error) {
-      if (auth.currentUser === identity && request === accountRequest.current) {
-        setAccount(null); setUsage(null)
-        setAccountError(error instanceof Error ? error.message : 'Could not load account.')
-      }
-      throw error
-    }
-  }, [])
-  useEffect(() => {
-    let version = 0
-    const unsubscribe = onAuthStateChanged(auth, async (identity) => {
-      const current = ++version
-      accountRequest.current++
-      setUser(identity); setAccount(null); setUsage(null); setAccountError(null); setLoading(true)
-      try { if (identity) await refreshAccount() } catch { /* The explicit account error is rendered by consumers. */ }
-      finally { if (current === version) setLoading(false) }
-    })
-    return () => { version++; accountRequest.current++; unsubscribe() }
-  }, [refreshAccount])
-  const userData = useMemo<UserData | null>(() => account ? {
-    uid: account.uid, email: account.email, displayName: account.displayName ?? null, photoURL: account.photoUrl ?? null,
-    planId: account.plan.key, planName: account.plan.name,
-  } : null, [account])
-  const getOptionalAuthHeader = useCallback(async (): Promise<Record<string, string>> => {
-    const identity = auth.currentUser
-    return identity ? { Authorization: `Bearer ${await identity.getIdToken()}` } : {}
-  }, [])
-  return <AuthContext.Provider value={{ user, userData, account, usage, loading, accountError, refreshAccount,
-    workspaces: [], currentWorkspace: null,
-    switchWorkspace: async () => { throw new Error('Team workspaces are not connected to the current backend yet.') },
-    getOptionalAuthHeader,
+  useEffect(() => onAuthStateChanged(auth, identity => { setUser(identity); setLoading(false) }), [])
+  return <AuthContext.Provider value={{ user, loading,
     signInWithGoogle: async () => { await signInWithPopup(auth, googleProvider) },
     signInWithGithub: async () => { await signInWithPopup(auth, githubProvider) },
     signInWithEmail: async (email, password) => { await signInWithEmailAndPassword(auth, email, password) },
     signUpWithEmail: async (email, password) => { await createUserWithEmailAndPassword(auth, email, password) },
-    sendPasswordResetEmail: async (email) => { await sendPasswordResetEmail(auth, email) },
+    sendPasswordResetEmail: async email => { await sendPasswordResetEmail(auth, email) },
     signOut: async () => { await firebaseSignOut(auth) },
-    updateTokensUsed: refreshAccount,
-    hasTokens: (required) => required === 0 && account !== null,
-    remainingTokens: null,
   }}>{children}</AuthContext.Provider>
 }
 export function useAuth() {

@@ -1,5 +1,5 @@
 import type { ComponentType, SVGProps } from 'react'
-import type { TerminalEntry } from '@/lib/backend/terminal'
+type TerminalEntry = { id: string; command: string; status: 'running' | 'done' | 'error' | 'stopped'; exitCode?: number; output?: string; at?: string }
 import {
   BlocksIcon, DesktopIcon, LockIcon, MailCodeIcon, PlanIcon, PreviewIcon, ShieldIcon,
   TeamAppIcon, TerminalIcon, ToolIcon, VersionsIcon, WebsiteIcon,

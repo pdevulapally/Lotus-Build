@@ -829,3 +829,20 @@ html::-webkit-scrollbar {
 .site-action { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 10px; padding: 12px 18px; border-radius: 12px; background: var(--primary); color: var(--primary-foreground); font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; transition: background-color 150ms ease, opacity 150ms ease; }
 .site-action:hover { opacity: .88; }
 .site-action:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; }
+
+/* Focused task/account surfaces: cooler neutral canvas, no decorative grid. */
+.task-workspace-theme, .auth-backdrop {
+  --background: #f5f6f8;
+  --foreground: #20242b;
+  --card: #ffffff;
+  --card-foreground: #20242b;
+  --muted: #eceef2;
+  --muted-foreground: #5e6674;
+  --border: #d9dee6;
+  --primary: #263d65;
+  --primary-foreground: #ffffff;
+  --ring: #263d65;
+  background: var(--background);
+  color: var(--foreground);
+}
+.task-workspace-theme { min-height: 100svh; }

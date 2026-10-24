@@ -1,22 +1,21 @@
 export const lotusBuildSupportEmail = 'lotusbuild.support@gmail.com'
 export const lotusBuildSupportAreas = [
-  { title: 'Projects and sessions', description: 'Opening projects, messages, session errors and saved changes.' },
-  { title: 'Account and billing', description: 'Sign-in, email verification, current plans and account usage.' },
-  { title: 'Files and versions', description: 'Reading source files in the Files tab and comparing saved versions.' },
+  { title: 'Tasks and recovery', description: 'Opening tasks, messages, approval requests and interrupted work.' },
+  { title: 'Account and billing', description: 'Sign-in, verification and help with existing subscriptions.' },
+  { title: 'Previous workspace', description: 'Questions about old project links and future data migration.' },
 ] as const
-
 export type HelpTopic = 'getting-started' | 'saved-work' | 'billing'
 export const lotusBuildHelpTopics = [
   { key: 'getting-started', label: 'Getting started' },
-  { key: 'saved-work', label: 'Files and versions' },
-  { key: 'billing', label: 'Usage and billing' },
+  { key: 'saved-work', label: 'Saved work' },
+  { key: 'billing', label: 'Account and billing' },
 ] as const satisfies ReadonlyArray<{ key: HelpTopic; label: string }>
-
 export const lotusBuildFaqs = [
-  { topic: 'getting-started', q: 'How do I start a project?', a: 'Describe what you want to build on the home page and sign in. Choose Plan to talk it through first or Build to go straight to a first version, then send the request.' },
-  { topic: 'getting-started', q: 'What does Plan mode do?', a: 'Plan works through the approach before anything is built. LotusBuild asks a few questions, proposes a plan you can change, and you choose Build this plan when you are ready.' },
-  { topic: 'getting-started', q: 'Where can I see what the agent is doing?', a: 'The side panel opens during a run. Terminal shows each command and its output, Preview opens as soon as your build is ready to try, and Files shows the source.' },
-  { topic: 'saved-work', q: 'Where do I find my files and versions?', a: 'Open the Files tab in your project to read the saved source. Version history lists each saved change so you can compare what changed between versions.' },
-  { topic: 'billing', q: 'How do I check usage?', a: 'Open Settings and choose Usage for your account meters. Session usage below the conversation shows what that session has used.' },
-  { topic: 'billing', q: 'Which models and plans are available?', a: 'The model menu shows the catalogue available to your signed-in account. Pricing shows the current plans, prices and included usage.' },
+  { topic: 'getting-started', q: 'How do I start a task?', a: 'Open the new workspace, sign in and verify your email. Describe your goal and choose Code or Desktop. An operator must configure the replacement API before tasks can run.' },
+  { topic: 'getting-started', q: 'When do I need to approve an action?', a: 'The server identifies actions that need permission. Review the exact action details before choosing approve or deny. A decision applies only to that request; stopping a task is a separate action.' },
+  { topic: 'getting-started', q: 'Where can I see progress?', a: 'The workspace displays the saved conversation and current task state. It checks for updates while work is active. File browsing, live previews and terminal streaming are not connected in this version.' },
+  { topic: 'saved-work', q: 'How do I return to a task?', a: 'Keep its workspace URL or task ID. Open that URL or paste the ID into the new workspace. A browsable task history is not available yet.' },
+  { topic: 'saved-work', q: 'What happened to my old project links?', a: 'Old project and computer links show a transition notice. Their data has not been copied into the new task API, and this frontend change does not delete it. Contact support about migration before retiring the old service.' },
+  { topic: 'billing', q: 'How do I check usage or manage billing?', a: 'Usage meters, checkout and the billing portal are not connected to the new workspace. Existing subscriptions are not cancelled by this change. Contact support for help with them.' },
+  { topic: 'billing', q: 'How do I verify my account?', a: 'Use Send verification link on the verification page, open the Firebase email link, then return and select I’ve verified my email. No six-digit code from the old service is needed.' },
 ] as const satisfies ReadonlyArray<{ topic: HelpTopic; q: string; a: string }>
