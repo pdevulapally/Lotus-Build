@@ -11,6 +11,7 @@ import { useTaskWorkspace } from '@/hooks/use-task-workspace'
 import { canCancelTask, canReplyToTask, messageText, taskStatusLabels } from '@/lib/tasks/contract'
 import { pendingTaskCommandKey, readPendingCommand } from '@/lib/tasks/commands'
 import { TaskApproval } from './task-approval'
+import { claimTaskDraft, clearCreatedTaskDraft, clearTaskDraft, saveTaskDraft } from '@/lib/tasks/draft-transfer'
 
 export function TaskWorkspace() {
   const { user, loading } = useAuth()
@@ -34,15 +35,19 @@ export function TaskWorkspaceView({ uid, id, task, onCreated, onNew }: {
   const [draft, setDraft] = useState('')
   const [kind, setKind] = useState<'code' | 'desktop'>('code')
   const [openId, setOpenId] = useState('')
+  const [draftNotice, setDraftNotice] = useState('')
   useEffect(() => {
-    setDraft('')
+    setDraft(''); setDraftNotice('')
     try {
       const pending = readPendingCommand(sessionStorage, pendingTaskCommandKey(uid, id))
-      if (!pending) return
+      if (!pending) {
+        if (!id) { const incoming = claimTaskDraft(sessionStorage, uid); if (incoming) { setDraft(incoming.text); setKind(incoming.kind); setDraftNotice('Your draft is ready. Review it, then select Start task. Nothing has run yet.') } }
+        return
+      }
       const command = JSON.parse(pending.fingerprint)
       if (command[0] === 'create') { setDraft(command[1]); setKind(command[2]) }
       if (command[0] === 'message') setDraft(command[2])
-    } catch { /* Mutations fail closed if an unreadable pending command exists. */ }
+    } catch { setDraftNotice('Your saved draft could not be read. Existing uncertain requests must still be resolved before a new task.') }
   }, [uid, id])
   const session = task.session
   const messages = session?.messages.map(message => ({ role: message.role, text: messageText(message) })).filter(message => message.text) ?? []
@@ -50,11 +55,15 @@ export function TaskWorkspaceView({ uid, id, task, onCreated, onNew }: {
   const submit = async (event: React.FormEvent) => {
     event.preventDefault(); if (!draft.trim() || !canWrite || task.busy) return
     const done = id ? await task.send(draft.trim()) : await task.create(draft.trim(), kind)
-    if (done) setDraft('')
+    if (done) { setDraft(''); setDraftNotice(''); if (!id) { try { clearCreatedTaskDraft(sessionStorage, uid, draft, kind) } catch { /* Server success is authoritative; no repeated submission. */ } } }
+  }
+  const updateDraft = (text: string, nextKind = kind) => {
+    setDraft(text); setKind(nextKind)
+    if (!id) { try { if (text.trim()) saveTaskDraft(sessionStorage, uid, text, nextKind, true); else clearTaskDraft(sessionStorage, uid) } catch { setDraftNotice('Draft changes could not be saved for reload. Keep this page open.') } }
   }
   return <AppShell className="task-workspace-theme" variant="wash" height="auto" contentPadding={0} topNav={<Stack as="header" direction="horizontal" hAlign="between" vAlign="center" padding={6} gap={3}>
     <Link href="/" aria-label="LotusBuild home" className="inline-flex items-center gap-2 font-semibold"><img src="/Images/lotusbuild-icon.svg" alt="" width={28} height={28} />LotusBuild</Link>
-    <Stack direction="horizontal" gap={2} vAlign="center"><Link href="/settings" className="text-xs text-muted-foreground hover:text-foreground">Account</Link><span className="hidden text-xs text-muted-foreground sm:inline">New workspace · Preview</span><Button variant="ghost" onClick={() => { setDraft(''); onNew() }} disabled={task.busy}><Plus size={16} />New task</Button></Stack>
+    <Stack direction="horizontal" gap={2} vAlign="center"><Link href="/settings" className="text-xs text-muted-foreground hover:text-foreground">Account</Link><span className="hidden text-xs text-muted-foreground sm:inline">New workspace · Preview</span><Button variant="ghost" onClick={() => { setDraft(''); setDraftNotice(''); try { clearTaskDraft(sessionStorage, uid) } catch {} onNew() }} disabled={task.busy}><Plus size={16} />New task</Button></Stack>
   </Stack>}>
     <Stack className="mx-auto min-h-svh w-full max-w-4xl px-5 pb-10 sm:px-10" gap={8}>
       <Stack as="section" gap={3} className="pt-8 sm:pt-14">
@@ -72,11 +81,12 @@ export function TaskWorkspaceView({ uid, id, task, onCreated, onNew }: {
       {session?.error && <p role="alert" className="text-sm text-destructive">{session.error}</p>}
       {messages.length > 0 && <Stack as="section" gap={6} aria-label="Conversation">{messages.map((message, index) => <Stack as="article" key={index} gap={2} className={message.role === 'user' ? 'ml-6 rounded-xl bg-muted p-5 sm:ml-16' : 'pr-5'}><h2 className="text-xs font-semibold text-muted-foreground">{message.role === 'user' ? 'You' : 'LotusBuild'}</h2><p className="whitespace-pre-wrap break-words text-sm leading-7">{message.text}</p></Stack>)}</Stack>}
       {session?.status === 'awaiting_approval' && session.pending_approval && <TaskApproval key={session.pending_approval.id} session={session} busy={task.busy} onDecision={task.approve} />}
+      {!id && draftNotice && <p role="status" className="text-sm text-muted-foreground">{draftNotice}</p>}
       {canWrite && <form onSubmit={submit} className="rounded-2xl bg-card p-4 shadow-sm sm:p-6">
         <label htmlFor="task-prompt" className="sr-only">{id ? 'Your next message' : 'Describe your task'}</label>
-        <Textarea id="task-prompt" value={draft} onChange={event => setDraft(event.target.value)} maxLength={32000} disabled={task.busy} placeholder={id ? 'What should we do next?' : 'Describe what you want to get done…'} className="min-h-32 resize-y border-0 bg-transparent shadow-none focus-visible:ring-0" />
+        <Textarea id="task-prompt" value={draft} onChange={event => updateDraft(event.target.value)} maxLength={32000} disabled={task.busy} placeholder={id ? 'What should we do next?' : 'Describe what you want to get done…'} className="min-h-32 resize-y border-0 bg-transparent shadow-none focus-visible:ring-0" />
         <Stack direction="horizontal" hAlign="between" vAlign="center" gap={3} className="pt-4">
-          {!id ? <label className="flex items-center gap-2 text-xs text-muted-foreground">Workspace<select value={kind} onChange={event => setKind(event.target.value as 'code' | 'desktop')} disabled={task.busy} className="rounded-lg bg-muted p-2 text-foreground"><option value="code">Code</option><option value="desktop">Desktop</option></select></label> : <span className="text-xs text-muted-foreground">Your conversation is saved by the server.</span>}
+          {!id ? <label className="flex items-center gap-2 text-xs text-muted-foreground">Workspace<select value={kind} onChange={event => updateDraft(draft, event.target.value as 'code' | 'desktop')} disabled={task.busy} className="rounded-lg bg-muted p-2 text-foreground"><option value="code">Code</option><option value="desktop">Desktop</option></select></label> : <span className="text-xs text-muted-foreground">Your conversation is saved by the server.</span>}
           <Button type="submit" disabled={task.busy || !draft.trim()}><ArrowUp size={16} />{task.busy ? 'Sending…' : id ? 'Send' : 'Start task'}</Button>
         </Stack>
       </form>}

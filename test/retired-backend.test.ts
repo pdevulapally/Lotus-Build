@@ -96,7 +96,7 @@ test('replay receipts trigger canonical refresh rather than overwriting current 
   const mutation = source.slice(source.indexOf('const mutate ='), source.indexOf('const resolvePending ='))
   assert.match(mutation, /const replaying = !repeatableIntent && !!readPendingCommand/)
   assert.match(mutation, /if \(!replaying\) accept\(next\)/)
-  assert.match(mutation, /if \(sessionId !== next\.id\) onCreated\(next\.id\)/)
+  assert.match(mutation, /if \(sessionId !== next\.id\) \{[\s\S]*?onCreated\(next\.id\)/)
   assert.match(mutation, /else setRetry\(value => value \+ 1\)/)
   const poll = source.slice(source.indexOf('async function poll()'), source.indexOf('void poll()'))
   assert.match(poll, /accept\(next\)/)

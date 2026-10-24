@@ -27,7 +27,7 @@ export function LandingHero({ request, onBrief }: { request: BriefRequest; onBri
           Websites, apps and internal tools for your business. LotusBuild asks the right questions, plans it with you, then builds it while you watch.
         </RevealItem>
         <RevealItem className={styles.composer}>
-          <TaskEntry suggestedPrompt={request.prompt} />
+          <TaskEntry suggestedPrompt={request.prompt} promptRequestId={request.id} />
         </RevealItem>
         <RevealItem className={styles.categories} role="group" aria-label="Start from a type of project">
           {heroCategories.map((entry) => {

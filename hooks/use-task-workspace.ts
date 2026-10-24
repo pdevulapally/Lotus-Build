@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { currentTaskBackend } from '@/lib/backend/browser'
 import { type TaskClient } from '@/lib/backend/client'
+import { clearCreatedTaskDraft } from '@/lib/tasks/draft-transfer'
 import { runTaskCommand, pendingTaskCommandKey, readPendingCommand, replayPendingCommand } from '@/lib/tasks/commands'
 import { shouldPollTask, type TaskSession, type ApprovalDecision } from '@/lib/tasks/contract'
 
@@ -67,7 +68,10 @@ export function useTaskWorkspace(uid: string, sessionId: string | null, onCreate
       // A receipt may contain the original queued snapshot, not the current server state.
       if (!replaying) accept(next)
       setConnected(true)
-      if (sessionId !== next.id) onCreated(next.id)
+      if (sessionId !== next.id) {
+        try { const command = JSON.parse(fingerprint); if (command[0] === 'create') clearCreatedTaskDraft(sessionStorage, uid, command[1], command[2]) } catch { /* Receipt is resolved; never repeat execution to clear a draft. */ }
+        onCreated(next.id)
+      }
       else setRetry(value => value + 1)
       return true
     } catch (cause) {
