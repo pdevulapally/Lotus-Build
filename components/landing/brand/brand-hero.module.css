@@ -1,0 +1,17 @@
+.figure { position: absolute; inset-inline-end: -20px; inset-block-start: -45px; width: 510px; margin: 0; color: var(--muted-foreground); }
+.stage { position: relative; width: 100%; height: 440px; isolation: isolate; border-radius: 50%; background: radial-gradient(ellipse at 50% 55%, color-mix(in oklch, var(--foreground) 5%, transparent), transparent 68%); }
+.stage::after { content: ''; position: absolute; z-index: -1; bottom: 26px; left: 27%; width: 46%; height: 20px; background: color-mix(in oklch, var(--foreground) 11%, transparent); filter: blur(14px); border-radius: 50%; }
+.fallback { position: absolute; width: 76%; height: 76%; object-fit: contain; top: 12%; left: 12%; opacity: .7; }
+.canvas { display: block; width: 100%; height: 100%; opacity: 0; pointer-events: none; touch-action: pan-y; border-radius: 20px; }
+.stage[data-ready='true'] .canvas { opacity: 1; pointer-events: auto; cursor: grab; }
+.stage[data-ready='true'] .canvas:active { cursor: grabbing; }
+.stage[data-ready='true'] .fallback { visibility: hidden; }
+.canvas:focus-visible { outline: 2px solid var(--foreground); outline-offset: -4px; }
+.caption { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 16px; min-height: 44px; font-size: 11px; letter-spacing: .02em; }
+.controls { display: flex; align-items: center; gap: 4px; }
+.controls button { min-width: 44px; min-height: 44px; padding: 0 10px; border: 1px solid var(--border); background: transparent; color: var(--foreground); border-radius: 999px; cursor: pointer; font-size: 12px; }
+.controls button:hover { background: var(--muted); }
+.controls button:focus-visible { outline: 2px solid var(--foreground); outline-offset: 3px; }
+@media (max-width: 1100px) { .figure { position: relative; inset: auto; width: min(100%, 510px); margin: 30px auto 0; } .stage { height: 360px; } }
+@media (max-width: 560px) { .stage { height: 280px; } .figure { margin-top: 20px; } }
+:global(.dark) .fallback { filter: invert(1); }

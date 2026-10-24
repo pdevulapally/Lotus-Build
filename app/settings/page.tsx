@@ -1,41 +1,13 @@
 "use client"
-
-/**
- * Settings now lives in the global SettingsDialog (Claude-style modal) mounted
- * by SettingsDialogProvider in the root layout. This route remains only as a
- * landing target for external return URLs — the Stripe billing portal
- * (the current backend billing portal return URL)
- * both redirect here. It opens the dialog and moves the user onto the workspace at /.
- * underneath it.
- */
-
-import { useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Loader2 } from "lucide-react"
-import { ProtectedRoute } from "@/components/auth/protected-route"
-import { useSettingsDialog } from "@/components/settings/settings-dialog"
-
-function SettingsRedirect() {
-  const router = useRouter()
-  const { openSettings } = useSettingsDialog()
-
-  useEffect(() => {
-    openSettings()
-    router.replace("/")
-  }, [openSettings, router])
-
-  return (
-    <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-background px-6 text-center" role="status">
-      <Loader2 className="size-5 animate-spin text-muted-foreground" aria-hidden="true" />
-      <p className="text-sm font-medium text-muted-foreground">Opening your settings…</p>
-    </div>
-  )
-}
-
-export default function AccountSettingsPage() {
-  return (
-    <ProtectedRoute requiredTokens={0}>
-      <SettingsRedirect />
-    </ProtectedRoute>
-  )
+import Link from 'next/link'
+import { useState } from 'react'
+import { Stack } from '@astryxdesign/core'
+import { useAuth } from '@/contexts/auth-context'
+import { Button } from '@/components/ui/button'
+export default function SettingsPage() {
+  const { user, loading, signOut, sendPasswordResetEmail } = useAuth()
+  const [notice, setNotice] = useState(''); const [error, setError] = useState(''); const [busy, setBusy] = useState(false)
+  const act = async (reset: boolean) => { setBusy(true); setNotice(''); setError(''); try { if (reset && user?.email) { await sendPasswordResetEmail(user.email); setNotice('Password reset email requested. Check your inbox.'); } else await signOut() } catch { setError('Could not complete that request. Try again.') } finally { setBusy(false) } }
+  if (loading) return <p role="status">Checking your sign-in…</p>
+  return <Stack as="main" gap={5} className="mx-auto max-w-xl px-6 py-24"><Link href="/tasks" className="text-sm underline">Back to workspace</Link><h1 className="text-3xl font-semibold">Your account</h1>{user ? <><p className="text-sm">{user.email}</p><p className="text-sm text-muted-foreground">{user.emailVerified ? 'Email verified' : 'Email verification needed'}</p><Button variant="outline" disabled={busy || !user.email} onClick={() => void act(true)}>Send password reset email</Button><Button variant="ghost" disabled={busy} onClick={() => void act(false)}>Sign out</Button></> : <Link href="/login?redirect=%2Fsettings" className="underline">Sign in</Link>}<p className="text-sm leading-7 text-muted-foreground">Usage, billing, team workspaces and repository connections are not available in the new workspace yet.</p>{notice && <p role="status">{notice}</p>}{error && <p role="alert">{error}</p>}</Stack>
 }

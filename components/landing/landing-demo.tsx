@@ -6,8 +6,6 @@ import { Reveal } from '@/components/ui/reveal'
 import { LotusLogo } from '@/components/ui/lotus-logo'
 import { SidebarToggleIcon } from '@/components/ui/sidebar-toggle-icon'
 import { Shimmer } from '@/components/ai-elements/shimmer'
-import { TerminalPanel } from '@/components/computer/terminal-panel'
-import { WorkspaceViewTabs } from '@/components/computer/workspace-panel'
 import { ArrowUpIcon, ChevronUpDownIcon, CloseIcon, ExpandIcon, ExternalIcon, HomeIcon, RefreshIcon } from '@/components/ui/lotus-icons'
 import { duration, ease } from '@/lib/motion'
 import { cn } from '@/lib/utils'
@@ -208,7 +206,7 @@ export function LandingDemo() {
 
                 <section className={cn(styles.panel, 'm-2 mt-0 flex min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-card')} aria-hidden>
                   <div className="flex min-h-14 shrink-0 items-center justify-between gap-2 border-b border-border/50 px-3">
-                    <WorkspaceViewTabs activeTab={scene.panel} onChange={noop} hasBrowser={false} hasResearch={false} hasDesktop={false} />
+                    <p className="px-3 py-2 text-xs text-muted-foreground">Illustration · {scene.panel}</p>
                     <div className="flex shrink-0 items-center gap-1 text-muted-foreground">
                       <span className="inline-flex size-8 items-center justify-center rounded-full"><ExpandIcon className="size-4" /></span>
                       <span className="inline-flex size-8 items-center justify-center rounded-full"><CloseIcon className="size-4" /></span>
@@ -218,7 +216,7 @@ export function LandingDemo() {
                     <AnimatePresence mode="wait" initial={false}>
                       <motion.div key={scene.key} className="absolute inset-0" {...swap}>
                         {scene.key === 'plan' && <PreviewEmpty />}
-                        {scene.key === 'build' && <TerminalPanel entries={[...demoProject.commands]} />}
+                        {scene.key === 'build' && <pre className="overflow-auto p-4 text-xs">{demoProject.commands.map(entry => `$ ${entry.command}\n${entry.output ?? ""}`).join("\n\n")}</pre>}
                         {scene.key === 'preview' && <PreviewSite />}
                       </motion.div>
                     </AnimatePresence>

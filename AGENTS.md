@@ -2,10 +2,10 @@
 
 ## Purpose and current architecture
 
-LotusBuild is a production-quality AI software workspace. This checkout is the Next.js frontend only. The separate lotusbuild-server repository owns all business APIs, generation, sandbox execution, storage, billing, and provider integrations.
+LotusBuild is a production-quality AI software workspace. This checkout is the Next.js frontend only. The separate lotusbuild-pythonapi-newbackend repository owns all business APIs, generation, sandbox execution, storage, billing, and provider integrations.
 
 - Use Firebase browser Auth only for sign-in and bearer tokens. Do not add Admin SDKs, direct business-data writes, AI providers, billing SDKs, server routes, E2B templates, or a second backend here.
-- All application API requests go through `lib/backend/client.ts` to the explicitly configured `NEXT_PUBLIC_BACKEND_URL` origin. Its route paths have no `/api` prefix.
+- All application API requests go through `lib/backend/client.ts` to the explicitly configured `NEXT_PUBLIC_AGENT_BACKEND_URL` origin. Its route paths have no `/api` prefix.
 - Inspect the current server contracts before changing clients. Keep runtime response validation, explicit errors, ownership enforcement on the server, and stable mutation identities across uncertain retries.
 - The server catalog determines models. The server determines plans, usage and limits. Never invent balances, models, entitlements, statuses, or successful actions.
 - Project IDs and session IDs identify different resources. Keep agent completion, saving, preview, and session state distinct.
@@ -585,3 +585,6 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Replacement API migration (user-authorized)
+The retired project/computer/account/billing adapters have been removed. `/tasks` is the current workspace; old project/computer links show an explicit non-destructive retirement notice. Do not reintroduce the old client or infer old subscription state. Firebase browser Auth remains the identity layer. See MIGRATION.md and TASK_WORKSPACE.md for current boundaries.
