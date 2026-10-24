@@ -155,13 +155,13 @@ export function SettingsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent data-product-theme="dark" overlayClassName="bg-black/60" className={`dark ${styles.dialog} relative my-0 flex h-[calc(100dvh-2rem)] w-full max-w-full flex-col gap-0 overflow-hidden rounded-2xl border-border bg-card p-0 sm:h-[min(85dvh,700px)] sm:max-w-4xl`}>
+      <DialogContent data-product-theme="dark" overlayClassName="bg-black/60" className={`dark text-foreground ${styles.dialog} relative my-0 flex h-[calc(100dvh-2rem)] w-full max-w-full flex-col gap-0 overflow-hidden rounded-2xl border-border bg-card p-0 sm:h-[min(85dvh,700px)] sm:max-w-4xl`}>
         <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
           <aside className="flex shrink-0 flex-col border-b border-border/70 bg-background sm:w-52 sm:border-b-0 sm:border-r">
             <div className="px-5 pb-5 pt-7 pr-16 sm:px-6 sm:pb-8 sm:pt-8">
               <DialogTitle className="text-base font-semibold tracking-tight">Settings</DialogTitle>
             </div>
-            <nav className="flex gap-1 overflow-x-auto px-3 pb-3 sm:flex-col sm:overflow-x-visible sm:px-3 sm:pb-4" aria-label="Settings sections">
+            <nav className="flex gap-1 overflow-x-auto px-3 pb-3 [scrollbar-width:none] sm:flex-col sm:overflow-x-visible sm:px-3 sm:pb-4" aria-label="Settings sections">
               {SETTINGS_SECTION_ORDER.map((item) => {
                 const { icon: Icon, label } = SETTINGS_SECTIONS[item]
                 return (
