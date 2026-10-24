@@ -20,6 +20,7 @@ export function LandingHero({ request, onBrief }: { request: BriefRequest; onBri
 
   return (
     <section className={styles.hero} aria-labelledby="landing-heading">
+      <BrandHero />
       <RevealGroup className={styles.inner} animateOnMount>
         <RevealItem as="h1" id="landing-heading">What should we build today?</RevealItem>
         <RevealItem as="p" className={styles.intro}>
@@ -39,7 +40,6 @@ export function LandingHero({ request, onBrief }: { request: BriefRequest; onBri
             )
           })}
         </RevealItem>
-        <BrandHero />
       </RevealGroup>
 
       <div className={styles.showcase}>

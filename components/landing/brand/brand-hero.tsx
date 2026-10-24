@@ -63,18 +63,13 @@ export function BrandHero() {
         {/* Always present: SSR, reduced motion, loading and unsupported WebGL. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img className={styles.fallback} src="/Images/lotusbuild-icon.svg" width="841" height="708" alt="LotusBuild brand mark" aria-hidden={ready} />
-        <canvas ref={canvas} className={styles.canvas} tabIndex={ready ? 0 : -1} aria-hidden={!ready} role="img" aria-label="Silver three-dimensional LotusBuild mark. Arrow keys rotate; Home resets." aria-describedby={hintId}
+        <canvas ref={canvas} className={styles.canvas} tabIndex={ready ? 0 : -1} aria-hidden={!ready} role="img" aria-label="Interactive silver LotusBuild mark. Arrow keys rotate; Home resets." aria-describedby={hintId}
           onPointerDown={event => { if (!ready || !event.isPrimary || event.button !== 0 || drag.current) return; drag.current = { id: event.pointerId, x: event.clientX, y: event.clientY }; event.currentTarget.setPointerCapture(event.pointerId) }}
           onPointerMove={pointerMove} onPointerUp={release} onPointerCancel={release} onLostPointerCapture={event => { if (drag.current?.id === event.pointerId) drag.current = null }}
           onPointerLeave={() => { if (!drag.current) runtime.current?.reset() }} onKeyDown={keyboard} />
       </div>
-      <figcaption className={styles.caption}>
-        <span id={hintId}>{ready ? 'Move to light. Drag to turn.' : 'The LotusBuild mark.'}</span>
-        {ready && <div className={styles.controls} role="group" aria-label="Rotate the brand mark">
-          <button type="button" aria-label="Turn logo left" onClick={() => runtime.current?.turn(0, -.15)}>←</button>
-          <button type="button" onClick={() => runtime.current?.reset()}>Reset</button>
-          <button type="button" aria-label="Turn logo right" onClick={() => runtime.current?.turn(0, .15)}>→</button>
-        </div>}
+      <figcaption className={styles.caption} id={hintId}>
+        {ready ? 'Drag to turn the mark. Arrow keys rotate; Home or Escape resets.' : 'The LotusBuild brand mark.'}
       </figcaption>
     </figure>
   )
