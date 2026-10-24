@@ -1,0 +1,80 @@
+.dialog.dialog {
+  width: calc(100% - 2rem);
+  max-width: 28rem;
+  margin-block: auto;
+  gap: 1.5rem;
+  padding: 2rem;
+  border-radius: 1.75rem;
+  border-color: var(--border);
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: none;
+}
+
+.dialog [data-slot='dialog-header'] {
+  align-items: flex-start;
+  gap: .75rem;
+  padding-inline-end: 1rem;
+  text-align: left;
+}
+
+.dialog [data-slot='dialog-title'] {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -.025em;
+}
+
+.dialog [data-slot='dialog-description'] {
+  margin: 0;
+  font-size: .875rem;
+  line-height: 1.65;
+  color: var(--muted-foreground);
+}
+
+.dialog [data-billing-icon] {
+  width: 3rem;
+  height: 3rem;
+  margin: 0 0 .5rem;
+  border-radius: 1rem;
+}
+
+.dialog [data-slot='button'] {
+  min-height: 3rem;
+  border-radius: 999px;
+  font-size: .875rem;
+}
+
+.dialog > [data-slot='dialog-close'] {
+  inset-block-start: 1rem;
+  inset-inline-end: 1rem;
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--muted-foreground);
+  opacity: 1;
+}
+
+.dialog > [data-slot='dialog-close']:hover {
+  background: var(--accent);
+  color: var(--foreground);
+}
+
+.actions {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: .75rem;
+  margin-top: .5rem;
+}
+
+.actions > * { flex: 1; }
+
+@media (min-width: 30rem) {
+  .actions { flex-direction: row; }
+}
+
+@media (max-width: 30rem) {
+  .dialog.dialog { padding: 1.5rem; }
+}

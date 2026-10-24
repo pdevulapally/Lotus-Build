@@ -15,6 +15,7 @@ import { clearCheckoutAttempt, readCheckoutAttempt, saveCheckoutAttempt, type Ch
 import type { BackendPlan } from '@/lib/backend/client'
 import { describeAllowance, featuredPlanKey, formatPlanPrice } from '@/lib/plans/format'
 import styles from './pricing.module.css'
+import billingStyles from '@/components/billing/billing-dialog.module.css'
 
 export default function PricingPage() {
   const { user, account, loading: authLoading } = useAuth(); const router = useRouter()
@@ -61,12 +62,12 @@ export default function PricingPage() {
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not open checkout. Please try again.') }
     finally { submitting.current = false; setBusy(null) }
   }
-  return <>
+  return <section data-product-theme="dark" className="dark min-h-svh bg-background text-foreground">
     <Navbar />
     <Dialog open={checkoutCancelled} onOpenChange={setCheckoutCancelled}>
-      <DialogContent overlayClassName="bg-black/10" className="my-auto max-w-[calc(100vw-2rem)] gap-0 rounded-[24px] border-border bg-card px-6 py-7 text-foreground shadow-lg sm:max-w-[420px] sm:px-8 sm:py-8">
+      <DialogContent overlayClassName="bg-black/60" data-product-theme="dark" className={`dark ${billingStyles.dialog}`}>
         <DialogHeader className="space-y-3 text-left">
-          <div className="flex size-11 items-center justify-center rounded-2xl bg-muted text-foreground"><ArrowLeft className="size-5" aria-hidden /></div>
+          <div data-billing-icon className="flex size-11 items-center justify-center rounded-2xl bg-muted text-foreground"><ArrowLeft className="size-5" aria-hidden /></div>
           <DialogTitle className="text-balance text-[22px] font-semibold leading-tight tracking-[-0.035em]">You left checkout</DialogTitle>
           <DialogDescription className="text-[14px] leading-relaxed text-muted-foreground">
             {authLoading ? 'Checking your checkout…'
@@ -76,7 +77,7 @@ export default function PricingPage() {
                   : 'Log in to pick up your checkout where you left off.'}
           </DialogDescription>
         </DialogHeader>
-        <footer className="mt-7 flex flex-col-reverse gap-2.5 sm:flex-row">
+        <footer className={billingStyles.actions}>
           <Button type="button" variant="outline" className="min-h-12 flex-1 rounded-xl" onClick={() => setCheckoutCancelled(false)}>Cancel</Button>
           {canResumeCheckout && checkoutAttempt ? <Button asChild className="min-h-12 flex-1 rounded-xl">
             <a href={checkoutAttempt.url} rel="noreferrer">Resume checkout</a>
@@ -167,5 +168,5 @@ export default function PricingPage() {
       </aside>
     </main>
     <FooterSection />
-  </>
+  </section>
 }

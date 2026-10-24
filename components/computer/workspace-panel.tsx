@@ -974,11 +974,11 @@ function PreviewPane({
     )
 }
 
-export function LoadingShell() {
+export function LoadingShell({ theme = "dark" }: { theme?: "light" | "dark" }) {
   const bone = skeletonClass
   return (
-    <div className="flex h-[100dvh] overflow-hidden bg-background" aria-busy="true" aria-label="Loading workspace">
-      <aside aria-hidden className="hidden w-[256px] shrink-0 border-r border-border/30 bg-muted/25 lg:flex lg:flex-col">
+    <div data-product-theme={theme} className={cn("flex h-[100dvh] overflow-hidden bg-card text-foreground", theme === "dark" && "dark")} role="status" aria-busy="true" aria-label="Loading workspace">
+      <aside aria-hidden className="hidden w-[256px] shrink-0 border-r border-border/30 bg-background lg:flex lg:flex-col">
         <div className="flex h-12 items-center justify-between px-3"><div className={cn(bone, "h-5 w-20")} /><div className={cn(bone, "size-5 rounded-lg")} /></div>
         <div className="mt-2 space-y-2 px-3">
           <div className={cn(bone, "h-9 w-full rounded-lg bg-muted/80")} />
@@ -1004,9 +1004,9 @@ export function LoadingShell() {
   )
 }
 
-export function ErrorState({ message }: { message: string }) {
+export function ErrorState({ message, theme = "dark" }: { message: string; theme?: "light" | "dark" }) {
   return (
-    <div className="flex h-[100dvh] items-center justify-center bg-background px-4">
+    <div data-product-theme={theme} className={cn("flex h-[100dvh] items-center justify-center bg-background px-4 text-foreground", theme === "dark" && "dark")}>
       <div className="w-full max-w-md text-center">
         <ShieldAlert className="mx-auto mb-4 h-8 w-8 text-muted-foreground" />
         <h1 className="text-2xl font-semibold tracking-[-0.04em] text-foreground">Session not found</h1>

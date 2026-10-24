@@ -125,7 +125,7 @@ export default function SignupPage() {
 
   if (loading) {
     return (
-      <div role="status" aria-label="Loading your account" className="flex min-h-screen items-center justify-center bg-background">
+      <div data-auth-theme="dark" role="status" aria-label="Loading your account" className="dark flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
     )

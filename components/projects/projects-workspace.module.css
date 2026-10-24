@@ -10,3 +10,33 @@
   padding: 0;
   gap: 0;
 }
+
+.main {
+  background: var(--card);
+}
+
+.start {
+  width: 100%;
+  max-width: 48rem;
+  margin-inline: auto;
+  padding-block: clamp(6rem, 23vh, 15rem) 4rem;
+}
+
+.composer.composer {
+  background: var(--muted);
+  border-color: var(--border-strong);
+  box-shadow: none;
+}
+
+.composer.composer:hover {
+  border-color: var(--muted-foreground);
+}
+
+.composer.composer:focus-within {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 1px var(--ring);
+}
+
+@media (max-width: 40rem) {
+  .start { padding-top: clamp(4rem, 18svh, 8rem); }
+}

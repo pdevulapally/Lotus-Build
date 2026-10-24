@@ -1,7 +1,9 @@
 "use client"
 import { useState } from 'react'
 import { motion } from 'framer-motion'
+import useEmblaCarousel from 'embla-carousel-react'
 import { AnimatedAIInput } from '@/components/ui/animated-ai-input'
+import { BrandHero } from './brand/brand-hero'
 import { RevealGroup, RevealItem } from '@/components/ui/reveal'
 import { spring } from '@/lib/motion'
 import { heroCategories, showcaseTiles, type Brief, type HeroCategoryKey } from './landing-content'
@@ -11,6 +13,10 @@ import styles from './landing-hero.module.css'
 export type BriefRequest = { prompt?: string; mode?: Brief['mode']; id: number }
 
 export function LandingHero({ request, onBrief }: { request: BriefRequest; onBrief: (brief: Brief) => void }) {
+  const [showcaseRef] = useEmblaCarousel({
+    align: 'start', dragFree: true, containScroll: 'trimSnaps',
+    breakpoints: { '(max-width: 760px)': { active: false } },
+  })
   const [categoryKey, setCategoryKey] = useState<HeroCategoryKey | null>(null)
   const chooseCategory = (category: (typeof heroCategories)[number]) => {
     setCategoryKey(category.key)
@@ -18,22 +24,12 @@ export function LandingHero({ request, onBrief }: { request: BriefRequest; onBri
   }
 
   return (
-    <section className={styles.hero} aria-labelledby="landing-heading">
-      <div className={styles.grid} aria-hidden />
+    <section className={styles.hero} data-landing-hero aria-labelledby="landing-heading">
+      <BrandHero />
       <RevealGroup className={styles.inner} animateOnMount>
         <RevealItem as="h1" id="landing-heading">What should we build today?</RevealItem>
-        <RevealItem as="p" className={styles.intro}>
-          Websites, apps and internal tools for your business. LotusBuild asks the right questions, plans it with you, then builds it while you watch.
-        </RevealItem>
         <RevealItem className={styles.composer}>
-          <AnimatedAIInput
-            suggestedPrompt={request.id === 0 ? undefined : request.prompt}
-            promptRequestId={request.id}
-            suggestedMode={request.mode}
-            appearance="assistant"
-            inputId="project-brief"
-            portalClassName={styles.popover}
-          />
+          <AnimatedAIInput suggestedPrompt={request.id === 0 ? undefined : request.prompt} promptRequestId={request.id} suggestedMode={request.mode} appearance="assistant" inputId="project-brief" portalClassName={styles.popover} />
         </RevealItem>
         <RevealItem className={styles.categories} role="group" aria-label="Start from a type of project">
           {heroCategories.map((entry) => {
@@ -49,6 +45,7 @@ export function LandingHero({ request, onBrief }: { request: BriefRequest; onBri
       </RevealGroup>
 
       <div className={styles.showcase}>
+        <section ref={showcaseRef} className={styles.tileViewport} aria-label="Browse example builds">
         <RevealGroup as="ul" className={styles.tiles} aria-label="Example builds" animateOnMount delayChildren={0.35} step={0.08}>
           {showcaseTiles.map((tile) => {
             const Visual = showcaseVisuals[tile.kind]
@@ -62,6 +59,7 @@ export function LandingHero({ request, onBrief }: { request: BriefRequest; onBri
             )
           })}
         </RevealGroup>
+        </section>
         <p className={styles.showcaseNote}>Example builds. Pick one to start from it.</p>
       </div>
     </section>

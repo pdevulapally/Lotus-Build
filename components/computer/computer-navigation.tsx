@@ -125,7 +125,7 @@ export function ComputerNavigation({ currentProjectId, mobileOpen, onMobileOpenC
   </nav>
 
   return <>
-    <aside aria-label="Project sidebar" className={cn("hidden h-full shrink-0 overflow-hidden border-r border-border/30 bg-muted/25 transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none lg:block", collapsed ? "w-[68px]" : "w-[256px]")}>{content(collapsed, `${navigationId}-desktop-projects`)}</aside>
+    <aside aria-label="Project sidebar" className={cn("hidden h-full shrink-0 overflow-hidden border-r border-border/30 bg-background transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none lg:block", collapsed ? "w-[68px]" : "w-[256px]")}>{content(collapsed, `${navigationId}-desktop-projects`)}</aside>
     <Sheet open={mobileOpen} onOpenChange={onMobileOpenChange}>
       <SheetContent id="computer-mobile-navigation" side="left" onCloseAutoFocus={(event) => {
         const trigger = document.getElementById("computer-navigation-toggle")

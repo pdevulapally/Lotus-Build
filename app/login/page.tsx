@@ -101,7 +101,7 @@ export default function LoginPage() {
 
   if (loading) {
     return (
-      <div role="status" aria-label="Loading your account" className="flex min-h-screen items-center justify-center bg-background">
+      <div data-auth-theme="dark" role="status" aria-label="Loading your account" className="dark flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
     )
@@ -228,7 +228,7 @@ export default function LoginPage() {
       </AuthShell>
 
       <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
-        <DialogContent className="rounded-3xl border-border bg-card p-6 shadow-none sm:max-w-md sm:p-8">
+        <DialogContent data-auth-theme="dark" className="dark rounded-3xl border-border bg-card p-6 shadow-none sm:max-w-md sm:p-8">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3 text-xl tracking-[-0.035em] text-foreground">
               <Mail className="h-4 w-4 text-muted-foreground" />

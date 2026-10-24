@@ -517,7 +517,7 @@
 }
 
 .auth-backdrop {
-  background: var(--background) radial-gradient(color-mix(in oklch, var(--foreground) 10%, transparent) 1.1px, transparent 1.1px) 0 0 / 22px 22px;
+  background: var(--background);
 }
 
 .font-heading {
@@ -829,3 +829,40 @@ html::-webkit-scrollbar {
 .site-action { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 10px; padding: 12px 18px; border-radius: 12px; background: var(--primary); color: var(--primary-foreground); font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; transition: background-color 150ms ease, opacity 150ms ease; }
 .site-action:hover { opacity: .88; }
 .site-action:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; }
+
+/* Shared neutral dark palette for the landing, authentication and home workspace. */
+.dark,
+:is([data-landing-theme='dark'], [data-auth-theme='dark'], [data-workspace-theme='dark'], [data-product-theme='dark']),
+body:has(:is([data-landing-theme='dark'], [data-auth-theme='dark'], [data-workspace-theme='dark'])) [data-slot='dropdown-menu-content'],
+body:has(:is([data-landing-theme='dark'], [data-auth-theme='dark'], [data-workspace-theme='dark'])) [data-slot='sheet-content'],
+body:has(:is([data-workspace-theme='dark'], [data-product-theme='dark'])) [data-slot='dialog-content'],
+body:has([data-product-theme='dark']) :is([data-slot='dropdown-menu-content'], [data-slot='sheet-content'], [data-slot='popover-content'], [data-slot='tooltip-content']) {
+  --background: #101113;
+  --foreground: #f1f3f5;
+  --card: #191a1d;
+  --card-foreground: #f1f3f5;
+  --popover: #191a1d;
+  --popover-foreground: #f1f3f5;
+  --accent: #25262a;
+  --accent-foreground: #f1f3f5;
+  --border-strong: #6a6c72;
+  --muted: #25262a;
+  --muted-foreground: #afb6c0;
+  --border: #3b3c41;
+  --primary: #f1f3f5;
+  --primary-foreground: #101113;
+  --ring: #c8c9cf;
+}
+
+[data-auth-theme='dark'] { color: var(--foreground); color-scheme: dark; }
+[data-auth-theme='dark'] .site-action { border-radius: 999px; }
+
+/* A defined neutral input surface over the hero shader. */
+[data-landing-hero] [data-slot='assistant-composer'] {
+  --card: #232529;
+  --muted: #33363b;
+  --border: #53585f;
+  --border-strong: #737b86;
+  --ring: #c0d3ec;
+}
+:is([data-workspace-theme='dark'], [data-product-theme='dark']) { color-scheme: dark; }

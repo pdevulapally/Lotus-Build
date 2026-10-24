@@ -1,5 +1,5 @@
 export const authInputClassName =
-  "h-12 w-full rounded-xl border border-border bg-background px-4 text-base font-medium text-foreground shadow-none outline-none transition-[border-color,box-shadow] placeholder:font-medium placeholder:text-muted-foreground/80 hover:border-border-strong focus-visible:border-foreground focus-visible:ring-4 focus-visible:ring-foreground/8 motion-reduce:transition-none sm:text-[15px]"
+  "h-12 w-full rounded-2xl border border-border bg-muted/40 px-4 text-base font-medium text-foreground shadow-none outline-none transition-[border-color,box-shadow] placeholder:font-medium placeholder:text-muted-foreground hover:border-border-strong focus-visible:border-foreground focus-visible:ring-4 focus-visible:ring-foreground/8 motion-reduce:transition-none sm:text-[15px]"
 
 export const authPrimaryButtonClassName =
   "h-12 w-full rounded-full bg-primary text-[15px] font-semibold text-primary-foreground shadow-none transition-[opacity,transform] hover:bg-primary hover:opacity-90 active:scale-[0.99] motion-reduce:transition-none"
@@ -31,7 +31,7 @@ export function GoogleMark() {
 export function AuthFormHeader({ title, description }: { title: string; description: string }) {
   return (
     <header className="mb-7">
-      <h1 className="text-[32px] font-bold leading-[1.05] tracking-[-0.045em] text-foreground sm:text-[36px]">
+      <h1 className="text-[32px] font-semibold leading-[1.08] tracking-[-0.045em] text-foreground sm:text-[36px]">
         {title}
       </h1>
       <p className="mt-3 text-[15px] font-medium leading-relaxed text-muted-foreground">{description}</p>

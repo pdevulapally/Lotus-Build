@@ -1,3 +1,8 @@
-.page { background: var(--background); color: var(--foreground); font-family: var(--font-sans); }
+/* Public landing only: task, account and shared-site routes keep their theme. */
+.page {
+  background: var(--background); color: var(--foreground); font-family: var(--font-sans);
+}
 .page h1, .page h2, .page h3 { font-family: var(--font-heading); }
+.page :global(.site-action) { border-radius: 999px; }
 .page a:focus-visible, .page button:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; }
+.page img[src='/Images/lotusbuild-logokit.png'] { filter: invert(1); mix-blend-mode: screen; }

@@ -15,3 +15,5 @@
   background: var(--accent);
   color: var(--foreground);
 }
+
+.dialog [data-slot="button"] { min-height: 2.75rem; border-radius: 999px; }

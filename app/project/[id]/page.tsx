@@ -59,7 +59,7 @@ export default function ProjectRouteBridgePage() {
       : "Finding the current editor for this project."
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-5 text-foreground">
+    <main data-product-theme="dark" className="dark flex min-h-screen items-center justify-center bg-background px-5 text-foreground">
       <section className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-sm">
         <div className="mb-6 flex items-center gap-2.5">
           <LotusLogo size={28} />

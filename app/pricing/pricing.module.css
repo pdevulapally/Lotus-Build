@@ -1,7 +1,7 @@
-.main { padding: clamp(56px, 7vw, 96px) 24px clamp(72px, 8vw, 120px); color: var(--foreground); background: var(--background) radial-gradient(color-mix(in oklch, var(--foreground) 9%, transparent) 1.1px, transparent 1.1px) 0 0 / 22px 22px; }
+.main { padding: clamp(56px, 7vw, 96px) 24px clamp(72px, 8vw, 120px); color: var(--foreground); background: var(--background); }
 .intro { max-width: 760px; margin: 0 auto 56px; text-align: center; }
-.eyebrow { margin: 0 0 16px; color: var(--muted-foreground); font-size: 12.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
-.title { margin: 0; font-family: var(--font-heading); font-size: clamp(36px, 5.4vw, 72px); line-height: 1; letter-spacing: -.055em; font-weight: 700; text-wrap: balance; }
+.eyebrow { margin: 0 0 16px; color: var(--muted-foreground); font-size: 12.5px; font-weight: 700; letter-spacing: normal; }
+.title { margin: 0; font-family: var(--font-heading); font-size: clamp(36px, 4.5vw, 60px); line-height: 1.08; letter-spacing: -.055em; font-weight: 700; text-wrap: balance; }
 .lead { max-width: 560px; margin: 22px auto 0; color: var(--muted-foreground); font-size: 16.5px; line-height: 1.65; font-weight: 500; text-wrap: pretty; }
 
 .comparison { max-width: 1120px; margin: 0 auto; }
@@ -12,8 +12,8 @@
 
 .plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 16px; align-items: stretch; }
 .plan { position: relative; display: flex; flex-direction: column; min-width: 0; padding: 32px 30px 30px; border-radius: 28px; background: var(--card); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--border) 75%, transparent); overflow-wrap: anywhere; }
-.plan[data-featured] { background: var(--foreground); color: var(--background); box-shadow: 0 30px 60px -36px color-mix(in oklch, var(--foreground) 60%, transparent); }
-.plan[data-current] { box-shadow: inset 0 0 0 2px var(--foreground); }
+.plan[data-featured] { background: var(--muted); color: var(--foreground); box-shadow: inset 0 0 0 1px var(--border-strong); }
+.plan[data-current] { box-shadow: inset 0 0 0 1px var(--border-strong); }
 .planHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .planHead h3 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -.025em; }
 .badge { padding: 5px 10px; border-radius: 999px; background: var(--muted); color: var(--foreground); font-size: 11.5px; font-weight: 700; white-space: nowrap; }
@@ -21,32 +21,32 @@
 .price { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-top: 22px; }
 .amount { font-size: clamp(40px, 3.6vw, 52px); line-height: 1; letter-spacing: -.055em; font-weight: 750; font-variant-numeric: tabular-nums; }
 .interval { color: var(--muted-foreground); font-size: 14px; font-weight: 600; }
-.plan[data-featured] .interval { color: var(--background); opacity: .7; }
+.plan[data-featured] .interval { color: var(--muted-foreground); }
 .planAction { margin-top: 24px; }
 .choose, .chooseQuiet, .currentAction { display: inline-flex; width: 100%; min-height: 50px; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 999px; font-size: 15px; font-weight: 650; cursor: pointer; transition: opacity 150ms ease, background-color 150ms ease; }
 .choose { background: var(--primary); color: var(--primary-foreground); }
 .choose:hover { opacity: .9; }
 .choose:disabled { cursor: default; opacity: .6; }
-.plan[data-featured] .choose { background: var(--background); color: var(--foreground); }
+.plan[data-featured] .choose { background: var(--primary); color: var(--primary-foreground); }
 .chooseQuiet { box-shadow: inset 0 0 0 1.5px var(--foreground); color: var(--foreground); text-decoration: none; }
 .chooseQuiet:hover { background: color-mix(in oklch, var(--foreground) 5%, transparent); }
 .currentAction { box-shadow: inset 0 0 0 1.5px var(--foreground); cursor: default; }
 .choose svg, .chooseQuiet svg { transition: transform 150ms ease; }
 .choose:hover svg, .chooseQuiet:hover svg { transform: translateX(2px); }
 .choose:focus-visible, .chooseQuiet:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
-.plan[data-featured] .choose:focus-visible { outline-color: var(--background); }
+.plan[data-featured] .choose:focus-visible { outline-color: var(--ring); }
 
 .allowances { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--border); }
-.plan[data-featured] .allowances { border-top-color: color-mix(in oklch, var(--background) 18%, transparent); }
-.allowanceLabel { margin: 0 0 14px; font-size: 12.5px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--muted-foreground); }
-.plan[data-featured] .allowanceLabel { color: var(--background); opacity: .65; }
+.plan[data-featured] .allowances { border-top-color: var(--border); }
+.allowanceLabel { margin: 0 0 14px; font-size: 12.5px; font-weight: 700; letter-spacing: normal; color: var(--muted-foreground); }
+.plan[data-featured] .allowanceLabel { color: var(--muted-foreground); }
 .allowanceList { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
 .allowanceList li { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; font-size: 14px; }
 .allowanceName { color: var(--muted-foreground); font-weight: 550; }
-.plan[data-featured] .allowanceName { color: var(--background); opacity: .75; }
+.plan[data-featured] .allowanceName { color: var(--muted-foreground); }
 .allowanceValue { display: grid; justify-items: end; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
 .allowanceValue small { color: var(--muted-foreground); font-size: 12px; font-weight: 550; }
-.plan[data-featured] .allowanceValue small { color: var(--background); opacity: .6; }
+.plan[data-featured] .allowanceValue small { color: var(--muted-foreground); }
 .allowanceEmpty { margin: 0; color: var(--muted-foreground); font-size: 14px; font-weight: 500; }
 
 .help { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px 32px; max-width: 1120px; margin: 56px auto 0; padding-top: 32px; border-top: 1px solid var(--border); }

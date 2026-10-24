@@ -302,7 +302,7 @@ export default function ComputerPage() {
   const optimisticStart = isStartingRun
   const isBuildTokenBlocked = false
   const [editText, setEditText] = useState('')
-  const [computerTheme, setComputerTheme] = useState<ComputerTheme>('light')
+  const [computerTheme, setComputerTheme] = useState<ComputerTheme>('dark')
   useEffect(() => { const value = localStorage.getItem(COMPUTER_THEME_KEY); if (value === 'light' || value === 'dark') setComputerTheme(value) }, [])
   const handleThemeToggle = () => setComputerTheme((value) => { const next = value === 'dark' ? 'light' : 'dark'; localStorage.setItem(COMPUTER_THEME_KEY, next); return next })
   const [deployOpen, setDeployOpen] = useState(false)
@@ -372,8 +372,8 @@ export default function ComputerPage() {
     }
   }
 
-  if (loading) return <LoadingShell />
-  if (error || !session || !backend.project) return <ErrorState message={error ?? "Session or project state is unavailable."} />
+  if (loading) return <LoadingShell theme={computerTheme} />
+  if (error || !session || !backend.project) return <ErrorState theme={computerTheme} message={error ?? "Session or project state is unavailable."} />
 
   const sessionPlatform = normalizePlatform(session.platform)
   const hasBrowser    = Boolean(browserInspection)
@@ -384,8 +384,9 @@ export default function ComputerPage() {
 
   return (
     <div
+      data-product-theme={computerTheme}
       className={cn(
-        "relative flex h-[100dvh] overflow-hidden bg-background font-sans text-foreground antialiased",
+        "relative flex h-[100dvh] overflow-hidden bg-card font-sans text-foreground antialiased",
         computerTheme === "dark" && "dark",
       )}
     >
@@ -502,7 +503,7 @@ export default function ComputerPage() {
         <aside
           aria-label="Agent conversation"
           className={cn(
-          "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background",
+          "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-card",
           workspacePanel === "expanded" ? "hidden" : workspacePanelOpen && "hidden sm:flex sm:flex-[0_0_42%] lg:flex-[0_0_38%]",
         )}>
           {/* Feed scroll area */}
@@ -550,6 +551,7 @@ export default function ComputerPage() {
             )}
             <AnimatedAIInput
               mode="chat" compact compactSize="slim" appearance="assistant" initialModel={raw?.model}
+              wrapperClassName="!border-border-strong !bg-muted !shadow-none focus-within:!border-ring"
               isLoading={isRunning} isStopping={isStopping} onStop={handleStop} onSubmit={(prompt, _model, attachments) => handleRun(prompt, undefined, attachments)}
               placeholder="Ask LotusBuild about this project…"
               disabled={isBuildTokenBlocked}

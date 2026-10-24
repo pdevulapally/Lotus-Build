@@ -326,6 +326,7 @@ export function AnimatedAIInput({
   return (
     <div className={cn("w-full", mode === "create" ? "mx-auto max-w-2xl" : "max-w-none", isStart && "max-w-[760px]")}>
       <div
+        data-slot={isStart ? "assistant-composer" : undefined}
         onDragOver={(e) => { if (!disabled && imageFilesFrom(e.dataTransfer).length === 0 && !Array.from(e.dataTransfer.types).includes("Files")) return; e.preventDefault(); if (!disabled) setDragging(true); }}
         onDragLeave={() => setDragging(false)}
         onDrop={(e) => { e.preventDefault(); setDragging(false); if (!disabled) attachments.add(imageFilesFrom(e.dataTransfer)); }}

@@ -15,7 +15,7 @@ export function LandingPage() {
   const chooseBrief = (brief: Brief) => setRequest((value) => ({ prompt: brief.prompt, mode: brief.mode, id: value.id + 1 }))
   const chooseMode = (mode: StartMode) => { setRequest((value) => ({ mode, id: value.id + 1 })); focusBrief() }
   return <>
-    <main className={styles.page}>
+    <main className={styles.page} data-landing-theme="dark">
       <Navbar />
       <LandingHero request={request} onBrief={chooseBrief} />
       <LandingDemo />

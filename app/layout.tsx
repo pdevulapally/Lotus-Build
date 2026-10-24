@@ -117,7 +117,7 @@ export default function RootLayout({
         <MotionProvider>
           <AuthProvider>
             <SettingsDialogProvider>
-              <Suspense fallback={<main className="grid min-h-svh place-items-center bg-background text-sm" role="status"><Shimmer as="p" className="font-medium">Checking your account…</Shimmer></main>}>
+              <Suspense fallback={<main data-product-theme="dark" className="dark grid min-h-svh place-items-center bg-background text-sm" role="status"><Shimmer as="p" className="font-medium">Checking your account…</Shimmer></main>}>
                 <VerifiedEmailGate>{children}</VerifiedEmailGate>
               </Suspense>
             </SettingsDialogProvider>

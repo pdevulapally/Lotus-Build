@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button"
 
 function AccountLoading() {
   return (
-    <main className="flex min-h-svh flex-col items-center justify-center gap-3 bg-background text-sm text-muted-foreground" role="status">
+    <main data-product-theme="dark" className="dark flex min-h-svh flex-col items-center justify-center gap-3 bg-background text-sm text-muted-foreground" role="status">
       <Shimmer as="p" className="font-medium">Checking your account…</Shimmer>
     </main>
   )
@@ -35,7 +35,7 @@ export function VerifiedEmailGate({ children }: { children: ReactNode }) {
   }
   if (accountError) {
     return (
-      <main className="flex min-h-svh flex-col items-center justify-center gap-4 bg-background px-6 text-center">
+      <main data-product-theme="dark" className="dark flex min-h-svh flex-col items-center justify-center gap-4 bg-background px-6 text-center">
         <section className="w-full max-w-sm space-y-4">
           <p role="alert" className="text-sm leading-relaxed text-muted-foreground">
             We couldn’t check your account right now. Try again in a moment.
