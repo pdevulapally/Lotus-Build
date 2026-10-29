@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowUpRight } from "lucide-react"
+import { ExternalIcon } from "@/components/ui/lotus-icons"
 import { BrandWordmark } from "@/components/ui/brand-wordmark"
 import styles from "./footer-section.module.css"
 
@@ -27,7 +27,7 @@ export function FooterSection() {
         <nav aria-label="Footer navigation" className={styles.navigation}>
           <p className={styles.label}>Explore LotusBuild</p>
           <ul>{links.map(link => <li key={link.href}>
-            <Link href={link.href}><span>{link.label}</span><ArrowUpRight size={18} strokeWidth={1.5} aria-hidden /></Link>
+            <Link href={link.href}><span>{link.label}</span><ExternalIcon width={18} height={18} strokeWidth={1.5} aria-hidden /></Link>
           </li>)}</ul>
         </nav>
       </div>
