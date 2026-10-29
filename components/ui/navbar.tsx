@@ -3,7 +3,8 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { ArrowRight, ArrowUpRight, Menu, Settings, LogOut } from "lucide-react"
+import { Menu } from "lucide-react"
+import { ArrowRightIcon, ExternalIcon, SettingsIcon, SignOutIcon } from "@/components/ui/lotus-icons"
 import { BrandWordmark } from "@/components/ui/brand-wordmark"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/contexts/auth-context"
@@ -47,7 +48,7 @@ export function Navbar() {
       <div className={styles.actions}>
         {loading ? <span role="status" className={styles.loading}>Loading account…</span> : <>
           {!user && <Link href="/login" className={styles.login} aria-current={pathname === '/login' ? 'page' : undefined}>Log in</Link>}
-          <Link href={user ? '/' : '/signup'} className="site-action" aria-current={!user && pathname === '/signup' ? 'page' : undefined}>{user ? 'Open workspace' : 'Start building'}<ArrowUpRight size={15} aria-hidden /></Link>
+          <Link href={user ? '/' : '/signup'} className="site-action" aria-current={!user && pathname === '/signup' ? 'page' : undefined}>{user ? 'Open workspace' : 'Start building'}<ExternalIcon width={15} height={15} aria-hidden /></Link>
           {user && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -75,7 +76,7 @@ export function Navbar() {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="rounded-lg px-3 py-2" onSelect={() => openSettings()}>
-                  <Settings size={16} />
+                  <SettingsIcon width={16} height={16} />
                   Settings
                 </DropdownMenuItem>
                 <DropdownMenuItem
@@ -83,7 +84,7 @@ export function Navbar() {
                   disabled={signingOut}
                   onSelect={() => void exit()}
                 >
-                  <LogOut size={16} />
+                  <SignOutIcon width={16} height={16} />
                   {signingOut ? 'Signing out…' : 'Sign out'}
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -110,7 +111,7 @@ export function Navbar() {
                 {links.map(link => (
                   <Link key={link.href} href={link.href} aria-current={active(link.href) ? 'page' : undefined} onClick={() => setMenuOpen(false)}>
                     {link.label}
-                    <ArrowRight size={18} aria-hidden />
+                    <ArrowRightIcon width={18} height={18} aria-hidden />
                   </Link>
                 ))}
               </nav>
@@ -128,19 +129,19 @@ export function Navbar() {
                       {user.email && <p className="mt-1 truncate text-xs text-muted-foreground">{user.email}</p>}
                     </div>
                   </div>
-                  <Link href="/" className={styles.mobilePrimary} onClick={() => setMenuOpen(false)}>Open workspace<ArrowRight size={16} aria-hidden /></Link>
+                  <Link href="/" className={styles.mobilePrimary} onClick={() => setMenuOpen(false)}>Open workspace<ArrowRightIcon width={16} height={16} aria-hidden /></Link>
                   <div className={styles.mobileAccountActions}>
                     <button type="button" onClick={() => { setMenuOpen(false); openSettings() }}>
-                      <Settings size={16} aria-hidden /> Settings
+                      <SettingsIcon width={16} height={16} aria-hidden /> Settings
                     </button>
                     <button type="button" disabled={signingOut} onClick={() => { setMenuOpen(false); void exit() }}>
-                      <LogOut size={16} aria-hidden /> {signingOut ? 'Signing out…' : 'Sign out'}
+                      <SignOutIcon width={16} height={16} aria-hidden /> {signingOut ? 'Signing out…' : 'Sign out'}
                     </button>
                   </div>
                 </>
               ) : (
                 <div className={styles.mobileGuestActions}>
-                  <Link href="/signup" className={styles.mobilePrimary} onClick={() => setMenuOpen(false)}>Create account<ArrowRight size={16} aria-hidden /></Link>
+                  <Link href="/signup" className={styles.mobilePrimary} onClick={() => setMenuOpen(false)}>Create account<ArrowRightIcon width={16} height={16} aria-hidden /></Link>
                   <Link href="/login" className={styles.mobileSecondary} onClick={() => setMenuOpen(false)}>Log in</Link>
                 </div>
               )}

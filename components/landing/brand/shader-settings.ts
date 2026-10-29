@@ -1,8 +1,8 @@
-/** Blue shader palette with pale highlights, textured grain and restrained motion. */
+/** Graphite palette with subtle platinum highlights, textured grain and restrained motion. */
 export const shaderSettings = {
-  animate: 'on', axesHelper: 'off', brightness: 1.2,
+  animate: 'on', axesHelper: 'off', brightness: 1.05,
   cAzimuthAngle: 180, cDistance: 3.6, cPolarAngle: 90, cameraZoom: 1,
-  color1: '#1463ff', color2: '#91b5e8', color3: '#3d7eff',
+  color1: '#252b36', color2: '#88877f', color3: '#465263',
   destination: 'onCanvas', embedMode: 'off', envPreset: 'city',
   format: 'gif', fov: 45, frameRate: 10, gizmoHelper: 'hide', grain: 'on',
   lightType: '3d', pixelDensity: 1,
@@ -12,3 +12,4 @@ export const shaderSettings = {
   uAmplitude: 1, uDensity: 1.8, uFrequency: 5.5, uSpeed: .25,
   uStrength: 3, uTime: 0, wireframe: false,
 } as const
+

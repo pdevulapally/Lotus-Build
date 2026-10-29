@@ -1,82 +1,108 @@
 'use client'
 
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import Link from 'next/link'
-import { CreditCard, Gauge, RefreshCw, UserRound, type LucideIcon } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Stack } from '@astryxdesign/core'
 import { useAuth } from '@/contexts/auth-context'
 import { currentBackend } from '@/lib/backend/browser'
 import type { BackendUsage } from '@/lib/backend/client'
 import { EmailCodeVerification } from '@/components/auth/email-code-verification'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
+import {
+  BillingIcon,
+  UsageIcon,
+  RefreshIcon,
+  SettingsIcon,
+  ShieldIcon,
+  LockIcon,
+  ResearchIcon,
+  ArrowRightIcon,
+  ExternalIcon,
+} from '@/components/ui/lotus-icons'
+import {
+  getStoredConsent,
+  useCookiePreferences,
+} from '@/components/cookie-banner'
+import {
+  SETTINGS_SECTIONS,
+  filterSettings,
+  settingsPage,
+  canShowSettingsFeedback,
+  type SettingsPage,
+} from './settings-sections'
 import styles from './settings-dialog.module.css'
 
-type SettingsPage = 'account' | 'usage' | 'billing'
-type SettingsSection = { label: string; description: string; icon: LucideIcon }
-
-const SETTINGS_SECTIONS: Record<SettingsPage, SettingsSection> = {
-  account: {
-    label: 'Account',
-    description: 'Manage your profile and privacy choices.',
-    icon: UserRound,
-  },
-  usage: {
-    label: 'Usage',
-    description: 'See how your workspace uses its current limits.',
-    icon: Gauge,
-  },
-  billing: {
-    label: 'Subscription',
-    description: 'Review your plan and manage billing details.',
-    icon: CreditCard,
-  },
+const SECTION_ICONS = {
+  account: SettingsIcon,
+  security: LockIcon,
+  privacy: ShieldIcon,
+  usage: UsageIcon,
+  billing: BillingIcon,
 }
-
-const SETTINGS_SECTION_ORDER: SettingsPage[] = ['account', 'usage', 'billing']
-
 const RESET_LABELS = {
   NEVER: 'Does not reset',
   DAILY: 'Resets daily',
   MONTHLY: 'Resets monthly',
 } as const
 
-type SettingsContext = { openSettings: () => void; closeSettings: () => void }
+type SettingsContext = {
+  openSettings: (section?: SettingsPage) => void
+  closeSettings: () => void
+}
 const Context = createContext<SettingsContext | null>(null)
-
 export function useSettingsDialog() {
   const value = useContext(Context)
   if (!value) throw new Error('SettingsDialogProvider is missing.')
   return value
 }
 
+// Keep existing navigation callers stable while giving settings a durable URL.
 export function SettingsDialogProvider({ children }: { children: ReactNode }) {
-  const [open, setOpen] = useState(false)
-  const openSettings = useCallback(() => setOpen(true), [])
-  const closeSettings = useCallback(() => setOpen(false), [])
-  const value = useMemo(() => ({ openSettings, closeSettings }), [openSettings, closeSettings])
-
-  return (
-    <Context.Provider value={value}>
-      {children}
-      <SettingsDialog open={open} onOpenChange={setOpen} />
-    </Context.Provider>
+  const router = useRouter()
+  const openSettings = useCallback(
+    (section: SettingsPage = 'account') => router.push(`/settings#${section}`),
+    [router],
   )
+  const closeSettings = useCallback(() => router.push('/'), [router])
+  const value = useMemo(
+    () => ({ openSettings, closeSettings }),
+    [openSettings, closeSettings],
+  )
+  return <Context.Provider value={value}>{children}</Context.Provider>
 }
-
 type UsageMeterProps = { meter: BackendUsage['meters'][number] }
 
 function UsageMeter({ meter }: UsageMeterProps) {
   const hasLimit = meter.hardLimit > 0
   const isAtLimit = hasLimit && meter.totalUsed >= meter.hardLimit
-  const progress = hasLimit ? Math.min((meter.totalUsed / meter.hardLimit) * 100, 100) : null
+  const progress = hasLimit
+    ? Math.min((meter.totalUsed / meter.hardLimit) * 100, 100)
+    : null
 
   return (
-    <section className="py-6 first:pt-0" aria-labelledby={`usage-${meter.meterKey}`}>
+    <section
+      className="py-6 first:pt-0"
+      aria-labelledby={`usage-${meter.meterKey}`}
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 id={`usage-${meter.meterKey}`} className="text-sm font-semibold">{meter.label}</h3>
+          <h3 id={`usage-${meter.meterKey}`} className="text-sm font-semibold">
+            {meter.label}
+          </h3>
           <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-            Period started {new Date(meter.periodStart).toLocaleDateString()} · {RESET_LABELS[meter.resetPeriod]}
+            Period started {new Date(meter.periodStart).toLocaleDateString()} ·{' '}
+            {RESET_LABELS[meter.resetPeriod]}
           </p>
         </div>
         {isAtLimit && (
@@ -88,17 +114,23 @@ function UsageMeter({ meter }: UsageMeterProps) {
 
       <div className="mt-5 flex flex-wrap items-baseline justify-between gap-2">
         <p>
-          <span className="text-3xl font-semibold tabular-nums tracking-tight">{meter.totalUsed.toLocaleString()}</span>
+          <span className="text-3xl font-semibold tabular-nums tracking-tight">
+            {meter.totalUsed.toLocaleString()}
+          </span>
           {hasLimit ? (
             <span className="ml-2 text-sm text-muted-foreground">
               of {meter.hardLimit.toLocaleString()} {meter.unit}
             </span>
           ) : (
-            <span className="ml-2 text-sm text-muted-foreground">{meter.unit} used</span>
+            <span className="ml-2 text-sm text-muted-foreground">
+              {meter.unit} used
+            </span>
           )}
         </p>
         {progress !== null && (
-          <p className="text-xs tabular-nums text-muted-foreground">{Math.round(progress)}% used</p>
+          <p className="text-xs tabular-nums text-muted-foreground">
+            {Math.round(progress)}% used
+          </p>
         )}
       </div>
 
@@ -112,7 +144,10 @@ function UsageMeter({ meter }: UsageMeterProps) {
           aria-valuenow={Math.min(meter.totalUsed, meter.hardLimit)}
           aria-valuetext={`${meter.totalUsed.toLocaleString()} of ${meter.hardLimit.toLocaleString()} ${meter.unit}`}
         >
-          <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${progress}%` }} />
+          <div
+            className="h-full rounded-full bg-primary transition-[width]"
+            style={{ width: `${progress}%` }}
+          />
         </div>
       )}
 
@@ -125,138 +160,357 @@ function UsageMeter({ meter }: UsageMeterProps) {
   )
 }
 
-export function SettingsDialog({
-  open,
-  onOpenChange,
+function PreferenceSwitch({
+  label,
+  description,
+  checked,
+  disabled,
+  onChange,
 }: {
-  open: boolean
-  onOpenChange: (value: boolean) => void
+  label: string
+  description: string
+  checked: boolean
+  disabled?: boolean
+  onChange: (checked: boolean) => void
 }) {
-  const { user, account, usage, accountError, refreshAccount } = useAuth()
+  const id = useId()
+  return (
+    <Stack
+      direction="horizontal"
+      hAlign="between"
+      vAlign="center"
+      gap={5}
+      className={styles.preference}
+    >
+      <Stack gap={1}>
+        <label htmlFor={id} className="text-sm font-semibold">
+          {label}
+        </label>
+        <p
+          id={`${id}-description`}
+          className="text-sm leading-relaxed text-muted-foreground"
+        >
+          {description}
+        </p>
+      </Stack>
+      <button
+        id={id}
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-describedby={`${id}-description`}
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+        className={styles.switch}
+      >
+        <span />
+      </button>
+    </Stack>
+  )
+}
+
+export function SettingsPageContent() {
+  const {
+    user,
+    account,
+    usage,
+    accountError,
+    refreshAccount,
+    sendPasswordResetEmail,
+  } = useAuth()
+  const { consent, update: updateConsent } = useCookiePreferences()
   const [page, setPage] = useState<SettingsPage>('account')
+  const [query, setQuery] = useState('')
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const activeSection = SETTINGS_SECTIONS[page]
+  const [erasureConfirmed, setErasureConfirmed] = useState(false)
+  const operation = useRef(false)
+  const heading = useRef<HTMLHeadingElement>(null)
+  const identity = useRef(user?.uid)
+  const currentSection = useRef(page)
+  currentSection.current = page
+  identity.current = user?.uid
+  const active = SETTINGS_SECTIONS.find((section) => section.id === page)!
+  const matches = filterSettings(query)
+  const hasPassword =
+    user?.providerData.some((provider) => provider.providerId === 'password') ??
+    false
 
-  const perform = async (work: () => Promise<void>) => {
-    if (busy) return
+  useEffect(() => {
+    const read = () => {
+      const next = settingsPage(window.location.hash.slice(1))
+      currentSection.current = next
+      setPage(next)
+      setQuery('')
+      setMessage(null)
+      setError(null)
+      setErasureConfirmed(false)
+    }
+    read()
+    window.addEventListener('hashchange', read)
+    return () => window.removeEventListener('hashchange', read)
+  }, [])
+  useEffect(() => {
+    setMessage(null)
+    setError(null)
+    setErasureConfirmed(false)
+  }, [user?.uid])
+
+  const choose = (next: SettingsPage) => {
+    currentSection.current = next
+    setPage(next)
+    setQuery('')
+    setMessage(null)
+    setError(null)
+    setErasureConfirmed(false)
+    if (window.location.hash !== `#${next}`) window.location.hash = next
+    requestAnimationFrame(() => heading.current?.focus())
+  }
+  const perform = async (work: () => Promise<string | void>) => {
+    if (operation.current) return
+    const origin = { uid: user?.uid, section: currentSection.current }
+    const feedbackIsCurrent = () =>
+      canShowSettingsFeedback(origin, {
+        uid: identity.current,
+        section: currentSection.current,
+      })
+    operation.current = true
     setBusy(true)
     setError(null)
     setMessage(null)
     try {
-      await work()
+      const result = await work()
+      if (feedbackIsCurrent() && result) setMessage(result)
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'The operation failed.')
+      if (feedbackIsCurrent())
+        setError(
+          reason instanceof Error
+            ? reason.message
+            : 'The operation failed. Please try again.',
+        )
     } finally {
+      operation.current = false
       setBusy(false)
     }
   }
+  const changeConsent = (analytics: boolean, functional: boolean) => {
+    updateConsent(analytics, functional)
+    const saved = getStoredConsent()
+    if (saved?.analytics === analytics && saved.functional === functional) {
+      setError(null)
+      setMessage('Cookie preferences saved for this browser.')
+    } else {
+      setMessage(null)
+      setError(
+        'Your browser could not save these preferences. They may reset when you reload.',
+      )
+    }
+  }
+  const unavailable = (
+    <Stack gap={3} className={styles.empty}>
+      <SettingsIcon className="size-6 text-muted-foreground" />
+      <h3 className="text-lg font-semibold">Account details are unavailable</h3>
+      <p className="text-sm leading-relaxed text-muted-foreground">
+        Try again to load your account. You can still use security and privacy
+        settings.
+      </p>
+      <Button
+        variant="outline"
+        disabled={busy}
+        onClick={() => void perform(refreshAccount)}
+        className="self-start"
+      >
+        <RefreshIcon />
+        Try again
+      </Button>
+    </Stack>
+  )
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent data-product-theme="dark" overlayClassName="bg-black/60" className={`dark text-foreground ${styles.dialog} relative my-0 flex h-[calc(100dvh-2rem)] w-full max-w-full flex-col gap-0 overflow-hidden rounded-2xl border-border bg-card p-0 sm:h-[min(85dvh,700px)] sm:max-w-4xl`}>
-        <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
-          <aside className="flex shrink-0 flex-col border-b border-border/70 bg-background sm:w-52 sm:border-b-0 sm:border-r">
-            <div className="px-5 pb-5 pt-7 pr-16 sm:px-6 sm:pb-8 sm:pt-8">
-              <DialogTitle className="text-base font-semibold tracking-tight">Settings</DialogTitle>
-            </div>
-            <nav className="flex gap-1 overflow-x-auto px-3 pb-3 [scrollbar-width:none] sm:flex-col sm:overflow-x-visible sm:px-3 sm:pb-4" aria-label="Settings sections">
-              {SETTINGS_SECTION_ORDER.map((item) => {
-                const { icon: Icon, label } = SETTINGS_SECTIONS[item]
+    <main data-product-theme="dark" className={`dark ${styles.page}`}>
+      <header className={styles.topbar}>
+        <Link href="/" className={styles.brand}>
+          <img
+            src="/Images/lotusbuild-icon.svg"
+            alt=""
+            width={29}
+            height={26}
+          />
+          LotusBuild
+        </Link>
+        <Link href="/" className={styles.back}>
+          Back to workspace <ArrowRightIcon />
+        </Link>
+      </header>
+      <section className={styles.heading}>
+        <p>Your workspace</p>
+        <h1>Settings</h1>
+        <span>
+          Account access, privacy, usage and billing.
+        </span>
+      </section>
+      <section className={styles.layout}>
+        <aside className={styles.sidebar}>
+          <label className={styles.search}>
+            <ResearchIcon />
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Find a setting"
+              aria-label="Find a setting"
+            />
+          </label>
+          <nav aria-label="Settings sections" className={styles.nav}>
+            {SETTINGS_SECTIONS.map((section) => {
+              const Icon = SECTION_ICONS[section.id]
+              return (
+                <a
+                  key={section.id}
+                  href={`#${section.id}`}
+                  aria-current={
+                    page === section.id && !query ? 'page' : undefined
+                  }
+                  onClick={(event) => {
+                    event.preventDefault()
+                    choose(section.id)
+                  }}
+                >
+                  <Icon />
+                  <span>{section.label}</span>
+                  <ArrowRightIcon className={styles.navArrow} />
+                </a>
+              )
+            })}
+          </nav>
+          <p className={styles.help}>
+            Need a hand?
+            <br />
+            <Link href="/help">
+              Visit the help centre <ExternalIcon />
+            </Link>
+          </p>
+        </aside>
+        <section
+          className={styles.panel}
+          aria-busy={busy}
+          aria-labelledby="settings-heading"
+        >
+          <header className={styles.panelHeader}>
+            <h2 ref={heading} id="settings-heading" tabIndex={-1}>
+              {query ? 'Find a setting' : active.label}
+            </h2>
+            <p>
+              {query
+                ? 'Jump directly to the option you need.'
+                : active.description}
+            </p>
+          </header>
+          {query ? (
+            <Stack gap={3}>
+              <p role="status" className="text-xs text-muted-foreground">
+                {matches.length} {matches.length === 1 ? 'section' : 'sections'}{' '}
+                found
+              </p>
+              {matches.map((section) => {
+                const Icon = SECTION_ICONS[section.id]
                 return (
                   <button
-                    key={item}
-                    type="button"
-                    aria-current={page === item ? 'page' : undefined}
-                    onClick={() => {
-                      setPage(item)
-                      setMessage(null)
-                      setError(null)
-                    }}
-                    className={`flex min-h-11 shrink-0 items-center gap-3 rounded-xl px-3 py-2 text-left text-[13px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
-                      page === item
-                        ? 'bg-accent text-accent-foreground'
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                    }`}
+                    key={section.id}
+                    className={styles.searchResult}
+                    onClick={() => choose(section.id)}
                   >
-                    <Icon className="size-4 shrink-0" aria-hidden="true" />
-                    {label}
+                    <Icon />
+                    <span>
+                      <strong>{section.label}</strong>
+                      <small>{section.description}</small>
+                    </span>
+                    <ArrowRightIcon />
                   </button>
                 )
               })}
-            </nav>
-          </aside>
-
-          <main className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-5 py-7 sm:px-8 sm:py-10" aria-busy={busy}>
-            <header className="mb-7 border-b border-border/70 pb-6 sm:pr-8">
-              <h2 className="text-2xl font-semibold tracking-[-0.035em] sm:text-[28px]">{activeSection.label}</h2>
-              <DialogDescription className="mt-2 text-sm leading-relaxed text-muted-foreground">{activeSection.description}</DialogDescription>
-            </header>
-
-            {(error || accountError) && (
-              <p role="alert" className="mb-5 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-                {error || accountError}
-              </p>
-            )}
-            {message && (
-              <p role="status" className="mb-5 rounded-xl bg-muted px-4 py-3 text-sm leading-relaxed">
-                {message}
-              </p>
-            )}
-
-            {!account ? (
-              <div className="py-6">
-                <UserRound className="mb-4 size-6 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
-                <h3 className="text-base font-semibold">Account details unavailable</h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Your account details could not be loaded. Reconnect to try again.</p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="mt-4"
-                  disabled={busy}
-                  onClick={() => void perform(refreshAccount)}
-                >
-                  <RefreshCw aria-hidden="true" />
-                  Try again
-                </Button>
-              </div>
-            ) : (
-              <>
-                {page === 'account' && (
-                  <div className="space-y-7">
-                    <section className="flex items-center gap-4">
-                      <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-muted text-xl font-semibold" aria-hidden="true">
-                        {(account.displayName || account.email).slice(0, 1).toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
-                        <h3 className="truncate text-lg font-semibold tracking-tight">{account.displayName || 'Your account'}</h3>
-                        <p className="mt-1 break-all text-sm text-muted-foreground">{account.email}</p>
-                      </div>
-                    </section>
-
-                    <dl className="divide-y divide-border/70 border-y border-border/70">
-                      <div className="flex flex-col gap-2 py-5 md:flex-row md:justify-between md:gap-5">
-                        <dt className="shrink-0 text-sm text-muted-foreground">Email address</dt>
-                        <dd className="flex min-w-0 flex-wrap items-center gap-2 text-sm font-medium md:justify-end">
-                          <span className="break-all">{account.email}</span>
-                          <span className="rounded-md bg-muted px-2 py-1 text-[11px] font-medium">
-                            {account.emailVerified ? 'Verified' : 'Not verified'}
+              {!matches.length && (
+                <p className="py-8 text-sm text-muted-foreground">
+                  No matching settings. Try “password”, “cookies” or “billing”.
+                </p>
+              )}
+            </Stack>
+          ) : (
+            <>
+              {(error || accountError) && (
+                <p role="alert" className={styles.error}>
+                  {error || accountError}
+                </p>
+              )}
+              {message && (
+                <p role="status" className={styles.notice}>
+                  {message}
+                </p>
+              )}
+              {page === 'account' &&
+                (account ? (
+                  <Stack gap={6} className={styles.contentStack}>
+                    <Stack
+                      direction="horizontal"
+                      gap={4}
+                      vAlign="center"
+                      className={styles.profile}
+                    >
+                      <span className={styles.avatar} aria-hidden="true">
+                        {(account.displayName || account.email)
+                          .slice(0, 1)
+                          .toUpperCase()}
+                      </span>
+                      <Stack gap={1} className="min-w-0">
+                        <h3 className="truncate text-lg font-semibold">
+                          {account.displayName || 'Your account'}
+                        </h3>
+                        <p className="break-all text-sm text-muted-foreground">
+                          Signed in to LotusBuild
+                        </p>
+                      </Stack>
+                    </Stack>
+                    <dl className={styles.details}>
+                      <div>
+                        <dt>
+                          Email address<small>Your sign-in address</small>
+                        </dt>
+                        <dd>
+                          {account.email}
+                          <span className={styles.badge}>
+                            {account.emailVerified
+                              ? 'Verified'
+                              : 'Not verified'}
                           </span>
                         </dd>
                       </div>
-                      <div className="flex items-baseline justify-between gap-5 py-5">
-                        <dt className="text-sm text-muted-foreground">Projects</dt>
-                        <dd className="text-sm font-semibold tabular-nums">{account.projectCount.toLocaleString()}</dd>
+                      <div>
+                        <dt>
+                          Projects<small>Everything you’re working on</small>
+                        </dt>
+                        <dd>{account.projectCount.toLocaleString()}</dd>
+                      </div>
+                      <div>
+                        <dt>
+                          Current plan<small>Your workspace subscription</small>
+                        </dt>
+                        <dd>
+                          {account.plan.name}
+                          <button
+                            onClick={() => choose('billing')}
+                            className={styles.inlineLink}
+                          >
+                            Manage plan <ArrowRightIcon />
+                          </button>
+                        </dd>
                       </div>
                     </dl>
-
                     {!account.emailVerified && (
-                      <section className="space-y-3">
-                        <h3 className="text-sm font-semibold">Verify your email</h3>
-                        <p className="text-sm leading-relaxed text-muted-foreground">
-                          Verify your email address to keep your account information up to date.
-                        </p>
+                      <section>
+                        <h3 className="mb-3 text-sm font-semibold">
+                          Verify your email
+                        </h3>
                         <EmailCodeVerification
                           email={user?.email ?? account.email}
                           autoSend={false}
@@ -264,99 +518,248 @@ export function SettingsDialog({
                         />
                       </section>
                     )}
-
-                    <section className="space-y-4">
-                      <div>
-                        <h3 className="text-sm font-semibold">Privacy and data</h3>
-                        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                          Erasure requests are reviewed before deletion. Submitting a request does not delete your account.
-                        </p>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={busy}
-                        onClick={() => void perform(async () => {
-                          const result = await currentBackend().requestErasure()
-                          setMessage(`${result.message} Reference: ${result.request.reference}`)
-                        })}
-                      >
-                        Request account erasure
-                      </Button>
+                    <section
+                      className={styles.accountShortcuts}
+                      aria-label="More account settings"
+                    >
+                      <button type="button" onClick={() => choose('security')}>
+                        <LockIcon />
+                        <span>
+                          <strong>Sign-in &amp; security</strong>
+                          <small>Manage account access</small>
+                        </span>
+                        <ArrowRightIcon />
+                      </button>
+                      <button type="button" onClick={() => choose('privacy')}>
+                        <ShieldIcon />
+                        <span>
+                          <strong>Privacy &amp; data</strong>
+                          <small>Choose what you share</small>
+                        </span>
+                        <ArrowRightIcon />
+                      </button>
                     </section>
-                  </div>
-                )}
-
-                {page === 'usage' && (
-                  <div className="space-y-6">
-                    {usage ? (
-                      usage.meters.length > 0 ? (
-                        <div className="divide-y divide-border/70">
-                          {usage.meters.map((meter) => <UsageMeter key={meter.meterKey} meter={meter} />)}
-                        </div>
-                      ) : (
-                        <p className="py-6 text-sm leading-relaxed text-muted-foreground">
-                          No usage data is available yet.
-                        </p>
-                      )
-                    ) : (
-                      <p role="alert" className="py-6 text-sm leading-relaxed text-muted-foreground">
-                        Usage data is unavailable. Refresh your account to try again.
+                    <p className={styles.profileNote}>
+                      Your profile comes from your sign-in account. Profile
+                      editing is not available here yet.
+                    </p>
+                  </Stack>
+                ) : (
+                  unavailable
+                ))}
+              {page === 'security' && (
+                <Stack gap={6} className={styles.contentStack}>
+                  <section>
+                    <h3 className="text-sm font-semibold">How you sign in</h3>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Methods connected to your current account.
+                    </p>
+                    <ul className={styles.providers}>
+                      {user?.providerData.map((provider) => (
+                        <li key={provider.providerId}>
+                          <LockIcon />
+                          <span>
+                            {(
+                              {
+                                password: 'Email and password',
+                                'google.com': 'Google',
+                                'github.com': 'GitHub',
+                              } as Record<string, string>
+                            )[provider.providerId] ?? provider.providerId}
+                          </span>
+                          <span className={styles.badge}>Connected</span>
+                        </li>
+                      ))}
+                    </ul>
+                    {!user?.providerData.length && (
+                      <p className="mt-3 text-sm text-muted-foreground">
+                        Sign-in method details are unavailable.
                       </p>
                     )}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={busy}
-                      onClick={() => void perform(refreshAccount)}
-                    >
-                      <RefreshCw aria-hidden="true" />
-                      Refresh usage
-                    </Button>
-                  </div>
-                )}
-
-                {page === 'billing' && (
-                  <div className="space-y-7">
-                    <section className="border-b border-border/70 pb-7">
-                      <p className="text-xs font-medium text-muted-foreground">Current plan</p>
-                      <h3 className="mt-3 text-4xl font-semibold tracking-[-0.04em]">{account.plan.name}</h3>
+                  </section>
+                  <section>
+                    <h3 className="text-sm font-semibold">Password</h3>
+                    <p className="my-3 text-sm leading-relaxed text-muted-foreground">
+                      {hasPassword
+                        ? `We’ll send a password reset link to ${user?.email ?? 'your email address'}.`
+                        : 'Your password is managed by your sign-in provider. Change it in that provider’s account settings.'}
+                    </p>
+                    {hasPassword && (
+                      <Button
+                        variant="outline"
+                        disabled={busy || !user?.email}
+                        onClick={() =>
+                          void perform(async () => {
+                            if (!user?.email)
+                              throw new Error('No email address is available.')
+                            await sendPasswordResetEmail(user.email)
+                            return 'Password reset email sent. Check your inbox.'
+                          })
+                        }
+                      >
+                        Send password reset email
+                      </Button>
+                    )}
+                  </section>
+                  <p className={styles.footnote}>
+                    Password changes happen through your verified sign-in
+                    provider. LotusBuild never asks for your password here.
+                  </p>
+                </Stack>
+              )}
+              {page === 'privacy' && (
+                <Stack gap={6} className={styles.contentStack}>
+                  <section>
+                    <h3 className="text-sm font-semibold">
+                      Cookie preferences
+                    </h3>
+                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                      These choices apply to this browser. Essential cookies
+                      stay on to keep sign-in and security working.
+                    </p>
+                    <PreferenceSwitch
+                      label="Analytics"
+                      description="Allow usage analytics to help improve LotusBuild."
+                      checked={consent?.analytics ?? false}
+                      onChange={(checked) =>
+                        changeConsent(checked, consent?.functional ?? false)
+                      }
+                    />
+                    <PreferenceSwitch
+                      label="Functional cookies"
+                      description="Allow optional preferences to be remembered."
+                      checked={consent?.functional ?? false}
+                      onChange={(checked) =>
+                        changeConsent(consent?.analytics ?? false, checked)
+                      }
+                    />
+                    <Link href="/privacy#cookies" className={styles.inlineLink}>
+                      Read our cookie policy <ExternalIcon />
+                    </Link>
+                  </section>
+                  <section className={styles.erasure}>
+                    <h3 className="text-sm font-semibold">
+                      Request account erasure
+                    </h3>
+                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                      Erasure requests are reviewed before deletion. Sending a
+                      request does not immediately delete your account.
+                    </p>
+                    {account ? (
+                      <>
+                        <label className={styles.confirm}>
+                          <input
+                            type="checkbox"
+                            checked={erasureConfirmed}
+                            onChange={(event) =>
+                              setErasureConfirmed(event.target.checked)
+                            }
+                            disabled={busy}
+                          />
+                          <span>
+                            I want to request deletion of my account data.
+                          </span>
+                        </label>
+                        <Button
+                          variant="outline"
+                          disabled={busy || !erasureConfirmed}
+                          onClick={() =>
+                            void perform(async () => {
+                              const result =
+                                await currentBackend().requestErasure()
+                              setErasureConfirmed(false)
+                              return `${result.message} Reference: ${result.request.reference}`
+                            })
+                          }
+                        >
+                          Send erasure request
+                        </Button>
+                      </>
+                    ) : (
+                      <p className="mt-3 text-sm text-muted-foreground">
+                        Load your account details before requesting erasure.
+                      </p>
+                    )}
+                  </section>
+                </Stack>
+              )}
+              {page === 'usage' && (
+                <Stack gap={5}>
+                  {usage ? (
+                    usage.meters.length ? (
+                      <Stack className="divide-y divide-border/70">
+                        {usage.meters.map((meter) => (
+                          <UsageMeter key={meter.meterKey} meter={meter} />
+                        ))}
+                      </Stack>
+                    ) : (
+                      <p className="py-6 text-sm text-muted-foreground">
+                        No usage has been recorded yet.
+                      </p>
+                    )
+                  ) : (
+                    <p className="py-6 text-sm text-muted-foreground">
+                      Usage data is unavailable. Refresh to try again.
+                    </p>
+                  )}
+                  <Button
+                    variant="outline"
+                    className="self-start"
+                    disabled={busy}
+                    onClick={() => void perform(refreshAccount)}
+                  >
+                    <RefreshIcon />
+                    {busy ? 'Please wait…' : 'Refresh usage'}
+                  </Button>
+                </Stack>
+              )}
+              {page === 'billing' &&
+                (account ? (
+                  <Stack gap={6} className={styles.contentStack}>
+                    <section className={styles.plan}>
+                      <span>Current plan</span>
+                      <h3>{account.plan.name}</h3>
                       {account.subscriptionStatus && (
-                        <p className="mt-3 text-sm text-muted-foreground">{account.subscriptionStatus}</p>
+                        <p>{account.subscriptionStatus}</p>
                       )}
                     </section>
-
-                    <section className="space-y-3">
-                      <h3 className="text-sm font-semibold">Manage your subscription</h3>
-                      <p className="text-sm leading-relaxed text-muted-foreground">
-                        Open your billing portal to manage billing details and your subscription.
+                    <section>
+                      <h3 className="text-sm font-semibold">
+                        Billing details and subscription
+                      </h3>
+                      <p className="my-3 text-sm leading-relaxed text-muted-foreground">
+                        Your secure billing portal has payment details, invoices
+                        and subscription options.
                       </p>
-                      <div className="flex flex-wrap gap-3 pt-1">
+                      <Stack direction="horizontal" wrap="wrap" gap={3}>
                         <Button
-                          type="button"
                           disabled={busy}
-                          onClick={() => void perform(async () => {
-                            const result = await currentBackend().billingPortal()
-                            window.location.assign(result.url)
-                          })}
+                          onClick={() =>
+                            void perform(async () => {
+                              const uid = user?.uid
+                              const result =
+                                await currentBackend().billingPortal()
+                              if (identity.current === uid)
+                                window.location.assign(result.url)
+                            })
+                          }
                         >
-                          <CreditCard aria-hidden="true" />
-                          Manage billing
+                          <BillingIcon />
+                          Open billing portal <ExternalIcon />
                         </Button>
                         <Button asChild variant="outline">
-                          <Link href="/pricing" onClick={() => onOpenChange(false)}>
-                            Compare plans
-                          </Link>
+                          <Link href="/pricing">Compare plans</Link>
                         </Button>
-                      </div>
+                      </Stack>
                     </section>
-                  </div>
-                )}
-              </>
-            )}
-          </main>
-        </div>
-      </DialogContent>
-    </Dialog>
+                  </Stack>
+                ) : (
+                  unavailable
+                ))}
+            </>
+          )}
+        </section>
+      </section>
+    </main>
   )
 }
