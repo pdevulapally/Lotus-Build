@@ -37,7 +37,7 @@ export const messageSchema = z.object({
 })
 const capabilitySchema = z.discriminatedUnion('kind', [
   z.object({ key: z.string(), kind: z.literal('boolean'), value: z.boolean() }),
-  z.object({ key: z.string(), kind: z.literal('number'), value: z.number() }),
+  z.object({ key: z.string(), kind: z.literal('number'), value: z.union([z.number(), z.literal('unlimited')]) }),
   z.object({ key: z.string(), kind: z.literal('string'), value: z.string() }),
   z.object({ key: z.string(), kind: z.literal('stringList'), value: z.array(z.string()) }),
 ])
