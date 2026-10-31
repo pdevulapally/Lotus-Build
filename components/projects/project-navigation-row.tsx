@@ -59,9 +59,9 @@ export function ProjectNavigationRow({ project, active = false, portalClassName,
           aria-current={active ? "page" : undefined}
           aria-label={`Open ${title}. ${project.kind === "computer" ? "Computer agent" : "Software project"}. ${statusLabels[project.status]}.`}
           className={cn(
-            "flex min-h-11 w-full items-center rounded-lg px-3 py-2 text-left lg:min-h-9 lg:py-1.5",
+            "flex min-h-11 w-full items-center rounded-xl px-3 py-2 text-left lg:min-h-10",
             "transition-colors hover:bg-accent data-[state=open]:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            active && "bg-accent",
+            active && "bg-card font-medium",
           )}
         >
           <span className="min-w-0 flex-1 truncate text-[13px] leading-snug text-foreground" title={`${title} · ${statusLabels[project.status]}`}>{title}</span>

@@ -1,5 +1,7 @@
+import { LotusLogo } from "@/components/ui/lotus-logo"
+
 export const authInputClassName =
-  "h-12 w-full rounded-2xl border border-border bg-muted/40 px-4 text-base font-medium text-foreground shadow-none outline-none transition-[border-color,box-shadow] placeholder:font-medium placeholder:text-muted-foreground hover:border-border-strong focus-visible:border-foreground focus-visible:ring-4 focus-visible:ring-foreground/8 motion-reduce:transition-none sm:text-[15px]"
+  "h-12 w-full rounded-full border border-border bg-muted/40 px-5 text-base font-medium text-foreground shadow-none outline-none transition-[border-color,box-shadow] placeholder:font-medium placeholder:text-muted-foreground hover:border-border-strong focus-visible:border-foreground focus-visible:ring-4 focus-visible:ring-foreground/8 motion-reduce:transition-none sm:text-[15px]"
 
 export const authPrimaryButtonClassName =
   "h-12 w-full rounded-full bg-primary text-[15px] font-semibold text-primary-foreground shadow-none transition-[opacity,transform] hover:bg-primary hover:opacity-90 active:scale-[0.99] motion-reduce:transition-none"
@@ -17,6 +19,15 @@ export const authLabelClassName = "text-[13.5px] font-semibold text-foreground"
 
 export const authDividerClassName = "my-6 flex items-center gap-4 text-[12.5px] font-semibold text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border"
 
+export function AuthSpinner({ className = "size-4" }: { className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={`inline-block animate-spin rounded-full border-2 border-current/25 border-t-current motion-reduce:animate-none ${className}`}
+    />
+  )
+}
+
 export function GoogleMark() {
   return (
     <img
@@ -30,7 +41,10 @@ export function GoogleMark() {
 
 export function AuthFormHeader({ title, description }: { title: string; description: string }) {
   return (
-    <header className="mb-7">
+    <header className="mb-10 text-center lg:mb-7 lg:text-left">
+      <div className="mb-5 flex justify-center lg:hidden">
+        <LotusLogo size={36} />
+      </div>
       <h1 className="text-[32px] font-semibold leading-[1.08] tracking-[-0.045em] text-foreground sm:text-[36px]">
         {title}
       </h1>

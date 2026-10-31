@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { ArrowRight, ArrowUpRight, Menu, Settings, LogOut } from "lucide-react"
+import { ArrowUpRight, Menu, Settings, LogOut } from "lucide-react"
 import { BrandWordmark } from "@/components/ui/brand-wordmark"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/contexts/auth-context"
@@ -24,9 +24,20 @@ export function Navbar() {
   const pathname = usePathname()
   const { user, loading, signOut } = useAuth()
   const { openSettings } = useSettingsDialog()
+  const [hydrated, setHydrated] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [signingOut, setSigningOut] = useState(false)
+  useEffect(() => {
+    setHydrated(true)
+    const desktop = window.matchMedia('(min-width: 951px)')
+    const closeMobileMenu = () => { if (desktop.matches) setMenuOpen(false) }
+    desktop.addEventListener('change', closeMobileMenu)
+    return () => desktop.removeEventListener('change', closeMobileMenu)
+  }, [])
+  // Auth may resolve in the shared provider before this boundary hydrates.
+  // Keep the server and first client render identical, then use live auth state.
+  const accountLoading = !hydrated || loading
   const accountName = user?.displayName?.trim() || user?.email?.split("@")[0] || "Your account"
   const accountInitial = user?.displayName?.trim().charAt(0).toUpperCase()
     || user?.email?.trim().charAt(0).toUpperCase()
@@ -45,7 +56,7 @@ export function Navbar() {
         {links.map(link => <Link key={link.href} href={link.href} className={styles.navLink} aria-current={active(link.href) ? 'page' : undefined}>{link.label}</Link>)}
       </nav>
       <div className={styles.actions}>
-        {loading ? <span role="status" className={styles.loading}>Loading account…</span> : <>
+        {accountLoading ? <span role="status" className={styles.loading}>Loading account…</span> : <>
           {!user && <Link href="/login" className={styles.login} aria-current={pathname === '/login' ? 'page' : undefined}>Log in</Link>}
           <Link href={user ? '/' : '/signup'} className="site-action" aria-current={!user && pathname === '/signup' ? 'page' : undefined}>{user ? 'Open workspace' : 'Start building'}<ArrowUpRight size={15} aria-hidden /></Link>
           {user && (
@@ -99,24 +110,23 @@ export function Navbar() {
           <SheetContent side="right" className={styles.mobilePanel}>
             <SheetTitle className="sr-only">Navigation</SheetTitle>
             <SheetDescription className="sr-only">Explore LotusBuild and access your account.</SheetDescription>
-            <div className={styles.mobileHeader}>
+            <header className={styles.mobileHeader}>
               <Link href="/welcome" aria-label="LotusBuild home" className={styles.brand} onClick={() => setMenuOpen(false)}>
-                <BrandWordmark size="compact" />
+                <BrandWordmark size="nav" />
               </Link>
-            </div>
-            <div className={styles.mobileBody}>
-              <p className={styles.mobileEyebrow}>Explore</p>
+            </header>
+            <section className={styles.mobileBody} aria-label="Explore LotusBuild">
               <nav aria-label="Mobile navigation" className={styles.mobileLinks}>
                 {links.map(link => (
                   <Link key={link.href} href={link.href} aria-current={active(link.href) ? 'page' : undefined} onClick={() => setMenuOpen(false)}>
                     {link.label}
-                    <ArrowRight size={18} aria-hidden />
                   </Link>
                 ))}
               </nav>
-            </div>
-            <div className={styles.mobileAccount}>
-              {loading ? <p role="status" className={styles.loading}>Loading account…</p> : user ? (
+            </section>
+            <footer className={styles.mobileAccount}>
+              {error && <p role="alert" className={styles.mobileError}>{error}</p>}
+              {accountLoading ? <p role="status" className={styles.loading}>Loading account…</p> : user ? (
                 <>
                   <div className={styles.mobileIdentity}>
                     <Avatar className="size-10 shrink-0 ring-1 ring-border">
@@ -128,7 +138,7 @@ export function Navbar() {
                       {user.email && <p className="mt-1 truncate text-xs text-muted-foreground">{user.email}</p>}
                     </div>
                   </div>
-                  <Link href="/" className={styles.mobilePrimary} onClick={() => setMenuOpen(false)}>Open workspace<ArrowRight size={16} aria-hidden /></Link>
+                  <Link href="/" className={styles.mobilePrimary} onClick={() => setMenuOpen(false)}>Open workspace</Link>
                   <div className={styles.mobileAccountActions}>
                     <button type="button" onClick={() => { setMenuOpen(false); openSettings() }}>
                       <Settings size={16} aria-hidden /> Settings
@@ -140,15 +150,15 @@ export function Navbar() {
                 </>
               ) : (
                 <div className={styles.mobileGuestActions}>
-                  <Link href="/signup" className={styles.mobilePrimary} onClick={() => setMenuOpen(false)}>Create account<ArrowRight size={16} aria-hidden /></Link>
+                  <Link href="/signup" className={styles.mobilePrimary} onClick={() => setMenuOpen(false)}>Create account</Link>
                   <Link href="/login" className={styles.mobileSecondary} onClick={() => setMenuOpen(false)}>Log in</Link>
                 </div>
               )}
-            </div>
+            </footer>
           </SheetContent>
         </Sheet>
       </div>
     </div>
-    {error && <p role="alert" className={styles.error}>{error}</p>}
+    {error && !menuOpen && <p role="alert" className={styles.error}>{error}</p>}
   </header>
 }

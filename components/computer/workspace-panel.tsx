@@ -22,7 +22,8 @@ import {
 import { SavedProjectFiles as ComputerCodePanel } from "@/components/computer/saved-project-content"
 import { cn } from "@/lib/utils"
 import { Shimmer } from "@/components/ai-elements/shimmer"
-import { skeletonClass } from "@/components/ui/skeleton"
+import { LotusLogo } from "@/components/ui/lotus-logo"
+import styles from "./computer-workspace.module.css"
 import { IsolatedPreviewFrame } from "@/components/project/isolated-preview-frame"
 import { BrowserIcon, DesktopIcon, FilesIcon, HomeIcon, LiveSiteIcon, RefreshIcon, ResearchIcon, TerminalIcon } from "@/components/ui/lotus-icons"
 import { TerminalPanel } from "@/components/computer/terminal-panel"
@@ -975,32 +976,11 @@ function PreviewPane({
 }
 
 export function LoadingShell({ theme = "dark" }: { theme?: "light" | "dark" }) {
-  const bone = skeletonClass
   return (
-    <div data-product-theme={theme} className={cn("flex h-[100dvh] overflow-hidden bg-card text-foreground", theme === "dark" && "dark")} role="status" aria-busy="true" aria-label="Loading workspace">
-      <aside aria-hidden className="hidden w-[256px] shrink-0 border-r border-border/30 bg-background lg:flex lg:flex-col">
-        <div className="flex h-12 items-center justify-between px-3"><div className={cn(bone, "h-5 w-20")} /><div className={cn(bone, "size-5 rounded-lg")} /></div>
-        <div className="mt-2 space-y-2 px-3">
-          <div className={cn(bone, "h-9 w-full rounded-lg bg-muted/80")} />
-          <div className={cn(bone, "mt-4 h-3 w-16")} />
-          {[0, 1, 2, 3].map((i) => <div key={i} className={cn(bone, "h-8 rounded-lg")} style={{ width: `${88 - i * 9}%` }} />)}
-        </div>
-        <div className="mt-auto flex items-center gap-2.5 px-3 py-3"><div className={cn(bone, "size-7 rounded-full")} /><div className={cn(bone, "h-3 w-24")} /></div>
-      </aside>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex min-h-12 items-center justify-between gap-2 border-b border-border/50 px-2">
-          <div className="flex items-center gap-2"><div className={cn(bone, "size-5 rounded-lg lg:hidden")} /><div className={cn(bone, "h-4 w-40")} /></div>
-          <div className="flex items-center gap-2"><div className={cn(bone, "hidden h-7 w-28 rounded-full sm:block")} /><div className={cn(bone, "size-7 rounded-lg")} /></div>
-        </header>
-        <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 pt-8">
-          <div className="ml-auto w-[62%] max-w-md"><div className={cn(bone, "h-14 rounded-2xl rounded-br-md")} /></div>
-          <div className="mt-8 space-y-2.5">
-            <div className={cn(bone, "h-3 w-[92%]")} /><div className={cn(bone, "h-3 w-[78%]")} /><div className={cn(bone, "h-3 w-[85%]")} /><div className={cn(bone, "h-3 w-[40%]")} />
-          </div>
-          <div className="mt-auto pb-4"><div className={cn(bone, "h-[88px] rounded-[26px] border border-border/60 bg-card")} /></div>
-        </div>
-      </div>
-    </div>
+    <main data-product-theme={theme} className={cn(styles.shell, "flex h-[100dvh] items-center justify-center overflow-hidden bg-background text-foreground", theme === "dark" && "dark")} role="status" aria-busy="true" aria-label="Loading workspace">
+      <span className={styles.loadingMark} aria-hidden="true"><LotusLogo size={104} /></span>
+      <span className="sr-only">Loading your workspace…</span>
+    </main>
   )
 }
 

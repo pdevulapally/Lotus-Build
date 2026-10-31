@@ -22,9 +22,10 @@ const MAX_CONSECUTIVE_FAILURES = 6
 
 export const STREAM_MESSAGES = {
   interrupted: 'Live connection interrupted. Reconnecting…',
-  stopped: 'Live connection stopped after repeated interruptions. Retry the connection to resume.',
+  retrying: 'Still reconnecting. Showing the last confirmed task state; accepted work continues on the server.',
   unauthorized: 'Session access could not be verified. Sign in again or retry the connection.',
   failed: 'Live connection failed.',
+  offline: 'You are offline. Showing the last confirmed task state.',
 } as const
 
 /**
@@ -42,6 +43,10 @@ export async function followSessionEvents(client: BackendClient, sessionId: stri
   onEvent: (event: SessionEvent & { id: string }) => void | Promise<void>
   onError: (message: string) => void
   onConnected?: () => void
+  onState?: (state: Record<string, unknown>) => void | Promise<void>
+  onReset?: () => void | Promise<void>
+  onReconcile?: () => Promise<void>
+  onReconnecting?: () => void
 }, wait = pause, now: () => number = Date.now) {
   const { signal } = options
   let cursor: string | undefined
@@ -50,8 +55,12 @@ export async function followSessionEvents(client: BackendClient, sessionId: stri
     let closing: string | undefined
     const openedAt = now()
     try {
+      await options.onReconcile?.()
+      if (signal.aborted) return
       await client.events(sessionId, { signal, after: cursor, onOpen: options.onConnected, onEvent: async (event) => {
         if (signal.aborted) return
+        if (event.type === 'session.state') { await options.onState?.(event.data); return }
+        if (event.type === 'stream.reset') { await options.onReset?.(); cursor = undefined; return }
         if (event.type === 'stream.closing') { closing = String(event.data.reason); return }
         if (!event.id || (cursor && !newer(event.id, cursor))) return
         await options.onEvent({ ...event, id: event.id })
@@ -77,13 +86,13 @@ export async function followSessionEvents(client: BackendClient, sessionId: stri
         return
       }
     }
+    options.onReconnecting?.()
     if (now() - openedAt >= HEALTHY_CONNECTION_MS) failures = 0
-    failures += 1
+    failures = Math.min(MAX_CONSECUTIVE_FAILURES, failures + 1)
     if (failures >= MAX_CONSECUTIVE_FAILURES) {
-      options.onError(STREAM_MESSAGES.stopped)
-      return
+      options.onError(STREAM_MESSAGES.retrying)
     }
-    if (failures > 1) options.onError(STREAM_MESSAGES.interrupted)
+    else if (failures > 1) options.onError(STREAM_MESSAGES.interrupted)
     await wait(failures === 1 ? QUIET_RETRY_DELAY_MS : Math.min(30_000, 1000 * 2 ** (failures - 1)), signal)
   }
 }

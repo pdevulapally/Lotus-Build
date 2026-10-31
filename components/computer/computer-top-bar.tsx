@@ -1,8 +1,7 @@
 "use client"
 
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
 import {
-  ChevronDown,
+  MoreHorizontal,
   History,
   Moon,
   Sun,
@@ -15,6 +14,7 @@ import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu
 import { cn } from "@/lib/utils"
 import type { ComputerSessionResponse } from "@/components/computer/session-types"
 import type { ContextUsage } from "@/components/ai-elements/context"
+import styles from "./computer-workspace.module.css"
 
 export type ComputerProjectIntegration = {
   name?: string
@@ -33,35 +33,6 @@ export type ComputerProjectIntegration = {
 }
 
 export type ComputerTheme = "light" | "dark"
-
-function StatusBadge({ status }: { status: ComputerSessionResponse["status"] }) {
-  if (status === "running") {
-    return (
-      <div className="flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-1 text-[11px] font-semibold text-success-soft-foreground">
-        <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-success" />
-        Building
-      </div>
-    )
-  }
-  if (status === "planning") {
-    return (
-      <div className="flex items-center gap-1.5 rounded-full bg-foreground/10 px-2.5 py-1 text-[11px] font-semibold text-foreground">
-        <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-foreground" />
-        Planning
-      </div>
-    )
-  }
-  if (status === "complete") return null
-  if (status === "error") {
-    return (
-      <div className="flex items-center gap-1.5 rounded-full bg-destructive/10 px-2.5 py-1 text-[11px] font-semibold text-destructive">
-        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-destructive" />
-        Error
-      </div>
-    )
-  }
-  return null
-}
 
 export function ComputerTopBar({
   session,
@@ -117,38 +88,15 @@ export function ComputerTopBar({
   onThemeToggle: () => void
 }) {
 
-  const shouldReduceMotion = useReducedMotion()
-
-  const isActive = session.status === "running" || session.status === "planning"
-
   return (
     <>
       <header className="relative z-30 shrink-0 bg-background" aria-label="Computer workspace header">
-        <div className="relative flex h-[52px] w-full items-center">
-          {/* ── Mobile: title absolutely centered so it's always mid-screen ── */}
-          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center sm:hidden">
-            <div className="pointer-events-auto flex max-w-[38vw] min-w-0 -translate-x-6 items-center">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      type="button"
-                      className="group flex min-w-0 items-center gap-1.5 rounded-lg px-1 py-1.5 transition-colors hover:bg-muted/60 focus-visible:outline-none"
-                      aria-label="Session menu"
-                    >
-                      <span className="min-w-0 truncate text-[13px] font-medium tracking-[-0.01em] text-foreground">
-                        {sessionTitle}
-                      </span>
-                      <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground transition-transform duration-150 group-data-[state=open]:rotate-180" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <SessionMenuContent align="center" session={session} projectFileCount={projectFileCount} remainingTokens={remainingTokens} planLabel={planLabel} liveSiteUrl={liveSiteUrl} contextUsage={contextUsage} onRename={onEditTitleStart} onOpenHistory={onOpenHistory} dark={theme === "dark"} />
-                </DropdownMenu>
-            </div>
-          </div>
+        <div className={cn(styles.toolbarRow, "relative flex h-[52px] w-full items-center")}>
 
-          {/* ── Left: nav + title + panel toggle (mirrors chat panel width) ── */}
+          {/* Navigation on mobile, session actions on desktop. */}
           <div
             className={cn(
+              styles.toolbarLeft,
               "flex h-full min-w-0 flex-1 items-center gap-1 px-3",
             )}
           >
@@ -160,41 +108,26 @@ export function ComputerTopBar({
               aria-label="Open sidebar"
               aria-expanded={navigationOpen}
               aria-controls="computer-mobile-navigation"
-              className="mr-1.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-all duration-150 hover:bg-muted hover:text-foreground active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 lg:hidden"
+              className={cn(styles.control, "mr-1.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 lg:hidden")}
             >
               <SidebarToggleIcon className="size-[18px]" side="left" open={navigationOpen} />
             </button>
 
-            {/* Session title — desktop only (mobile version is absolutely centered above) */}
-            <div className="hidden min-w-0 flex-1 overflow-hidden sm:block">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      type="button"
-                      className="group -mx-1 flex w-full min-w-0 items-center gap-1.5 rounded-lg px-1 py-1.5 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                      aria-label="Session menu"
-                    >
-                      <span className="min-w-0 truncate text-[13px] font-medium tracking-[-0.01em] text-foreground">
-                        {sessionTitle}
-                      </span>
-                      <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground transition-transform duration-150 group-data-[state=open]:rotate-180" />
-                    </button>
-                  </DropdownMenuTrigger>
+            <section className="hidden lg:block">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button type="button" aria-label="Session actions" title="Session actions" className={cn(styles.control, "inline-flex items-center justify-center transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring")}>
+                    <MoreHorizontal className="size-5" />
+                  </button>
+                </DropdownMenuTrigger>
+                <SessionMenuContent align="start" session={session} projectFileCount={projectFileCount} remainingTokens={remainingTokens} planLabel={planLabel} liveSiteUrl={liveSiteUrl} contextUsage={contextUsage} onRename={onEditTitleStart} onOpenHistory={onOpenHistory} dark={theme === "dark"} />
+              </DropdownMenu>
+            </section>
 
-                  <SessionMenuContent align="start" session={session} projectFileCount={projectFileCount} remainingTokens={remainingTokens} planLabel={planLabel} liveSiteUrl={liveSiteUrl} contextUsage={contextUsage} onRename={onEditTitleStart} onOpenHistory={onOpenHistory} dark={theme === "dark"} />
-                </DropdownMenu>
-            </div>
-
-            {/* Panel toggle — right edge of left section */}
           </div>
 
           {/* ── Right: workspace toolbar ── */}
-          <div className="flex h-full shrink-0 items-center justify-end gap-2 px-3">
-            {/* Tab group — always visible on desktop */}
-            <div className="hidden items-center gap-2.5 sm:flex">
-              {isActive && <StatusBadge status={session.status} />}
-            </div>
-
+          <div className={cn(styles.toolbarRight, "flex h-full shrink-0 items-center justify-end gap-2 px-3")}>
             {/* Actions */}
             <div className="flex items-center gap-1.5">
               <button
@@ -202,12 +135,10 @@ export function ComputerTopBar({
                 onClick={onThemeToggle}
                 aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
                 title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-                className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                className={cn(styles.control, "inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50")}
               >
                 {theme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
               </button>
-
-              <></>
 
               {onOpenHistory && (
                 <button
@@ -215,7 +146,7 @@ export function ComputerTopBar({
                   onClick={onOpenHistory}
                   disabled={!session.projectId}
                   aria-label="Version history"
-                  className="hidden size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 sm:inline-flex"
+                  className={cn(styles.control, "hidden size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 lg:inline-flex")}
                 >
                   <History className="h-3.5 w-3.5" />
                 </button>
@@ -228,41 +159,16 @@ export function ComputerTopBar({
                 aria-expanded={workspacePanelOpen}
                 aria-controls="computer-preview-sidebar"
                 title={workspacePanelOpen ? "Close preview panel" : "Open preview panel"}
-                className={cn("inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50", workspacePanelOpen && "bg-muted text-foreground")}
+                className={cn(styles.control, "inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50", workspacePanelOpen && "bg-muted text-foreground")}
               >
                 <SidebarToggleIcon className="size-[18px]" side="right" open={workspacePanelOpen} />
               </button>
 
-              <></>
-
-              <></>
             </div>
           </div>
         </div>
 
-        {/* Animated progress bar — scans across header bottom when agent is active */}
-        <AnimatePresence>
-          {isActive && !shouldReduceMotion && (
-            <motion.div
-              aria-hidden="true"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="absolute bottom-0 left-0 right-0 h-[1.5px] overflow-hidden"
-            >
-              <motion.div
-                className="h-full w-1/2 bg-foreground/25"
-                animate={{ x: ["-100%", "300%"] }}
-                transition={{ duration: 2.2, ease: "easeInOut", repeat: Infinity }}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
-
       </header>
-
-      <></>
 
       <RenameSessionDialog open={isEditingTitle} draft={titleDraft} saving={titleSaving} error={titleError} onDraftChange={onTitleDraftChange} onCancel={onEditTitleCancel} onSave={onTitleSave} />
     </>

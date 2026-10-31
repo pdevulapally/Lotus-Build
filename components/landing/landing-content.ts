@@ -1,8 +1,7 @@
 import type { ComponentType, SVGProps } from 'react'
 import type { TerminalEntry } from '@/lib/backend/terminal'
 import {
-  BlocksIcon, DesktopIcon, LockIcon, MailCodeIcon, PlanIcon, PreviewIcon, ShieldIcon,
-  TeamAppIcon, TerminalIcon, ToolIcon, VersionsIcon, WebsiteIcon,
+  LockIcon, MailCodeIcon, PlanIcon, ShieldIcon, TeamAppIcon, ToolIcon, WebsiteIcon,
 } from '@/components/ui/lotus-icons'
 
 export type StartMode = 'plan' | 'build'
@@ -33,13 +32,13 @@ export const showcaseTiles = [
 ] as const satisfies readonly ShowcaseTile[]
 
 export type DemoSceneKey = 'plan' | 'build' | 'preview'
-export type DemoScene = { key: DemoSceneKey; step: string; detail: string; panel: 'preview' | 'terminal' }
+export type DemoScene = { key: DemoSceneKey; panel: 'preview' | 'terminal' }
 
 export const demoSceneDurationMs = 5600
 export const demoScenes = [
-  { key: 'plan', step: 'Describe and plan', detail: 'LotusBuild asks before it builds.', panel: 'preview' },
-  { key: 'build', step: 'Build', detail: 'Every command is visible as it runs.', panel: 'terminal' },
-  { key: 'preview', step: 'Preview and refine', detail: 'Try it live, then keep going.', panel: 'preview' },
+  { key: 'plan', panel: 'preview' },
+  { key: 'build', panel: 'terminal' },
+  { key: 'preview', panel: 'preview' },
 ] as const satisfies readonly DemoScene[]
 
 export const demoProject = {
@@ -62,26 +61,6 @@ export const demoProject = {
   previewServices: ['Cut & finish', 'Colour', 'Treatments'],
 } as const
 
-export type Capability = { icon: LandingIcon; label: string; detail: string }
-export const capabilities = [
-  { icon: PlanIcon, label: 'Plan mode', detail: 'Questions first.' },
-  { icon: BlocksIcon, label: 'Build mode', detail: 'Straight to a first version.' },
-  { icon: PreviewIcon, label: 'Live preview', detail: 'Opens the moment it is ready.' },
-  { icon: TerminalIcon, label: 'Terminal', detail: 'Every command in the open.' },
-  { icon: DesktopIcon, label: 'Desktop view', detail: 'Watch the agent’s screen.' },
-  { icon: VersionsIcon, label: 'Versions', detail: 'Every change, saved.' },
-] as const satisfies readonly Capability[]
-
-export type FeatureRow = { title: string; copy: string }
-export const featureRows = [
-  { title: 'Asks before it builds', copy: 'A few plain questions up front, so the first version is the right one.' },
-  { title: 'Shows its work as it goes', copy: 'Commands, output and screen activity appear in the workspace while it runs.' },
-  { title: 'A live preview, not a promise', copy: 'Click through what was built the moment it is ready, from any device.' },
-  { title: 'Every version kept', copy: 'Compare saved versions and see exactly what changed, line by line.' },
-  { title: 'Real Git, not a black box', copy: 'Every project is a proper Git repository with a full commit history. GitHub connection is on the way.' },
-  { title: 'Built for serious use', copy: 'Verified accounts, isolated previews and clear UK terms from day one.' },
-] as const satisfies readonly FeatureRow[]
-
 export type StartModeOption = { mode: StartMode; tag: string; title: string; copy: string; action: string }
 export const startModes = [
   { mode: 'plan', tag: 'Plan', title: 'Talk it through first', copy: 'LotusBuild asks a few questions, then proposes a plan you can change before anything is built.', action: 'Start with a plan' },
@@ -89,13 +68,7 @@ export const startModes = [
 ] as const satisfies readonly StartModeOption[]
 
 export const savedWork = {
-  files: [
-    { name: 'app', depth: 0, folder: true, active: false },
-    { name: 'booking', depth: 1, folder: true, active: false },
-    { name: 'page.tsx', depth: 2, folder: false, active: true },
-    { name: 'services.ts', depth: 1, folder: false, active: false },
-    { name: 'layout.tsx', depth: 1, folder: false, active: false },
-  ],
+  path: 'app/booking/page.tsx',
   code: [
     'import { Calendar } from "./calendar"',
     '',
@@ -121,9 +94,9 @@ export const savedWork = {
   ],
 } as const
 
-export type TrustPoint = { icon: LandingIcon; title: string; copy: string }
+export type TrustPoint = { icon: LandingIcon; title: string; copy: string; href: string; linkLabel: string }
 export const trustPoints = [
-  { icon: MailCodeIcon, title: 'Verified accounts', copy: 'Every email sign-up confirms a one-time code before it can open a workspace.' },
-  { icon: LockIcon, title: 'Isolated previews', copy: 'Each build runs in its own sandbox, and previews are kept separate from your account.' },
-  { icon: ShieldIcon, title: 'Clear UK terms', copy: 'Plain-English privacy and terms, written for how LotusBuild actually handles your data.' },
+  { icon: MailCodeIcon, title: 'Verified accounts', copy: 'Every email sign-up confirms a one-time code before it can open a workspace.', href: '/help', linkLabel: 'Account help' },
+  { icon: LockIcon, title: 'Isolated previews', copy: 'Each build runs in its own sandbox, and previews are kept separate from your account.', href: '/privacy#security', linkLabel: 'Privacy and security' },
+  { icon: ShieldIcon, title: 'Clear UK terms', copy: 'Plain-English privacy and terms, written for how LotusBuild actually handles your data.', href: '/terms', linkLabel: 'Read the terms' },
 ] as const satisfies readonly TrustPoint[]

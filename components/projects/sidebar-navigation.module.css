@@ -1,0 +1,27 @@
+.surface.surface {
+  background: var(--muted);
+  color: var(--foreground);
+  border-inline-end: 1px solid color-mix(in oklch, var(--border) 35%, transparent);
+}
+
+.header.header {
+  min-height: calc(var(--spacing) * 20);
+  padding: calc(var(--spacing) * 3);
+}
+
+.compactHeader.compactHeader {
+  padding-inline: calc(var(--spacing) * 2);
+}
+
+.newProject.newProject {
+  min-height: calc(var(--spacing) * 11);
+  border-radius: var(--radius-xl);
+  background: var(--card);
+  font-weight: 500;
+}
+
+.newProject.newProject:hover { background: var(--accent); }
+
+.footer.footer {
+  padding: calc(var(--spacing) * 3);
+}

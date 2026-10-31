@@ -87,11 +87,14 @@ test('failed event application is replayed rather than acknowledged', async () =
   assert.deepEqual(cursors, [null, null]); assert.equal(attempts, 2)
 })
 
-test('repeated clean stream closures are bounded rather than silently reconnecting forever', async () => {
-  let calls = 0; const errors: string[] = []
-  const client = new BackendClient({ origin: 'https://api.example.test', token: async () => 'token', fetch: async () => { calls++; return eventStream('') } })
-  await followSessionEvents(client, 's1', { signal: new AbortController().signal, refreshToken: async () => {}, onEvent: () => {}, onError: (error) => errors.push(error) }, noWait)
-  assert.equal(calls, 6); assert.match(errors.at(-1)!, /stopped after repeated interruptions/)
+test('repeated clean stream closures retry with bounded backoff and visible connection state', async () => {
+  let calls = 0; const errors: string[] = []; const waits: number[] = []; const abort = new AbortController()
+  const client = new BackendClient({ origin: 'https://api.example.test', token: async () => 'token', fetch: async () => {
+    calls++; if (calls === 8) abort.abort(); return eventStream('')
+  } })
+  await followSessionEvents(client, 's1', { signal: abort.signal, refreshToken: async () => {}, onEvent: () => {}, onError: (error) => errors.push(error) }, async (delay) => { waits.push(delay) })
+  assert.equal(calls, 8); assert.match(errors.at(-1)!, /Still reconnecting/)
+  assert.ok(waits.every((delay) => delay <= 30_000)); assert.equal(waits.at(-1), 30_000)
 })
 
 test('revoked stream access stops without retrying or refreshing credentials', async () => {
@@ -136,6 +139,7 @@ test('all routes deny embedding and objects, with transport enforcement confined
       assert.equal(headers.get('content-security-policy'), "frame-ancestors 'none'; object-src 'none'; base-uri 'self'")
       assert.equal(headers.get('x-frame-options'), 'DENY')
       assert.equal(headers.get('cross-origin-opener-policy'), 'same-origin-allow-popups')
+      assert.equal(headers.get('permissions-policy'), 'camera=(), microphone=(self), geolocation=()')
       assert.equal(headers.has('strict-transport-security'), environment === 'production')
     }
   } finally { if (previous === undefined) Reflect.deleteProperty(process.env, 'NODE_ENV'); else Object.assign(process.env, { NODE_ENV: previous }) }

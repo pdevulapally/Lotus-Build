@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Eye, EyeOff, Loader2, Mail } from "lucide-react"
 import {
   AuthFormHeader,
+  AuthSpinner,
   GoogleMark,
   authDividerClassName,
   authLabelClassName,
@@ -202,7 +203,7 @@ export default function LoginPage() {
                 aria-busy={isLoading}
                 className={authPrimaryButtonClassName}
               >
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Sign in"}
+                {isLoading ? <AuthSpinner /> : "Sign in"}
               </Button>
             </form>
 
@@ -216,11 +217,11 @@ export default function LoginPage() {
                 </Link>
               </p>
 
-              <div className="mt-6 flex items-center justify-center gap-3 border-t border-border pt-5 text-[12.5px] font-medium leading-5 text-muted-foreground">
+              <div className="mt-10 flex items-center justify-between gap-3 text-[12.5px] font-medium leading-5 text-muted-foreground lg:mt-6 lg:justify-center lg:border-t lg:border-border lg:pt-5">
                 <Link href="/terms" className={authLinkClassName}>
                   Terms
                 </Link>
-                <span aria-hidden>·</span>
+                <span aria-hidden className="hidden lg:inline">·</span>
                 <Link href="/privacy" className={authLinkClassName}>
                   Privacy
                 </Link>

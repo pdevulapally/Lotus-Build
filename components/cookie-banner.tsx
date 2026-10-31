@@ -193,7 +193,7 @@ function PreferencesModal({
     <div className="fixed inset-0 z-[200] flex items-end justify-center sm:items-center p-4">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-foreground/35 backdrop-blur-md"
+        className="absolute inset-0 bg-black/35 backdrop-blur-md"
         onClick={onClose}
         aria-hidden
       />

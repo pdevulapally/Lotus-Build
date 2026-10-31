@@ -15,8 +15,8 @@ const legalLinks = [
   { href: "/privacy#cookies", label: "Cookies" },
   { href: "/privacy#security", label: "Security" },
 ]
-export function FooterSection() {
-  return <footer className={styles.footer}>
+export function FooterSection({ stacked = false }: { stacked?: boolean } = {}) {
+  return <footer className={`${styles.footer}${stacked ? ` ${styles.stacked}` : ''}`}>
     <div className={styles.inner}>
       <div className={styles.main}>
         <div className={styles.about}>

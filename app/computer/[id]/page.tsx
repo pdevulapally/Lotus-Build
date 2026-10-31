@@ -24,8 +24,11 @@ import { useAutoOpenWorkspace } from "@/hooks/use-auto-open-workspace"
 
 
 
-import { sendMessage, pendingMessageKey } from "@/lib/backend/send-message"
-import { cancelSession } from "@/lib/backend/cancel-session"
+import { sendMessage, readPendingMessage } from "@/lib/backend/send-message"
+import { ContinuationStatus } from "@/components/computer/continuation-status"
+import { continueSession, readPendingContinuation, type ContinuationCommand } from "@/lib/backend/continue-session"
+import { pendingCommandStorage } from "@/lib/backend/pending-storage"
+import { cancelSession, pendingCancelKey } from "@/lib/backend/cancel-session"
 import type { AttachmentRef } from "@/lib/backend/attachments"
 
 
@@ -74,11 +77,13 @@ import { DeployTerminal } from "@/components/project/deploy-terminal"
 
 
 import { AgentFeed } from "@/components/computer/agent-feed"
+import { ConversationScrollArea } from "@/components/computer/conversation-scroll-area"
 
 
 
 import { ComputerTopBar, type ComputerTheme } from "@/components/computer/computer-top-bar"
 import { ComputerNavigation } from "@/components/computer/computer-navigation"
+import styles from "@/components/computer/computer-workspace.module.css"
 
 
 
@@ -295,11 +300,23 @@ export default function ComputerPage() {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('preview')
   const [runError, setRunError] = useState<string | null>(null)
   const [isStartingRun, setIsStartingRun] = useState(false)
+  const [pendingMessage, setPendingMessage] = useState<ReturnType<typeof readPendingMessage>>(null)
+  const [pendingContinuation, setPendingContinuation] = useState<ReturnType<typeof readPendingContinuation>>(null)
+  const [pendingCancellation, setPendingCancellation] = useState(false)
   const busyRef = useRef(false)
-  const isRunning = effectiveStatus === 'running' || isStartingRun
+  const readPending = useCallback(() => {
+    if (!user || !raw) return
+    try {
+      setPendingContinuation(readPendingContinuation(pendingCommandStorage(), user.uid, raw.id))
+      setPendingMessage(readPendingMessage(pendingCommandStorage(), user.uid, raw.id))
+      setPendingCancellation(pendingCommandStorage().getItem(pendingCancelKey(user.uid, raw.id)) !== null)
+    } catch (reason) { setRunError(reason instanceof Error ? reason.message : 'Pending commands could not be read.') }
+  }, [user, raw?.id])
+  useEffect(() => { readPending(); window.addEventListener('storage', readPending); return () => window.removeEventListener('storage', readPending) }, [readPending])
+  const isRunning = effectiveStatus === 'running'
   const isStopping = isRunning && backend.stopping
-  const feedStatus: ComputerSessionStatus = isStopping ? 'idle' : effectiveStatus
-  const optimisticStart = isStartingRun
+  const feedStatus: ComputerSessionStatus = effectiveStatus
+  const optimisticStart = false
   const isBuildTokenBlocked = false
   const [editText, setEditText] = useState('')
   const [computerTheme, setComputerTheme] = useState<ComputerTheme>('dark')
@@ -335,28 +352,50 @@ export default function ComputerPage() {
   useEffect(() => {
     if (backend.desktop.status === 'none' && activeTab === 'desktop') setActiveTab('preview')
   }, [activeTab, backend.desktop.status])
-  const handleRun = async (prompt: string, nextMode?: 'build' | 'plan', attachments: AttachmentRef[] = []) => {
+  const handleRun = async (prompt: string, nextMode?: 'build' | 'plan', attachments: AttachmentRef[] = [], originalInput?: { id: string; answer: string } | null) => {
     if (busyRef.current) throw new Error('A message is already being submitted.')
     if (!raw || !user) throw new Error('Session is not available.')
     busyRef.current = true; setIsStartingRun(true); setRunError(null)
     try {
-      await sendMessage(currentBackend(), sessionStorage, user.uid, raw.id, prompt, nextMode, attachments)
+      const request = raw.pendingInput
+      if (originalInput === undefined && request?.kind === 'approval' && !['approve', 'reject'].includes(prompt)) throw new Error('Use Approve or Reject to answer this request.')
+      await sendMessage(currentBackend(), pendingCommandStorage(), user.uid, raw.id, prompt, nextMode, attachments,
+        originalInput === undefined ? (request === undefined ? undefined : { id: request.id, answer: prompt }) : originalInput ?? undefined)
       void backend.refresh().catch((reason) => setRunError(`Message accepted, but history refresh failed: ${reason instanceof Error ? reason.message : 'Request failed.'}`))
     } catch (reason) {
       setRunError(reason instanceof Error ? reason.message : 'Could not send message.')
       throw reason
-    } finally { busyRef.current = false; setIsStartingRun(false) }
+    } finally { busyRef.current = false; setIsStartingRun(false); readPending() }
   }
   const handleStop = async () => {
     if (!raw || !user || busyRef.current) return
-    busyRef.current = true; setRunError(null); backend.setStopping(true)
-    try { await cancelSession(currentBackend(), sessionStorage, user.uid, raw.id);
+    busyRef.current = true; setRunError(null); setPendingCancellation(true)
+    try { const accepted = await cancelSession(currentBackend(), pendingCommandStorage(), user.uid, raw.id); backend.setStopping(accepted.cancelRequested === true); setPendingCancellation(false);
       void backend.refresh().catch((reason) => setRunError(`Cancellation accepted, but refresh failed: ${reason instanceof Error ? reason.message : 'Request failed.'}`)) }
     catch (reason) { backend.setStopping(false); setRunError(reason instanceof Error ? reason.message : 'Could not cancel session.') }
-    finally { busyRef.current = false }
+    finally { busyRef.current = false; readPending() }
+  }
+  const handleContinue = async (lane: 'premium' | 'fallback', original?: ContinuationCommand) => {
+    if (!raw || !user || busyRef.current) return
+    const state = raw.fallback
+    let command: ContinuationCommand
+    if (original) command = original
+    else {
+      const checkpointId = state?.checkpointId
+      const model = lane === 'fallback' ? state?.offer?.model : raw.model
+      const effort = lane === 'fallback' ? state?.offer?.effort : raw.effort
+      if (!checkpointId || !state?.resumable || !model || !effort) { setRunError('This task has no verified continuation available.'); return }
+      command = { lane, model, effort, checkpointId }
+    }
+    busyRef.current = true; setIsStartingRun(true); setRunError(null)
+    try {
+      await continueSession(currentBackend(), pendingCommandStorage(), user.uid, raw.id, command)
+      await backend.refresh()
+    } catch (reason) { setRunError(reason instanceof Error ? reason.message : 'Could not confirm this continuation.') }
+    finally { busyRef.current = false; setIsStartingRun(false); readPending() }
   }
   const requestPreviewRecovery = () => { backend.reconnect(); setPreviewNavSrc(null); setPreviewReloadNonce((value) => value + 1) }
-  const showPlanApproval = raw?.mode === 'plan' && raw.status === 'IDLE' && backend.messages.some((message) => message.role === 'assistant')
+  const showPlanApproval = raw?.fallback === undefined && raw?.pendingInput === undefined && raw?.mode === 'plan' && raw.status === 'IDLE' && backend.messages.some((message) => message.role === 'assistant')
   const handleApprovePlan = () => { void handleRun('Build the plan we just reviewed.', 'build').catch(() => { /* handleRun exposes the error in the feed. */ }) }
   const handleHistoryRestored = () => { void backend.refresh().catch((reason) => setRunError(String(reason))) }
   const handleClarificationAnswer = async (answer: string) => { await handleRun(answer) }
@@ -386,6 +425,7 @@ export default function ComputerPage() {
     <div
       data-product-theme={computerTheme}
       className={cn(
+        styles.shell,
         "relative flex h-[100dvh] overflow-hidden bg-card font-sans text-foreground antialiased",
         computerTheme === "dark" && "dark",
       )}
@@ -503,13 +543,12 @@ export default function ComputerPage() {
         <aside
           aria-label="Agent conversation"
           className={cn(
+          styles.conversation,
           "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-card",
-          workspacePanel === "expanded" ? "hidden" : workspacePanelOpen && "hidden sm:flex sm:flex-[0_0_42%] lg:flex-[0_0_38%]",
+          workspacePanel === "expanded" ? "hidden" : workspacePanelOpen && "hidden lg:flex lg:flex-[0_0_38%]",
         )}>
           {/* Feed scroll area */}
-          <div className="relative min-h-0 flex-1 overflow-hidden">
-            <div className="chat-scrollbar h-full overflow-y-auto">
-              <div className="mx-auto w-full max-w-[792px] px-4 pb-8 pt-6 sm:px-6">
+          <ConversationScrollArea key={session.id}>
                 <AgentFeed
                   prompt={firstPrompt} events={session.timeline}
                   canonicalMessages={backend.messages} queuedMessages={backend.queued} streamText={backend.text}
@@ -525,12 +564,10 @@ export default function ComputerPage() {
                   onApprovePlan={showPlanApproval ? handleApprovePlan : undefined}
 
                 />
-              </div>
-            </div>
-          </div>
+          </ConversationScrollArea>
 
           {/* Composer */}
-          <div className="mx-auto w-full max-w-[792px] shrink-0 px-3 pt-2 [padding-bottom:max(1rem,env(safe-area-inset-bottom))] sm:pb-5 lg:px-4">
+          <div className={cn(styles.composerDock, "mx-auto w-full max-w-[792px] shrink-0 px-3 pt-2 [padding-bottom:max(1rem,env(safe-area-inset-bottom))] sm:pb-5 lg:px-4")}>
             {isBuildTokenBlocked && (
               <div className="mb-3 rounded-xl border border-border bg-muted px-3 py-2.5">
                 <p className="text-sm font-medium text-foreground">You have used all credits for this cycle.</p>
@@ -540,21 +577,40 @@ export default function ComputerPage() {
                 </p>
               </div>
             )}
-            {(runError || backend.streamError || backend.fileError) && !isBuildTokenBlocked && (
+            {(runError || backend.streamError || backend.fileError || raw?.error) && !isBuildTokenBlocked && (
               <div className="mb-3 rounded-xl border border-destructive/25 bg-card px-3 py-2.5">
-                <p className="text-xs leading-relaxed text-destructive">{getRunErrorMessage(runError || backend.streamError || backend.fileError || 'Live connection interrupted.')}</p>
+                <p className="text-xs leading-relaxed text-destructive">{getRunErrorMessage(runError || backend.streamError || backend.fileError || raw?.error || 'Live connection interrupted.')}</p>
                 <button type="button" className="mt-1 text-xs underline" onClick={() => { setRunError(null); backend.reconnect() }}>Reconnect</button>
-                <button type="button" className="ml-3 mt-1 text-xs underline" onClick={() => {
-                  if (user) sessionStorage.removeItem(pendingMessageKey(user.uid, session.id)); setRunError(null)
-                }}>Discard pending message</button>
+
               </div>
             )}
+            {backend.connection !== 'connected' && <p role="status" className="mb-2 text-xs text-muted-foreground">{backend.connection === 'offline' ? 'You are offline.' : 'Reconnecting...'} Showing the last confirmed task state. Accepted work runs on the server.</p>}
+            {isStopping && <p role="status" className="mb-2 text-xs text-muted-foreground">Cancellation accepted. Stopping further work; external actions already sent may have completed.</p>}
+            {isStartingRun && <p role="status" className="mb-2 text-xs text-muted-foreground">Sending command. Waiting for confirmation...</p>}
+            {pendingMessage && !isStartingRun && <p role="status" className="mb-2 text-xs text-muted-foreground">Message pending confirmation: {pendingMessage.prompt.slice(0, 160)}{' '}
+              <button type="button" className="underline" onClick={() => { void handleRun(pendingMessage.prompt, pendingMessage.mode, pendingMessage.attachments, pendingMessage.inputResponse ?? null).catch(() => {}) }}>Retry original message</button>
+            </p>}
+            {pendingCancellation && <p role="status" className="mb-2 text-xs text-muted-foreground">Cancellation pending confirmation.{' '}
+              <button type="button" className="underline" onClick={() => { void handleStop() }}>Retry cancellation</button>
+            </p>}
+            {pendingContinuation && <p role="status" className="mb-2 text-xs text-muted-foreground">Continuation pending confirmation.{' '}
+              <button type="button" className="underline" onClick={() => { void handleContinue(pendingContinuation.lane, pendingContinuation) }}>Retry original continuation</button>
+            </p>}
+            {raw && <ContinuationStatus session={raw} busy={isStartingRun} onContinue={(lane) => { void handleContinue(lane) }} onCancel={() => { void handleStop() }} />}
+            {raw?.pendingInput && <section aria-label="Waiting for your response" className="mb-3 text-sm text-foreground">
+              <p>{raw.pendingInput.prompt}</p>
+              {raw.pendingInput.kind === 'approval' ? <p className="mt-2 flex gap-3">
+                <button type="button" className="underline" disabled={isStartingRun} onClick={() => { void handleRun('approve').catch(() => {}) }}>Approve</button>
+                <button type="button" className="underline" disabled={isStartingRun} onClick={() => { void handleRun('reject').catch(() => {}) }}>Reject</button>
+              </p> : <p className="text-xs text-muted-foreground">Reply below to continue. Work is paused until you answer.</p>}
+              <button type="button" className="mt-2 text-xs underline" onClick={() => { void handleStop() }}>Cancel task</button>
+            </section>}
             <AnimatedAIInput
               mode="chat" compact compactSize="slim" appearance="assistant" initialModel={raw?.model}
-              wrapperClassName="!border-border-strong !bg-muted !shadow-none focus-within:!border-ring"
+              wrapperClassName={cn(styles.composer, "!shadow-none focus-within:!border-ring")}
               isLoading={isRunning} isStopping={isStopping} onStop={handleStop} onSubmit={(prompt, _model, attachments) => handleRun(prompt, undefined, attachments)}
               placeholder="Ask LotusBuild about this project…"
-              disabled={isBuildTokenBlocked}
+              disabled={isBuildTokenBlocked || isStartingRun || raw?.pendingInput?.kind === 'approval' || (raw?.status === 'IDLE' && raw.fallback?.resumable === true)}
             />
           </div>
         </aside>
@@ -562,6 +618,7 @@ export default function ComputerPage() {
         {/* ── Workspace panel ── */}
         <motion.section
           id="computer-preview-sidebar"
+          data-state={workspacePanelOpen ? "open" : "closed"}
           aria-label="Workspace preview and files"
           initial={false}
           animate={workspacePanelOpen ? "open" : "closed"}
@@ -575,15 +632,16 @@ export default function ComputerPage() {
             },
           }}
           className={cn(
+          styles.preview,
           "m-2 mt-0 flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card",
         )}>
           <div className="flex min-h-14 shrink-0 items-center justify-between gap-2 border-b border-border/50 px-3">
             <WorkspaceViewTabs activeTab={activeTab} onChange={setActiveTab} hasBrowser={hasBrowser} hasResearch={hasResearch} hasDesktop={backend.desktop.status !== 'none'} />
             <div className="flex shrink-0 items-center gap-1">
-              <button type="button" aria-label={workspacePanel === "expanded" ? "Restore split view" : "Expand preview panel"} aria-pressed={workspacePanel === "expanded"} onClick={() => setWorkspacePanel(workspacePanel === "expanded" ? "split" : "expanded")} className="hidden size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:inline-flex">
+              <button type="button" aria-label={workspacePanel === "expanded" ? "Restore split view" : "Expand preview panel"} aria-pressed={workspacePanel === "expanded"} onClick={() => setWorkspacePanel(workspacePanel === "expanded" ? "split" : "expanded")} className="hidden size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:inline-flex">
                 {workspacePanel === "expanded" ? <CollapseIcon className="size-4" /> : <ExpandIcon className="size-4" />}
               </button>
-              <button type="button" aria-label="Close preview panel" onClick={() => { closeWorkspacePanel(); document.getElementById("computer-workspace-toggle")?.focus() }} className="inline-flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><CloseIcon className="size-4" /></button>
+              <button type="button" aria-label="Close preview panel" onClick={() => { closeWorkspacePanel(); document.getElementById("computer-workspace-toggle")?.focus() }} className="hidden size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:inline-flex"><CloseIcon className="size-4" /></button>
             </div>
           </div>
           {/* Workspace content — fills panel edge to edge */}

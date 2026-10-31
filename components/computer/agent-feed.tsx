@@ -734,7 +734,6 @@ export function AgentFeed({
   onApprovePlan?: () => void
   onRestoreCheckpoint?: (runId: string) => Promise<void>
 }) {
-  const endRef = useRef<HTMLDivElement | null>(null)
   const isRunning = status === "running" || status === "planning"
   const visible = events.filter((e) => e.title !== "Session created")
   const { firstRunId, followUpRunIds } = getRunIdGroups(events)
@@ -765,10 +764,6 @@ export function AgentFeed({
   const hasActiveFeedStep = visible.some((event) => event.status === "running")
   const showGlobalThinking = Boolean(progress?.active) && !hasActiveFeedStep
 
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ block: "end", behavior: "smooth" })
-  }, [visible.length, localMessages.length, isStarting, canonicalMessages?.length, streamText])
-
   if (canonicalMessages) {
     const rows = [
       ...canonicalMessages.map((message) => ({ time: Date.parse(message.createdAt), key: `message-${message.seq}`, message, event: undefined as ComputerTimelineEvent | undefined })),
@@ -789,7 +784,6 @@ export function AgentFeed({
       {streamText && <FeedItem event={{ title: 'Response', description: streamText, status: 'running', createdAt: '', index: 0 }} isLatest isSessionRunning={isRunning} />}
       {isRunning && <div className="py-2"><Shimmer className="text-[13px] font-medium">Working…</Shimmer></div>}
       {onApprovePlan && !isRunning && <button type="button" className="mt-3 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={onApprovePlan}>Build this plan</button>}
-      <div ref={endRef} />
     </div>
   }
 
@@ -903,7 +897,6 @@ export function AgentFeed({
       </AnimatePresence>
 
 
-      <div ref={endRef} />
     </div>
   )
 }

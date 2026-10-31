@@ -1,0 +1,46 @@
+.story, .brief, .booking, .source, .history, .git { width: 100%; min-width: 0; margin: 0; color: var(--foreground); }
+.caption, .documentHeader, .documentNote { color: var(--muted-foreground); font-size: .8125rem; line-height: 1.6; }
+.story { padding: clamp(1.5rem, 6vw, 4rem); }
+.projectPrompt { max-width: 17ch; margin: calc(var(--spacing) * 10) 0; font-size: clamp(2rem, 5vw, 3.75rem); font-weight: 500; line-height: 1.12; letter-spacing: -.045em; text-wrap: balance; }
+.projectQuestion { padding-left: calc(var(--spacing) * 5); border-left: 2px solid var(--border-strong); }
+.projectQuestion p { margin: 0 0 calc(var(--spacing) * 3); color: var(--muted-foreground); font-size: clamp(1rem, 2vw, 1.25rem); }
+.projectQuestion strong { font-size: 1.25rem; font-weight: 500; }
+.projectArtifact { display: flex; align-items: center; gap: calc(var(--spacing) * 4); margin-top: calc(var(--spacing) * 12); padding-top: calc(var(--spacing) * 6); border-top: 1px solid var(--border); }
+.projectArtifact small, .projectArtifact code { display: block; }
+.projectArtifact small { margin-bottom: calc(var(--spacing) * 1); color: var(--muted-foreground); font-size: .75rem; }
+.projectArtifact code { font-family: var(--font-mono); font-size: .8125rem; overflow-wrap: anywhere; }
+.documentHeader { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: calc(var(--spacing) * 2) calc(var(--spacing) * 5); padding: calc(var(--spacing) * 5) clamp(1rem, 4vw, 2rem); border-bottom: 1px solid var(--border); }
+.brief, .booking, .source, .history, .git { overflow: hidden; border-radius: var(--radius-xl); background: var(--background); }
+.brief { max-width: 36rem; }
+.briefQuestion { max-width: 23ch; margin: 0; padding: clamp(1.5rem, 5vw, 3rem) clamp(1rem, 4vw, 2rem) calc(var(--spacing) * 6); font-size: clamp(1.5rem, 3.5vw, 2.25rem); line-height: 1.2; letter-spacing: -.035em; }
+.answers { margin: 0; padding: 0 clamp(1rem, 4vw, 2rem); list-style: none; }
+.answers li { display: flex; align-items: center; gap: calc(var(--spacing) * 4); min-height: calc(var(--spacing) * 14); border-top: 1px solid var(--border); font-size: 1rem; color: var(--muted-foreground); }
+.answers li[data-selected] { color: var(--foreground); }
+.selection { display: grid; flex-shrink: 0; place-items: center; width: calc(var(--spacing) * 5); height: calc(var(--spacing) * 5); border: 1px solid var(--border-strong); border-radius: var(--radius-full); }
+.answers li[data-selected] .selection { border-color: var(--primary); background: var(--primary); color: var(--primary-foreground); }
+.documentNote { margin: 0; padding: calc(var(--spacing) * 5) clamp(1rem, 4vw, 2rem); }
+.bookingBody { padding: clamp(1.5rem, 5vw, 3rem); }
+.bookingTitle { max-width: 15ch; margin: 0; font-size: clamp(2rem, 5vw, 3.75rem); line-height: 1.06; font-weight: 500; letter-spacing: -.05em; text-wrap: balance; }
+.bookingLead { margin: calc(var(--spacing) * 5) 0 calc(var(--spacing) * 9); color: var(--muted-foreground); font-size: 1rem; line-height: 1.6; }
+.services { margin: 0; padding: 0; list-style: none; }
+.services li { display: flex; align-items: center; justify-content: space-between; gap: calc(var(--spacing) * 4); padding-block: calc(var(--spacing) * 5); border-top: 1px solid var(--border); font-size: 1rem; }
+.serviceMark { width: calc(var(--spacing) * 4); height: calc(var(--spacing) * 4); border: 1px solid var(--border-strong); border-radius: var(--radius-full); }
+.sourcePath { display: inline-flex; align-items: center; gap: calc(var(--spacing) * 2); overflow-wrap: anywhere; }
+.sourceCode { margin: 0; padding: clamp(1rem, 4vw, 2rem); overflow-x: auto; font-family: var(--font-mono); font-size: clamp(.75rem, 1.4vw, .9375rem); line-height: 1.9; }
+.sourceLine { display: block; white-space: pre; }
+.sourceLine > span { display: inline-block; width: calc(var(--spacing) * 5); margin-right: calc(var(--spacing) * 5); color: var(--muted-foreground); font-size: .75rem; text-align: right; user-select: none; }
+.versionList, .commitList { margin: 0; padding: clamp(1.5rem, 5vw, 3rem); list-style: none; }
+.versionList li, .commitList li { position: relative; padding: 0 0 calc(var(--spacing) * 9) calc(var(--spacing) * 8); border-left: 1px solid var(--border-strong); }
+.versionList li:last-child, .commitList li:last-child { padding-bottom: 0; border-color: transparent; }
+.historyNode { position: absolute; left: calc(var(--spacing) * -1.125); top: calc(var(--spacing) * 1); width: calc(var(--spacing) * 2); height: calc(var(--spacing) * 2); border: 1px solid var(--border-strong); border-radius: var(--radius-full); background: var(--background); }
+.versionList li:first-child .historyNode, .commitList li:first-child .historyNode { background: var(--foreground); border-color: var(--foreground); }
+.versionList p, .commitList p { margin: 0; font-size: clamp(1rem, 2.5vw, 1.375rem); line-height: 1.4; letter-spacing: -.02em; }
+.changeCount { display: inline-flex; gap: calc(var(--spacing) * 4); margin-top: calc(var(--spacing) * 3); font-family: var(--font-mono); font-size: .8125rem; }
+.changeCount span:first-child { color: var(--success); }
+.changeCount span:last-child { color: var(--destructive); }
+.commitList code { display: block; margin-bottom: calc(var(--spacing) * 2); color: var(--muted-foreground); font-family: var(--font-mono); font-size: .8125rem; }
+@media (width < 40rem) {
+  .projectPrompt { margin-block: calc(var(--spacing) * 7); }
+  .projectArtifact { margin-top: calc(var(--spacing) * 8); }
+  .documentHeader span { min-width: 0; overflow-wrap: anywhere; }
+}

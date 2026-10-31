@@ -26,3 +26,15 @@
   .bottom ul { gap: 0 20px; }
 }
 @media(prefers-reduced-motion: reduce) { .navigation svg { transition: none; } .navigation a:hover svg { transform: none; } }
+
+/* The landing page shares a single content column; other footers keep their layout. */
+.stacked { padding: var(--landing-section-space) var(--landing-gutter) calc(var(--spacing) * 6); }
+.stacked .inner { max-width: var(--landing-width); }
+.stacked .main { grid-template-columns: minmax(0, 1fr); gap: var(--landing-section-gap); }
+.stacked .about { text-align: center; }
+.stacked .description { max-width: 48ch; margin-inline: auto; }
+.stacked .navigation { width: 100%; max-width: var(--landing-reading-width); margin-inline: auto; }
+.stacked .label { font-size: .875rem; letter-spacing: 0; text-transform: none; }
+.stacked .statement { font-size: var(--landing-heading-size); }
+.stacked .bottom { flex-direction: column; align-items: center; margin-top: var(--landing-section-gap); text-align: center; }
+.stacked .bottom ul { justify-content: center; }

@@ -19,9 +19,9 @@ function DocumentContents({ sections, active }: { sections: readonly DocumentSec
           href={`#${id}`}
           aria-current={active === id ? "location" : undefined}
           className={cn(
-            "flex min-h-10 items-baseline gap-3 rounded-r-md border-l py-2 pl-3 pr-2 text-[13px] leading-5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+            "flex min-h-10 items-baseline gap-3 border-l py-2 pl-4 pr-2 text-[13px] leading-5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
             active === id
-              ? "border-foreground bg-muted/60 font-semibold text-foreground"
+              ? "border-foreground font-semibold text-foreground"
               : "border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground"
           )}
         >
@@ -83,26 +83,26 @@ export function LegalDocument({
   }, [sections])
 
   return (
-    <div className="min-h-screen bg-background font-sans text-foreground">
+    <div data-product-theme="dark" className="dark min-h-screen bg-background font-sans text-foreground">
       <Navbar />
       <main className="site-shell">
-        <header className="border-b border-border pb-10 pt-14 sm:pb-12 sm:pt-20">
+        <header className="border-b border-border pb-10 pt-16 sm:pb-12 sm:pt-24 lg:pb-14 lg:pt-28">
           <p className="site-eyebrow">Legal</p>
           <h1 className="site-title mt-5">{title}</h1>
-          <p className="site-lead mt-5">{description}</p>
-          <div className="mt-8 flex flex-col gap-4 text-xs leading-6 text-muted-foreground sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-8">
+          <p className="site-lead mt-6">{description}</p>
+          <div className="mt-10 flex flex-col gap-3 text-xs leading-6 text-muted-foreground sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-8">
             <span><span className="font-semibold text-foreground">Effective:</span> {effectiveDate}</span>
             <span><span className="font-semibold text-foreground">Last updated:</span> {lastUpdated}</span>
             <Link href={related.href} className="inline-flex w-fit items-center gap-2 rounded-sm font-semibold text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring">
               {related.label} <ArrowUpRight className="size-3.5" aria-hidden="true" />
             </Link>
           </div>
-          {notice && <div className="mt-6 max-w-2xl border-l-2 border-info/50 pl-4 text-xs leading-6 text-muted-foreground">{notice}</div>}
+          {notice && <p className="mt-6 max-w-2xl text-xs leading-6 text-muted-foreground">{notice}</p>}
         </header>
 
-        <div className="grid gap-10 pb-16 pt-8 sm:pb-24 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-16 lg:pt-12">
+        <div className="grid gap-10 pb-20 pt-6 sm:pb-28 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-20 lg:pt-14">
           <aside className="hidden min-w-0 lg:block">
-            <div className="sticky top-8 max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain pr-3 pb-4">
+            <div className="sticky top-28 max-h-[calc(100dvh-8rem)] overflow-y-auto overscroll-contain pr-3 pb-4">
               <p className="site-eyebrow mb-5">On this page</p>
               <DocumentContents sections={sections} active={active} />
               <div className="mt-8 border-t border-border pt-5">
@@ -116,15 +116,15 @@ export function LegalDocument({
           </aside>
 
           <div className="min-w-0">
-            <details className="mb-10 border-b border-border pb-5 lg:hidden">
+            <details className="group mb-10 border-b border-border pb-5 lg:hidden">
               <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 rounded-sm text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
-                On this page <ChevronDown className="size-4 text-muted-foreground" aria-hidden="true" />
+                On this page <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
               </summary>
               <div className="mt-4 max-h-[60dvh] overflow-y-auto overscroll-contain pr-2">
                 <DocumentContents sections={sections} active={active} />
               </div>
             </details>
-            <article className="max-w-[70ch] break-words text-[15px] leading-7 text-foreground sm:text-base sm:leading-8 [&_a]:rounded-sm [&_a]:underline [&_a]:decoration-border [&_a]:underline-offset-4 [&_a:hover]:decoration-foreground [&_a:focus-visible]:outline-2 [&_a:focus-visible]:outline-offset-4 [&_a:focus-visible]:outline-ring">
+            <article className="max-w-[70ch] space-y-14 break-words text-[15px] leading-7 text-foreground sm:space-y-16 sm:text-base sm:leading-8 [&_a]:rounded-sm [&_a]:underline [&_a]:decoration-border [&_a]:underline-offset-4 [&_a:hover]:decoration-foreground [&_a:focus-visible]:outline-2 [&_a:focus-visible]:outline-offset-4 [&_a:focus-visible]:outline-ring">
               {children}
             </article>
           </div>
@@ -135,7 +135,7 @@ export function LegalDocument({
         <button
           type="button"
           onClick={() => window.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" })}
-          className="fixed bottom-5 right-5 z-50 flex size-11 items-center justify-center rounded-xl border border-border bg-card text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+          className="fixed bottom-5 right-5 z-50 flex size-11 items-center justify-center rounded-full border border-border bg-card text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
           aria-label="Back to top"
         >
           <ArrowUp className="size-4" aria-hidden="true" />
@@ -148,7 +148,7 @@ export function LegalDocument({
 
 export function SectionTitle({ id, children }: { id: string; children: ReactNode }) {
   return (
-    <h2 id={id} tabIndex={-1} className="mb-5 mt-12 scroll-mt-24 border-t border-border pt-8 text-xl font-semibold leading-snug tracking-[-0.035em] text-foreground first:mt-0 first:border-0 first:pt-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring sm:mt-16 sm:pt-10 sm:text-2xl">
+    <h2 id={id} tabIndex={-1} className="mb-6 scroll-mt-28 text-xl font-semibold leading-snug tracking-[-0.035em] text-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring sm:text-2xl">
       {children}
     </h2>
   )

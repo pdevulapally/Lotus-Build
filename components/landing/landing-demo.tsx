@@ -156,7 +156,7 @@ export function LandingDemo() {
       </Reveal>
 
       <Reveal className={styles.stage} delay={0.1}>
-        <div ref={stageRef} className={styles.window} role="img" aria-label="The LotusBuild workspace: project sidebar, conversation and a preview panel, shown as an illustrative demo">
+        <div id="landing-product-demo" ref={stageRef} className={styles.window} role="img" aria-label="The LotusBuild workspace: project sidebar, conversation and a preview panel, shown as an illustrative demo">
           <div className={styles.browser}>
             <span className={styles.dots}><i /><i /><i /></span>
             <span className={styles.address}>lotusbuild.co.uk/computer/salon-booking</span>
@@ -230,24 +230,7 @@ export function LandingDemo() {
         </div>
       </Reveal>
 
-      <ol className={styles.scenes} aria-label="Demo steps">
-        {demoScenes.map((entry, sceneIndex) => {
-          const active = sceneIndex === index
-          return (
-            <li key={entry.key}>
-              <button type="button" aria-pressed={active} onClick={() => { setIndex(sceneIndex); setPaused(true) }}>
-                <span className={styles.sceneNumber}>0{sceneIndex + 1}</span>
-                <strong>{entry.step}</strong>
-                <small>{entry.detail}</small>
-                <span className={styles.track}>
-                  {active && autoplay && <motion.i key={`${index}-${inView}`} initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: demoSceneDurationMs / 1000, ease: 'linear' }} />}
-                  {active && !autoplay && <i style={{ transform: 'none' }} />}
-                </span>
-              </button>
-            </li>
-          )
-        })}
-      </ol>
+      {!reduceMotion && <button type="button" className={styles.playback} aria-controls="landing-product-demo" onClick={() => setPaused((value) => !value)}>{paused ? 'Play demo' : 'Pause demo'}</button>}
     </section>
   )
 }

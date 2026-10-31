@@ -73,11 +73,12 @@ test('a connection that stayed up for a while resets the failure count', async (
   assert.deepEqual(h.seen, [STREAM_MESSAGES.interrupted])
 })
 
-test('repeated quick drops stop with a retry prompt instead of looping', async () => {
+test('long interruptions keep retrying transparently with a capped delay', async () => {
   const h = harness(Array.from({ length: 8 }, () => async () => {}))
   await h.run
-  assert.equal(h.counters().opened, 6)
-  assert.equal(h.seen.at(-1), STREAM_MESSAGES.stopped)
+  assert.equal(h.counters().opened, 8)
+  assert.equal(h.seen.at(-1), STREAM_MESSAGES.retrying)
+  assert.ok(h.waits.every((delay) => delay <= 30_000))
 })
 
 test('losing access ends the stream with the server message', async () => {
@@ -92,3 +93,21 @@ test('a stream the server could not re-authorise asks the user to sign in again'
   await h.run
   assert.deepEqual(h.errors, [STREAM_MESSAGES.unauthorized])
 })
+
+
+test('authoritative state and history resets do not advance the event acknowledgement', async () => {
+  const abort = new AbortController(); const cursors: (string | undefined)[] = []; const seen: string[] = []; let resets = 0; let states = 0; let reconciliations = 0;
+  const client = { events: async (_id: string, options: { after?: string; onEvent: (event: SessionEvent) => Promise<void> }) => {
+    cursors.push(options.after);
+    if (cursors.length === 1) { await options.onEvent(data(1)); return }
+    assert.equal(options.after, id(1));
+    await options.onEvent({ type: 'session.state', data: { status: 'RUNNING' } });
+    await options.onEvent({ type: 'stream.reset', data: { reason: 'history-unavailable' } });
+    await options.onEvent(data(1)); await options.onEvent(data(2)); abort.abort();
+  } } as unknown as BackendClient;
+  await followSessionEvents(client, 's1', { signal: abort.signal, refreshToken: async () => {}, onError: () => {},
+    onReconcile: async () => { reconciliations++ }, onState: () => { states++ }, onReset: () => { resets++ }, onEvent: (event) => { seen.push(event.id) },
+  }, async () => {});
+  assert.deepEqual(cursors, [undefined, id(1)]); assert.equal(states, 1); assert.equal(resets, 1); assert.equal(reconciliations, 2);
+  assert.deepEqual(seen, [id(1), id(1), id(2)]); // A reset explicitly rebuilt the view.
+});

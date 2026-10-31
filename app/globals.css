@@ -7,6 +7,7 @@
 
 :root {
   --background: #f7f5f3;
+  --overlay: #000000;
   --foreground: #262626;
   --card: #ffffff;
   --card-foreground: #262626;
@@ -217,7 +218,7 @@
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
   --color-white: var(--card);
-  --color-black: var(--foreground);
+  --color-black: var(--overlay);
   --color-zinc-50: var(--surface-raised);
   --color-zinc-100: var(--muted);
   --color-zinc-200: var(--border);
@@ -837,21 +838,21 @@ body:has(:is([data-landing-theme='dark'], [data-auth-theme='dark'], [data-worksp
 body:has(:is([data-landing-theme='dark'], [data-auth-theme='dark'], [data-workspace-theme='dark'])) [data-slot='sheet-content'],
 body:has(:is([data-workspace-theme='dark'], [data-product-theme='dark'])) [data-slot='dialog-content'],
 body:has([data-product-theme='dark']) :is([data-slot='dropdown-menu-content'], [data-slot='sheet-content'], [data-slot='popover-content'], [data-slot='tooltip-content']) {
-  --background: #101113;
-  --foreground: #f1f3f5;
-  --card: #191a1d;
-  --card-foreground: #f1f3f5;
-  --popover: #191a1d;
-  --popover-foreground: #f1f3f5;
-  --accent: #25262a;
-  --accent-foreground: #f1f3f5;
-  --border-strong: #6a6c72;
-  --muted: #25262a;
-  --muted-foreground: #afb6c0;
-  --border: #3b3c41;
-  --primary: #f1f3f5;
-  --primary-foreground: #101113;
-  --ring: #c8c9cf;
+  --background: #131211;
+  --foreground: #f6f5f2;
+  --card: #201f1d;
+  --card-foreground: #f6f5f2;
+  --popover: #201f1d;
+  --popover-foreground: #f6f5f2;
+  --accent: #181716;
+  --accent-foreground: #f6f5f2;
+  --border-strong: #6b665f;
+  --muted: #181716;
+  --muted-foreground: #b2aca3;
+  --border: #343230;
+  --primary: #f6f5f2;
+  --primary-foreground: #131211;
+  --ring: #cfc9c0;
 }
 
 [data-auth-theme='dark'] { color: var(--foreground); color-scheme: dark; }

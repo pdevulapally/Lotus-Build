@@ -13,6 +13,7 @@ import { useVoiceDictation, VOICE_ERRORS } from "@/hooks/use-voice-dictation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/auth-context";
 import { currentBackend } from "@/lib/backend/browser";
+import { pendingCommandStorage } from "@/lib/backend/pending-storage";
 import { createBuild, pendingBuild } from "@/lib/backend/create-build";
 import { resolveModelSelection } from "@/lib/backend/model-selection";
 import { RequestErrorNotice } from "@/components/ui/request-error";
@@ -265,7 +266,7 @@ export function AnimatedAIInput({
     if (mode !== 'create' || !user || draftRestoredRef.current) return;
     draftRestoredRef.current = true;
     try {
-      const pending = pendingBuild(sessionStorage, user.uid);
+      const pending = pendingBuild(pendingCommandStorage(), user.uid);
       const draft = pending ?? readSessionDraft(sessionStorage);
       if (draft) { setValue(draft.prompt); setSessionMode(draft.mode); if (pending) setSelectedModel(pending.model); requestAnimationFrame(() => adjustHeight()); }
     } catch (reason) { setSubmitError(reason instanceof Error ? reason : new Error('Could not restore your draft.')); }
@@ -297,7 +298,7 @@ export function AnimatedAIInput({
       if (!user || !account) throw new Error(accountError || 'Account details are not available.');
       if (!effectiveModel) throw new Error(models.length ? 'The selected model is no longer available. Choose another model.' : 'No models are currently available for your account. Refresh your account details and try again.');
       if (sessionMode !== 'build' && sessionMode !== 'plan') throw new Error('Choose Build or Plan.');
-      const data = await createBuild(currentBackend(), sessionStorage, { uid: user.uid, prompt: value.trim(), model: effectiveModel, mode: sessionMode, attachments: attachments.refs });
+      const data = await createBuild(currentBackend(), pendingCommandStorage(), { uid: user.uid, prompt: value.trim(), model: effectiveModel, mode: sessionMode, attachments: attachments.refs });
       attachments.clear();
       sessionStorage.removeItem(draftKey);
       router.push(`/computer/${data.id}`);
@@ -414,6 +415,7 @@ export function AnimatedAIInput({
         </div>
 
         <div
+          data-slot="composer-toolbar"
           className={cn(
             "flex items-center justify-between gap-2 px-2.5 pb-2 pt-1 sm:px-3 sm:pb-2.5",
             isSlimCompact && "py-1.5",
@@ -422,7 +424,7 @@ export function AnimatedAIInput({
             isAssistant && isSlimChat && "pt-0.5",
           )}
         >
-          <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div data-slot="composer-tools" className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {mode === "create" && !compact && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -592,7 +594,7 @@ export function AnimatedAIInput({
             {isStopping && <Shimmer className="ml-1 shrink-0 text-xs font-medium" role="status">Stopping…</Shimmer>}
           </div>
 
-          <div className="flex shrink-0 items-center gap-1">
+          <div data-slot="composer-actions" className="flex shrink-0 items-center gap-1">
             <input
               ref={fileInputRef}
               type="file"
@@ -643,16 +645,16 @@ export function AnimatedAIInput({
                   {hasSubmitLabel && <span>Stop</span>}
                 </>
               ) : isCreating || isLoading ? (
-                <ArrowUp className="h-4 w-4 animate-pulse opacity-60" />
+                <ArrowUp className="h-4 w-4 animate-pulse opacity-60" strokeWidth={2.5} />
               ) : hasSubmitLabel ? (
                 <>
                   <span>{submitLabel}</span>
                   {mode === "create"
-                    ? <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-                    : <ArrowUp className="h-3.5 w-3.5" aria-hidden />}
+                    ? <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
+                    : <ArrowUp className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />}
                 </>
               ) : (
-                <ArrowUp className="h-4 w-4" />
+                <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
               )}
             </motion.button>
           </div>
@@ -669,7 +671,7 @@ export function AnimatedAIInput({
       )}
       <RequestErrorNotice error={submitError} planName={account?.plan.name} onClose={() => setSubmitError(null)} onManageProjects={onManageProjects} restoreFocus={() => textareaRef.current?.focus()}>
         {mode === 'create' && user && <button type="button" onClick={() => {
-          sessionStorage.removeItem(`lotus-current-build:${user.uid}`); setSubmitError(null);
+          pendingCommandStorage().removeItem(`lotus-current-build:${user.uid}`); setSubmitError(null);
         }}>Discard pending request</button>}
       </RequestErrorNotice>
     </div>

@@ -5,16 +5,17 @@ import { SidebarToggleIcon } from "@/components/ui/sidebar-toggle-icon"
 import { SideNav } from "@astryxdesign/core/SideNav"
 import { ProjectNavigationRow } from "@/components/projects/project-navigation-row"
 import { ProjectSearchDialog } from "@/components/projects/project-search-dialog"
+import { SidebarProfileMenu } from "@/components/projects/sidebar-profile-menu"
+import navigationStyles from "@/components/projects/sidebar-navigation.module.css"
 import { Suspense, useCallback, useEffect, useId, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { LotusLogo } from "@/components/ui/lotus-logo"
+import { heroCategories } from "@/components/landing/landing-content"
 import { currentBackend } from "@/lib/backend/browser"
 import { projectSessionPath } from "@/lib/backend/project-session-path"
 import { clearCheckoutAttempt } from "@/lib/backend/checkout-attempt"
 import {
-  Settings,
-  LogOut,
   Users,
   CreditCard,
   X,
@@ -43,14 +44,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useAuth } from "@/contexts/auth-context"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { AnimatedAIInput } from "@/components/ui/animated-ai-input"
 import { cn } from "@/lib/utils"
 
@@ -64,9 +57,6 @@ import billingStyles from "@/components/billing/billing-dialog.module.css"
 const sidebarActionClass =
   "inline-flex items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
 
-
-const accountMenuItemClass =
-  "h-10 cursor-pointer rounded-xl px-3 text-[13px] text-foreground focus:bg-muted focus:text-foreground"
 
 const RECENT_BUILDS_LIMIT = 6
 const PROJECTS_MAIN_ID = "projects-main"
@@ -121,7 +111,6 @@ function Sidebar({
   isPaidUser: boolean
   collapsed?: boolean
 }) {
-  const { openSettings } = useSettingsDialog()
   const [openingProject, setOpeningProject] = useState(false)
   const [openProjectError, setOpenProjectError] = useState<string | null>(null)
   const handleOpenProject = async (project: { id: string; kind?: string }) => {
@@ -141,9 +130,6 @@ function Sidebar({
   const recentBuildsHeadingId = useId()
   const recentBuildsListId = useId()
   const scopeToggleLabelId = useId()
-  const initials = user?.displayName
-    ? user.displayName.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
-    : user?.email?.slice(0, 1).toUpperCase() ?? "U"
   const otherWorkspaces = workspaces.filter((w) => w.id !== currentWorkspace?.id)
   const selectedWorkspaceName = currentWorkspace?.name ?? "Personal workspace"
   const selectedWorkspaceInitial = selectedWorkspaceName.charAt(0).toUpperCase()
@@ -160,9 +146,9 @@ function Sidebar({
 
   return (
     <SideNav
-      className={styles.sidebar}
+      className={cn(styles.sidebar, navigationStyles.surface)}
       header={<>
-      <header className={cn("flex min-h-16 shrink-0 items-center justify-between gap-1 px-3 py-2", collapsed && "flex-col px-2")}>
+      <header className={cn(navigationStyles.header, "flex min-h-16 shrink-0 items-center justify-between gap-1 px-3 py-2", collapsed && [navigationStyles.compactHeader, "flex-col px-2"])}>
         {!collapsed && <Link href="/" onClick={onClose} className="flex items-center gap-2 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Go to Lotus home"><BrandWordmark size="compact" /></Link>}
         <nav aria-label="Sidebar controls" className={cn("flex items-center gap-0.5", collapsed && "flex-col-reverse")}>
           <ProjectSearchDialog projects={filtered} loading={projectsLoading} error={projectListError} onOpenProject={handleOpenProject} />
@@ -190,53 +176,25 @@ function Sidebar({
         </nav>
       </header>
 
-      <nav aria-label="Workspace" className="px-2 pb-5">
-        <button type="button" title={collapsed ? "New project" : undefined} onClick={() => { onClose?.(); onNewProject() }} className={cn("flex min-h-11 w-full items-center gap-3 rounded-lg bg-muted/60 px-3 text-left text-[13px] font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", collapsed && "justify-center px-0")}>
+      <nav aria-label="Workspace" className="px-3 pb-5">
+        <button type="button" title={collapsed ? "New project" : undefined} onClick={() => { onClose?.(); onNewProject() }} className={cn(navigationStyles.newProject, "flex min-h-11 w-full items-center gap-3 rounded-lg bg-muted/60 px-3 text-left text-[13px] font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", collapsed && "justify-center px-0")}>
           <SquarePen className="size-4 shrink-0" strokeWidth={1.7} aria-hidden="true" />
           <span className={cn(collapsed && "sr-only")}>New project</span>
         </button>
       </nav>
       </>}
       footer={
-      <footer className="px-2 pb-3 pt-2">
-        <button type="button" onClick={() => { onClose?.(); openSettings() }} title={collapsed ? "Settings" : undefined} className={cn(sidebarActionClass, "mb-1 flex min-h-11 w-full justify-start gap-3 rounded-lg px-3 text-[13px] text-foreground", collapsed && "justify-center px-0")}>
-          <Settings className="size-4 shrink-0" strokeWidth={1.7} aria-hidden="true" />
-          <span className={cn(collapsed && "sr-only")}>Settings</span>
-        </button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              aria-label={`Open account menu for ${accountName}. ${stats.planName} plan.`}
-              title={collapsed ? accountName : undefined}
-              className={cn(
-                "flex min-h-11 w-full items-center gap-2.5 rounded-lg px-2 text-left",
-                "transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                collapsed && "justify-center px-0"
-              )}
-            >
-              <Avatar className="h-7 w-7 shrink-0 rounded-full">
-                <AvatarImage src={user?.photoURL ?? undefined} alt="" className="rounded-full object-cover" />
-                <AvatarFallback className="rounded-full bg-accent-soft text-[10px] font-semibold text-accent-soft-foreground">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-              {!collapsed && <span className="min-w-0 flex-1 truncate text-[13px] text-foreground">{accountName}</span>}
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent side="top" align="start" sideOffset={6} className="w-[calc(100vw-2rem)] max-w-[16rem] rounded-2xl border border-border bg-popover p-2 shadow-lg">
-            <p className="px-3 py-2 text-xs text-muted-foreground">{stats.planName} plan</p>
-            <DropdownMenuItem className={accountMenuItemClass} onClick={() => router.push("/pricing")}>
-              <CreditCard className="mr-2 h-3.5 w-3.5" />
-              Billing &amp; Plans
-            </DropdownMenuItem>
-            <DropdownMenuSeparator className="my-2 bg-border/50" />
-            <DropdownMenuItem className="h-10 cursor-pointer rounded-xl px-3 text-[13px] text-destructive focus:bg-destructive/10 focus:text-destructive" onClick={() => signOut()}>
-              <LogOut className="mr-2 h-3.5 w-3.5" />
-              Sign out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+      <footer className={navigationStyles.footer}>
+        <SidebarProfileMenu
+          name={accountName}
+          email={user?.email}
+          photoURL={user?.photoURL}
+          planName={stats.planName}
+          collapsed={collapsed}
+          theme="dark"
+          onNavigate={onClose}
+          onSignOut={signOut}
+        />
       </footer>}
     >
       <button
@@ -302,6 +260,7 @@ function Sidebar({
               <RevealItem key={p.id} role="presentation">
                 <ProjectNavigationRow
                   project={p}
+                  portalClassName="dark"
                   onNavigate={() => { void handleOpenProject(p) }}
                   onChanged={onProjectsChanged}
                 />
@@ -387,7 +346,7 @@ function ReferralDialog({
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center px-3 pb-3 sm:items-center sm:p-6">
       <div
-        className="absolute inset-0 bg-foreground/35 backdrop-blur-md"
+        className="absolute inset-0 bg-black/35 backdrop-blur-md"
         onClick={onClose}
         aria-hidden
       />
@@ -545,6 +504,7 @@ export function ProjectsWorkspace() {
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [checkoutSuccessOpen, setCheckoutSuccessOpen] = useState(false)
   const [confirmTimedOut, setConfirmTimedOut] = useState(false)
+  const [briefRequest, setBriefRequest] = useState<{ prompt?: string; mode?: "build" | "plan"; id: number }>({ id: 0 })
 
   // Stripe redirects here with ?checkout=success after payment. Open the
   // confirmation dialog, strip the param so refresh doesn't re-trigger it, and
@@ -711,33 +671,33 @@ export function ProjectsWorkspace() {
           aria-labelledby={PROJECTS_HEADING_ID}
           className={cn(styles.main, "relative flex min-w-0 flex-1 flex-col overflow-hidden")}
         >
-          <header className="hidden h-16 shrink-0 items-center justify-end px-6 lg:flex">
+          <header className="hidden h-20 shrink-0 items-center justify-end px-6 lg:flex">
             <WorkspacePlanControl isPaidUser={isPaidUser} />
           </header>
 
           {/* ── Mobile top bar ── */}
-          <header className="relative z-10 flex h-16 shrink-0 items-center gap-2 bg-card px-3 lg:hidden">
+          <header className="relative z-10 flex h-20 shrink-0 items-center justify-between gap-2 bg-background px-4 lg:hidden">
             <button
               type="button"
               onClick={() => setMobileSidebarOpen(true)}
               aria-label="Open sidebar"
               aria-controls={PROJECTS_MOBILE_SIDEBAR_ID}
               aria-expanded={mobileSidebarOpen}
-              className={cn(sidebarActionClass, "h-11 w-11")}
+              className={cn(sidebarActionClass, "h-11 w-11 rounded-full bg-card text-foreground")}
             >
               <SidebarToggleIcon className="h-5 w-5" />
             </button>
-            <Link href="/" className="flex min-w-0 items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong/30" aria-label="Go to Lotus home"><BrandWordmark size="nav" /></Link>
-            <div className="ml-auto"><WorkspacePlanControl isPaidUser={isPaidUser} /></div>
+            <Link href="/" className="absolute left-1/2 flex -translate-x-1/2 items-center rounded-full px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Go to Lotus home"><BrandWordmark size="compact" /></Link>
+            <WorkspacePlanControl isPaidUser={isPaidUser} />
           </header>
 
           {/* Composer surface */}
           <div className="relative z-10 flex min-h-0 flex-1">
             <div className="relative min-h-0 w-full flex-1 overflow-hidden md:rounded-t-[1.125rem] lg:rounded-t-[1.25rem]">
-              <div className="h-full overflow-y-auto [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
-                <div className="relative isolate flex min-h-full w-full flex-col items-center justify-start overflow-hidden bg-transparent px-5 pb-20 md:rounded-t-[1.125rem] sm:px-8 sm:pb-24 lg:rounded-t-[1.25rem]">
+              <div className={cn(styles.viewport, "h-full overflow-y-auto [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]")}>
+                <div className={cn(styles.canvas, "relative isolate flex min-h-full w-full flex-col items-center justify-start overflow-hidden bg-transparent px-5 pb-20 md:rounded-t-[1.125rem] sm:px-8 sm:pb-24 lg:rounded-t-[1.25rem]")}>
 
-                  <div className="relative z-10 w-full max-w-[60rem]">
+                  <div className={cn(styles.content, "relative z-10 w-full max-w-[60rem]")}>
                     <div className={styles.start}>
                       <Suspense fallback={null}>
                         <OnboardingBanner />
@@ -749,17 +709,38 @@ export function ProjectsWorkspace() {
                         }}>Retry connection</button>}
                       </div>}
 
-                      <RevealGroup className="mb-10 text-center" animateOnMount>
+                      <span className={cn(styles.watermark, "text-foreground opacity-20 lg:hidden")} aria-hidden>
+                        <LotusLogo size={104} />
+                      </span>
+
+                      <RevealGroup className="sr-only lg:not-sr-only lg:mb-7 lg:text-center" animateOnMount>
                         <RevealItem as="h1" id={PROJECTS_HEADING_ID} className="mx-auto max-w-xl text-3xl font-semibold leading-tight tracking-tight text-foreground sm:text-4xl">
                           What should we build today?
                         </RevealItem>
                       </RevealGroup>
 
-                      <div className="relative">
+                      <section className={cn(styles.suggestions, "-mx-4 mb-3 flex shrink-0 gap-2 overflow-x-auto px-4 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden")} aria-label="Start from a type of project">
+                        {heroCategories.map((category) => (
+                          <button
+                            key={category.key}
+                            type="button"
+                            onClick={() => setBriefRequest({ prompt: category.prompt, mode: category.mode, id: briefRequest.id + 1 })}
+                            className="inline-flex min-h-14 shrink-0 items-center gap-3 rounded-full bg-card px-5 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                          >
+                            <category.icon width={20} height={20} className="text-muted-foreground" aria-hidden />
+                            {category.label}
+                          </button>
+                        ))}
+                      </section>
+
+                      <div className={cn(styles.composerSlot, "relative")}>
                         <AnimatedAIInput
                           inputId="workspace-brief"
                           appearance="assistant"
                           wrapperClassName={styles.composer}
+                          suggestedPrompt={briefRequest.id === 0 ? undefined : briefRequest.prompt}
+                          promptRequestId={briefRequest.id}
+                          suggestedMode={briefRequest.mode}
                           onManageProjects={() => {
                             setProjectsExpanded(true)
                             if (window.matchMedia("(min-width: 1024px)").matches) setDesktopSidebarCollapsed(false)

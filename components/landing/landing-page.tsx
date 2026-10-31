@@ -5,7 +5,7 @@ import { FooterSection } from '@/components/sections/footer-section'
 import { CookieBanner } from '@/components/cookie-banner'
 import { LandingHero, type BriefRequest } from './landing-hero'
 import { LandingDemo } from './landing-demo'
-import { CapabilitiesSection, ClosingSection, FeatureRowsSection, SavedWorkSection, StartModesSection, TrustSection } from './landing-sections'
+import { ClosingSection, FeatureRowsSection, SavedWorkSection, StartModesSection, TrustSection } from './landing-sections'
 import type { Brief, StartMode } from './landing-content'
 import styles from './landing-page.module.css'
 
@@ -19,13 +19,12 @@ export function LandingPage() {
       <Navbar />
       <LandingHero request={request} onBrief={chooseBrief} />
       <LandingDemo />
-      <CapabilitiesSection />
       <FeatureRowsSection />
       <StartModesSection onChoose={chooseMode} />
       <SavedWorkSection />
       <TrustSection />
       <ClosingSection onStart={focusBrief} />
-      <FooterSection />
+      <FooterSection stacked />
     </main>
     <CookieBanner />
   </>
