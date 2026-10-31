@@ -23,10 +23,21 @@ function render(value: BackendSession) {
 
 test('continuation UI names the offered model and requires explicit consent while preserving original retry', () => {
   const html = render(session)
-  assert.match(html, /Continue with the free model: offered-model/)
+  assert.match(html, /Premium allowance reached/)
+  assert.match(html, /Continue with the free model/)
+  assert.match(html, /offered-model/)
+  assert.match(html, /effort low/)
+  assert.doesNotMatch(html, /via |reserved from an estimate/)
   assert.match(html, /Retry with original-model/)
-  assert.match(html, /View upgrade options/)
+  assert.match(html, /View plans/)
   assert.match(html, /Cancel task/)
+  const viaOpenRouter = render({ ...session, fallback: { ...session.fallback!, lane: 'fallback', offer: { provider: 'openrouter', model: 'vendor/model:free', effort: 'low', estimatedInput: true } } })
+  assert.match(viaOpenRouter, /vendor\/model:free<\/span> via OpenRouter/)
+  assert.match(viaOpenRouter, /reserved from an estimate/)
+  const unavailable = render({ ...session, fallback: { status: 'UNAVAILABLE', reason: 'The configured fallback provider is not set up on this service.', resumable: true, consent: false } })
+  assert.match(unavailable, /Task paused/)
+  assert.doesNotMatch(unavailable, /Continue with the free model/)
+  assert.match(unavailable, /Retry with original-model/)
 })
 
 test('temporary capacity and expired context have distinct actionable states', () => {
