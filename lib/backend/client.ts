@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { catalogueSchema, connectionDetailSchema, connectionListSchema, disconnectSchema, type ConnectorKey } from './connections'
 import { attachmentRefSchema, attachmentRefsSchema, isAttachmentMediaType, storedAttachmentSchema, type AttachmentRef } from './attachments'
 
 const id = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/)
@@ -181,6 +182,14 @@ export class BackendClient {
   }) }
   requestErasure() { return this.json(z.object({ request: z.object({ reference: z.string(), kind: z.literal('erasure'), status: z.enum(['RECEIVED', 'IN_PROGRESS', 'COMPLETED']), receivedAt: timestamp }), message: z.string() }),
     '/me/privacy-requests', { method: 'POST', body: { kind: 'erasure' } }) }
+  connectionCatalogue(signal?: AbortSignal) { return this.json(catalogueSchema, '/connections/catalogue', { signal }) }
+  connections(signal?: AbortSignal) { return this.json(connectionListSchema, '/connections', { signal }) }
+  connection(id: string, signal?: AbortSignal) { return this.json(connectionDetailSchema, `/connections/${encodeURIComponent(id)}`, { signal }) }
+  setConnectionGrants(id: string, projectIds: readonly string[]) {
+    return this.json(connectionDetailSchema, `/connections/${encodeURIComponent(id)}/grants`, { method: 'PUT', body: { projectIds } })
+  }
+  disconnectConnection(id: string) { return this.json(disconnectSchema, `/connections/${encodeURIComponent(id)}`, { method: 'DELETE' }) }
+  startConnection(connector: ConnectorKey) { return this.json(z.object({ authorizeUrl: z.url() }), `/connections/${connector}/start`, { method: 'POST' }) }
   projects(signal?: AbortSignal) { return this.json(z.object({ projects: z.array(projectSchema) }), '/projects?limit=100', { signal }) }
   project(projectId: string, signal?: AbortSignal) { return this.json(projectSchema, `/projects/${id.parse(projectId)}`, { signal }) }
   files(projectId: string, signal?: AbortSignal) { return this.json(fileTreeSchema, `/projects/${id.parse(projectId)}/files`, { signal }) }
