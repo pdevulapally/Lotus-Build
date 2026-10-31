@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert'
 import { test } from 'node:test'
-import { describeAllowance, featuredPlanKey, formatAllowanceValue, formatPlanPrice } from '../lib/plans/format'
+import { describeAllowance, describeCountCapabilities, featuredPlanKey, formatAllowanceValue, formatPlanPrice } from '../lib/plans/format'
 
 test('allowance units read as humans say them', () => {
   assert.equal(formatAllowanceValue('tokens', 1_200_000), '1.2M tokens')
@@ -27,4 +27,14 @@ test('the featured plan is the middle paid tier, or the only paid tier', () => {
   assert.equal(featuredPlanKey([plan('free', 0, false), plan('pro', 1, true), plan('business', 2, true)]), 'pro')
   assert.equal(featuredPlanKey([plan('free', 0, false), plan('pro', 1, true), plan('business', 2, true), plan('scale', 3, true)]), 'business')
   assert.equal(featuredPlanKey([plan('free', 0, false)]), undefined)
+})
+
+test('numeric plan capabilities read as counts, with an explicit unlimited', () => {
+  const rows = describeCountCapabilities([
+    { key: 'projects.max', label: 'Projects', kind: 'number', value: 'unlimited' },
+    { key: 'ai.run', label: 'AI builds', kind: 'boolean', value: true },
+    { key: 'seats.max', label: 'Seats', kind: 'number', value: 25 },
+  ])
+  assert.deepEqual(rows, [{ key: 'projects.max', label: 'Projects', value: 'Unlimited' }, { key: 'seats.max', label: 'Seats', value: '25' }])
+  assert.deepEqual(describeCountCapabilities([{ key: 'ai.run', label: 'AI builds', kind: 'boolean', value: true }]), [])
 })

@@ -55,3 +55,12 @@ export function featuredPlanKey(plans: readonly BackendPlan[]): string | undefin
   if (paid.length === 0) return undefined
   return (paid.length >= 3 ? paid[paid.length - 2] : paid[0])?.key
 }
+
+type Capability = BackendPlan['capabilities'][number]
+
+/** Numeric plan capabilities (e.g. projects) shown beside the usage allowances. "unlimited" is a value the backend states explicitly, never inferred. */
+export function describeCountCapabilities(capabilities: readonly Capability[]): { key: string; label: string; value: string }[] {
+  return capabilities.flatMap((capability) => capability.kind === 'number'
+    ? [{ key: capability.key, label: capability.label, value: capability.value === 'unlimited' ? 'Unlimited' : compactCount(capability.value) }]
+    : [])
+}
