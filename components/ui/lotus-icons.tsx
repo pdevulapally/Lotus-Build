@@ -151,3 +151,48 @@ export const ArrowUpIcon = (props: IconProps) => (
 export const GitBranchIcon = (props: IconProps) => (
   <Icon {...props}><circle cx="7" cy="5.5" r="2.25" /><circle cx="7" cy="18.5" r="2.25" /><circle cx="17" cy="8.5" r="2.25" /><path d="M7 7.75v8.5" /><path d="M17 10.75c0 2.5-1.6 3.9-4.25 4.4-2.1.4-4.2.8-5.75 1.1" opacity=".7" /></Icon>
 )
+
+/** Continuation card: a usage dial whose needle sits on the limit. */
+export function AllowanceLimitIcon(props: IconProps) {
+  return (
+    <Icon strokeWidth="1.7" {...props}>
+      <path d="M4.5 16.5a7.5 7.5 0 1 1 15 0" />
+      <path d="M12 16.5l4.4-4.4" strokeWidth="2" />
+      <circle cx="12" cy="16.5" r="1.4" fill="currentColor" stroke="none" />
+      <path d="M19.5 16.5h1.25M3.25 16.5H4.5" opacity=".55" />
+    </Icon>
+  )
+}
+
+/** Continuation card: queued, waiting on the provider — an hourglass mid-pour. */
+export function QueuedIcon(props: IconProps) {
+  return (
+    <Icon strokeWidth="1.7" {...props}>
+      <path d="M7 3.75h10M7 20.25h10" />
+      <path d="M8 3.75v2.6c0 2.3 1.6 3.7 4 5.65 2.4-1.95 4-3.35 4-5.65v-2.6" />
+      <path d="M8 20.25v-2.6c0-2.3 1.6-3.7 4-5.65 2.4 1.95 4 3.35 4 5.65v2.6" />
+      <path d="M10.4 17.6h3.2" opacity=".55" />
+    </Icon>
+  )
+}
+
+/** Continuation card: paused with nothing to offer yet. */
+export function PausedIcon(props: IconProps) {
+  return (
+    <Icon strokeWidth="1.7" {...props}>
+      <circle cx="12" cy="12" r="8.25" />
+      <path d="M10 8.75v6.5M14 8.75v6.5" strokeWidth="2" />
+    </Icon>
+  )
+}
+
+/** Continuation card: running or finished on the free model — a forward arrow leaving a dial. */
+export function ContinuedIcon(props: IconProps) {
+  return (
+    <Icon strokeWidth="1.7" {...props}>
+      <path d="M4.5 16.5a7.5 7.5 0 0 1 13.2-4.8" />
+      <path d="M13.5 8.5h4.6V3.9" />
+      <path d="M8.5 16.5h7" opacity=".55" />
+    </Icon>
+  )
+}
