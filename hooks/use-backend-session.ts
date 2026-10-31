@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { User } from 'firebase/auth'
 import { currentBackend } from '@/lib/backend/browser'
-import type { BackendMessage, BackendProject, BackendSession, SessionEvent } from '@/lib/backend/client'
+import { sessionSchema, type BackendMessage, type BackendProject, type BackendSession, type SessionEvent } from '@/lib/backend/client'
 import type { ComputerTimelineEvent } from '@/components/computer/session-types'
 import { followSessionEvents } from '@/lib/backend/session-events'
 import { previewUrl } from '@/lib/preview'
@@ -147,6 +147,8 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [streamError, setStreamError] = useState<string | null>(null)
+  const [connection, setConnection] = useState<'connecting' | 'connected' | 'reconnecting' | 'offline'>('connecting')
+  const scopeRef = useRef('')
   const [stopping, setStopping] = useState(false)
   const [revision, setRevision] = useState(0)
   const refreshRef = useRef<() => Promise<void>>(async () => { throw new Error('Session data is not loaded.') })
@@ -155,10 +157,16 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
   useEffect(() => {
     if (authLoading) return
     const controller = new AbortController(); const signal = controller.signal
+    const scope = `${user?.uid ?? ''}:${id}`
+    const sameScope = scopeRef.current === scope
+    scopeRef.current = scope
+    if (!sameScope) {
     setSession(null); setProject(null); setMessages([]); setQueued([]); setEvents([]); setTerminal([]); setText(''); setPreview(null)
     setDesktop({ status: 'none' })
     setError(null); setStreamError(null); setStopping(false); setLoading(true)
     setFileCount(null); setFileError(null)
+    }
+    setConnection(navigator.onLine ? 'connecting' : 'offline')
     if (!user) { setError('Sign in to open this session.'); setLoading(false); return }
     let loadVersion = 0
     let streamText = ''
@@ -174,7 +182,7 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
       const parent = await client.project(next.projectId, signal)
       if (next.id !== id || parent.id !== next.projectId) throw new Error('The server returned a mismatched session or project.')
       if (signal.aborted || version !== loadVersion) return
-      setSession(next); setProject(parent); setMessages(history.messages); setQueued(waiting.queuedMessages)
+      setSession(next); setStopping(next.cancelRequested === true); setProject(parent); setMessages(history.messages); setQueued(waiting.queuedMessages)
       void client.files(parent.id, signal).then((tree) => {
         if (!signal.aborted && version === loadVersion) { setFileCount(tree.truncated ? null : tree.files.length); setFileError(tree.truncated ? 'File listing is limited by the server. Open Code to inspect the saved files.' : null) }
       }).catch((reason) => { if (!signal.aborted && version === loadVersion) { setFileCount(null); setFileError(reason instanceof Error ? reason.message : 'Could not load saved files.') } })
@@ -192,9 +200,20 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
     }
     void (async () => {
       try { await reload(); if (!signal.aborted) setLoading(false) }
-      catch (reason) { if (!signal.aborted) { setError(reason instanceof Error ? reason.message : 'Could not load session.'); setLoading(false) }; return }
+      catch (reason) { if (!signal.aborted) { const message = reason instanceof Error ? reason.message : 'Could not load session.'; if (sameScope) setStreamError(message); else setError(message); setLoading(false) }; return }
       await followSessionEvents(currentBackend(), id, {
-          signal, refreshToken: () => user.getIdToken(true), onError: setStreamError, onConnected: () => setStreamError(null),
+          onReconcile: reload,
+          onReconnecting: () => { if (!signal.aborted) setConnection(navigator.onLine ? 'reconnecting' : 'offline') },
+          onReset: () => { streamText = ''; setText(''); setEvents([]); setTerminal([]); setDesktop({ status: 'none' }); setPreview(null) },
+          onState: (state) => {
+            const next = sessionSchema.parse(state)
+            if (next.id !== id) throw new Error('Mismatched session state.')
+            setSession(next)
+            scheduleRefresh()
+            setStopping(next.cancelRequested === true)
+            if (next.status === 'IDLE' || next.status === 'FAILED') { streamText = ''; setText('') }
+          },
+          signal, refreshToken: () => user.getIdToken(true), onError: setStreamError, onConnected: () => { setConnection('connected'); setStreamError(null) },
           onEvent: (event) => {
             if (signal.aborted) return
             if (event.type === 'preview.ready') setPreview(previewUrl(event.data.url, window.location.origin))
@@ -223,8 +242,11 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
           },
       })
     })()
-    return () => { controller.abort(); if (refreshTimer !== undefined) clearTimeout(refreshTimer); if (textFrame !== undefined) cancelAnimationFrame(textFrame); refreshRef.current = async () => { throw new Error('The session connection is closed.') } }
+    const offline = () => { setConnection('offline'); setStreamError('You are offline. Showing the last confirmed task state.') }
+    const online = () => { setConnection('reconnecting'); reconnect() }
+    window.addEventListener('offline', offline); window.addEventListener('online', online)
+    return () => { window.removeEventListener('offline', offline); window.removeEventListener('online', online); controller.abort(); if (refreshTimer !== undefined) clearTimeout(refreshTimer); if (textFrame !== undefined) cancelAnimationFrame(textFrame); refreshRef.current = async () => { throw new Error('The session connection is closed.') } }
   }, [id, user, authLoading, revision])
   return { session, project, messages, queued, events, terminal, desktop, text, stopping, setStopping, preview: project?.publicPreviewEnabled === true ? preview : null,
-    fileCount, fileError, loading, error, streamError, refresh, reconnect }
+    fileCount, fileError, loading, error, streamError, connection, refresh, reconnect }
 }

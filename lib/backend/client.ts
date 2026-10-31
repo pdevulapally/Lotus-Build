@@ -23,6 +23,13 @@ export const sessionSchema = z.object({
   effort: z.enum(['low', 'standard', 'high', 'xhigh']), mode: z.enum(['build', 'plan']),
   sandboxId: z.string().optional(), error: z.string().optional(), messageCount: z.number().int().nonnegative(),
   heartbeatAt: timestamp.optional(), createdAt: timestamp,
+  cancelRequested: z.boolean().optional(),
+  fallback: z.object({ status: z.enum(['AWAITING_CONSENT', 'QUEUED', 'RUNNING', 'CAPACITY_WAIT', 'EXHAUSTED', 'SHARED_LIMIT', 'UNAVAILABLE', 'COMPLETED']),
+    reason: z.string(), resumable: z.boolean(), checkpointId: id.optional(), lane: z.enum(['premium', 'fallback']).optional(), consent: z.boolean(),
+    imageExpiresAt: timestamp.optional(), resetAt: timestamp.optional(), retryAt: timestamp.optional(), limitLabel: z.string().optional(),
+    offer: z.object({ model: z.string(), effort: z.enum(['low', 'standard', 'high', 'xhigh']) }).optional(),
+  }).optional(),
+  pendingInput: z.object({ id, kind: z.enum(['question', 'approval']), prompt: z.string() }).optional(),
 })
 export const messageSchema = z.object({
   seq: z.number().int().nonnegative(), role: z.enum(['user', 'assistant']), content: z.string(), createdAt: timestamp,
@@ -214,8 +221,9 @@ export class BackendClient {
   }
   messages(sessionId: string, signal?: AbortSignal) { return this.json(z.object({ messages: z.array(messageSchema) }), `/sessions/${id.parse(sessionId)}/messages?limit=200`, { signal }) }
   queuedMessages(sessionId: string, signal?: AbortSignal) { return this.json(z.object({ queuedMessages: z.array(queuedSchema), nextCursor: z.string().nullable() }), `/sessions/${id.parse(sessionId)}/queued-messages?limit=100`, { signal }) }
-  sendMessage(sessionId: string, input: { prompt: string; steer?: boolean; mode?: 'build' | 'plan'; attachments?: AttachmentRef[] }, key: string) {
-    const body = z.object({ prompt: promptSchema, steer: z.boolean().optional(), mode: z.enum(['build', 'plan']).optional(), attachments: attachmentRefsSchema.optional() }).strict().parse(input)
+  sendMessage(sessionId: string, input: { prompt: string; steer?: boolean; mode?: 'build' | 'plan'; attachments?: AttachmentRef[]; inputResponse?: { id: string; answer: string } }, key: string) {
+    const body = z.object({ prompt: promptSchema, steer: z.boolean().optional(), mode: z.enum(['build', 'plan']).optional(), attachments: attachmentRefsSchema.optional(),
+      inputResponse: z.object({ id, answer: promptSchema }).strict().optional() }).strict().parse(input)
     return this.json(acceptedMessageSchema, `/sessions/${id.parse(sessionId)}/messages`, { method: 'POST', body, key: keySchema.parse(key) })
   }
   /** Uploads one image as a raw body; the server answers with the reference a message can carry. */
@@ -230,6 +238,11 @@ export class BackendClient {
     if (!isAttachmentMediaType(type)) throw new BackendError(502, 'response/invalid', 'The server returned an unexpected attachment type.')
     return response.blob()
   }
+  continueSession(sessionId: string, input: { checkpointId: string; lane: 'premium' | 'fallback'; model: string; effort: 'low' | 'standard' | 'high' | 'xhigh' }, key: string) {
+    const body = z.object({ checkpointId: id, lane: z.enum(['premium', 'fallback']), model: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/), effort: z.enum(['low', 'standard', 'high', 'xhigh']) }).strict().parse(input)
+    return this.json(sessionSchema, `/sessions/${id.parse(sessionId)}/continuation`, { method: 'POST', body, key: keySchema.parse(key) })
+  }
+
   cancel(sessionId: string, key: string) { return this.json(sessionSchema, `/sessions/${id.parse(sessionId)}/cancel`, { method: 'POST', key: keySchema.parse(key) }) }
 
   /** One connection. Caller owns reconnect UI/backoff; control frames never advance the resume cursor. */
