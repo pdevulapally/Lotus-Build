@@ -734,7 +734,7 @@ export function AgentFeed({
   onApprovePlan?: () => void
   onRestoreCheckpoint?: (runId: string) => Promise<void>
 }) {
-  const isRunning = status === "running" || status === "planning"
+  const isRunning = status === "running" || status === "planning" || status === "queued"
   const visible = events.filter((e) => e.title !== "Session created")
   const { firstRunId, followUpRunIds } = getRunIdGroups(events)
   const initialEvents = mergeProseEvents(
@@ -782,7 +782,10 @@ export function AgentFeed({
         <p className="mt-1 text-xs text-muted-foreground">Queued</p>
       </div>)}
       {streamText && <FeedItem event={{ title: 'Response', description: streamText, status: 'running', createdAt: '', index: 0 }} isLatest isSessionRunning={isRunning} />}
-      {isRunning && <div className="py-2"><Shimmer className="text-[13px] font-medium">Working…</Shimmer></div>}
+      {isRunning && <div className="py-2">
+        <Shimmer className="text-[13px] font-medium">{status === "queued" ? "Queued…" : "Working…"}</Shimmer>
+        {status === "queued" && <p className="mt-1 text-[11.5px] text-muted-foreground">Your request is saved and waiting for a build slot. Work starts automatically.</p>}
+      </div>}
       {onApprovePlan && !isRunning && <button type="button" className="mt-3 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={onApprovePlan}>Build this plan</button>}
     </div>
   }

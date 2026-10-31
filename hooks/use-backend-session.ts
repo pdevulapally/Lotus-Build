@@ -17,7 +17,7 @@ import {
 
 const labels: Record<string, string> = {
   'session.queued': 'Build queued', 'session.running': 'Build running', 'session.idle': 'Ready for your next message',
-  'session.failed': 'Build stopped', 'session.cancel_requested': 'Cancellation requested',
+  'session.failed': 'Build stopped', 'session.cancel_requested': 'Cancellation requested', 'session.awaiting_input': 'Waiting for your answer',
   'sandbox.started': 'Workspace started', 'project.restored': 'Project restored', 'preview.ready': 'Preview ready',
   'project.saved': 'Project saved', 'project.save_failed': 'Project save failed', 'agent.finished': 'Agent finished',
   'agent.blocked': 'Agent needs attention', 'agent.specialist_started': 'Review started', 'agent.specialist_completed': 'Review completed',
@@ -87,7 +87,8 @@ export function activity(event: SessionEvent, index: number): ComputerTimelineEv
     : {}
   const title = event.type === 'agent.tool_call' && isComputerAction(name)
     ? computerActionLabel(name, input)
-    : tool && name ? `${event.type === 'agent.tool_call' ? 'Using' : 'Finished'} ${name.slice(0, 100)}` : labels[event.type]
+    : tool && name ? `${event.type === 'agent.tool_call' ? 'Using' : 'Finished'} ${name.slice(0, 100)}`
+    : event.type === 'agent.skill_used' ? `Used skill ${String(typeof event.data.title === 'string' && event.data.title ? event.data.title : name || 'skill').slice(0, 100)}` : labels[event.type]
   if (!title) return null
   // run_command input/output is shown after redaction; other tools stay label-only.
   const description = typeof event.data.summary === 'string' ? event.data.summary.slice(0, 2000)
@@ -237,7 +238,7 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
               streamText = ''; if (textFrame !== undefined) { cancelAnimationFrame(textFrame); textFrame = undefined }; setText('')
               setEvents((current) => completeRunningCommandEvents(current))
             }
-            if (['session.running', 'session.queued', 'session.idle', 'session.failed', 'session.message_queued', 'session.message_dequeued', 'project.saved'].includes(event.type)) scheduleRefresh()
+            if (['session.running', 'session.queued', 'session.idle', 'session.failed', 'session.awaiting_input', 'session.message_queued', 'session.message_dequeued', 'project.saved'].includes(event.type)) scheduleRefresh()
             if (!refreshFailed) setStreamError(null)
           },
       })

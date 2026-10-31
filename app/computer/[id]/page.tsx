@@ -281,7 +281,7 @@ export default function ComputerPage() {
   const loading = authLoading || backend.loading
   const error = backend.error
   const effectiveStatus: ComputerSessionStatus = raw?.status === 'FAILED' ? 'error'
-    : raw?.status === 'QUEUED' || raw?.status === 'RUNNING' ? 'running' : 'idle'
+    : raw?.status === 'QUEUED' ? 'queued' : raw?.status === 'RUNNING' ? 'running' : 'idle'
   const session: ComputerSessionResponse | null = raw && backend.project ? { id: raw.id, projectId: raw.projectId,
     status: effectiveStatus, sessionMode: raw.mode, timeline: backend.events,
     prompt: backend.messages[0]?.content, previewUrl: backend.preview, platform: backend.project.platform } : null
@@ -313,7 +313,7 @@ export default function ComputerPage() {
     } catch (reason) { setRunError(reason instanceof Error ? reason.message : 'Pending commands could not be read.') }
   }, [user, raw?.id])
   useEffect(() => { readPending(); window.addEventListener('storage', readPending); return () => window.removeEventListener('storage', readPending) }, [readPending])
-  const isRunning = effectiveStatus === 'running'
+  const isRunning = effectiveStatus === 'running' || effectiveStatus === 'queued'
   const isStopping = isRunning && backend.stopping
   const feedStatus: ComputerSessionStatus = effectiveStatus
   const optimisticStart = false
