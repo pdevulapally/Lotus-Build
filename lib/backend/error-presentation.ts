@@ -23,7 +23,7 @@ export function presentRequestError(error: Error, planName?: string) {
   return {
     isQuota,
     isProjectLimit,
-    title: isProjectLimit ? 'You’ve reached your project limit' : isQuota ? 'Plan limit reached' : 'Couldn’t complete your request',
+    title: isProjectLimit ? 'Project limit reached' : isQuota ? 'Limit reached' : 'Something went wrong',
     description: isProjectLimit
       ? projectLimit?.success
         ? projectLimit.data.limit === 0
@@ -32,8 +32,8 @@ export function presentRequestError(error: Error, planName?: string) {
         : 'Your plan’s project spaces are full. Your idea is still here—delete an existing project or view plans with more space.'
       : isQuota
       ? quota?.success
-        ? `Your ${planName ? `${planName} ` : ''}plan allows up to ${quota.data.limit.toLocaleString()} ${quota.data.label.toLowerCase()}${quota.data.unit === 'count' ? '' : ` (${quota.data.unit})`}. This request would exceed that allowance.`
-        : 'This request would exceed your plan’s allowance. View plans to check your limits.'
+        ? `${plan}’s ${quota.data.label.toLowerCase()} for this cycle are used up. Upgrade for much higher limits.`
+        : 'This request would exceed your plan’s allowance. Upgrade for much higher limits.'
       : error.message,
     quota: quota?.success ? quota.data : null,
   }

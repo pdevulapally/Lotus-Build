@@ -26,6 +26,9 @@ import { useAutoOpenWorkspace } from "@/hooks/use-auto-open-workspace"
 
 import { sendMessage, readPendingMessage } from "@/lib/backend/send-message"
 import { ContinuationStatus } from "@/components/computer/continuation-status"
+import { RequestError } from "@/components/ui/request-error"
+import { BackendError } from "@/lib/backend/client"
+import { presentRequestError } from "@/lib/backend/error-presentation"
 import { continueSession, readPendingContinuation, type ContinuationCommand } from "@/lib/backend/continue-session"
 import { pendingCommandStorage } from "@/lib/backend/pending-storage"
 import { cancelSession, pendingCancelKey } from "@/lib/backend/cancel-session"
@@ -298,7 +301,7 @@ export default function ComputerPage() {
   const mobileView: MobileView = workspacePanelOpen ? "workspace" : "feed"
   const setMobileView = (view: MobileView) => setWorkspacePanel(view === "workspace" ? "split" : "closed")
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('preview')
-  const [runError, setRunError] = useState<string | null>(null)
+  const [runError, setRunError] = useState<Error | string | null>(null)
   const [isStartingRun, setIsStartingRun] = useState(false)
   const [pendingMessage, setPendingMessage] = useState<ReturnType<typeof readPendingMessage>>(null)
   const [pendingContinuation, setPendingContinuation] = useState<ReturnType<typeof readPendingContinuation>>(null)
@@ -363,7 +366,7 @@ export default function ComputerPage() {
         originalInput === undefined ? (request === undefined ? undefined : { id: request.id, answer: prompt }) : originalInput ?? undefined)
       void backend.refresh().catch((reason) => setRunError(`Message accepted, but history refresh failed: ${reason instanceof Error ? reason.message : 'Request failed.'}`))
     } catch (reason) {
-      setRunError(reason instanceof Error ? reason.message : 'Could not send message.')
+      // The composer shows the submit error itself; a second copy here would be noise.
       throw reason
     } finally { busyRef.current = false; setIsStartingRun(false); readPending() }
   }
@@ -577,13 +580,18 @@ export default function ComputerPage() {
                 </p>
               </div>
             )}
-            {(runError || backend.streamError || backend.fileError || raw?.error) && !isBuildTokenBlocked && (
-              <div className="mb-3 rounded-xl border border-destructive/25 bg-card px-3 py-2.5">
-                <p className="text-xs leading-relaxed text-destructive">{getRunErrorMessage(runError || backend.streamError || backend.fileError || raw?.error || 'Live connection interrupted.')}</p>
-                <button type="button" className="mt-1 text-xs underline" onClick={() => { setRunError(null); backend.reconnect() }}>Reconnect</button>
-
+            {(runError || backend.streamError || backend.fileError || raw?.error) && !isBuildTokenBlocked && (() => {
+              const message = runError instanceof Error ? runError.message : (runError || backend.streamError || backend.fileError || raw?.error || 'Live connection interrupted.')
+              const allowance = /allows (\d[\d,]*) (\S+) of (.+?), and (\d[\d,]*) \S+ of that is already used or held/i.exec(message)
+              const limit = runError instanceof Error ? presentRequestError(runError).isQuota : allowance !== null || isTokenLimitError(message)
+              const details = allowance === null ? undefined : { label: allowance[3], unit: allowance[2], limit: Number(allowance[1].replaceAll(',', '')), consumed: Number(allowance[4].replaceAll(',', '')), reserved: 0 }
+              const error = runError instanceof Error ? runError : limit ? new BackendError(402, 'usage/limit-reached', message, undefined, details) : new Error(message)
+              return <div className="mb-3">
+                <RequestError error={error} planName={allowance?.[0] ? /^The (\S+) plan/.exec(message)?.[1] : undefined}>
+                  {!limit && <button type="button" onClick={() => { setRunError(null); backend.reconnect() }}>Reconnect</button>}
+                </RequestError>
               </div>
-            )}
+            })()}
             {backend.connection !== 'connected' && <p role="status" className="mb-2 text-xs text-muted-foreground">{backend.connection === 'offline' ? 'You are offline.' : 'Reconnecting...'} Showing the last confirmed task state. Accepted work runs on the server.</p>}
             {isStopping && <p role="status" className="mb-2 text-xs text-muted-foreground">Cancellation accepted. Stopping further work; external actions already sent may have completed.</p>}
             {isStartingRun && <p role="status" className="mb-2 text-xs text-muted-foreground">Sending command. Waiting for confirmation...</p>}

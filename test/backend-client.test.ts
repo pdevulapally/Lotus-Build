@@ -36,8 +36,8 @@ test('quota error UI validates server details and keeps used and reserved usage 
   await assert.rejects(client.projects(), (error: unknown) => {
     assert.ok(error instanceof BackendError)
     const presentation = presentRequestError(error, 'Free')
-    assert.equal(presentation.title, 'Plan limit reached')
-    assert.match(presentation.description, /Free plan allows up to 10 builds/)
+    assert.equal(presentation.title, 'Limit reached')
+    assert.match(presentation.description, /Your Free plan’s builds for this cycle are used up/)
     assert.deepEqual(presentation.quota, details)
     return true
   })
@@ -55,7 +55,7 @@ test('project limit errors offer a clear next step without inventing a limit', (
   const presentation = presentRequestError(error, 'Free')
   assert.equal(presentation.isProjectLimit, true)
   assert.equal(presentation.isQuota, false)
-  assert.equal(presentation.title, 'You’ve reached your project limit')
+  assert.equal(presentation.title, 'Project limit reached')
   assert.match(presentation.description, /Free plan includes 3 projects/)
   assert.match(presentation.description, /Your idea is still here/)
   assert.ok(!presentation.description.includes('Discard'))

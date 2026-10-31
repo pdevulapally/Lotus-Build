@@ -196,3 +196,14 @@ export function ContinuedIcon(props: IconProps) {
     </Icon>
   )
 }
+
+/** Request notices: something needs attention — a rounded notice mark. */
+export function NoticeIcon(props: IconProps) {
+  return (
+    <Icon strokeWidth="1.7" {...props}>
+      <path d="M12 3.75 20.25 18.5H3.75L12 3.75Z" />
+      <path d="M12 9.5v4" strokeWidth="2" />
+      <circle cx="12" cy="16" r=".9" fill="currentColor" stroke="none" />
+    </Icon>
+  )
+}
