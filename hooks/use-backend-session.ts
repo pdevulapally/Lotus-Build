@@ -5,7 +5,7 @@ import { currentBackend } from '@/lib/backend/browser'
 import { sessionSchema, type BackendMessage, type BackendProject, type BackendSession, type SessionEvent } from '@/lib/backend/client'
 import type { ComputerTimelineEvent } from '@/components/computer/session-types'
 import { followSessionEvents } from '@/lib/backend/session-events'
-import { previewUrl } from '@/lib/preview'
+import { previewUrl, visiblePreview } from '@/lib/preview'
 import { computerActionLabel, isComputerAction, reduceDesktop, type DesktopState } from '@/lib/backend/desktop'
 import {
   commandOutputText,
@@ -218,6 +218,7 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
           onEvent: (event) => {
             if (signal.aborted) return
             if (event.type === 'preview.ready') setPreview(previewUrl(event.data.url, window.location.origin))
+            if (event.type === 'sandbox.started') setPreview(null)
             setDesktop((current) => reduceDesktop(current, event))
             if (event.type === 'session.running') { streamText = ''; if (textFrame !== undefined) { cancelAnimationFrame(textFrame); textFrame = undefined }; setText('') }
             if (event.type === 'agent.text') {
@@ -248,6 +249,6 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
     window.addEventListener('offline', offline); window.addEventListener('online', online)
     return () => { window.removeEventListener('offline', offline); window.removeEventListener('online', online); controller.abort(); if (refreshTimer !== undefined) clearTimeout(refreshTimer); if (textFrame !== undefined) cancelAnimationFrame(textFrame); refreshRef.current = async () => { throw new Error('The session connection is closed.') } }
   }, [id, user, authLoading, revision])
-  return { session, project, messages, queued, events, terminal, desktop, text, stopping, setStopping, preview: project?.publicPreviewEnabled === true ? preview : null,
+  return { session, project, messages, queued, events, terminal, desktop, text, stopping, setStopping, preview: visiblePreview({ preview, session, publicPreviewEnabled: project?.publicPreviewEnabled === true }),
     fileCount, fileError, loading, error, streamError, connection, refresh, reconnect }
 }

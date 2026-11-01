@@ -4,7 +4,7 @@ import type { BackendClient } from './client'
 type Storage = Pick<globalThis.Storage, 'getItem' | 'setItem' | 'removeItem'>
 export type ContinuationCommand = Parameters<BackendClient['continueSession']>[1]
 const pendingSchema = z.object({ checkpointId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/), lane: z.enum(['premium', 'fallback']),
-  model: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/), effort: z.enum(['low', 'standard', 'high', 'xhigh']), key: z.string().uuid() }).strict()
+  model: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/), effort: z.enum(['low', 'standard', 'high', 'xhigh']), key: z.string().uuid() }).strict()
 const storageKey = (uid: string, sessionId: string) => `lotus-pending-continuation:${uid}:${sessionId}`
 export function readPendingContinuation(storage: Storage, uid: string, sessionId: string) {
   const raw = storage.getItem(storageKey(uid, sessionId))

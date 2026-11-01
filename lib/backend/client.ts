@@ -248,7 +248,7 @@ export class BackendClient {
     return response.blob()
   }
   continueSession(sessionId: string, input: { checkpointId: string; lane: 'premium' | 'fallback'; model: string; effort: 'low' | 'standard' | 'high' | 'xhigh' }, key: string) {
-    const body = z.object({ checkpointId: id, lane: z.enum(['premium', 'fallback']), model: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/), effort: z.enum(['low', 'standard', 'high', 'xhigh']) }).strict().parse(input)
+    const body = z.object({ checkpointId: id, lane: z.enum(['premium', 'fallback']), model: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/), effort: z.enum(['low', 'standard', 'high', 'xhigh']) }).strict().parse(input)
     return this.json(sessionSchema, `/sessions/${id.parse(sessionId)}/continuation`, { method: 'POST', body, key: keySchema.parse(key) })
   }
 
