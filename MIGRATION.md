@@ -15,6 +15,8 @@ This checkout is a frontend for the separate lotusbuild-server. It contains no a
 | Stop | POST /sessions/:id/cancel | Stable key across uncertain cancellation |
 | Reopen / transcript / queue | GET /projects/:id/sessions; /sessions/:id; /messages; /queued-messages | Validated data and explicit access errors |
 | Live activity | GET /sessions/:id/events | Bearer header, Last-Event-ID, bounded reconnect, no tool input/source disclosure |
+| Voice in a project | GET /voice; GET /sessions/:id/voice-access; WebSocket /sessions/:id/voice | Empty composer waveform connects voice and opens inline controls. No additional checkbox or Start voice button. Browser microphone permission and versioned server policy checks remain |
+| Start a new project by voice | POST /projects then /projects/:id/sessions with entrypoint=voice and mode=plan | Creates an idle session with zero messages and no queued task or build charge. Uses the selected server model and durable creation identities, then connects voice at /computer/:id?voice=1. Requires the matching server change before deployment. Public landing unchanged |
 | Files / source / ZIP | GET /projects/:id/files; /files/content; /archive | Lazy read-only source, binary/truncation states, ZIP download |
 | Saved history / diffs | GET /projects/:id/changes and /changes/:sha | Read-only history/diff; no pretend restore |
 | Per-session usage | GET /sessions/:id/usage | Settled and open meter quantities; never shown as context-window occupancy |

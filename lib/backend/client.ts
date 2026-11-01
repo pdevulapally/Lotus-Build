@@ -237,6 +237,10 @@ export class BackendClient {
       mode: z.enum(['build', 'plan']).optional(), effort: z.enum(['low', 'standard', 'high', 'xhigh']).optional(), attachments: attachmentRefsSchema.optional() }).strict().parse(input)
     return this.json(sessionSchema, `/projects/${id.parse(projectId)}/sessions`, { method: 'POST', body, key: keySchema.parse(key) })
   }
+  createVoiceSession(projectId: string, model: string, key: string) {
+    const body = z.object({ entrypoint: z.literal('voice'), model: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/), mode: z.literal('plan') }).strict().parse({ entrypoint: 'voice', model, mode: 'plan' })
+    return this.json(sessionSchema, `/projects/${id.parse(projectId)}/sessions`, { method: 'POST', body, key: keySchema.parse(key) })
+  }
   session(sessionId: string, signal?: AbortSignal) { return this.json(sessionSchema, `/sessions/${id.parse(sessionId)}`, { signal }) }
   async desktopTicket(sessionId: string) {
     const encodedId = encodeURIComponent(id.parse(sessionId))

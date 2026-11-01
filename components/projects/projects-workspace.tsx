@@ -736,6 +736,7 @@ export function ProjectsWorkspace() {
                       <div className={cn(styles.composerSlot, "relative")}>
                         <AnimatedAIInput
                           inputId="workspace-brief"
+                          createWithVoice
                           appearance="assistant"
                           wrapperClassName={styles.composer}
                           suggestedPrompt={briefRequest.id === 0 ? undefined : briefRequest.prompt}

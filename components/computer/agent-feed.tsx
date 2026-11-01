@@ -773,7 +773,7 @@ export function AgentFeed({
       {rows.map(({ key, message, event }) => <div key={key} className={message?.role === 'user' ? 'pt-6 pb-3' : ''}>
         {message?.role === 'user' ? <UserMessageBubble canEdit={false} content={message.content} attachments={message.attachments} index={message.seq} isEditing={false} editText=""
           onEditStart={onEditStart} onEditChange={onEditChange} onEditSubmit={onEditSubmit} onEditCancel={onEditCancel} />
-          : <FeedItem event={event ?? { title: message?.voiceSpeaker === 'assistant' ? 'Voice response' : 'Response', description: message!.content, status: 'complete', createdAt: message!.createdAt, index: message!.seq }}
+          : <FeedItem event={event ?? { title: 'Response', description: message!.content, status: 'complete', createdAt: message!.createdAt, index: message!.seq }}
             isLatest={false} isSessionRunning={isRunning} />}
       </div>)}
       {queuedMessages?.map((message) => <div key={message.id} className="pt-5">

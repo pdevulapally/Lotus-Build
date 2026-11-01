@@ -19,12 +19,19 @@ export class BrowserVoiceAudio implements VoiceAudio {
   private trailing: number | null = null
   private ended: (() => void) | null = null
   private closed = false
-  async start(onChunk: (pcm: ArrayBuffer) => void, onActivity: () => void, onFailure: () => void, access: () => Promise<void>) {
+  async prepare() {
+    if (this.closed) throw new Error('Voice audio has already ended.')
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia || !window.AudioContext || !window.AudioWorkletNode) throw new Error('Voice needs a supported browser and a secure connection. You can continue in text.')
-    // Resume during the click, before awaiting microphone permissions.
-    const context = new AudioContext(); this.context = context
-    await Promise.all([context.resume(), access()])
+    this.context ??= new AudioContext()
+    if (this.context.state !== 'running') await this.context.resume()
     if (this.closed) return
+    if (this.context.state !== 'running') throw new Error('Your browser paused audio. Tap the voice button to try again.')
+  }
+  async start(onChunk: (pcm: ArrayBuffer) => void, onActivity: () => void, onFailure: () => void, access: () => Promise<void>) {
+    // Resume during the click, before awaiting microphone permissions.
+    await Promise.all([this.prepare(), access()])
+    if (this.closed) return
+    const context = this.context!
     const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false })
     if (this.closed) { stream.getTracks().forEach(track => track.stop()); return }
     this.stream = stream

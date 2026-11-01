@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { BackendClient, BackendError, backendOrigin, readEvents, type SessionEvent } from '../lib/backend/client'
-import { createBuild } from '../lib/backend/create-build'
+import { createBuild, pendingBuild, type ProjectCreationRequest } from '../lib/backend/create-build'
 import { sendMessage } from '../lib/backend/send-message'
 import { authErrorMessage } from '../lib/auth/errors'
 import { resolveModelSelection } from '../lib/backend/model-selection'
@@ -326,26 +326,34 @@ function storage() {
 }
 
 for (const uncertain of ['project', 'session'] as const) {
-  test(`build creation resumes after a lost ${uncertain} response and browser reload without duplicating resources`, async () => {
+  for (const entrypoint of [undefined, 'voice'] as const) {
+  test(`${entrypoint ?? 'text'} project creation resumes after a lost ${uncertain} response and browser reload without duplicating resources`, async () => {
     const state = storage(); const receipts = new Map<string, { body: string; value: unknown }>()
     let projects = 0; let sessions = 0; let loseResponse = true
     const fetcher: typeof fetch = async (input, init) => {
       const operationKey = new Headers(init?.headers).get('idempotency-key')!
       const kind = new URL(String(input)).pathname === '/projects' ? 'project' : 'session'
+      if (kind === 'session' && entrypoint === 'voice') {
+        assert.deepEqual(JSON.parse(String(init?.body)), { entrypoint: 'voice', mode: 'plan', model: 'configured-model' })
+      }
       const old = receipts.get(operationKey)
       if (old) { assert.equal(old.body, init?.body); return Response.json(old.value) }
-      const value = kind === 'project' ? { ...project, id: `p${++projects}` } : { ...session, id: `s${++sessions}` }
+      const value = kind === 'project' ? { ...project, id: `p${++projects}` } : { ...session, id: `s${++sessions}`, ...(entrypoint === 'voice' ? { status: 'IDLE', messageCount: 0 } : {}) }
       receipts.set(operationKey, { body: String(init?.body), value })
       if (kind === uncertain && loseResponse) { loseResponse = false; throw new TypeError('Network interrupted after commit') }
       return Response.json(value)
     }
     const client = () => new BackendClient({ origin: 'https://api.example.test', token: async () => 'token', fetch: fetcher })
-    const input = { uid: 'alice', prompt: 'Build an app', model: 'configured-model', mode: 'build' as const }
+    const request: ProjectCreationRequest = entrypoint === 'voice' ? { entrypoint: 'voice', mode: 'plan' } : { prompt: 'Build an app', mode: 'build' }
+    const input = { ...request, uid: 'alice', model: 'configured-model' }
     await assert.rejects(createBuild(client(), state, input), /Network interrupted/)
     assert.equal(state.values.size, 1)
+    assert.equal(pendingBuild(state, 'alice')?.entrypoint, entrypoint)
     const result = await createBuild(client(), state, input)
+    if (entrypoint === 'voice') { assert.equal(result.status, 'IDLE'); assert.equal(result.messageCount, 0) }
     assert.equal(result.id, 's1'); assert.equal(projects, 1); assert.equal(sessions, 1); assert.equal(state.values.size, 0)
   })
+  }
 }
 
 test('an uncertain build cannot silently substitute a different prompt or model', async () => {

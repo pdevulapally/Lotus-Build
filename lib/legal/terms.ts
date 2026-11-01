@@ -4,7 +4,7 @@ export const termsOfService: LegalDocumentContent = {
   title: 'Terms of Service',
   description: `The agreement between you and ${id.tradingName} for using the LotusBuild workspace to plan, build and preview software.`,
   effectiveDate: '18 October 2026',
-  lastUpdated: '18 October 2026',
+  lastUpdated: '1 November 2026',
   notice: 'If you are a consumer in the UK, nothing in these terms affects your statutory rights under the Consumer Rights Act 2015 or the Consumer Contracts (Information, Cancellation and Additional Charges) Regulations 2013.',
   related: { href: '/privacy', label: 'Privacy Policy' },
   contact: { title: 'Questions?', description: 'We are happy to explain anything in these terms.' },
@@ -20,6 +20,7 @@ export const termsOfService: LegalDocumentContent = {
         'Build mode: the agent writes and changes code in your project and runs it in an isolated sandbox.',
         'Previews of your running project, which are private unless you turn on public preview.',
         'Saved source files, version history and project downloads as a ZIP.',
+        'Voice conversations started with the waveform button. Live audio and recent project conversation are sent to ElevenLabs; final dialogue is saved in your project chat. Ending voice stops audio sharing and does not cancel accepted project work.',
       ] },
       { kind: 'p', text: 'The models, features and allowances available to you depend on your plan and are shown in the Service and on the Pricing page. We may improve or change features; if a change materially reduces what you have paid for, we will tell you in advance and you may cancel.' },
     ] },
@@ -70,7 +71,7 @@ export const termsOfService: LegalDocumentContent = {
       { kind: 'p', text: 'The Service, its software, design and the LotusBuild name and logo belong to us or our licensors. These terms give you a personal, non-transferable right to use the Service; they do not transfer any of our intellectual property to you. If you send us feedback, we may use it without obligation to you.' },
     ] },
     { id: 'third-parties', label: 'Third-party services', title: 'Third-party services', blocks: [
-      { kind: 'p', text: 'The Service relies on providers such as Google, Anthropic, E2B, Stripe and Vercel. If you connect or deploy to another service, that service’s own terms apply to your use of it.' },
+      { kind: 'p', text: 'The Service relies on providers such as Google, Anthropic, ElevenLabs, E2B, Stripe and Vercel. If you connect or deploy to another service, that service’s own terms apply to your use of it.' },
     ] },
     { id: 'suspension', label: 'Suspension and closure', title: 'Suspension and closing your account', blocks: [
       { kind: 'p', text: 'You can stop using the Service at any time and request account erasure from Settings. Cancel any subscription first so you are not charged again.' },
