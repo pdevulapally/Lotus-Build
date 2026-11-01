@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { VoiceWaveform } from "@/components/ui/voice-waveform";
+import { VoiceWaveIcon } from "@/components/ui/voice-wave-icon";
 import { AttachmentStrip } from "@/components/ui/attachment-strip";
 import { imageFilesFrom, useComposerAttachments } from "@/hooks/use-composer-attachments";
 import type { AttachmentRef } from "@/lib/backend/attachments";
@@ -14,7 +15,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/auth-context";
 import { currentBackend } from "@/lib/backend/browser";
 import { pendingCommandStorage } from "@/lib/backend/pending-storage";
-import { createBuild, pendingBuild } from "@/lib/backend/create-build";
+import { createBuild, pendingBuild, type ProjectCreationRequest } from "@/lib/backend/create-build";
+import { BrowserVoiceAudio } from "@/lib/voice/browser-audio";
+import { handoffVoiceAudio } from "@/lib/voice/launch";
 import { resolveModelSelection } from "@/lib/backend/model-selection";
 import { RequestErrorNotice } from "@/components/ui/request-error";
 
@@ -86,6 +89,11 @@ interface AnimatedAIInputProps {
   appearance?: "default" | "assistant";
   onSubmit?: (value: string, model: string, attachments: AttachmentRef[]) => void | Promise<void>;
   onStop?: () => void;
+  onOpenVoice?: React.MouseEventHandler<HTMLButtonElement>;
+  createWithVoice?: boolean;
+  voiceExpanded?: boolean;
+  voicePanelId?: string;
+  voiceControls?: React.ReactNode;
   /** Cancel has been requested; the stop control waits for the server to confirm. */
   isStopping?: boolean;
   onManageProjects?: () => void;
@@ -186,6 +194,11 @@ export function AnimatedAIInput({
   appearance = "default",
   onSubmit,
   onStop,
+  onOpenVoice,
+  createWithVoice = false,
+  voiceExpanded = false,
+  voicePanelId,
+  voiceControls,
   isStopping = false,
   onManageProjects,
   placeholder,
@@ -222,6 +235,12 @@ export function AnimatedAIInput({
     minHeight: minH,
     maxHeight: compact ? (isSlimCompact ? 160 : 200) : 320,
   });
+  const wasVoiceExpanded = useRef(voiceExpanded);
+  useEffect(() => {
+    const closed = wasVoiceExpanded.current && !voiceExpanded;
+    wasVoiceExpanded.current = voiceExpanded;
+    if (closed && !textareaRef.current?.disabled) textareaRef.current?.focus();
+  }, [voiceExpanded, textareaRef]);
 
   const models = account?.models.map((model) => model.id) ?? [];
   const effectiveModel = mode === 'chat' && initialModel
@@ -267,12 +286,44 @@ export function AnimatedAIInput({
     draftRestoredRef.current = true;
     try {
       const pending = pendingBuild(pendingCommandStorage(), user.uid);
+      if (pending?.entrypoint === 'voice') {
+        setSessionMode(pending.mode); setSelectedModel(pending.model);
+        return;
+      }
       const draft = pending ?? readSessionDraft(sessionStorage);
       if (draft) { setValue(draft.prompt); setSessionMode(draft.mode); if (pending) setSelectedModel(pending.model); requestAnimationFrame(() => adjustHeight()); }
     } catch (reason) { setSubmitError(reason instanceof Error ? reason : new Error('Could not restore your draft.')); }
   }, [mode, user, adjustHeight]);
 
   /* handlers ─── */
+
+  const handleCreate = async (request: ProjectCreationRequest) => {
+    if (isCreating || isLoading || disabled || submittingRef.current) return;
+    setSubmitError(null);
+    setIsCreating(true);
+    submittingRef.current = true;
+    let audio: BrowserVoiceAudio | undefined;
+    try {
+      if (!user || !account) throw new Error(accountError || 'Account details are not available.');
+      if (!effectiveModel) throw new Error(models.length ? 'The selected model is no longer available. Choose another model.' : 'No models are currently available for your account. Refresh your account details and try again.');
+      const backend = currentBackend();
+      if (request.entrypoint === 'voice') {
+        audio = new BrowserVoiceAudio();
+        await audio.prepare();
+        const policy = await backend.voice();
+        if (!policy.available || !policy.privacyVersion) throw new Error('Voice is not available right now. You can start your project with a message.');
+      }
+      const data = await createBuild(backend, pendingCommandStorage(), { ...request, uid: user.uid, model: effectiveModel });
+      if (audio) { handoffVoiceAudio(user.uid, data.id, audio); audio = undefined; }
+      attachments.clear();
+      sessionStorage.removeItem(draftKey);
+      router.push(`/computer/${data.id}${request.entrypoint === 'voice' ? '?voice=1' : ''}`);
+    } catch (err) {
+      audio?.close();
+      setSubmitError(err instanceof Error ? err : new Error('Could not create session.'));
+      setIsCreating(false);
+    } finally { submittingRef.current = false; }
+  };
 
   const handleSubmit = async () => {
     if (!value.trim() || isCreating || isLoading || disabled || submittingRef.current) return;
@@ -292,20 +343,7 @@ export function AnimatedAIInput({
       router.push("/login?redirect=" + encodeURIComponent("/"));
       return;
     }
-    setIsCreating(true);
-    submittingRef.current = true;
-    try {
-      if (!user || !account) throw new Error(accountError || 'Account details are not available.');
-      if (!effectiveModel) throw new Error(models.length ? 'The selected model is no longer available. Choose another model.' : 'No models are currently available for your account. Refresh your account details and try again.');
-      if (sessionMode !== 'build' && sessionMode !== 'plan') throw new Error('Choose Build or Plan.');
-      const data = await createBuild(currentBackend(), pendingCommandStorage(), { uid: user.uid, prompt: value.trim(), model: effectiveModel, mode: sessionMode, attachments: attachments.refs });
-      attachments.clear();
-      sessionStorage.removeItem(draftKey);
-      router.push(`/computer/${data.id}`);
-    } catch (err) {
-      setSubmitError(err instanceof Error ? err : new Error('Could not create session.'));
-      setIsCreating(false);
-    } finally { submittingRef.current = false; }
+    await handleCreate({ prompt: value.trim(), mode: sessionMode, attachments: attachments.refs });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -321,6 +359,10 @@ export function AnimatedAIInput({
   const canStop = mode === "chat" && isLoading && !disabled && !isStopping && typeof onStop === "function";
   const showStop = canStop || (mode === "chat" && isLoading && isStopping);
   const hasSubmitLabel = Boolean(submitLabel?.trim());
+  const canCreateWithVoice = createWithVoice && mode === 'create' && Boolean(user);
+  const hasVoiceEntry = Boolean(onOpenVoice) || canCreateWithVoice;
+  const showVoice = hasVoiceEntry && !value.trim() && attachments.items.length === 0 && !isCreating && !isLoading && !isListening;
+  const canOpenVoice = showVoice && !disabled;
 
   /* ─── render ─────────────────────────────────────────────────────────────── */
 
@@ -338,7 +380,7 @@ export function AnimatedAIInput({
           "focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/15",
           isSlimChat && "rounded-2xl border-border bg-card",
           isAssistant && "rounded-[28px] p-1 shadow-sm shadow-foreground/5",
-          disabled && "pointer-events-none opacity-60",
+          disabled && !voiceControls && "pointer-events-none opacity-60",
           dragging && "border-ring ring-2 ring-ring/20",
           wrapperClassName,
         )}
@@ -364,6 +406,7 @@ export function AnimatedAIInput({
                   <button
                     type="button"
                     onClick={contextBadge.onClear}
+                    disabled={disabled}
                     aria-label="Clear context"
                     className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
                   >
@@ -375,7 +418,7 @@ export function AnimatedAIInput({
           )}
         </AnimatePresence>
 
-        <div className={cn("px-3 pt-3 sm:px-4 sm:pt-4", compact && "pt-2.5 sm:pt-3", isSlimChat && "px-5 pt-4", isAssistant && "px-3.5 pt-3 sm:px-4 sm:pt-4", isAssistant && isSlimChat && "sm:px-3.5 sm:pt-3")}>
+        <div inert={disabled} className={cn("px-3 pt-3 sm:px-4 sm:pt-4", compact && "pt-2.5 sm:pt-3", isSlimChat && "px-5 pt-4", isAssistant && "px-3.5 pt-3 sm:px-4 sm:pt-4", isAssistant && isSlimChat && "sm:px-3.5 sm:pt-3", disabled && "opacity-60")}>
           <AttachmentStrip items={attachments.items} onRemove={attachments.remove} className="mb-3" />
           {attachments.notice && (
             <p role="alert" className="mb-2 flex items-center gap-2 text-xs text-destructive">
@@ -424,7 +467,7 @@ export function AnimatedAIInput({
             isAssistant && isSlimChat && "pt-0.5",
           )}
         >
-          <div data-slot="composer-tools" className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div data-slot="composer-tools" inert={disabled} className={cn("flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden", disabled && "opacity-60")}>
             {mode === "create" && !compact && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -605,7 +648,7 @@ export function AnimatedAIInput({
               tabIndex={-1}
               onChange={(e) => { attachments.add(Array.from(e.target.files ?? [])); e.target.value = ""; }}
             />
-            {!canStop && (
+            {!canStop && !hasVoiceEntry && (
               <IconButton
                 label={voice.supported ? "Start voice input" : VOICE_ERRORS.unsupported}
                 onClick={voice.start}
@@ -618,20 +661,24 @@ export function AnimatedAIInput({
               </IconButton>
             )}
 
-            <motion.button
+            {voiceControls}
+            {(!voiceControls || !showVoice) && <motion.button
               type="button"
-              aria-label={isStopping ? "Stopping" : canStop ? "Stop generating" : (submitLabel?.trim() || (mode === "chat" ? "Send message" : "Start project"))}
-              disabled={!canSubmit && !canStop}
-              aria-busy={isStopping || undefined}
-              onClick={canStop ? onStop : handleSubmit}
-              whileTap={canSubmit || canStop ? { scale: 0.94 } : {}}
+              aria-label={isCreating ? "Creating project" : isStopping ? "Stopping" : canStop ? "Stop generating" : showVoice ? "Talk to LotusBuild" : (submitLabel?.trim() || (mode === "chat" ? "Send message" : "Start project"))}
+              title={showVoice ? "Talk to LotusBuild" : undefined}
+              aria-expanded={showVoice && onOpenVoice ? voiceExpanded : undefined}
+              aria-controls={showVoice && voiceExpanded ? voicePanelId : undefined}
+              disabled={!canSubmit && !canStop && !canOpenVoice}
+              aria-busy={isCreating || isStopping || undefined}
+              onClick={canStop ? onStop : showVoice ? onOpenVoice ?? (() => handleCreate({ entrypoint: 'voice', mode: 'plan' })) : handleSubmit}
+              whileTap={canSubmit || canStop || canOpenVoice ? { scale: 0.94 } : {}}
               className={cn(
                 "flex shrink-0 items-center justify-center rounded-xl border font-semibold transition-colors duration-150 disabled:cursor-not-allowed motion-reduce:transition-none",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2 focus-visible:ring-offset-card",
                 hasSubmitLabel
                   ? "h-9 gap-1.5 px-3.5 text-xs"
                   : "h-9 w-9",
-                canSubmit || canStop
+                canSubmit || canStop || canOpenVoice
                   ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90"
                   : "border-border bg-muted text-muted-foreground",
                 isAssistant && "h-11 rounded-full",
@@ -646,6 +693,8 @@ export function AnimatedAIInput({
                 </>
               ) : isCreating || isLoading ? (
                 <ArrowUp className="h-4 w-4 animate-pulse opacity-60" strokeWidth={2.5} />
+              ) : showVoice ? (
+                <VoiceWaveIcon className="size-5" />
               ) : hasSubmitLabel ? (
                 <>
                   <span>{submitLabel}</span>
@@ -656,7 +705,7 @@ export function AnimatedAIInput({
               ) : (
                 <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
               )}
-            </motion.button>
+            </motion.button>}
           </div>
         </div>
       </div>

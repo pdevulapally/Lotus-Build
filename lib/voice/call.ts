@@ -4,7 +4,6 @@ import type { VoiceAudio } from './browser-audio'
 export type VoiceState = 'off' | 'permission' | 'connecting' | 'listening' | 'speaking' | 'reconnecting' | 'error'
 export interface VoiceCallbacks {
   state(state: VoiceState): void
-  partial(text: string): void
   caption(speaker: 'user' | 'assistant', text: string): void
   error(message: string): void
   ready(): void
@@ -70,7 +69,6 @@ export class VoiceCall {
       clearTimeout(timeout)
       if (this.ended || socket !== this.socket) return
       this.ready = false; this.active = false; this.audio.stopSpeech()
-      this.callbacks.partial('')
       if (event.code === 1000) { this.end(); return }
       const terminal = terminalReasons[event.code]
       if (terminal) { this.fail(terminal); return }
@@ -132,6 +130,6 @@ export class VoiceCall {
     if (this.ended) return
     this.send({ type: 'end' }); this.ended = true; this.ready = false
     clearTimeout(this.retryTimer)
-    this.socket?.close(); this.audio.close(); this.callbacks.partial(''); this.callbacks.state('off')
+    this.socket?.close(); this.audio.close(); this.callbacks.state('off')
   }
 }

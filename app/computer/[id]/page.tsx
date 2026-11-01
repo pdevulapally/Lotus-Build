@@ -11,7 +11,7 @@ import Link from "next/link"
 
 
 
-import { useParams } from "next/navigation"
+import { useParams, useSearchParams } from "next/navigation"
 
 
 
@@ -278,6 +278,7 @@ function getProjectDeploymentLinks(project?: ComputerProjectIntegration | null):
 
 export default function ComputerPage() {
   const params = useParams()
+  const openVoice = useSearchParams().get('voice') === '1'
   const id = typeof params?.id === 'string' ? params.id : ''
   const { user, userData, remainingTokens, loading: authLoading, getOptionalAuthHeader } = useAuth()
   const backend = useBackendSession(id, user, authLoading)
@@ -572,7 +573,6 @@ export default function ComputerPage() {
 
           {/* Composer */}
           <div className={cn(styles.composerDock, "mx-auto w-full max-w-[792px] shrink-0 px-3 pt-2 [padding-bottom:max(1rem,env(safe-area-inset-bottom))] sm:pb-5 lg:px-4")}>
-            {raw && user && <VoiceControls key={`${user.uid}:${raw.id}`} session={raw} identity={user.uid} refresh={backend.refresh} />}
             {isBuildTokenBlocked && (
               <div className="mb-3 rounded-xl border border-border bg-muted px-3 py-2.5">
                 <p className="text-sm font-medium text-foreground">You have used all credits for this cycle.</p>
@@ -615,13 +615,16 @@ export default function ComputerPage() {
               </p> : <p className="text-xs text-muted-foreground">Reply below to continue. Work is paused until you answer.</p>}
               <button type="button" className="mt-2 text-xs underline" onClick={() => { void handleStop() }}>Cancel task</button>
             </section>}
-            <AnimatedAIInput
-              mode="chat" compact compactSize="slim" appearance="assistant" initialModel={raw?.model}
-              wrapperClassName={cn(styles.composer, "!shadow-none focus-within:!border-ring")}
-              isLoading={isRunning} isStopping={isStopping} onStop={handleStop} onSubmit={(prompt, _model, attachments) => handleRun(prompt, undefined, attachments)}
-              placeholder="Ask LotusBuild about this project…"
-              disabled={isBuildTokenBlocked || isStartingRun || raw?.pendingInput?.kind === 'approval' || (raw?.status === 'IDLE' && raw.fallback?.resumable === true)}
-            />
+            <VoiceControls key={`${user?.uid}:${raw?.id}`} session={raw} identity={user?.uid} refresh={backend.refresh} initiallyExpanded={openVoice}>
+              {(voiceProps) => <AnimatedAIInput
+                {...voiceProps}
+                mode="chat" compact compactSize="slim" appearance="assistant" initialModel={raw?.model}
+                wrapperClassName={cn(styles.composer, "!shadow-none focus-within:!border-ring")}
+                isLoading={isRunning} isStopping={isStopping} onStop={handleStop} onSubmit={(prompt, _model, attachments) => handleRun(prompt, undefined, attachments)}
+                placeholder="Ask LotusBuild about this project…"
+                disabled={isBuildTokenBlocked || isStartingRun || raw?.pendingInput?.kind === 'approval' || (raw?.status === 'IDLE' && raw.fallback?.resumable === true)}
+              />}
+            </VoiceControls>
           </div>
         </aside>
 

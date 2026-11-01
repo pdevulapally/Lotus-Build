@@ -16,7 +16,7 @@ function fixture(overrides: Partial<VoiceCallbacks> = {}, audioOverrides: Partia
   let closed = 0, stopped = 0, muted = false, reads = 0
   const audio: VoiceAudio = { start: async () => {}, mute: value => { muted = value }, play: data => played.push(data), stopSpeech: () => { stopped++ }, finishSpeech: done => done(), close: () => { closed++ }, ...audioOverrides }
   const client = { voiceAccess: async () => ({ privacyVersion: 'v1', maxCallSeconds: 60 }), voiceSocket: async (sessionId: string, consentVersion: string) => { assert.equal(sessionId, 'task'); assert.equal(consentVersion, 'v1'); const socket = new Socket(); sockets.push(socket); return socket as unknown as WebSocket } }
-  const call = new VoiceCall(client, audio, 'task', 'v1', { state: state => states.push(state), partial: () => {}, caption: (speaker, text) => { captions.push(`${speaker}: ${text}`) }, error: message => errors.push(message), ready: () => { reads++ }, ...overrides })
+  const call = new VoiceCall(client, audio, 'task', 'v1', { state: state => states.push(state), caption: (speaker, text) => { captions.push(`${speaker}: ${text}`) }, error: message => errors.push(message), ready: () => { reads++ }, ...overrides })
   return { call, sockets, states, captions, errors, played, stats: () => ({ closed, stopped, muted, reads }), ready: () => sockets.at(-1)!.message({ type: 'ready', callId: 'call', maxCallSeconds: 60 }) }
 }
 test('native voice captions do not submit browser task commands', async () => {

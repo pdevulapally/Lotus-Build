@@ -56,7 +56,8 @@
 }
 /* Keep live status and controls visible above a mobile keyboard or on a short screen. */
 @media (max-height: 600px) {
-  .stage { display: none; }
+  .stage { height: calc(var(--spacing) * 24); }
+  .orb { width: calc(var(--spacing) * 18); }
 }
 @media (prefers-reduced-motion: reduce) {
   .orb { animation: none !important; transition: none; }
