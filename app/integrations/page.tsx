@@ -1,7 +1,6 @@
 "use client"
 import { useEffect, useState } from 'react'
 import { Navbar } from '@/components/ui/navbar'
-import { FooterSection } from '@/components/sections/footer-section'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { connectorGlyphs, GrantGlyph } from '@/components/integrations/connector-icons'
 import { useAuth } from '@/contexts/auth-context'
@@ -14,12 +13,15 @@ type State =
   | { kind: 'ready'; connectors: Connector[]; connections: Connection[]; configured: boolean }
   | { kind: 'error'; message: string }
 
+const healthy = new Set<Connection['status']>(['active'])
+
 export default function IntegrationsPage() {
   return (
     <ProtectedRoute>
-      <Navbar />
-      <IntegrationsContent />
-      <FooterSection />
+      <div data-product-theme="dark" className={`dark ${styles.page}`}>
+        <Navbar />
+        <IntegrationsContent />
+      </div>
     </ProtectedRoute>
   )
 }
@@ -74,77 +76,79 @@ function IntegrationsContent() {
   return (
     <main className={styles.main}>
       <header className={styles.intro}>
-        <p className={styles.eyebrow}>Integrations</p>
-        <h1 className={styles.title}>Connect the services your projects ship with</h1>
-        <p className={styles.lead}>
-          Connect an account once, then choose which projects may use it. Nothing gets access by default, and every
-          action that changes something outside LotusBuild asks you first.
-        </p>
+        <h1 className={styles.title}>Integrations</h1>
+        <p className={styles.lead}>Connect a service once, choose the projects that may use it, and approve every action that changes something outside LotusBuild.</p>
       </header>
 
-      {state.kind === 'loading' && <p className={styles.state} role="status">Loading integrations…</p>}
-      {state.kind === 'error' && <p className={styles.state} role="alert">{state.message}</p>}
-      {notice && <p className={styles.state} role="status">{notice}</p>}
+      {state.kind === 'loading' && <p className={styles.message} role="status">Loading integrations…</p>}
+      {state.kind === 'error' && <p className={styles.message} role="alert">{state.message}</p>}
+      {notice && <p className={styles.message} role="status">{notice}</p>}
 
       {state.kind === 'ready' && (
         <>
-          <section className={styles.section} aria-labelledby="your-connections">
-            <h2 id="your-connections" className={styles.sectionTitle}>Your connections</h2>
-            {state.connections.length === 0 ? (
-              <div className={styles.empty}>
-                <span className={styles.glyph} aria-hidden="true"><GrantGlyph /></span>
-                <div>
-                  <p className={styles.emptyTitle}>No services connected yet</p>
-                  <p className={styles.emptyText}>When you connect one, you’ll pick the projects it may be used in. Credentials stay on the server and are never shown to you, the agent or your project code.</p>
+          <section className={styles.section} aria-labelledby="connected">
+            <div className={styles.sectionHead}>
+              <h2 id="connected" className={styles.sectionTitle}>Connected</h2>
+              <span className={styles.count}>{state.connections.length}</span>
+            </div>
+            <div className={styles.list}>
+              {state.connections.length === 0 ? (
+                <div className={styles.row}>
+                  <span className={styles.tile} aria-hidden="true"><GrantGlyph /></span>
+                  <div className={styles.body}>
+                    <p className={styles.name}>Nothing connected yet</p>
+                    <p className={styles.meta}>When you connect a service you’ll pick the projects it may be used in. Credentials stay on the server — never shown to you, the agent or your code.</p>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className={styles.grid}>
-                {state.connections.map((connection) => {
-                  const Glyph = connectorGlyphs[connection.connector]
-                  return (
-                    <div key={connection.id} className={styles.row}>
-                      <span className={styles.glyph} aria-hidden="true"><Glyph /></span>
-                      <div className={styles.rowBody}>
-                        <p className={styles.name}>{connection.account?.name ?? connection.connector}</p>
-                        <span className={styles.rowMeta}>{statusLabel[connection.status]}{connection.account?.team ? ` · ${connection.account.team}` : ''}</span>
-                      </div>
-                      {connection.status !== 'revoked' && (
-                        <button type="button" className={styles.quiet} style={{ marginLeft: 'auto' }} disabled={busy === connection.id} onClick={() => disconnect(connection)}>Disconnect</button>
-                      )}
+              ) : state.connections.map((connection) => {
+                const Glyph = connectorGlyphs[connection.connector]
+                const ok = healthy.has(connection.status)
+                return (
+                  <div key={connection.id} className={styles.row}>
+                    <span className={styles.tile} aria-hidden="true"><Glyph /></span>
+                    <div className={styles.body}>
+                      <p className={styles.name}>{connection.account?.name ?? connection.connector}</p>
+                      <p className={styles.meta}>
+                        <span className={`${styles.dot} ${ok ? styles.dotOk : styles.dotWarn}`} aria-hidden="true" />
+                        {statusLabel[connection.status]}{connection.account?.team ? ` · ${connection.account.team}` : ''}
+                        {connection.grantedProjectIds ? ` · ${connection.grantedProjectIds.length} ${connection.grantedProjectIds.length === 1 ? 'project' : 'projects'}` : ''}
+                      </p>
                     </div>
-                  )
-                })}
-              </div>
-            )}
+                    {connection.status !== 'revoked' && (
+                      <button type="button" className={styles.secondary} disabled={busy === connection.id} onClick={() => disconnect(connection)}>Disconnect</button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           </section>
 
           <section className={styles.section} aria-labelledby="available">
-            <h2 id="available" className={styles.sectionTitle}>Available services</h2>
-            <div className={styles.grid}>
+            <div className={styles.sectionHead}>
+              <h2 id="available" className={styles.sectionTitle}>Available</h2>
+              <span className={styles.count}>{state.connectors.length}</span>
+            </div>
+            <div className={styles.list}>
               {state.connectors.map((connector) => {
                 const Glyph = connectorGlyphs[connector.key]
                 const pending = connector.status === 'configuration_required' || !state.configured
                 return (
-                  <article key={connector.key} className={styles.card}>
-                    <div className={styles.cardHead}>
-                      <span className={styles.glyph} aria-hidden="true"><Glyph /></span>
-                      <h3 className={styles.name}>{connector.name}</h3>
-                      <span className={`${styles.pill} ${pending ? '' : styles.pillActive}`}>{pending ? 'Setup pending' : 'Available'}</span>
+                  <article key={connector.key} className={styles.row}>
+                    <span className={styles.tile} aria-hidden="true"><Glyph /></span>
+                    <div className={styles.body}>
+                      <p className={styles.name}>{connector.name}</p>
+                      <p className={styles.meta}>{connector.summary}</p>
+                      <ul className={styles.caps} aria-label={`${connector.name} capabilities`}>
+                        {connector.capabilities.map((capability) => (
+                          <li key={capability.key} className={styles.cap} title={capability.description}>
+                            {capability.title}{capability.requiresApproval ? <span className={styles.capNote}> · asks first</span> : null}
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                    <p className={styles.summary}>{connector.summary}</p>
-                    <ul className={styles.caps} aria-label={`${connector.name} capabilities`}>
-                      {connector.capabilities.map((capability) => (
-                        <li key={capability.key} className={`${styles.cap} ${capability.requiresApproval ? styles.capApproval : ''}`} title={capability.description}>
-                          {capability.title}{capability.requiresApproval ? ' · asks first' : ''}
-                        </li>
-                      ))}
-                    </ul>
                     <div className={styles.actions}>
-                      <button type="button" className={styles.connect} disabled={pending || busy === connector.key} onClick={() => connect(connector)}>
-                        {busy === connector.key ? 'Opening…' : 'Connect'}
-                      </button>
-                      {pending && <span className={styles.hint}>Not switched on yet</span>}
+                      {pending && <span className={styles.hint}>Coming soon</span>}
+                      <button type="button" className={styles.primary} disabled={pending || busy === connector.key} onClick={() => connect(connector)}>Connect</button>
                     </div>
                   </article>
                 )
