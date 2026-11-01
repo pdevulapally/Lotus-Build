@@ -35,6 +35,7 @@ export const sessionSchema = z.object({
 export const messageSchema = z.object({
   seq: z.number().int().nonnegative(), role: z.enum(['user', 'assistant']), content: z.string(), createdAt: timestamp,
   attachments: z.array(attachmentRefSchema).default([]),
+  voiceSpeaker: z.enum(['user', 'assistant']).optional(),
 })
 const capabilitySchema = z.discriminatedUnion('kind', [
   z.object({ key: z.string(), kind: z.literal('boolean'), value: z.boolean() }),
@@ -165,6 +166,23 @@ export class BackendClient {
   }
 
   me(signal?: AbortSignal) { return this.json(accountSchema, '/me', { signal }) }
+  voice(signal?: AbortSignal) {
+    return this.json(z.object({ available: z.boolean(), privacyNotice: z.string(), privacyVersion: z.string().nullable(), maxCallSeconds: z.number().int().positive().nullable() }), '/voice', { signal })
+  }
+  async voiceSocket(sessionId: string, consentVersion: string): Promise<WebSocket> {
+    const path = `/sessions/${id.parse(sessionId)}`
+    const access = await this.voiceAccess(sessionId)
+    if (access.privacyVersion !== consentVersion) throw new Error('Voice privacy information changed. Review it before starting again.')
+    const token = await this.token(true)
+    if (!token) throw new Error('Sign in to use voice.')
+    const url = new URL(`${this.origin}${path}/voice`)
+    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+    const socket = new WebSocket(url)
+    // Authentication in the first frame keeps bearer tokens out of URLs and access logs.
+    socket.addEventListener('open', () => socket.send(JSON.stringify({ type: 'authenticate', token, consentVersion })), { once: true })
+    return socket
+  }
+  voiceAccess(sessionId: string) { return this.json(z.object({ privacyVersion: z.string().min(1), maxCallSeconds: z.number().int().positive() }), `/sessions/${id.parse(sessionId)}/voice-access`) }
   sendEmailVerificationCode() {
     return this.json(emailVerificationCodeSentSchema, '/auth/email-verification/code', { method: 'POST' })
   }

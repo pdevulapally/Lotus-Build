@@ -713,7 +713,7 @@ export function AgentFeed({
   onRestoreCheckpoint,
   canonicalMessages, queuedMessages, streamText,
 }: {
-  canonicalMessages?: { seq: number; role: 'user' | 'assistant'; content: string; createdAt: string; attachments?: AttachmentRef[] }[]
+  canonicalMessages?: { seq: number; role: 'user' | 'assistant'; voiceSpeaker?: 'user' | 'assistant'; content: string; createdAt: string; attachments?: AttachmentRef[] }[]
   queuedMessages?: { id: string; prompt: string; attachments?: AttachmentRef[] }[]
   streamText?: string
   prompt?: string
@@ -766,14 +766,14 @@ export function AgentFeed({
 
   if (canonicalMessages) {
     const rows = [
-      ...canonicalMessages.map((message) => ({ time: Date.parse(message.createdAt), key: `message-${message.seq}`, message, event: undefined as ComputerTimelineEvent | undefined })),
+      ...canonicalMessages.map((message) => ({ time: Date.parse(message.createdAt), key: `message-${message.seq}`, message: { ...message, role: message.voiceSpeaker ?? message.role }, event: undefined as ComputerTimelineEvent | undefined })),
       ...events.map((event) => ({ time: Date.parse(event.createdAt), key: `event-${event.id}`, message: undefined, event })),
     ].sort((left, right) => left.time - right.time)
     return <div className="space-y-2.5 pb-4">
       {rows.map(({ key, message, event }) => <div key={key} className={message?.role === 'user' ? 'pt-6 pb-3' : ''}>
         {message?.role === 'user' ? <UserMessageBubble canEdit={false} content={message.content} attachments={message.attachments} index={message.seq} isEditing={false} editText=""
           onEditStart={onEditStart} onEditChange={onEditChange} onEditSubmit={onEditSubmit} onEditCancel={onEditCancel} />
-          : <FeedItem event={event ?? { title: 'Response', description: message!.content, status: 'complete', createdAt: message!.createdAt, index: message!.seq }}
+          : <FeedItem event={event ?? { title: message?.voiceSpeaker === 'assistant' ? 'Voice response' : 'Response', description: message!.content, status: 'complete', createdAt: message!.createdAt, index: message!.seq }}
             isLatest={false} isSessionRunning={isRunning} />}
       </div>)}
       {queuedMessages?.map((message) => <div key={message.id} className="pt-5">

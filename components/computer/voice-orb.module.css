@@ -1,0 +1,63 @@
+.stage {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 200px;
+  isolation: isolate;
+  pointer-events: none;
+}
+.orb {
+  display: block;
+  position: relative;
+  width: 156px;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 48% 52% 51% 49% / 48% 46% 54% 52%;
+  transform: rotate(-12deg);
+  background: var(--voice-sand);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, white 65%, transparent), 0 12px 30px -14px color-mix(in srgb, var(--voice-orange) 38%, transparent);
+  transition: opacity 240ms ease, filter 240ms ease;
+}
+.fallback {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 22% 12%, white, transparent 48%), radial-gradient(ellipse at 20% 76%, var(--voice-orange), transparent 62%), radial-gradient(ellipse at 90% 22%, var(--voice-lilac), transparent 66%), linear-gradient(140deg, var(--voice-sand) 15%, var(--voice-lilac) 68%, var(--voice-orange));
+}
+.orb canvas { display: block; opacity: .9; filter: blur(.55px); }
+.glass {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(ellipse at 72% 24%, color-mix(in srgb, white 84%, transparent), transparent 35%), radial-gradient(ellipse at 80% 78%, color-mix(in srgb, var(--voice-lilac) 78%, transparent), transparent 60%), radial-gradient(ellipse at 35% 30%, transparent 37%, color-mix(in srgb, var(--voice-lilac) 58%, transparent) 70%, color-mix(in srgb, white 92%, transparent) 98%);
+  box-shadow: inset 3px 2px 7px color-mix(in srgb, white 78%, transparent), inset -4px -5px 12px color-mix(in srgb, var(--voice-orange) 30%, transparent), inset 0 0 0 1px color-mix(in srgb, white 70%, transparent);
+}
+.fold {
+  position: absolute;
+  width: 86%;
+  height: 115%;
+  top: -16%;
+  left: 41%;
+  transform: rotate(-25deg);
+  border-radius: 50%;
+  border-inline-start: 1px solid color-mix(in srgb, white 85%, transparent);
+  background: linear-gradient(85deg, color-mix(in srgb, var(--voice-lilac) 16%, transparent), color-mix(in srgb, white 55%, transparent) 28%, transparent 60%);
+  box-shadow: -5px 0 8px color-mix(in srgb, var(--voice-lilac) 30%, transparent);
+}
+.stage[data-animated='true'] .orb { animation: breathe 6s ease-in-out infinite; }
+.stage[data-state='speaking'][data-animated='true'] .orb { animation-duration: 2.8s; }
+.stage[data-muted='true'] .orb { filter: saturate(.6); opacity: .72; }
+@keyframes breathe {
+  0%, 100% { transform: rotate(-12deg) scale(.97); border-radius: 48% 52% 51% 49% / 48% 46% 54% 52%; }
+  50% { transform: rotate(-7deg) scale(1.025); border-radius: 51% 49% 48% 52% / 51% 52% 48% 49%; }
+}
+@media (max-height: 700px) {
+  .stage { height: 150px; }
+  .orb { width: 120px; }
+}
+/* Keep live status and controls visible above a mobile keyboard or on a short screen. */
+@media (max-height: 600px) {
+  .stage { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .orb { animation: none !important; transition: none; }
+}
