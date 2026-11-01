@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { Navbar } from '@/components/ui/navbar'
 import { ProtectedRoute } from '@/components/auth/protected-route'
-import { connectorGlyphs, GrantGlyph } from '@/components/integrations/connector-icons'
+import { CheckGlyph, ChevronGlyph, connectorGlyphs, GrantGlyph, ShieldGlyph } from '@/components/integrations/connector-icons'
 import { useAuth } from '@/contexts/auth-context'
 import { currentBackend } from '@/lib/backend/browser'
 import { statusLabel, type Connection, type Connector } from '@/lib/backend/connections'
@@ -14,6 +14,7 @@ type State =
   | { kind: 'error'; message: string }
 
 const healthy = new Set<Connection['status']>(['active'])
+const connectorName = (connectors: Connector[], key: Connector['key']) => connectors.find((c) => c.key === key)?.name ?? key
 
 export default function IntegrationsPage() {
   return (
@@ -89,71 +90,102 @@ function IntegrationsContent() {
           <section className={styles.section} aria-labelledby="connected">
             <div className={styles.sectionHead}>
               <h2 id="connected" className={styles.sectionTitle}>Connected</h2>
-              <span className={styles.count}>{state.connections.length}</span>
+              <p className={styles.sectionNote}>{state.connections.length === 0 ? 'Nothing yet' : `${state.connections.length} ${state.connections.length === 1 ? 'service' : 'services'}`}</p>
             </div>
-            <div className={styles.list}>
-              {state.connections.length === 0 ? (
-                <div className={styles.row}>
-                  <span className={styles.tile} aria-hidden="true"><GrantGlyph /></span>
-                  <div className={styles.body}>
-                    <p className={styles.name}>Nothing connected yet</p>
-                    <p className={styles.meta}>When you connect a service you’ll pick the projects it may be used in. Credentials stay on the server — never shown to you, the agent or your code.</p>
-                  </div>
+            {state.connections.length === 0 ? (
+              <div className={styles.empty}>
+                <span className={styles.tile} aria-hidden="true"><GrantGlyph /></span>
+                <div className={styles.body}>
+                  <h3 className={styles.name}>No services connected yet</h3>
+                  <p className={styles.summary}>When you connect one, you choose which projects may use it. Credentials stay on the server and are never shown to you, the agent or your code.</p>
                 </div>
-              ) : state.connections.map((connection) => {
-                const Glyph = connectorGlyphs[connection.connector]
-                const ok = healthy.has(connection.status)
-                return (
-                  <div key={connection.id} className={styles.row}>
-                    <span className={styles.tile} aria-hidden="true"><Glyph /></span>
-                    <div className={styles.body}>
-                      <p className={styles.name}>{connection.account?.name ?? connection.connector}</p>
-                      <p className={styles.meta}>
-                        <span className={`${styles.dot} ${ok ? styles.dotOk : styles.dotWarn}`} aria-hidden="true" />
-                        {statusLabel[connection.status]}{connection.account?.team ? ` · ${connection.account.team}` : ''}
-                        {connection.grantedProjectIds ? ` · ${connection.grantedProjectIds.length} ${connection.grantedProjectIds.length === 1 ? 'project' : 'projects'}` : ''}
-                      </p>
-                    </div>
-                    {connection.status !== 'revoked' && (
-                      <button type="button" className={styles.secondary} disabled={busy === connection.id} onClick={() => disconnect(connection)}>Disconnect</button>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
+              </div>
+            ) : (
+              <ul className={styles.list}>
+                {state.connections.map((connection) => {
+                  const Glyph = connectorGlyphs[connection.connector]
+                  const ok = healthy.has(connection.status)
+                  const label = connection.account?.name ?? connection.connector
+                  const projects = connection.grantedProjectIds?.length
+                  return (
+                    <li key={connection.id} className={styles.row}>
+                      <span className={styles.tile} aria-hidden="true"><Glyph /></span>
+                      <div className={styles.body}>
+                        <div className={styles.nameLine}>
+                          <h3 className={styles.name}>{label}</h3>
+                          <span className={`${styles.status} ${ok ? styles.statusOk : styles.statusWarn}`}><span className={styles.dot} aria-hidden="true" />{statusLabel[connection.status]}</span>
+                        </div>
+                        <p className={styles.summary}>
+                          {connectorName(state.connectors, connection.connector)}{connection.account?.team ? ` · ${connection.account.team}` : ''}
+                          {projects === undefined ? '' : projects === 0 ? ' · No projects can use it yet' : ` · ${projects} ${projects === 1 ? 'project' : 'projects'} can use it`}
+                        </p>
+                      </div>
+                      {connection.status !== 'revoked' && (
+                        <button type="button" className={styles.secondary} disabled={busy === connection.id} aria-label={`Disconnect ${label}`} onClick={() => disconnect(connection)}>
+                          {busy === connection.id ? 'Disconnecting…' : 'Disconnect'}
+                        </button>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
           </section>
 
           <section className={styles.section} aria-labelledby="available">
             <div className={styles.sectionHead}>
-              <h2 id="available" className={styles.sectionTitle}>Available</h2>
-              <span className={styles.count}>{state.connectors.length}</span>
+              <h2 id="available" className={styles.sectionTitle}>Available services</h2>
+              <p className={styles.sectionNote}>Each one asks you before it changes anything outside LotusBuild.</p>
             </div>
-            <div className={styles.list}>
+            <ul className={styles.list}>
               {state.connectors.map((connector) => {
                 const Glyph = connectorGlyphs[connector.key]
                 const pending = connector.status === 'configuration_required' || !state.configured
+                const detailsId = `${connector.key}-details`
                 return (
-                  <article key={connector.key} className={styles.row}>
+                  <li key={connector.key} className={styles.row}>
                     <span className={styles.tile} aria-hidden="true"><Glyph /></span>
                     <div className={styles.body}>
-                      <p className={styles.name}>{connector.name}</p>
-                      <p className={styles.meta}>{connector.summary}</p>
-                      <ul className={styles.caps} aria-label={`${connector.name} capabilities`}>
-                        {connector.capabilities.map((capability) => (
-                          <li key={capability.key} className={styles.cap} title={capability.description}>
-                            {capability.title}{capability.requiresApproval ? <span className={styles.capNote}> · asks first</span> : null}
-                          </li>
-                        ))}
-                      </ul>
+                      <div className={styles.nameLine}>
+                        <h3 className={styles.name}>{connector.name}</h3>
+                        {pending && <span className={`${styles.status} ${styles.statusSoon}`}>Coming soon</span>}
+                      </div>
+                      <p className={styles.summary}>{connector.summary}</p>
+                      <details className={styles.details}>
+                        <summary className={styles.summaryToggle} aria-controls={detailsId}>
+                          <ChevronGlyph className={styles.chevron} />
+                          What it can do
+                        </summary>
+                        <div id={detailsId} className={styles.detailsBody}>
+                          <ul className={styles.caps} aria-label={`${connector.name} capabilities`}>
+                            {connector.capabilities.map((capability) => (
+                              <li key={capability.key} className={styles.cap}>
+                                <CheckGlyph className={styles.capIcon} />
+                                <span><strong className={styles.capTitle}>{capability.title}</strong> — {capability.description}</span>
+                              </li>
+                            ))}
+                          </ul>
+                          {connector.limits && connector.limits.length > 0 && (
+                            <ul className={styles.caps} aria-label={`${connector.name} limits`}>
+                              {connector.limits.map((limit) => (
+                                <li key={limit} className={styles.cap}><ShieldGlyph className={styles.capIcon} /><span>{limit}</span></li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      </details>
                     </div>
-                    <div className={styles.actions}>
-                      {pending && <span className={styles.hint}>Coming soon</span>}
-                      <button type="button" className={styles.primary} disabled={pending || busy === connector.key} onClick={() => connect(connector)}>Connect</button>
-                    </div>
-                  </article>
+                    {!pending && (
+                      <div className={styles.actions}>
+                        <button type="button" className={styles.primary} disabled={busy === connector.key} aria-label={`Connect ${connector.name}`} onClick={() => connect(connector)}>
+                          {busy === connector.key ? 'Opening…' : 'Connect'}
+                        </button>
+                      </div>
+                    )}
+                  </li>
                 )
               })}
-            </div>
+            </ul>
           </section>
         </>
       )}

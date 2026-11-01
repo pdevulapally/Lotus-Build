@@ -13,3 +13,28 @@ export const McpGlyph = (p: IconProps) => (<svg {...base} {...p}><circle cx="6" 
 export const GrantGlyph = (p: IconProps) => (<svg {...base} {...p}><rect x="4" y="10" width="16" height="10" rx="2.5" /><path d="M8 10V7.5a4 4 0 018 0V10" /><path d="M12 14v2.5" /></svg>)
 
 export const connectorGlyphs: Record<ConnectorKey, (p: IconProps) => React.JSX.Element> = { netlify: NetlifyGlyph, vercel: VercelGlyph, slack: SlackGlyph, aws: AwsGlyph, mcp: McpGlyph }
+
+export function CheckGlyph(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      <path d="M3.5 8.5l2.8 2.8L12.5 5" />
+    </svg>
+  )
+}
+
+export function ShieldGlyph(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      <path d="M8 1.8l4.8 1.9v3.6c0 3-2 5.4-4.8 6.7C5.2 12.7 3.2 10.3 3.2 7.3V3.7L8 1.8z" />
+      <path d="M6 8l1.4 1.4L10.2 6.6" />
+    </svg>
+  )
+}
+
+export function ChevronGlyph(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      <path d="M4.5 6.5L8 10l3.5-3.5" />
+    </svg>
+  )
+}
