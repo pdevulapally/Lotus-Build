@@ -239,7 +239,7 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
               streamText = ''; if (textFrame !== undefined) { cancelAnimationFrame(textFrame); textFrame = undefined }; setText('')
               setEvents((current) => completeRunningCommandEvents(current))
             }
-            if (['session.running', 'session.queued', 'session.idle', 'session.failed', 'session.awaiting_input', 'session.message_queued', 'session.message_dequeued', 'project.saved'].includes(event.type)) scheduleRefresh()
+            if (['session.running', 'session.queued', 'session.idle', 'session.failed', 'session.awaiting_input', 'session.message_queued', 'session.message_dequeued', 'project.saved', 'voice.history_changed'].includes(event.type)) scheduleRefresh()
             if (!refreshFailed) setStreamError(null)
           },
       })

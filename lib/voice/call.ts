@@ -5,9 +5,8 @@ export type VoiceState = 'off' | 'permission' | 'connecting' | 'listening' | 'sp
 export interface VoiceCallbacks {
   state(state: VoiceState): void
   partial(text: string): void
-  transcript(id: string, text: string): Promise<void>
+  caption(speaker: 'user' | 'assistant', text: string): void
   error(message: string): void
-  unsent(text: string): void
   ready(): void
 }
 
@@ -30,11 +29,8 @@ export class VoiceCall {
   private retryTimer: ReturnType<typeof setTimeout> | undefined
   private generation = 0
   private interrupting = false
-  private seen = new Set<string>()
-  private turns = Promise.resolve()
-  private pendingTurns = 0
-  private speechTimer: ReturnType<typeof setTimeout> | undefined
   private active = false
+  private sampleRate = 24000
   constructor(private readonly backend: Pick<BackendClient, 'voiceSocket' | 'voiceAccess'>, private readonly audio: VoiceAudio,
     private readonly sessionId: string, private readonly consentVersion: string, private readonly callbacks: VoiceCallbacks) {}
 
@@ -49,7 +45,7 @@ export class VoiceCall {
           if (this.socket.bufferedAmount > 128 * 1024) { this.fail('Voice upload is falling behind. Your task continues in text.'); return }
           this.socket.send(pcm)
         }
-      }, () => this.interrupt(), () => this.fail('Microphone access ended. Your task continues in text.'), access)
+      }, () => { if (this.active) this.interrupt() }, () => this.fail('Microphone access ended. Your task continues in text.'), access)
       if (!this.ended) { this.callbacks.state('connecting'); await this.connect() }
     } catch (error) {
       const denied = error instanceof Error && ['NotAllowedError', 'PermissionDeniedError'].includes(error.name)
@@ -60,7 +56,7 @@ export class VoiceCall {
     const socket = await this.backend.voiceSocket(this.sessionId, this.consentVersion)
     if (this.ended) { socket.close(); return }
     this.socket = socket
-    const timeout = setTimeout(() => { if (!this.ready) socket.close(4000, 'connection-timeout') }, 12000)
+    const timeout = setTimeout(() => { if (!this.ready) socket.close(4000, 'connection-timeout') }, 25000)
     socket.addEventListener('message', event => {
       if (this.ended || socket !== this.socket) return
       try {
@@ -74,7 +70,6 @@ export class VoiceCall {
       clearTimeout(timeout)
       if (this.ended || socket !== this.socket) return
       this.ready = false; this.active = false; this.audio.stopSpeech()
-      if (this.speechTimer) clearTimeout(this.speechTimer)
       this.callbacks.partial('')
       if (event.code === 1000) { this.end(); return }
       const terminal = terminalReasons[event.code]
@@ -83,28 +78,16 @@ export class VoiceCall {
       this.callbacks.state('reconnecting')
       this.retryTimer = setTimeout(() => { void this.connect().catch(() => this.fail('Voice could not reconnect. Your task continues in text.')) }, 500 * 2 ** (this.retries - 1))
     })
-    socket.addEventListener('error', () => { socket.close() })
+    socket.addEventListener('error', () => { socket.close(4000, 'connection-error') })
   }
   private receive(data: Record<string, unknown>) {
     if (data.type === 'ready') {
       this.ready = true; this.generation = 0; this.interrupting = false
       this.callbacks.state('listening'); this.callbacks.ready(); return
     }
-    if (data.type === 'transcript.partial' || data.type === 'transcript.final') {
-      if (typeof data.text !== 'string' || data.text.length > 8000) throw new Error('Invalid transcript.')
-      if (data.type === 'transcript.partial') { this.callbacks.partial(data.text); return }
-      if (typeof data.id !== 'string' || data.id.length > 100) throw new Error('Invalid transcript identity.')
-      if (this.seen.has(data.id)) return
-      if (this.seen.size >= 300 || this.pendingTurns >= 5) { this.fail('Voice received too many messages. Continue in text.'); return }
-      this.seen.add(data.id); this.pendingTurns++
-      const id = data.id, text = data.text
-      this.callbacks.partial('')
-      this.turns = this.turns.then(async () => {
-        if (this.ended) { this.pendingTurns--; this.callbacks.unsent(text); return }
-        try { await this.callbacks.transcript(id, text) }
-        catch (error) { this.fail(error instanceof Error ? error.message : 'Message acceptance is uncertain. Review the pending message in chat.') }
-        finally { this.pendingTurns-- }
-      })
+    if (data.type === 'voice.caption') {
+      if (!['user', 'assistant'].includes(String(data.speaker)) || typeof data.text !== 'string' || data.text.length > 8000) throw new Error('Invalid voice caption.')
+      this.callbacks.caption(data.speaker as 'user' | 'assistant', data.text)
       return
     }
     if (data.type === 'speech.stopped') {
@@ -113,14 +96,21 @@ export class VoiceCall {
       this.audio.stopSpeech(); this.callbacks.state('listening'); return
     }
     if (data.type === 'speech.started') {
-      if (typeof data.generation !== 'number' || data.sampleRate !== 24000) throw new Error('Invalid speech format.')
+      if (typeof data.generation !== 'number' || typeof data.sampleRate !== 'number' || ![8000, 16000, 22050, 24000, 44100, 48000].includes(data.sampleRate)) throw new Error('Invalid speech format.')
       if (this.interrupting || data.generation < this.generation) return
-      this.audio.stopSpeech(); this.generation = data.generation; this.active = true; this.callbacks.state('speaking'); return
+      // Native audio event IDs can advance between chunks. Preserve queued PCM;
+      // interruption has its own explicit stop event.
+      this.generation = data.generation; this.sampleRate = data.sampleRate; this.active = true; this.callbacks.state('speaking'); return
     }
     if (data.type === 'speech.audio') {
-      if (!this.active || this.interrupting || data.generation !== this.generation) return
+      if (this.interrupting || data.generation !== this.generation) return
       if (typeof data.audio !== 'string' || data.audio.length > 192 * 1024) throw new Error('Invalid speech audio.')
-      this.audio.play(data.audio); return
+      this.active = true; this.callbacks.state('speaking'); this.audio.play(data.audio, this.sampleRate)
+      const generation = this.generation
+      // Native text completion can precede the last audio chunk. Actual buffer
+      // drain, including late chunks, determines the audible speaking state.
+      this.audio.finishSpeech(() => { if (!this.ended && generation === this.generation) { this.active = false; this.callbacks.state('listening') } })
+      return
     }
     if (data.type === 'speech.finished') {
       if (data.generation === this.generation && !this.interrupting) this.audio.finishSpeech(() => { if (!this.ended) { this.active = false; this.callbacks.state('listening') } })
@@ -133,20 +123,15 @@ export class VoiceCall {
   interrupt() {
     if (this.ended) return
     this.audio.stopSpeech(); this.active = false; this.interrupting = true
-    if (this.speechTimer) clearTimeout(this.speechTimer)
     this.send({ type: 'interrupt' })
     if (this.ready) this.callbacks.state('listening')
-  }
-  speak(source: 'status' | 'message', seq?: number) {
-    if (this.speechTimer) clearTimeout(this.speechTimer)
-    this.speechTimer = setTimeout(() => this.send(source === 'status' ? { type: 'speak', source } : { type: 'speak', source, seq }), 150)
   }
   private send(value: object) { if (!this.ended && this.ready && this.socket?.readyState === 1) this.socket.send(JSON.stringify(value)) }
   private fail(message: string) { if (this.ended) return; this.end(); this.callbacks.error(message); this.callbacks.state('error') }
   end() {
     if (this.ended) return
     this.send({ type: 'end' }); this.ended = true; this.ready = false
-    clearTimeout(this.retryTimer); clearTimeout(this.speechTimer)
+    clearTimeout(this.retryTimer)
     this.socket?.close(); this.audio.close(); this.callbacks.partial(''); this.callbacks.state('off')
   }
 }

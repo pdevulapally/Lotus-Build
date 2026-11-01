@@ -35,6 +35,7 @@ export const sessionSchema = z.object({
 export const messageSchema = z.object({
   seq: z.number().int().nonnegative(), role: z.enum(['user', 'assistant']), content: z.string(), createdAt: timestamp,
   attachments: z.array(attachmentRefSchema).default([]),
+  voiceSpeaker: z.enum(['user', 'assistant']).optional(),
 })
 const capabilitySchema = z.discriminatedUnion('kind', [
   z.object({ key: z.string(), kind: z.literal('boolean'), value: z.boolean() }),

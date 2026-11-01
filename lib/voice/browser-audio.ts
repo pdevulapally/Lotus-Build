@@ -1,7 +1,7 @@
 export interface VoiceAudio {
   start(onChunk: (pcm: ArrayBuffer) => void, onActivity: () => void, onFailure: () => void, access: () => Promise<void>): Promise<void>
   mute(muted: boolean): void
-  play(base64: string): void
+  play(base64: string, sampleRate: number): void
   stopSpeech(): void
   finishSpeech(onFinished: () => void): void
   close(): void
@@ -49,7 +49,7 @@ export class BrowserVoiceAudio implements VoiceAudio {
     }
   }
   mute(muted: boolean) { for (const track of this.stream?.getAudioTracks() ?? []) track.enabled = !muted }
-  play(base64: string) {
+  play(base64: string, sampleRate: number) {
     const context = this.context
     if (!context || context.state !== 'running' || this.closed) throw new Error('Audio playback was paused by your browser. End and restart voice, or use text.')
     const binary = atob(base64)
@@ -64,7 +64,8 @@ export class BrowserVoiceAudio implements VoiceAudio {
     for (let i = 0; i < samples.length; i++) samples[i] = view.getInt16(i * 2, true) / 32768
     this.nextTime = Math.max(context.currentTime, this.nextTime)
     if (this.nextTime - context.currentTime > 90) throw new Error('Voice playback exceeded its buffer limit. The response remains in chat.')
-    const buffer = context.createBuffer(1, samples.length, 24000); buffer.copyToChannel(samples, 0)
+    if (![8000, 16000, 22050, 24000, 44100, 48000].includes(sampleRate)) throw new Error('Unsupported voice audio format.')
+    const buffer = context.createBuffer(1, samples.length, sampleRate); buffer.copyToChannel(samples, 0)
     const source = context.createBufferSource(); source.buffer = buffer; source.connect(context.destination)
     this.sources.add(source)
     source.onended = () => { source.disconnect(); this.sources.delete(source); if (!this.sources.size && this.ended) { const done = this.ended; this.ended = null; done() } }

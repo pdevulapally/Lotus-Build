@@ -356,7 +356,7 @@ export default function ComputerPage() {
   useEffect(() => {
     if (backend.desktop.status === 'none' && activeTab === 'desktop') setActiveTab('preview')
   }, [activeTab, backend.desktop.status])
-  const handleRun = async (prompt: string, nextMode?: 'build' | 'plan', attachments: AttachmentRef[] = [], originalInput?: { id: string; answer: string } | null, steer = false) => {
+  const handleRun = async (prompt: string, nextMode?: 'build' | 'plan', attachments: AttachmentRef[] = [], originalInput?: { id: string; answer: string } | null) => {
     if (busyRef.current) throw new Error('A message is already being submitted.')
     if (!raw || !user) throw new Error('Session is not available.')
     busyRef.current = true; setIsStartingRun(true); setRunError(null)
@@ -364,7 +364,7 @@ export default function ComputerPage() {
       const request = raw.pendingInput
       if (originalInput === undefined && request?.kind === 'approval' && !['approve', 'reject'].includes(prompt)) throw new Error('Use Approve or Reject to answer this request.')
       await sendMessage(currentBackend(), pendingCommandStorage(), user.uid, raw.id, prompt, nextMode, attachments,
-        originalInput === undefined ? (request === undefined ? undefined : { id: request.id, answer: prompt }) : originalInput ?? undefined, steer)
+        originalInput === undefined ? (request === undefined ? undefined : { id: request.id, answer: prompt }) : originalInput ?? undefined)
       void backend.refresh().catch((reason) => setRunError(`Message accepted, but history refresh failed: ${reason instanceof Error ? reason.message : 'Request failed.'}`))
     } catch (reason) {
       // The composer shows the submit error itself; a second copy here would be noise.
@@ -572,7 +572,7 @@ export default function ComputerPage() {
 
           {/* Composer */}
           <div className={cn(styles.composerDock, "mx-auto w-full max-w-[792px] shrink-0 px-3 pt-2 [padding-bottom:max(1rem,env(safe-area-inset-bottom))] sm:pb-5 lg:px-4")}>
-            {raw && user && <VoiceControls key={`${user.uid}:${raw.id}`} session={raw} messages={backend.messages} identity={user.uid} refresh={backend.refresh} onMessage={prompt => handleRun(prompt, undefined, [], undefined, true)} />}
+            {raw && user && <VoiceControls key={`${user.uid}:${raw.id}`} session={raw} identity={user.uid} refresh={backend.refresh} />}
             {isBuildTokenBlocked && (
               <div className="mb-3 rounded-xl border border-border bg-muted px-3 py-2.5">
                 <p className="text-sm font-medium text-foreground">You have used all credits for this cycle.</p>
@@ -598,7 +598,7 @@ export default function ComputerPage() {
             {isStopping && <p role="status" className="mb-2 text-xs text-muted-foreground">Cancellation accepted. Stopping further work; external actions already sent may have completed.</p>}
             {isStartingRun && <p role="status" className="mb-2 text-xs text-muted-foreground">Sending command. Waiting for confirmation...</p>}
             {pendingMessage && !isStartingRun && <p role="status" className="mb-2 text-xs text-muted-foreground">Message pending confirmation: {pendingMessage.prompt.slice(0, 160)}{' '}
-              <button type="button" className="underline" onClick={() => { void handleRun(pendingMessage.prompt, pendingMessage.mode, pendingMessage.attachments, pendingMessage.inputResponse ?? null, pendingMessage.steer).catch(() => {}) }}>Retry original message</button>
+              <button type="button" className="underline" onClick={() => { void handleRun(pendingMessage.prompt, pendingMessage.mode, pendingMessage.attachments, pendingMessage.inputResponse ?? null).catch(() => {}) }}>Retry original message</button>
             </p>}
             {pendingCancellation && <p role="status" className="mb-2 text-xs text-muted-foreground">Cancellation pending confirmation.{' '}
               <button type="button" className="underline" onClick={() => { void handleStop() }}>Retry cancellation</button>
