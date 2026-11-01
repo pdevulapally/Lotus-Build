@@ -4,7 +4,9 @@ Local implementation; voice stays disabled until the backend operator approves a
 
 The computer page adds a compact voice surface beside the existing composer. The current session, message API, pending-command identities, approval controls, cancellation controls and SSE history remain authoritative. Native ElevenAgents Realtime handles conversation. Its two restricted tools execute on the backend; the browser never turns every utterance into a build request. Accepted clarifications use existing steering and durable HTTP command identities.
 
-`VoiceControls` owns lifecycle and current task bindings; `VoicePanel` renders accessible controls; `VoiceCall` handles bounded audio reconnection and generation fencing; `BrowserVoiceAudio` owns the user-gesture AudioContext, permission-gated capture, PCM playback and device cleanup. A bounded AudioWorklet resamples mono microphone input to 16kHz PCM. Playback uses the negotiated server-selected PCM rate. No recording file or local audio history is created.
+`VoiceControls` owns lifecycle and current task bindings; `VoicePanel` renders an accessible nonmodal popover beside the chat composer; `VoiceCall` handles bounded audio reconnection and generation fencing; `BrowserVoiceAudio` owns the user-gesture AudioContext, permission-gated capture, PCM playback and device cleanup. A bounded AudioWorklet resamples mono microphone input to 16kHz PCM. Playback uses the negotiated server-selected PCM rate. No recording file or local audio history is created.
+
+The orb uses the owner's orange/sand/lilac ShaderGradient preset, clipped into a soft glass form. Its motion follows actual listening/speaking state, not invented audio levels. The existing shader package loads only for an open, visible, connected conversation. Reduced motion, muted listening, hidden pages, idle/connecting/error states and lost WebGL use a static graphic; very short screens omit the decoration to keep status and controls visible. Closing the panel ends the audio call; clicking/typing in chat while a call is active keeps the panel open. Escape closes the call/panel and returns keyboard focus through the existing popover component. Accepted task work continues.
 
 The frontend first checks the authenticated backend's voice availability and task access. A private WebSocket to that same backend sends a fresh Firebase token in its first frame, not in its URL. Browser voice connects to no ElevenLabs endpoint. Starting voice does not create a session. During a provider outage, accepted work continues; reconnecting refreshes the same task. No audio or utterance is replayed.
 
@@ -14,10 +16,11 @@ The controls distinguish microphone mute, stop speech, end call and task cancell
 
 These screenshots show the actual presentational component with simulated state, generated locally in headless Chrome. They are not proof of a connected account or live audio conversation:
 
-- [Desktop states](desktop.png)
-- [390px mobile states](mobile.png)
+- [Desktop shader card](desktop.png)
+- [390px mobile shader card](mobile.png)
+- [Dark theme](dark.png)
 
-Verified: no horizontal mobile overflow, labelled microphone state, wrapping controls, text alternative, permission-denial copy and disabled pre-consent start. The actual authenticated computer page has not been exercised with a verified test account.
+Verified in local headless Chrome: actual WebGL shader renders without page errors; popover remains within desktop, 390px mobile and 320×568 viewport bounds; microphone/end-call/stop controls remain accessible; consent gates start; chat typing does not disconnect voice; Escape restores focus; dark theme and reduced motion work. Forcing WebGL context loss removes the renderer while retaining the controls and static graphic. Model states in these screenshots are simulated, not a connected ElevenLabs call. The actual authenticated computer page has not been exercised with a verified test account.
 
 ## Local validation
 
