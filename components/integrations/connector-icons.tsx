@@ -38,3 +38,11 @@ export function ChevronGlyph(props: SVGProps<SVGSVGElement>) {
     </svg>
   )
 }
+
+export function ArrowGlyph(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      <path d="M4.5 11.5l7-7M6 4.5h5.5V10" />
+    </svg>
+  )
+}
