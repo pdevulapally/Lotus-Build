@@ -46,3 +46,25 @@ export function ArrowGlyph(props: SVGProps<SVGSVGElement>) {
     </svg>
   )
 }
+
+export function PlusGlyph(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true" {...props}>
+      <path d="M10 4v12M4 10h12" />
+    </svg>
+  )
+}
+
+export function DotsGlyph(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 20 20" width="20" height="20" fill="currentColor" aria-hidden="true" {...props}>
+      <circle cx="4.5" cy="10" r="1.6" /><circle cx="10" cy="10" r="1.6" /><circle cx="15.5" cy="10" r="1.6" />
+    </svg>
+  )
+}
+
+/** Official brand marks, stored locally under /public/integrations (no third-party requests). */
+export function BrandLogo({ connector, name }: { connector: ConnectorKey; name: string }) {
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={`/integrations/${connector}.svg`} alt="" width={28} height={28} decoding="async" data-brand={connector} aria-label={undefined} title={name} />
+}

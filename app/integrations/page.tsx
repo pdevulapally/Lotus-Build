@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { Navbar } from '@/components/ui/navbar'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { ArrowGlyph, ChevronGlyph, connectorGlyphs } from '@/components/integrations/connector-icons'
+import { BrandLogo, DotsGlyph, PlusGlyph } from '@/components/integrations/connector-icons'
 import { useAuth } from '@/contexts/auth-context'
 import { currentBackend } from '@/lib/backend/browser'
 import { statusLabel, type Connection, type Connector } from '@/lib/backend/connections'
@@ -78,7 +78,7 @@ function IntegrationsContent() {
     <main className={styles.main}>
       <header className={styles.intro}>
         <h1 className={styles.title}>Integrations</h1>
-        <p className={styles.lead}>Connect deployment targets and third-party tools your projects can use.</p>
+        <p className={styles.lead}>Connect services to let LotusBuild deploy and work across your tools</p>
       </header>
 
       {state.kind === 'loading' && <p className={styles.message} role="status">Loading integrations…</p>}
@@ -87,68 +87,59 @@ function IntegrationsContent() {
 
       {state.kind === 'ready' && (
         <>
-          <section className={styles.section} aria-labelledby="connected">
-            <h2 id="connected" className={styles.sectionTitle}>Connected</h2>
-            <ul className={styles.panel}>
-              {state.connections.length === 0 ? (
-                <li className={styles.row}>
-                  <div className={styles.text}>
-                    <p className={styles.name}>No services connected</p>
-                    <p className={styles.description}>Connect one below. You choose which projects may use it; credentials stay on the server.</p>
-                  </div>
-                </li>
-              ) : state.connections.map((connection) => {
-                const Glyph = connectorGlyphs[connection.connector]
-                const account = connection.account?.name ?? connection.connector
-                const projects = connection.grantedProjectIds?.length
-                const meta = [
-                  `${connection.status === 'active' ? 'Connected as' : `${statusLabel[connection.status]} ·`} ${account}`,
-                  connection.account?.team,
-                  projects === undefined ? undefined : `${projects} ${projects === 1 ? 'project' : 'projects'}`,
-                ].filter(Boolean).join(' · ')
-                return (
-                  <li key={connection.id} className={styles.row}>
-                    <span className={styles.icon} aria-hidden="true"><Glyph /></span>
-                    <div className={styles.text}>
-                      <h3 className={styles.name}>{connectorName(state.connectors, connection.connector)}</h3>
-                      <p className={styles.description}>{meta}</p>
-                    </div>
-                    {connection.status !== 'revoked' && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button type="button" className={styles.button} disabled={busy === connection.id} aria-label={`Manage ${account}`}>
-                            Manage <ChevronGlyph className={styles.buttonIcon} />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-52 rounded-xl p-1.5">
-                          <DropdownMenuItem className="rounded-lg px-3 py-2" onSelect={() => disconnect(connection)}>Disconnect</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </li>
-                )
-              })}
-            </ul>
-          </section>
+          {state.connections.length > 0 && (
+            <section className={styles.section} aria-labelledby="connected">
+              <h2 id="connected" className={styles.sectionTitle}>Connected</h2>
+              <ul className={styles.grid}>
+                {state.connections.map((connection) => {
+                  const name = connectorName(state.connectors, connection.connector)
+                  const account = connection.account?.name ?? name
+                  const meta = connection.status === 'active'
+                    ? [account, connection.account?.team].filter(Boolean).join(' · ')
+                    : `${statusLabel[connection.status]} · ${account}`
+                  return (
+                    <li key={connection.id} className={styles.row}>
+                      <span className={styles.tile} aria-hidden="true"><BrandLogo connector={connection.connector} name={name} /></span>
+                      <div className={styles.text}>
+                        <h3 className={styles.name}>{name}</h3>
+                        <p className={styles.description}>{meta}</p>
+                      </div>
+                      {connection.status !== 'revoked' && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button type="button" className={styles.action} disabled={busy === connection.id} aria-label={`Options for ${name} (${account})`}>
+                              <DotsGlyph />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-52 rounded-xl p-1.5">
+                            <DropdownMenuItem className="rounded-lg px-3 py-2" onSelect={() => disconnect(connection)}>Disconnect</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            </section>
+          )}
 
           <section className={styles.section} aria-labelledby="available">
-            <h2 id="available" className={styles.sectionTitle}>Integrations</h2>
-            <ul className={styles.panel}>
+            <h2 id="available" className={styles.sectionTitle}>Available</h2>
+            <ul className={styles.grid}>
               {state.connectors.map((connector) => {
-                const Glyph = connectorGlyphs[connector.key]
                 const pending = connector.status === 'configuration_required' || !state.configured
                 return (
                   <li key={connector.key} className={styles.row}>
-                    <span className={styles.icon} aria-hidden="true"><Glyph /></span>
+                    <span className={styles.tile} aria-hidden="true"><BrandLogo connector={connector.key} name={connector.name} /></span>
                     <div className={styles.text}>
                       <h3 className={styles.name}>{connector.name}</h3>
                       <p className={styles.description}>{connector.summary}</p>
                     </div>
                     {pending ? (
-                      <span className={styles.soon}>Coming soon</span>
+                      <span className={styles.soon}>Soon</span>
                     ) : (
-                      <button type="button" className={styles.button} disabled={busy === connector.key} aria-label={`Connect ${connector.name}`} onClick={() => connect(connector)}>
-                        Connect <ArrowGlyph className={styles.buttonIcon} />
+                      <button type="button" className={styles.action} disabled={busy === connector.key} aria-label={`Connect ${connector.name}`} onClick={() => connect(connector)}>
+                        <PlusGlyph />
                       </button>
                     )}
                   </li>
