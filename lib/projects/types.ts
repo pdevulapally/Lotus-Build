@@ -91,7 +91,6 @@ export interface Project {
   netlifyAdminUrl?: string
   netlifyDeployId?: string
   netlifyDeployUrl?: string
-  vercelToken?: string
   vercelProjectName?: string
   vercelSiteUrl?: string
   vercelDeployUrl?: string

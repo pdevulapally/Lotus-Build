@@ -856,7 +856,7 @@ body:has([data-product-theme='dark']) :is([data-slot='dropdown-menu-content'], [
 }
 
 [data-auth-theme='dark'] { color: var(--foreground); color-scheme: dark; }
-[data-auth-theme='dark'] .site-action { border-radius: 999px; }
+:is([data-auth-theme='dark'], [data-product-theme='dark']) .site-action { border-radius: 999px; }
 
 /* A defined neutral input surface over the hero shader. */
 [data-landing-hero] [data-slot='assistant-composer'] {

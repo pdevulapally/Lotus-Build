@@ -11,6 +11,18 @@ export function previewUrl(value: unknown, appOrigin: string): string {
   } catch { throw new Error('Preview must use a separate HTTPS origin. Local HTTP previews are allowed only during local development.') }
 }
 
+/**
+ * The preview URL only exists while the session's sandbox does. The runner
+ * clears `sandboxId` when it releases the machine (end of build, limit reached,
+ * failure), and a fresh `sandbox.started` means any earlier URL belongs to a
+ * machine that is gone. Rendering a dead URL shows a blank frame, so the
+ * preview is derived from both rather than kept as independent truth.
+ */
+export function visiblePreview(input: { preview: string | null; session: { sandboxId?: string } | null; publicPreviewEnabled: boolean }): string | null {
+  if (!input.publicPreviewEnabled || input.preview === null || input.session === null) return null
+  return input.session.sandboxId === undefined ? null : input.preview
+}
+
 const coordinate = z.number().min(-1_000_000).max(1_000_000)
 const size = z.number().nonnegative().max(1_000_000)
 const rect = z.object({ x: coordinate, y: coordinate, width: size, height: size })
