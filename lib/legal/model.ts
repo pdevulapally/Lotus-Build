@@ -3,7 +3,8 @@ import { lotusBuildSupportEmail } from '@/lib/lotus-build-site-content'
 /** Facts shared by every legal document. Change them here, never inline in a page. */
 export const legalIdentity = {
   tradingName: 'LotusBuild',
-  siteUrl: 'https://www.lotusbuild.co.uk',
+  legalName: 'SR IT SUPPORT SERVICES LTD',
+  siteUrl: 'https://lotusbuild.co.uk',
   contactEmail: lotusBuildSupportEmail,
   governingLaw: 'the laws of England and Wales',
   courts: 'the courts of England and Wales',
