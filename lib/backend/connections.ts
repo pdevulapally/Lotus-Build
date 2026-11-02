@@ -42,7 +42,7 @@ export const repositoryListSchema = z.object({ repositories: z.array(repositoryS
 
 /** The repository a project is bound to. */
 export const projectSourceSchema = z.object({
-  kind: z.literal('github'), connectionId: z.string(), fullName: z.string(), defaultBranch: z.string(), boundAt: z.string(),
+  kind: z.literal('github'), connectionId: z.string(), fullName: z.string(), defaultBranch: z.string(), branch: z.string().optional(), boundAt: z.string(),
 }).strict()
 export type ProjectSource = z.infer<typeof projectSourceSchema>
 export const projectSourceResponseSchema = z.object({ source: projectSourceSchema.nullable() })
