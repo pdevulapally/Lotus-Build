@@ -40,6 +40,7 @@ export function LegalDocument({
   description,
   effectiveDate,
   lastUpdated,
+  version,
   related,
   notice,
   sections,
@@ -50,6 +51,7 @@ export function LegalDocument({
   description: ReactNode
   effectiveDate: string
   lastUpdated: string
+  version?: string
   related: { href: string; label: string }
   notice?: ReactNode
   sections: readonly DocumentSection[]
@@ -91,6 +93,7 @@ export function LegalDocument({
           <h1 className="site-title mt-5">{title}</h1>
           <p className="site-lead mt-6">{description}</p>
           <div className="mt-10 flex flex-col gap-3 text-xs leading-6 text-muted-foreground sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-8">
+            {version && <span>Version: {version}</span>}
             <span><span className="font-semibold text-foreground">Effective:</span> {effectiveDate}</span>
             <span><span className="font-semibold text-foreground">Last updated:</span> {lastUpdated}</span>
             <Link href={related.href} className="inline-flex w-fit items-center gap-2 rounded-sm font-semibold text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring">
@@ -200,7 +203,7 @@ function Block({ block }: { block: LegalBlock }) {
 /** Renders a complete legal document from typed content so Privacy and Terms share one layout and one source of facts. */
 export function LegalContentDocument({ content }: { content: LegalDocumentContent }) {
   return (
-    <LegalDocument title={content.title} description={content.description} effectiveDate={content.effectiveDate} lastUpdated={content.lastUpdated} related={content.related} notice={content.notice} sections={content.sections} contact={content.contact}>
+    <LegalDocument title={content.title} description={content.description} effectiveDate={content.effectiveDate} lastUpdated={content.lastUpdated} version={content.version} related={content.related} notice={content.notice} sections={content.sections} contact={content.contact}>
       {content.sections.map((section, index) => (
         <section key={section.id} aria-labelledby={section.id}>
           <SectionTitle id={section.id}>{index + 1}. {section.title}</SectionTitle>

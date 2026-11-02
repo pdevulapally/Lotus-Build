@@ -2,7 +2,6 @@
 import { useState } from 'react'
 import { Navbar } from '@/components/ui/navbar'
 import { FooterSection } from '@/components/sections/footer-section'
-import { CookieBanner } from '@/components/cookie-banner'
 import { LandingHero, type BriefRequest } from './landing-hero'
 import { LandingDemo } from './landing-demo'
 import { ClosingSection, FeatureRowsSection, SavedWorkSection, StartModesSection, TrustSection } from './landing-sections'
@@ -26,6 +25,5 @@ export function LandingPage() {
       <ClosingSection onStart={focusBrief} />
       <FooterSection stacked />
     </main>
-    <CookieBanner />
   </>
 }

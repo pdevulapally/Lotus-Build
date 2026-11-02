@@ -1,98 +1,100 @@
-import { email, legalIdentity as id, link, strong, type LegalDocumentContent } from './model'
+import { email, legalIdentity as id, legalDocumentVersion, link, type LegalDocumentContent } from './model'
 
 export const termsOfService: LegalDocumentContent = {
   title: 'Terms of Service',
-  description: `The agreement between you and ${id.legalName} for using the ${id.tradingName} workspace to plan, build and preview software.`,
+  description: `Terms for using ${id.tradingName} to plan software, work with AI agents and manage development projects.`,
   effectiveDate: '18 October 2026',
   lastUpdated: '1 November 2026',
-  notice: 'If you are a consumer in the UK, nothing in these terms affects your statutory rights under the Consumer Rights Act 2015 or the Consumer Contracts (Information, Cancellation and Additional Charges) Regulations 2013.',
+  version: legalDocumentVersion,
+  notice: 'Nothing in these terms limits mandatory consumer or data-protection rights under applicable law.',
   related: { href: '/privacy', label: 'Privacy Policy' },
-  contact: { title: 'Questions?', description: 'We are happy to explain anything in these terms.' },
+  contact: { title: 'Contract and billing enquiries', description: 'Contact us about these terms, a subscription or a billing concern.' },
   sections: [
-    { id: 'about', label: 'About these terms', title: 'About these terms', blocks: [
-      { kind: 'p', text: [`These terms apply when you use ${id.siteUrl}, the LotusBuild workspace and our API (the “Service”), provided by ${id.legalName}, operating the Service under the ${id.tradingName} brand (“we”, “us”). Our `, link('Privacy Policy', '/privacy'), ' explains how we use personal data.'] },
-      { kind: 'p', text: 'By creating an account or using the Service you accept these terms. If you use the Service for a business, you confirm you can accept them for that business, and the business-user sections below apply.' },
-      { kind: 'p', text: [`Company number: ${id.companyNumber}. Registered in ${id.registrationJurisdiction}. Registered office: ${id.registeredOffice}. You can contact us at `, email(), '.'] },
+    { id: 'about', label: 'Parties and agreement', title: 'Parties and agreement', blocks: [
+      { kind: 'p', text: `These terms concern ${id.tradingName}, the software development platform at ${id.siteUrl}, and identify ${id.legalName} as the service provider (“we”, “us”). The company is registered in ${id.registrationJurisdiction}, company number ${id.companyNumber}.` },
+      { kind: 'p', text: ['By creating an account or buying a subscription after these terms are presented to you, you agree to them. Contact us at ', email(), '. Our ', link('Privacy Policy', '/privacy'), ' explains data processing; acknowledging it is different from consenting to optional tracking.'] },
+      { kind: 'p', text: 'A consumer is someone acting mainly outside their trade or profession. Business use and consumer use receive different treatment only where the law permits. An organisation’s representative must have authority to bind it and to grant access to its data and external accounts. An individual’s statutory rights do not disappear because they are a developer or use a business email address.' },
     ] },
-    { id: 'service', label: 'The Service', title: 'What the Service does', blocks: [
-      { kind: 'list', items: [
-        'Plan mode: work through what to build with an AI agent before anything is built.',
-        'Build mode: the agent writes and changes code in your project and runs it in an isolated sandbox.',
-        'Previews of your running project, which are private unless you turn on public preview.',
-        'Saved source files, version history and project downloads as a ZIP.',
-        'Voice conversations started with the waveform button. Live audio and recent project conversation are sent to ElevenLabs; final dialogue is saved in your project chat. Ending voice stops audio sharing and does not cancel accepted project work.',
-      ] },
-      { kind: 'p', text: 'The models, features and allowances available to you depend on your plan and are shown in the Service and on the Pricing page. We may improve or change features; if a change materially reduces what you have paid for, we will tell you in advance and you may cancel.' },
+    { id: 'service', label: 'Service and availability', title: 'What the service provides', blocks: [
+      { kind: 'p', text: 'LotusBuild is an AI-assisted software workspace. Available features can include Plan and Build sessions, generated or edited source files, code execution, saved history, project downloads, previews and browser/computer tools. Voice and external connections are available only where the server enables them. A catalog entry, demonstration or roadmap item is not a promise that a feature is available to your account.' },
+      { kind: 'p', text: 'The current catalog and your selected plan determine models, usage allowances and available functions. Features are included only where made available to your account. We provide the service with reasonable care and skill. Availability can be affected by maintenance, resource limits, failures and external providers; these terms do not promise uninterrupted availability.' },
+      { kind: 'p', text: 'Material reductions to paid services require fair notice and any cancellation, refund or other remedy required by your contract and applicable law. We cannot use a feature-change clause to remove what a consumer has already paid for without the protections the law requires.' },
     ] },
-    { id: 'accounts', label: 'Your account', title: 'Your account', blocks: [
+    { id: 'accounts', label: 'Eligibility and accounts', title: 'Eligibility and account security', blocks: [
       { kind: 'list', items: [
-        `You must be at least ${id.minimumAge} and able to enter into a binding contract.`,
-        'Give accurate details and verify your email address before using paid or build features.',
-        'Keep your sign-in secure and tell us promptly if you think someone else has accessed your account.',
-        'You are responsible for activity under your account unless it results from our failure to keep the Service secure.',
+        `You must be at least ${id.minimumAge} and legally able to enter into the relevant agreement.`,
+        'Provide accurate registration information and complete required email verification. Keep sign-in credentials secure and notify support promptly of suspected unauthorised access.',
+        'Grant only permissions you are authorised to give. Connecting an organisation repository or service account requires that organisation’s authority. Shared credentials do not create a supported team account.',
+        'You are responsible for instructions and permissions you provide and for activity you authorise. This does not make you liable for activity caused by our breach, negligence or failure to provide required security.',
       ] },
     ] },
-    { id: 'billing', label: 'Plans and payment', title: 'Plans, payment and cancellation', blocks: [
-      { kind: 'h3', text: 'Prices' },
-      { kind: 'p', text: 'Plan prices, allowances and whether VAT is included are shown on the Pricing page and again at Stripe checkout before you pay. Payments are processed by Stripe; we never see your full card details.' },
-      { kind: 'h3', text: 'Subscriptions' },
-      { kind: 'p', text: 'Paid plans are subscriptions that renew automatically at the end of each billing period until you cancel. You can cancel at any time in the billing portal from Settings; cancellation stops the next renewal and you keep access until the end of the period you have paid for.' },
-      { kind: 'h3', text: 'Your 14-day right to cancel (UK consumers)' },
-      { kind: 'p', text: 'If you are a consumer, you can cancel a new subscription within 14 days of buying it without giving a reason. Because the Service starts as soon as you subscribe, at your request, you will receive a refund minus a proportionate amount for the service provided up to the time you tell us you are cancelling. To cancel, email us or use the billing portal and contact us within the 14 days. We will refund you within 14 days of being told, using the original payment method.' },
-      { kind: 'h3', text: 'Usage allowances' },
-      { kind: 'p', text: 'Plans include usage allowances that are measured and shown in Settings. When an allowance is used up, work that needs more usage will not start until the allowance resets or you change plan. Unused allowance does not carry over unless your plan says it does.' },
-      { kind: 'h3', text: 'Price changes' },
-      { kind: 'p', text: 'We will give you at least 30 days’ notice of a price increase before it applies to your next renewal. If you do not want to continue, you can cancel before the new price applies.' },
-      { kind: 'h3', text: 'Failed payments' },
-      { kind: 'p', text: 'If a payment fails, Stripe may retry it. If payment is still not received, we may move your account to the free plan; your projects are not deleted because of a failed payment.' },
+    { id: 'agents', label: 'Agent authority', title: 'Instructions, approvals and external actions', blocks: [
+      { kind: 'p', text: 'An instruction to develop software can authorise the agent to read and change files and run commands within the requested project. Files, websites and tool results can contain misleading or malicious instructions. Review the scope of work and give the narrowest access needed. An instruction to plan is distinct from approval to build; a repository clone or local commit is distinct from a remote push, pull request, merge or deployment.' },
+      { kind: 'p', text: 'Material external actions, such as publishing changes, sending messages, granting access or incurring third-party charges, require appropriate user authority and any action-specific approval presented by the service. A connected account is not blanket authorisation for unrelated actions. Do not assume every shell command or browser action has a separate approval screen. Review the task scope and controls before starting work.' },
+      { kind: 'p', text: 'The GitHub connector can grant selected repositories to a project and supports approvals for remote writes. Whether a particular operation is available depends on the enabled service. Revoke access in the connected service as well as in LotusBuild when necessary. Third-party permissions, costs and terms continue to apply. You remain responsible for authorised use of your external accounts, without excusing our own failures.' },
+      { kind: 'p', text: 'Stopping voice ends audio sharing for the call; it does not cancel work already submitted. Stopping a task, ending a session, terminating a sandbox and saving files are separate actions. Background work may continue while your browser is disconnected, subject to the service’s controls and limits. Check the task state before repeating an instruction after a connection failure.' },
     ] },
-    { id: 'your-content', label: 'Your content and output', title: 'Your content and generated output', blocks: [
-      { kind: 'p', text: [strong('You own your prompts, uploads and projects, and the code and content the Service generates for you'), ', to the extent the law allows ownership of AI-generated material. We do not claim ownership of them.'] },
-      { kind: 'p', text: 'You give us permission to store, copy, process and transmit your content only as needed to run the Service for you, including sending it to the providers listed in our Privacy Policy. We do not use your content to train AI models.' },
-      { kind: 'p', text: 'You are responsible for having the rights to anything you put into the Service and for how you use the output, including checking that it does not infringe anyone else’s rights.' },
+    { id: 'ai-output', label: 'AI output and review', title: 'AI limitations and review responsibilities', blocks: [
+      { kind: 'callout', variant: 'warn', text: 'AI can produce incorrect, incomplete, insecure, infringing or non-working code and may misunderstand instructions. Review source, dependencies, licences, security, accessibility and behaviour before relying on or publishing an output. A successful build is not proof of production safety or legal compliance.' },
+      { kind: 'p', text: 'AI output is not guaranteed to be original, exclusive or fit for a particular purpose. Obtain qualified review for legal, financial, medical or safety-critical uses. These limitations describe the technology; they do not exclude our duty of reasonable care and skill, responsibility for our own failures or mandatory remedies.' },
     ] },
-    { id: 'ai-output', label: 'AI output', title: 'AI-generated output', blocks: [
-      { kind: 'callout', variant: 'warn', text: 'AI output can contain mistakes, security weaknesses or code that does not work as expected. Review and test it before you rely on it or put it into production, and do not rely on it for legal, financial, medical or safety-critical decisions without professional advice.' },
-      { kind: 'p', text: 'We provide the Service with reasonable care and skill. Because AI output depends on your instructions and is probabilistic, we cannot promise that any particular output will be correct, unique or suitable for a specific purpose.' },
+    { id: 'your-content', label: 'Content and output rights', title: 'Your materials and generated output', blocks: [
+      { kind: 'p', text: 'You retain whatever rights you hold in the material you supply. Supplying another person’s code or data does not transfer their ownership to you. You must have permission or another lawful entitlement to use and submit it, including necessary privacy notices and authority for repository access.' },
+      { kind: 'p', text: 'Subject to applicable law and existing third-party rights, we do not claim ownership of your original materials. To the extent we have transferable rights in generated output, we assign those rights to you. This is not a promise that copyright exists in every output, that output is exclusive, or that we can transfer rights belonging to others.' },
+      { kind: 'p', text: 'You grant us a limited, non-exclusive licence to host, copy, process, transmit and adapt your materials to supply your requested service, operate security and recovery functions, and meet applicable legal duties. This includes service providers used for those purposes. It is not an unlimited licence to commercialise your work. The Privacy Policy explains model processing and provider arrangements.' },
+      { kind: 'p', text: 'Outputs can contain open-source components or other third-party material. Their licences and restrictions continue to apply, including attribution, notices, source disclosure or copyleft duties where relevant. Review dependencies and provenance before distribution. You may remove or export content through available controls; copies in external services and legally retained records have separate treatment.' },
+    ] },
+    { id: 'our-ip', label: 'Platform rights and feedback', title: 'Platform rights, branding and feedback', blocks: [
+      { kind: 'p', text: 'The platform software, design and brand are protected by rights belonging to their respective owners. Access permits use of available service functions for your own or authorised organisation’s development work; it does not transfer platform or trademark rights. These terms do not grant a right to copy or represent the LotusBuild brand as your own.' },
+      { kind: 'p', text: 'If you voluntarily provide non-confidential suggestions, you permit their use to improve the service without an obligation to pay you. This permission does not take ownership of your projects, waive personal-data rights or allow disclosure of information identified as confidential.' },
+    ] },
+    { id: 'billing', label: 'Plans and subscriptions', title: 'Prices, metering and subscriptions', blocks: [
+      { kind: 'p', text: 'Before paying, review the plan and the checkout price, currency, billing interval, tax treatment and renewal terms. Payments use Stripe-hosted checkout. Only the plans, currencies and payment methods actually offered at checkout are available. Any applicable taxes must be disclosed as required by law before you commit to payment.' },
+      { kind: 'p', text: 'Where checkout offers a recurring subscription, charges recur at the disclosed interval until cancellation takes effect. Use the billing portal linked from Settings for available subscription controls, or contact support if a cancellation method is unavailable. Review the confirmation for the effective end date and continued access. Closing a browser, disconnecting an integration or submitting a data-erasure request does not itself cancel billing.' },
+      { kind: 'p', text: 'Usage may include model, execution, storage, voice or other measures shown by the service. Work can reserve usage before final settlement; a reservation and a final charge are different. Limits can prevent or stop work. Any rollover, expiry, additional purchase or refund treatment of allowances is subject to the applicable plan and mandatory rights.' },
+      { kind: 'p', text: 'A failed payment may lead to notices, payment recovery or a restriction of paid functions under the disclosed subscription arrangement. It is not permission to destroy saved projects without the applicable notice and retention process. We must give clear advance notice of material price or plan changes and the ability to avoid a new charge where required; changes do not retrospectively change charges already agreed.' },
+    ] },
+    { id: 'consumer-cancellation', label: 'Consumer cancellation', title: 'Cooling-off, refunds and billing disputes', blocks: [
+      { kind: 'p', text: 'Consumers may have a statutory cancellation period, including a 14-day period for many UK distance service contracts, as well as remedies for non-performance, faulty digital content or lack of reasonable care and skill. The applicable rules depend on the product, country and contract date. Renewal-specific protections may also apply. Nothing in these terms removes those rights.' },
+      { kind: 'p', text: 'Starting work is not, by itself, proof of your express request for supply during a cooling-off period or a valid waiver of rights. Any proportionate deduction or exception for completed services or digital content is permitted only when all legal conditions, notices and express agreements are satisfied.' },
+      { kind: 'p', text: ['To exercise statutory withdrawal, send a clear statement to ', email(), ' identifying your account, the subscription and your decision to cancel. You can write: “I notify you that I cancel my contract for [service], ordered on [date], in the name of [name].” Portal cancellation of renewal and statutory withdrawal/refund are different requests. You do not have to use particular wording to make a clear cancellation request.'] },
+      { kind: 'p', text: 'Refunds due under law must be provided within the applicable statutory deadline and without imposing an unlawful fee or waiver. For many UK cancellation refunds this is 14 days after notice, subject to the relevant statutory rules; payment-provider settlement time does not extend our legal deadline. Other refunds follow the disclosed offer or an agreed remedy. Contact support promptly about disputed or duplicate charges; doing so does not limit statutory deadlines or payment-provider rights.' },
+    ] },
+    { id: 'continuity', label: 'Storage and continuity', title: 'Saved work, sandboxes and recovery', blocks: [
+      { kind: 'p', text: 'Keep independent copies of important work using available downloads or repository exports. A running sandbox or preview can stop independently of saved files. Downloads, chat history, saved versions, background jobs and account exports are different features; a history screen does not promise a restore function. These terms do not promise indefinite storage or a particular recovery point or backup service.' },
+      { kind: 'p', text: 'We remain responsible for storage and recovery commitments we actually make and for applicable legal duties. Review public links, previews and deployments before sharing them: anyone with access may copy content. Withdrawal of a link may not remove copies already obtained elsewhere.' },
     ] },
     { id: 'acceptable-use', label: 'Acceptable use', title: 'Acceptable use', blocks: [
-      { kind: 'p', text: 'You must not use the Service to:' },
       { kind: 'list', items: [
-        'break the law or help anyone else to, including fraud, harassment, or infringing intellectual property or privacy rights;',
-        'build or run malware, phishing pages, credential theft, denial-of-service tools or unauthorised scanning of systems you do not own;',
-        'create content that sexualises children, promotes terrorism or violence, or is otherwise unlawful;',
-        'mine cryptocurrency, run unrelated workloads in sandboxes, or try to escape a sandbox;',
-        'get around plan limits, rate limits, authentication or security controls, or access another user’s data;',
-        'resell or provide the Service to others as your own without our written agreement.',
+        'Do not use the service for unlawful activity, fraud, harassment, unlawful discrimination, exploitation of children, or infringement of privacy or intellectual-property rights.',
+        'Do not create or distribute malware, phishing or credential-theft tools, attack other systems, or perform security testing without the system owner’s authority. Legitimate authorised security development remains subject to the service’s resource and safety controls.',
+        'Do not escape sandboxes, access other accounts’ data, steal secrets, bypass access or usage controls, or abuse compute with unrelated workloads such as unauthorised mining or denial of service.',
+        'Respect the terms and permissions of connected services and dependencies. Do not grant access to repositories or personal data you are not entitled to use.',
       ] },
-      { kind: 'p', text: 'We may remove content or stop a session that breaks these rules and, where appropriate, report it to the authorities.' },
+      { kind: 'p', text: 'We may restrict harmful activity, remove unlawful material, preserve required evidence or report matters where lawfully necessary. Enforcement should be proportionate to the risk, including urgent protective action when needed. Contact support to challenge a restriction; we may withhold details where disclosure would be unlawful or compromise security.' },
     ] },
-    { id: 'our-ip', label: 'Our rights', title: 'Our intellectual property', blocks: [
-      { kind: 'p', text: 'The Service, its software, design and the LotusBuild name and logo belong to us or our licensors. These terms give you a personal, non-transferable right to use the Service; they do not transfer any of our intellectual property to you. If you send us feedback, we may use it without obligation to you.' },
+    { id: 'third-parties', label: 'External services', title: 'External providers and integrations', blocks: [
+      { kind: 'p', text: 'AI, hosting, authentication, execution, payment and connected-service providers can change or interrupt their services. Their terms may govern your direct relationship with them. We cannot guarantee their availability or the result of an external action, but using an external supplier does not remove our responsibilities for the service we sell you or our selection and handling of that supplier.' },
+      { kind: 'p', text: 'Charges imposed directly by an external service require your authority. Review scopes, resources and prices before connecting or approving actions. No statement here gives the agent permission to accept another service’s binding agreement on your behalf without authority.' },
     ] },
-    { id: 'third-parties', label: 'Third-party services', title: 'Third-party services', blocks: [
-      { kind: 'p', text: 'The Service relies on providers such as Google, Anthropic, ElevenLabs, E2B, Stripe and Vercel. If you connect or deploy to another service, that service’s own terms apply to your use of it.' },
+    { id: 'suspension', label: 'Suspension and closure', title: 'Suspension, termination and remaining balances', blocks: [
+      { kind: 'p', text: 'You may stop using the service, cancel recurring billing and request account erasure through the relevant controls. Erasure is reviewed separately from billing and may require identity, active-task and legal-retention checks. We may suspend or terminate access for a serious or repeated breach, a legal requirement, non-payment or a credible security risk. Except where urgency, law or security prevents it, we should explain the reason and provide a reasonable opportunity to remedy a breach or export work.' },
+      { kind: 'p', text: 'If we discontinue paid service without your breach, unused prepaid service and other balances must receive the remedy required by the contract and law, including an appropriate refund where due. Termination for breach does not automatically forfeit all money or remove consumer remedies. Any deduction must be legally justified and proportionate. Retention, confidentiality and accrued payment or legal obligations survive only to the extent appropriate.' },
     ] },
-    { id: 'suspension', label: 'Suspension and closure', title: 'Suspension and closing your account', blocks: [
-      { kind: 'p', text: 'You can stop using the Service at any time and request account erasure from Settings. Cancel any subscription first so you are not charged again.' },
-      { kind: 'p', text: 'We may suspend or close your account if you seriously or repeatedly break these terms, if we must do so by law, or to protect the Service or other users. Unless it would be unlawful or create a security risk, we will tell you why and give you a reasonable chance to download your projects. If we close a paid account without you being at fault, we will refund any prepaid amount for the period not provided.' },
+    { id: 'liability', label: 'Responsibility and remedies', title: 'Responsibility, liability and business claims', blocks: [
+      { kind: 'p', text: 'For consumers, we are responsible for foreseeable loss caused by our breach or failure to use reasonable care and skill, together with any additional mandatory remedies. Legal protection for faulty services or digital content cannot be waived by an AI disclaimer, an approval click or a recommendation to keep backups. Local consumer guarantees apply where mandatory.' },
+      { kind: 'p', text: 'For business customers, to the extent lawful and reasonable, we exclude liability for indirect or consequential loss. This does not automatically exclude direct recovery costs or losses caused by our breach merely because they involve data. Any additional liability limit or indemnity in a separate business agreement applies only where validly agreed and enforceable; it does not apply to consumers merely because they use the same service.' },
+      { kind: 'p', text: 'A business customer remains responsible under applicable law for its own unauthorised content, instructions or external access. Responsibility must reflect the actual cause of loss; authorising an agent action does not transfer responsibility for our own breach to you.' },
+      { kind: 'p', text: 'Nothing excludes or limits liability for death or personal injury caused by negligence, fraud, fraudulent misrepresentation, or any other liability that cannot lawfully be excluded or limited. Data-protection rights and legally required remedies remain intact. No mandatory arbitration, class-action waiver or jury-trial waiver is imposed.' },
     ] },
-    { id: 'liability', label: 'Liability', title: 'Our responsibility to you', blocks: [
-      { kind: 'h3', text: 'If you are a consumer' },
-      { kind: 'p', text: 'We are responsible for loss or damage you suffer that is a foreseeable result of our breaking these terms or failing to use reasonable care and skill. We are not responsible for loss that was not foreseeable. We only provide the Service for domestic and private use; if you use it for a business, we are not liable to you as a consumer for loss of profit, business or business opportunity.' },
-      { kind: 'p', text: 'If digital content we supply damages a device or other digital content of yours because we did not use reasonable care and skill, we will repair the damage or pay you compensation.' },
-      { kind: 'h3', text: 'If you are a business user' },
-      { kind: 'p', text: 'We are not liable for loss of profits, revenue, data, goodwill or any indirect or consequential loss. Our total liability under or in connection with these terms in any 12-month period is limited to the fees you paid us in that period. Statutory terms implied into these terms are excluded to the extent the law allows.' },
-      { kind: 'h3', text: 'For everyone' },
-      { kind: 'p', text: 'Nothing in these terms limits or excludes liability for death or personal injury caused by negligence, for fraud or fraudulent misrepresentation, or for anything else that cannot be limited or excluded by law.' },
+    { id: 'changes', label: 'Updates and disruption', title: 'Updates, disruption and notices', blocks: [
+      { kind: 'p', text: 'Material contract changes require a valid reason, fair advance notice, the applicable acceptance process and any right to reject, cancel or receive a remedy. A new version must not be backdated or silently substituted for terms already agreed. Urgent legal or security measures do not authorise unrelated retrospective price or rights changes.' },
+      { kind: 'p', text: 'Events genuinely outside reasonable control may delay performance. The affected party should take reasonable steps to reduce disruption, explain material effects and resume performance. This is not an excuse for avoidable failures, obligations to repay money where due, or denial of mandatory termination/refund rights if service remains unavailable.' },
     ] },
-    { id: 'changes', label: 'Changes to these terms', title: 'Changes to these terms', blocks: [
-      { kind: 'p', text: 'We may update these terms to reflect changes to the Service or the law. We will give you at least 30 days’ notice of changes that materially affect you. If you do not agree, you may cancel before they take effect; otherwise the updated terms apply from their effective date.' },
-    ] },
-    { id: 'law', label: 'Law and disputes', title: 'Governing law and disputes', blocks: [
-      { kind: 'p', text: ['If you have a problem, please contact us first at ', email(), ' so we can try to resolve it.'] },
-      { kind: 'p', text: `These terms are governed by ${id.governingLaw}, and the ${id.courts} have jurisdiction. If you are a consumer living in Scotland or Northern Ireland, you can also bring proceedings in your local courts, and the mandatory consumer law of your home country continues to protect you.` },
-      { kind: 'p', text: 'If any part of these terms is found to be unenforceable, the rest remains in effect. These terms are between you and us; no one else has rights under them.' },
+    { id: 'law', label: 'Law and disputes', title: 'Governing law and dispute resolution', blocks: [
+      { kind: 'p', text: ['Raise concerns at ', email(), ' so a resolution can be sought. This does not require you to exhaust support before exercising statutory complaint, regulator or court rights. No separate alternative-dispute scheme membership is represented.'] },
+      { kind: 'p', text: `These terms are governed by ${id.governingLaw}. Subject to mandatory local rules, business disputes may be brought in ${id.courts}. Consumers retain protections that cannot be displaced by a choice of law and any right to bring proceedings in their home courts. For consumers in Scotland or Northern Ireland, the applicable local court rights remain available. English law does not override another country’s mandatory consumer protections.` },
+      { kind: 'p', text: 'If a provision is unenforceable, the remaining terms continue where legally possible; it must not be replaced in a way that defeats mandatory rights. Not enforcing a right immediately is not necessarily a waiver. No third party receives enforcement rights under these terms unless law or an express agreed provision requires otherwise. Separate signed business terms may govern a particular order, subject to mandatory law and clear priority rules.' },
     ] },
   ],
 }

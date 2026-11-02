@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/auth-context"
 import { VerifiedEmailGate } from "@/components/auth/verified-email-gate"
 import { SettingsDialogProvider } from "@/components/settings/settings-dialog"
 import { ConsentAnalytics } from "@/components/consent-analytics"
+import { CookieBanner } from "@/components/cookie-banner"
 import { MotionProvider } from "@/components/motion-provider"
 import "./globals.css"
 import "@fontsource-variable/manrope/index.css"
@@ -125,6 +126,7 @@ export default function RootLayout({
             </SettingsDialogProvider>
           </AuthProvider>
           <ConsentAnalytics />
+          <CookieBanner />
         </MotionProvider>
       </body>
     </html>
