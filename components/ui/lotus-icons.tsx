@@ -104,6 +104,15 @@ export const TeamAppIcon = (props: IconProps) => (
   <Icon {...props}><rect x="4" y="4" width="6.75" height="6.75" rx="2" /><rect x="13.25" y="4" width="6.75" height="6.75" rx="2" /><rect x="4" y="13.25" width="6.75" height="6.75" rx="2" /><circle cx="16.6" cy="16.6" r="3.4" /></Icon>
 )
 
+export const AppIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <rect x="3.75" y="3.75" width="6.5" height="6.5" rx="1.75" />
+    <rect x="13.75" y="3.75" width="6.5" height="6.5" rx="1.75" transform="rotate(12 17 7)" />
+    <rect x="3.75" y="13.75" width="6.5" height="6.5" rx="1.75" />
+    <rect x="13.75" y="13.75" width="6.5" height="6.5" rx="1.75" />
+  </Icon>
+)
+
 export const PlanIcon = (props: IconProps) => (
   <Icon {...props}><path d="m4.5 6.75 1.5 1.5 2.75-2.75" /><path d="m4.5 13.25 1.5 1.5 2.75-2.75" /><path d="M11.75 7h7.75M11.75 13.5h7.75M5.5 19h14" opacity=".55" /></Icon>
 )
@@ -122,6 +131,15 @@ export const CheckIcon = (props: IconProps) => (
 
 export const ToolIcon = (props: IconProps) => (
   <Icon {...props}><path d="M14.5 6.5a4 4 0 0 0 5 5L12 19a2.1 2.1 0 0 1-3-3l7.5-7.5Z" /><path d="M9.5 4.5 5 9" opacity=".55" /><path d="m4.5 15.5 4 4" opacity=".55" /></Icon>
+)
+
+export const WorkflowIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <rect x="3.75" y="3.75" width="10.5" height="6.5" rx="2" />
+    <path d="M7 7h4M7 10.25v4.5a2 2 0 0 0 2 2h.75" />
+    <rect x="9.75" y="13.5" width="10.5" height="6.5" rx="2" />
+    <path d="m12.75 16.75 1.5 1.5 3-3" />
+  </Icon>
 )
 
 export const BlocksIcon = (props: IconProps) => (

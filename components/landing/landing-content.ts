@@ -1,7 +1,7 @@
 import type { ComponentType, SVGProps } from 'react'
 import type { TerminalEntry } from '@/lib/backend/terminal'
 import {
-  LockIcon, MailCodeIcon, PlanIcon, ShieldIcon, TeamAppIcon, ToolIcon, WebsiteIcon,
+  AppIcon, LockIcon, MailCodeIcon, PlanIcon, ShieldIcon, WebsiteIcon, WorkflowIcon,
 } from '@/components/ui/lotus-icons'
 
 export type StartMode = 'plan' | 'build'
@@ -12,8 +12,8 @@ export type HeroCategory = Brief & { key: string; icon: LandingIcon }
 
 export const heroCategories = [
   { key: 'websites', label: 'Websites', icon: WebsiteIcon, mode: 'build', prompt: 'Help me build a website for my business. Ask about the business, its customers, and the pages it needs before proposing an approach.' },
-  { key: 'apps', label: 'Apps', icon: TeamAppIcon, mode: 'build', prompt: 'Help me create an app for my team. Ask about our workflow, who will use it, and what it needs to do first.' },
-  { key: 'tools', label: 'Internal tools', icon: ToolIcon, mode: 'build', prompt: 'Help me build an internal tool for my team. Ask about the process it should replace and who will use it first.' },
+  { key: 'apps', label: 'Apps', icon: AppIcon, mode: 'build', prompt: 'Help me create an app for my team. Ask about our workflow, who will use it, and what it needs to do first.' },
+  { key: 'tools', label: 'Internal tools', icon: WorkflowIcon, mode: 'build', prompt: 'Help me build an internal tool for my team. Ask about the process it should replace and who will use it first.' },
   { key: 'plans', label: 'Just planning', icon: PlanIcon, mode: 'plan', prompt: 'Help me plan a software project. Ask about the problem, the users, and the requirements before proposing an approach.' },
 ] as const satisfies readonly HeroCategory[]
 
