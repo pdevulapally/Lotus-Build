@@ -86,6 +86,7 @@ import { ConversationScrollArea } from "@/components/computer/conversation-scrol
 
 
 import { ComputerTopBar, type ComputerTheme } from "@/components/computer/computer-top-bar"
+import { RepositoryDialog } from "@/components/computer/repository-dialog"
 import { ComputerNavigation } from "@/components/computer/computer-navigation"
 import styles from "@/components/computer/computer-workspace.module.css"
 
@@ -331,6 +332,7 @@ export default function ComputerPage() {
   const [historyOpen, setHistoryOpen] = useState(false)
   const [integrationsOpen, setIntegrationsOpen] = useState(false)
   const [isEditingTitle, setIsEditingTitle] = useState(false)
+  const [repositoryOpen, setRepositoryOpen] = useState(false)
   const [titleDraft, setTitleDraft] = useState('')
   const [titleSaving, setTitleSaving] = useState(false)
   const [titleError, setTitleError] = useState<string | null>(null)
@@ -496,6 +498,8 @@ export default function ComputerPage() {
           setDeployOpen(false)
           setIntegrationsOpen(false)
         }}
+        onOpenRepository={() => setRepositoryOpen(true)}
+        repository={backend.project.source?.fullName}
         onOpenNavigation={() => setMobileNavigationOpen(true)}
         navigationOpen={mobileNavigationOpen}
         workspacePanelOpen={workspacePanelOpen}
@@ -503,6 +507,14 @@ export default function ComputerPage() {
         contextUsage={agentContextUsage}
         theme={computerTheme}
         onThemeToggle={handleThemeToggle}
+      />
+      <RepositoryDialog
+        open={repositoryOpen}
+        projectId={backend.project.id}
+        source={backend.project.source}
+        dark={computerTheme === 'dark'}
+        onClose={() => setRepositoryOpen(false)}
+        onBound={(source) => backend.setProject((current) => (current ? { ...current, ...(source ? { source } : {}) , ...(source ? {} : { source: undefined }) } : current))}
       />
 
       {(deployOpen || historyOpen) && (

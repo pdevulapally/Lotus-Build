@@ -2,12 +2,14 @@
 
 import type { FormEvent } from "react"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 export function RenameSessionDialog({
-  open, draft, saving, error, onDraftChange, onCancel, onSave,
+  open, draft, saving, error, dark, onDraftChange, onCancel, onSave,
 }: {
   open: boolean
+  dark?: boolean
   draft: string
   saving: boolean
   error: string | null
@@ -23,7 +25,7 @@ export function RenameSessionDialog({
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next && !saving) onCancel() }}>
-      <DialogContent showCloseButton={false} className="max-w-[26rem] gap-0 rounded-2xl border-border/60 p-5 shadow-[0_24px_64px_-24px_rgb(0_0_0/0.35)] sm:max-w-[26rem]">
+      <DialogContent showCloseButton={false} className={cn("max-w-[26rem] gap-0 rounded-2xl border-border/60 p-5 shadow-[0_24px_64px_-24px_rgb(0_0_0/0.35)] sm:max-w-[26rem] text-foreground", dark && "dark")}>
         <form onSubmit={submit}>
           <DialogHeader className="gap-1 text-left">
             <DialogTitle className="text-[16px] font-semibold">Rename project</DialogTitle>

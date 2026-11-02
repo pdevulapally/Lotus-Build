@@ -1,5 +1,6 @@
 "use client"
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Navbar } from '@/components/ui/navbar'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -31,7 +32,8 @@ function IntegrationsContent() {
   const { user } = useAuth()
   const [state, setState] = useState<State>({ kind: 'loading' })
   const [busy, setBusy] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
+  const searchParams = useSearchParams()
+  const [notice, setNotice] = useState<string | null>(() => (searchParams.get('connected') === 'github' ? 'GitHub is connected. Open a project and choose Repository to work in one of its repositories.' : null))
 
   useEffect(() => {
     if (!user) return
@@ -54,7 +56,9 @@ function IntegrationsContent() {
   const connect = async (connector: Connector) => {
     setBusy(connector.key); setNotice(null)
     try {
-      const { authorizeUrl } = await currentBackend().startConnection(connector.key)
+      // A GitHub App install returns to our setup page, which completes the connection; nothing is granted to a project yet.
+      const input = connector.auth === 'github-app' ? { returnTo: `${window.location.origin}/integrations/github/setup`, projectIds: [] } : undefined
+      const { authorizeUrl } = await currentBackend().startConnection(connector.key, input)
       window.location.assign(authorizeUrl)
     } catch (reason) {
       setNotice(reason instanceof Error ? reason.message : `Could not start connecting ${connector.name}.`)

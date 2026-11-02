@@ -1,0 +1,64 @@
+/**
+ * Copy for the activity feed, kept as data so the hook never grows a chain of
+ * per-event branches. Anything absent from these maps is not shown: the feed
+ * should read like a calm log of what the agent did for you, not a trace of
+ * the machinery (queue slots, sandboxes, internal bookkeeping) behind it.
+ */
+
+/** Lifecycle events worth a line of their own. Status is carried by the live status line, not by rows. */
+export const lifecycleFeedLabels: Readonly<Record<string, string>> = {
+  'session.failed': 'Stopped',
+  'session.cancel_requested': 'Stopping',
+  'session.awaiting_input': 'Waiting for you',
+  'preview.ready': 'Preview is ready',
+  'project.saved': 'Saved your work',
+  'project.save_failed': "Couldn't save your work",
+  'agent.blocked': 'Needs your attention',
+  'agent.specialist_started': 'Review started',
+  'agent.specialist_completed': 'Review finished',
+}
+
+export type ToolStepPhase = 'call' | 'result'
+
+type ToolStepCopy = { readonly call: string; readonly result: string; readonly subject?: (input: Readonly<Record<string, unknown>>) => string | undefined }
+
+const text = (input: Readonly<Record<string, unknown>>, key: string, max = 80): string | undefined => {
+  const value = input[key]
+  return typeof value === 'string' && value.trim() !== '' ? value.trim().slice(0, max) : undefined
+}
+
+/** Tools the agent uses on your behalf, in the words a person would use. */
+const toolStepCopy: Readonly<Record<string, ToolStepCopy>> = {
+  list_files: { call: 'Looking through files', result: 'Looked through files' },
+  read_file: { call: 'Reading', result: 'Read', subject: (input) => text(input, 'path') },
+  search_files: { call: 'Searching files', result: 'Searched files', subject: (input) => { const query = text(input, 'query', 60); return query === undefined ? undefined : `for “${query}”` } },
+  start_preview: { call: 'Starting the preview', result: 'Started the preview' },
+  run_validation: { call: 'Running checks', result: 'Ran checks' },
+  consult_specialist: { call: 'Asking a reviewer', result: 'Heard back from the reviewer' },
+  submit_review: { call: 'Writing up the review', result: 'Wrote up the review' },
+  use_skill: { call: 'Applying a skill', result: 'Applied a skill' },
+  request_user_input: { call: 'Asking you a question', result: 'Asked you a question' },
+}
+
+/** Internal bookkeeping tools: they have no meaning to the person reading the feed. */
+const hiddenTools: ReadonlySet<string> = new Set(['update_task', 'finish_task'])
+
+export function isHiddenToolStep(name: string): boolean {
+  return hiddenTools.has(name)
+}
+
+/**
+ * The feed row title for a tool step, or undefined when the tool has no copy
+ * of its own (the caller falls back to a plain description of the step).
+ */
+export function toolStepLabel(name: string, phase: ToolStepPhase, input: Readonly<Record<string, unknown>> = {}): string | undefined {
+  const copy = toolStepCopy[name]
+  if (copy === undefined) return undefined
+  const subject = copy.subject?.(input)
+  return subject === undefined ? copy[phase] : `${copy[phase]} ${subject}`
+}
+
+/** A readable fallback for a tool the maps do not know yet: "Using render_chart" → "Using render chart". */
+export function genericToolStepLabel(name: string, phase: ToolStepPhase): string {
+  return `${phase === 'call' ? 'Using' : 'Finished'} ${name.replace(/_/g, ' ').slice(0, 100)}`
+}
