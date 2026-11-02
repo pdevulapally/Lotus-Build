@@ -2,6 +2,7 @@ import Link from "next/link"
 import { ArrowUpRight } from "lucide-react"
 import { BrandWordmark } from "@/components/ui/brand-wordmark"
 import styles from "./footer-section.module.css"
+import { legalIdentity } from "@/lib/legal/model"
 
 const links = [
   { href: "/welcome#workflow", label: "How it works" },
@@ -32,7 +33,7 @@ export function FooterSection({ stacked = false }: { stacked?: boolean } = {}) {
         </nav>
       </div>
       <div className={styles.bottom}>
-        <span>© {new Date().getFullYear()} LotusBuild</span>
+        <span>© {new Date().getFullYear()} LotusBuild · Operated by {legalIdentity.legalName}</span>
         <nav aria-label="Legal information"><ul>{legalLinks.map(link => <li key={link.href}><Link href={link.href}>{link.label}</Link></li>)}</ul></nav>
       </div>
     </div>
