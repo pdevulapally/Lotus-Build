@@ -10,8 +10,8 @@ export const privacyPolicy: LegalDocumentContent = {
   contact: { title: 'Privacy requests', description: 'Ask about your data or exercise your rights.' },
   sections: [
     { id: 'who-we-are', label: 'Who we are', title: 'Who we are', blocks: [
-      { kind: 'p', text: [`This policy explains how ${id.tradingName} (“we”, “us”) handles personal data when you use ${id.siteUrl}, the LotusBuild workspace and our API (the “Service”).`] },
-      { kind: 'p', text: [`${id.tradingName} is the controller of the personal data described here. You can contact us about anything in this policy at `, email(), '.'] },
+      { kind: 'p', text: [`This policy explains how ${id.legalName} (“we”, “us”), which operates the ${id.tradingName} brand, handles personal data when you use ${id.siteUrl}, the LotusBuild workspace and our API (the “Service”).`] },
+      { kind: 'p', text: [`${id.legalName} is the controller of the personal data described here. You can contact us about anything in this policy at `, email(), '.'] },
     ] },
     { id: 'what-we-collect', label: 'Data we collect', title: 'Personal data we collect', blocks: [
       { kind: 'table', label: 'Personal data we collect', columns: ['Category', 'What it includes', 'Where it comes from'], rows: [

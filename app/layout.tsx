@@ -1,4 +1,5 @@
 import { Shimmer } from "@/components/ai-elements/shimmer"
+import { legalIdentity } from "@/lib/legal/model"
 import type React from "react"
 import { Suspense } from "react"
 import type { Metadata } from "next"
@@ -12,7 +13,7 @@ import "@fontsource-variable/manrope/index.css"
 
 function normalizeSiteUrl(raw?: string): string {
   const value = (raw || "").trim()
-  if (!value) return "https://lotus-build.app"
+  if (!value) return "https://lotusbuild.co.uk"
   if (/^https?:\/\//i.test(value)) return value
   return `https://${value}`
 }
@@ -30,7 +31,7 @@ export const metadata: Metadata = {
   keywords: ["AI software workspace", "software development", "AI coding", "LotusBuild"],
   authors: [{ name: "Lotus.build", url: siteUrl }],
   creator: "Lotus.build",
-  publisher: "Lotus.build",
+  publisher: legalIdentity.legalName,
   applicationName: "Lotus.build",
   referrer: "origin-when-cross-origin",
   openGraph: {
@@ -80,8 +81,9 @@ export default function RootLayout({
       {
         "@type": "Organization",
         "@id": `${siteUrl}/#organization`,
-        name: "Lotus.build",
+        name: legalIdentity.legalName,
         url: siteUrl,
+        brand: { "@type": "Brand", name: legalIdentity.tradingName },
         logo: { "@type": "ImageObject", url: `${siteUrl}/Images/lotusbuild-icon.svg` },
         description: "Build software with LotusBuild. Plan your approach, implement changes, review source files and saved versions, and keep working in one project workspace.",
       },
