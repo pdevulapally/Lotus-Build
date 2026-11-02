@@ -3,6 +3,7 @@ import { ArrowUpRight } from "lucide-react"
 import { BrandWordmark } from "@/components/ui/brand-wordmark"
 import styles from "./footer-section.module.css"
 import { legalIdentity } from "@/lib/legal/model"
+import { CookiePreferencesButton } from "@/components/cookie-banner"
 
 const links = [
   { href: "/welcome#workflow", label: "How it works" },
@@ -36,9 +37,8 @@ export function FooterSection({ stacked = false }: { stacked?: boolean } = {}) {
         <div className={styles.companyDetails}>
           <span>© {new Date().getFullYear()} LotusBuild · Operated by {legalIdentity.legalName}</span>
           <span>Registered in {legalIdentity.registrationJurisdiction} · Company no. <a href={legalIdentity.companiesHouseUrl} target="_blank" rel="noopener noreferrer">{legalIdentity.companyNumber}</a></span>
-          <span>Registered office: {legalIdentity.registeredOffice}</span>
         </div>
-        <nav aria-label="Legal information"><ul>{legalLinks.map(link => <li key={link.href}><Link href={link.href}>{link.label}</Link></li>)}</ul></nav>
+        <nav aria-label="Legal information"><ul>{legalLinks.map(link => <li key={link.href}><Link href={link.href}>{link.label}</Link></li>)}<li><CookiePreferencesButton className="inline-flex min-h-11 items-center rounded-sm hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring" /></li></ul></nav>
       </div>
     </div>
   </footer>

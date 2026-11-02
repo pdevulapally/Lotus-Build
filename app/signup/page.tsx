@@ -79,15 +79,6 @@ export default function SignupPage() {
     if (user && !loading && account?.emailVerified) router.push(redirect)
   }, [user, account?.emailVerified, loading, router, redirect])
 
-  useEffect(() => {
-    const ref = searchParams.get("ref")?.trim()
-    if (ref) {
-      try {
-        window.localStorage.setItem("lotus_ref", ref)
-      } catch {}
-    }
-  }, [searchParams])
-
   const handleEmailSignUp = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError("")
@@ -289,12 +280,11 @@ export default function SignupPage() {
                 By creating an account, you agree to our{" "}
                 <Link href="/terms" className={authLinkClassName}>
                   Terms
-                </Link>{" "}
-                and{" "}
+                </Link>. Our{" "}
                 <Link href="/privacy" className={authLinkClassName}>
                   Privacy Policy
                 </Link>
-                .
+                {" "}explains how we use your data.
               </p>
     </AuthShell>
   )

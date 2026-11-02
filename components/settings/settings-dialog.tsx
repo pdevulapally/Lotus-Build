@@ -8,6 +8,7 @@ import { currentBackend } from '@/lib/backend/browser'
 import type { BackendUsage } from '@/lib/backend/client'
 import { EmailCodeVerification } from '@/components/auth/email-code-verification'
 import { Button } from '@/components/ui/button'
+import { CookiePreferencesButton } from '@/components/cookie-banner'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import styles from './settings-dialog.module.css'
 
@@ -283,6 +284,7 @@ export function SettingsDialog({
                       >
                         Request account erasure
                       </Button>
+                      <CookiePreferencesButton className="block min-h-11 rounded-lg text-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-ring" />
                     </section>
                   </div>
                 )}

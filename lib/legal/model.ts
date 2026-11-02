@@ -6,7 +6,6 @@ export const legalIdentity = {
   legalName: 'SR IT SUPPORT SERVICES LTD',
   companyNumber: '15899658',
   registrationJurisdiction: 'England and Wales',
-  registeredOffice: 'Flat 46 Paynter House, 1 Shipbuilding Way, London, England, E13 9FG',
   companiesHouseUrl: 'https://find-and-update.company-information.service.gov.uk/company/15899658',
   siteUrl: 'https://lotusbuild.co.uk',
   contactEmail: lotusBuildSupportEmail,
@@ -34,11 +33,15 @@ export type LegalDocumentContent = {
   description: string
   effectiveDate: string
   lastUpdated: string
+  version?: string
   notice?: string
   related: { href: string; label: string }
   contact: { title: string; description: string }
   sections: readonly LegalSection[]
 }
+
+/** Document version is separate from its effective date and acceptance records. */
+export const legalDocumentVersion = '1.1'
 
 export const email = (): LegalInline => ({ text: legalIdentity.contactEmail, href: `mailto:${legalIdentity.contactEmail}` })
 export const link = (text: string, href: string): LegalInline => ({ text, href })
