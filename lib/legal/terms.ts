@@ -2,7 +2,7 @@ import { email, legalIdentity as id, link, strong, type LegalDocumentContent } f
 
 export const termsOfService: LegalDocumentContent = {
   title: 'Terms of Service',
-  description: `The agreement between you and ${id.tradingName} for using the LotusBuild workspace to plan, build and preview software.`,
+  description: `The agreement between you and ${id.legalName} for using the ${id.tradingName} workspace to plan, build and preview software.`,
   effectiveDate: '18 October 2026',
   lastUpdated: '1 November 2026',
   notice: 'If you are a consumer in the UK, nothing in these terms affects your statutory rights under the Consumer Rights Act 2015 or the Consumer Contracts (Information, Cancellation and Additional Charges) Regulations 2013.',
@@ -10,7 +10,7 @@ export const termsOfService: LegalDocumentContent = {
   contact: { title: 'Questions?', description: 'We are happy to explain anything in these terms.' },
   sections: [
     { id: 'about', label: 'About these terms', title: 'About these terms', blocks: [
-      { kind: 'p', text: [`These terms apply when you use ${id.siteUrl}, the LotusBuild workspace and our API (the “Service”), provided by ${id.tradingName} (“we”, “us”). Our `, link('Privacy Policy', '/privacy'), ' explains how we use personal data.'] },
+      { kind: 'p', text: [`These terms apply when you use ${id.siteUrl}, the LotusBuild workspace and our API (the “Service”), provided by ${id.legalName}, operating the Service under the ${id.tradingName} brand (“we”, “us”). Our `, link('Privacy Policy', '/privacy'), ' explains how we use personal data.'] },
       { kind: 'p', text: 'By creating an account or using the Service you accept these terms. If you use the Service for a business, you confirm you can accept them for that business, and the business-user sections below apply.' },
       { kind: 'p', text: ['Contact us at ', email(), '.'] },
     ] },
