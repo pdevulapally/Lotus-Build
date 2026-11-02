@@ -4,6 +4,10 @@ import { lotusBuildSupportEmail } from '@/lib/lotus-build-site-content'
 export const legalIdentity = {
   tradingName: 'LotusBuild',
   legalName: 'SR IT SUPPORT SERVICES LTD',
+  companyNumber: '15899658',
+  registrationJurisdiction: 'England and Wales',
+  registeredOffice: 'Flat 46 Paynter House, 1 Shipbuilding Way, London, England, E13 9FG',
+  companiesHouseUrl: 'https://find-and-update.company-information.service.gov.uk/company/15899658',
   siteUrl: 'https://lotusbuild.co.uk',
   contactEmail: lotusBuildSupportEmail,
   governingLaw: 'the laws of England and Wales',
