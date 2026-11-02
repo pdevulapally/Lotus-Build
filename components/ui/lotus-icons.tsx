@@ -10,6 +10,10 @@ function Icon({ children, ...props }: IconProps) {
   )
 }
 
+export const PlusIcon = (props: IconProps) => (
+  <Icon {...props}><path d="M12 5v14M5 12h14" /></Icon>
+)
+
 export const UsageIcon = (props: IconProps) => (
   <Icon strokeWidth="1.8" {...props}><path d="M4.25 16.75a7.75 7.75 0 1 1 15.5 0" /><path d="M7.25 16.75a4.75 4.75 0 0 1 1.4-3.36" opacity=".5" /><path d="m12 16.75 3.75-4.5" /><circle cx="12" cy="16.75" r="1.5" fill="currentColor" stroke="none" /></Icon>
 )

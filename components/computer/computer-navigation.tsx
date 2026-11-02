@@ -3,7 +3,8 @@
 import { useEffect, useId, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ChevronDown, FolderOpen, SquarePen } from "lucide-react"
+import { ChevronDown, FolderOpen } from "lucide-react"
+import { PlusIcon } from "@/components/ui/lotus-icons"
 import { SidebarToggleIcon } from "@/components/ui/sidebar-toggle-icon"
 import { useAuth } from "@/contexts/auth-context"
 import { useProjectList } from "@/hooks/use-project-list"
@@ -13,6 +14,7 @@ import { cn } from "@/lib/utils"
 import { ProjectNavigationRow } from "@/components/projects/project-navigation-row"
 import { ProjectSearchDialog } from "@/components/projects/project-search-dialog"
 import { SidebarProfileMenu } from "@/components/projects/sidebar-profile-menu"
+import { SidebarIntegrationsLink } from "@/components/projects/sidebar-integrations-link"
 import { BrandWordmark } from "@/components/ui/brand-wordmark"
 import navigationStyles from "@/components/projects/sidebar-navigation.module.css"
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet"
@@ -68,8 +70,9 @@ export function ComputerNavigation({ currentProjectId, mobileOpen, onMobileOpenC
       </div>
     </header>
     <Link href="/" onClick={() => onMobileOpenChange(false)} title={compact ? "New project" : undefined} className={cn(navigationStyles.newProject, "mx-3 flex min-h-11 items-center gap-2.5 whitespace-nowrap rounded-lg px-3 text-[13px] transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", compact && "justify-center px-0")}>
-      <SquarePen className="size-4 shrink-0" aria-hidden />{!compact && "New project"}
+      <PlusIcon className="size-4 shrink-0" />{!compact && "New project"}
     </Link>
+    <SidebarIntegrationsLink collapsed={compact} onNavigate={() => onMobileOpenChange(false)} className="mx-3" />
     {compact ? <button type="button" onClick={() => setCollapsed(false)} className={cn(actionClass, "mx-auto")} aria-label="Show projects"><FolderOpen className="size-4" aria-hidden /></button> : <>
       <button type="button" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded} aria-controls={projectListId} className="mx-3 mt-5 flex min-h-9 items-center justify-between rounded-lg px-2 text-xs whitespace-nowrap text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         Projects<ChevronDown className={cn("size-3.5 transition-transform motion-reduce:transition-none", !expanded && "-rotate-90")} aria-hidden />

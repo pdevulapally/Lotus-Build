@@ -2,10 +2,12 @@
 
 import { BrandWordmark } from "@/components/ui/brand-wordmark"
 import { SidebarToggleIcon } from "@/components/ui/sidebar-toggle-icon"
+import { PlusIcon } from "@/components/ui/lotus-icons"
 import { SideNav } from "@astryxdesign/core/SideNav"
 import { ProjectNavigationRow } from "@/components/projects/project-navigation-row"
 import { ProjectSearchDialog } from "@/components/projects/project-search-dialog"
 import { SidebarProfileMenu } from "@/components/projects/sidebar-profile-menu"
+import { SidebarIntegrationsLink } from "@/components/projects/sidebar-integrations-link"
 import navigationStyles from "@/components/projects/sidebar-navigation.module.css"
 import { Suspense, useCallback, useEffect, useId, useMemo, useState } from "react"
 import Link from "next/link"
@@ -29,7 +31,6 @@ import {
   Lock,
   Plus,
   FolderOpen,
-  SquarePen,
   ArrowUpRight,
 } from "lucide-react"
 
@@ -178,9 +179,10 @@ function Sidebar({
 
       <nav aria-label="Workspace" className="px-3 pb-5">
         <button type="button" title={collapsed ? "New project" : undefined} onClick={() => { onClose?.(); onNewProject() }} className={cn(navigationStyles.newProject, "flex min-h-11 w-full items-center gap-3 rounded-lg bg-muted/60 px-3 text-left text-[13px] font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", collapsed && "justify-center px-0")}>
-          <SquarePen className="size-4 shrink-0" strokeWidth={1.7} aria-hidden="true" />
+          <PlusIcon className="size-4 shrink-0" />
           <span className={cn(collapsed && "sr-only")}>New project</span>
         </button>
+        <SidebarIntegrationsLink collapsed={collapsed} onNavigate={onClose} className="mt-1" />
       </nav>
       </>}
       footer={
