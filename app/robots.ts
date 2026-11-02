@@ -1,6 +1,6 @@
 import { MetadataRoute } from "next"
 
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://lotus-build.app"
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://lotusbuild.co.uk"
 
 export default function robots(): MetadataRoute.Robots {
   return {
