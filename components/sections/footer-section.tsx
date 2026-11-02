@@ -33,7 +33,11 @@ export function FooterSection({ stacked = false }: { stacked?: boolean } = {}) {
         </nav>
       </div>
       <div className={styles.bottom}>
-        <span>© {new Date().getFullYear()} LotusBuild · Operated by {legalIdentity.legalName}</span>
+        <div className={styles.companyDetails}>
+          <span>© {new Date().getFullYear()} LotusBuild · Operated by {legalIdentity.legalName}</span>
+          <span>Registered in {legalIdentity.registrationJurisdiction} · Company no. <a href={legalIdentity.companiesHouseUrl} target="_blank" rel="noopener noreferrer">{legalIdentity.companyNumber}</a></span>
+          <span>Registered office: {legalIdentity.registeredOffice}</span>
+        </div>
         <nav aria-label="Legal information"><ul>{legalLinks.map(link => <li key={link.href}><Link href={link.href}>{link.label}</Link></li>)}</ul></nav>
       </div>
     </div>

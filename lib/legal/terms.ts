@@ -12,7 +12,7 @@ export const termsOfService: LegalDocumentContent = {
     { id: 'about', label: 'About these terms', title: 'About these terms', blocks: [
       { kind: 'p', text: [`These terms apply when you use ${id.siteUrl}, the LotusBuild workspace and our API (the “Service”), provided by ${id.legalName}, operating the Service under the ${id.tradingName} brand (“we”, “us”). Our `, link('Privacy Policy', '/privacy'), ' explains how we use personal data.'] },
       { kind: 'p', text: 'By creating an account or using the Service you accept these terms. If you use the Service for a business, you confirm you can accept them for that business, and the business-user sections below apply.' },
-      { kind: 'p', text: ['Contact us at ', email(), '.'] },
+      { kind: 'p', text: [`Company number: ${id.companyNumber}. Registered in ${id.registrationJurisdiction}. Registered office: ${id.registeredOffice}. You can contact us at `, email(), '.'] },
     ] },
     { id: 'service', label: 'The Service', title: 'What the Service does', blocks: [
       { kind: 'list', items: [

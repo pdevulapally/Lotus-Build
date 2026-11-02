@@ -11,7 +11,7 @@ export const privacyPolicy: LegalDocumentContent = {
   sections: [
     { id: 'who-we-are', label: 'Who we are', title: 'Who we are', blocks: [
       { kind: 'p', text: [`This policy explains how ${id.legalName} (“we”, “us”), which operates the ${id.tradingName} brand, handles personal data when you use ${id.siteUrl}, the LotusBuild workspace and our API (the “Service”).`] },
-      { kind: 'p', text: [`${id.legalName} is the controller of the personal data described here. You can contact us about anything in this policy at `, email(), '.'] },
+      { kind: 'p', text: [`${id.legalName} (company number ${id.companyNumber}, registered in ${id.registrationJurisdiction}) is the controller of the personal data described here. Our registered office is ${id.registeredOffice}. For privacy enquiries, email `, email(), '.'] },
     ] },
     { id: 'what-we-collect', label: 'Data we collect', title: 'Personal data we collect', blocks: [
       { kind: 'table', label: 'Personal data we collect', columns: ['Category', 'What it includes', 'Where it comes from'], rows: [
