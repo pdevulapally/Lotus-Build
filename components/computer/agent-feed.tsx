@@ -509,22 +509,24 @@ function FeedItem({
   const showDetail = isRunning || isError
   const secondaryLine = getFeedItemSecondaryLine(title, description, showDetail)
 
+  const isStep = event.kind === "code"
   return (
-    <div className={cn(isRunning ? "py-2.5" : "py-1")}>
+    <div className={cn(isRunning ? "py-2" : isStep ? "py-[3px]" : "py-1")}>
       <div className="min-w-0 flex-1">
         {isRunning ? (
-          <Shimmer className="text-[13.5px] font-semibold">
+          <Shimmer className={cn("font-medium", isStep ? "text-[13px]" : "text-[13.5px] font-semibold")}>
             {title}
           </Shimmer>
         ) : (
           <p
             className={cn(
-              "text-[13.5px] leading-snug",
+              "leading-snug",
+              isStep ? "text-[13px] font-medium" : "text-[13.5px] font-semibold",
               isError
-                ? "font-semibold text-destructive"
-                : isSkipped
-                  ? "font-semibold text-muted-foreground"
-                  : "font-semibold text-foreground/80",
+                ? "text-destructive"
+                : isSkipped || isStep
+                  ? "text-muted-foreground"
+                  : "text-foreground/80",
             )}
           >
             {title}
@@ -783,8 +785,7 @@ export function AgentFeed({
       </div>)}
       {streamText && <FeedItem event={{ title: 'Response', description: streamText, status: 'running', createdAt: '', index: 0 }} isLatest isSessionRunning={isRunning} />}
       {isRunning && <div className="py-2">
-        <Shimmer className="text-[13px] font-medium">{status === "queued" ? "Queued…" : "Working…"}</Shimmer>
-        {status === "queued" && <p className="mt-1 text-[11.5px] text-muted-foreground">Your request is saved and waiting for a build slot. Work starts automatically.</p>}
+        <Shimmer className="text-[13px] font-medium">{status === "queued" ? "Starting…" : "Working…"}</Shimmer>
       </div>}
       {onApprovePlan && !isRunning && <button type="button" className="mt-3 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={onApprovePlan}>Build this plan</button>}
     </div>

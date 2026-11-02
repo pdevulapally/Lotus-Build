@@ -11,6 +11,7 @@ import { SessionMenuContent } from "@/components/computer/session-menu"
 import { RenameSessionDialog } from "@/components/computer/rename-session-dialog"
 
 import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { GitHubGlyph } from "@/components/integrations/connector-icons"
 import { cn } from "@/lib/utils"
 import type { ComputerSessionResponse } from "@/components/computer/session-types"
 import type { ContextUsage } from "@/components/ai-elements/context"
@@ -53,6 +54,8 @@ export function ComputerTopBar({
   onTitleSave,
   onTitleError,
   onOpenHistory,
+  onOpenRepository,
+  repository,
   onOpenNavigation,
   navigationOpen,
   workspacePanelOpen,
@@ -79,6 +82,9 @@ export function ComputerTopBar({
   onTitleSave: () => Promise<void>
   onTitleError: (message: string | null) => void
   onOpenHistory?: () => void
+  onOpenRepository?: () => void
+  /** The repository the project is bound to, shown beside the session actions. */
+  repository?: string
   onOpenNavigation: () => void
   navigationOpen: boolean
   workspacePanelOpen: boolean
@@ -120,10 +126,15 @@ export function ComputerTopBar({
                     <MoreHorizontal className="size-5" />
                   </button>
                 </DropdownMenuTrigger>
-                <SessionMenuContent align="start" session={session} projectFileCount={projectFileCount} remainingTokens={remainingTokens} planLabel={planLabel} liveSiteUrl={liveSiteUrl} contextUsage={contextUsage} onRename={onEditTitleStart} onOpenHistory={onOpenHistory} dark={theme === "dark"} />
+                <SessionMenuContent align="start" session={session} onRepository={onOpenRepository} projectFileCount={projectFileCount} remainingTokens={remainingTokens} planLabel={planLabel} liveSiteUrl={liveSiteUrl} contextUsage={contextUsage} onRename={onEditTitleStart} onOpenHistory={onOpenHistory} dark={theme === "dark"} />
               </DropdownMenu>
             </section>
-
+            {repository && onOpenRepository && (
+              <button type="button" onClick={onOpenRepository} title="Repository" className="hidden h-8 min-w-0 max-w-[18rem] shrink items-center gap-1.5 rounded-lg px-2 text-[12.5px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:inline-flex">
+                <GitHubGlyph className="size-3.5 shrink-0" />
+                <span className="truncate">{repository}</span>
+              </button>
+            )}
           </div>
 
           {/* ── Right: workspace toolbar ── */}
@@ -170,7 +181,7 @@ export function ComputerTopBar({
 
       </header>
 
-      <RenameSessionDialog open={isEditingTitle} draft={titleDraft} saving={titleSaving} error={titleError} onDraftChange={onTitleDraftChange} onCancel={onEditTitleCancel} onSave={onTitleSave} />
+      <RenameSessionDialog open={isEditingTitle} dark={theme === "dark"} draft={titleDraft} saving={titleSaving} error={titleError} onDraftChange={onTitleDraftChange} onCancel={onEditTitleCancel} onSave={onTitleSave} />
     </>
   )
 }

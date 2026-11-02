@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { catalogueSchema, connectionDetailSchema, connectionListSchema, disconnectSchema, type ConnectorKey } from './connections'
+import { catalogueSchema, connectionDetailSchema, connectionListSchema, connectionStartSchema, disconnectSchema, projectSourceResponseSchema, projectSourceSchema, repositoryListSchema, type ConnectorKey } from './connections'
 import { attachmentRefSchema, attachmentRefsSchema, isAttachmentMediaType, storedAttachmentSchema, type AttachmentRef } from './attachments'
 
 const id = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/)
@@ -18,6 +18,7 @@ export type BackendChanges = z.infer<typeof changesSchema>
 export const projectSchema = z.object({
   id, name: z.string(), description: z.string().optional(), platform: z.enum(['web', 'mobile']),
   status: z.enum(['draft', 'deleting']), publicPreviewEnabled: z.boolean(), createdAt: timestamp,
+  source: projectSourceSchema.optional(),
 })
 export const sessionSchema = z.object({
   id, projectId: id, status: z.enum(['QUEUED', 'RUNNING', 'IDLE', 'FAILED']), model: z.string(),
@@ -207,7 +208,21 @@ export class BackendClient {
     return this.json(connectionDetailSchema, `/connections/${encodeURIComponent(id)}/grants`, { method: 'PUT', body: { projectIds } })
   }
   disconnectConnection(id: string) { return this.json(disconnectSchema, `/connections/${encodeURIComponent(id)}`, { method: 'DELETE' }) }
-  startConnection(connector: ConnectorKey) { return this.json(z.object({ authorizeUrl: z.url() }), `/connections/${connector}/start`, { method: 'POST' }) }
+  startConnection(connector: ConnectorKey, input?: { returnTo: string; projectIds?: readonly string[] }) {
+    return this.json(connectionStartSchema, `/connections/${connector}/start`, { method: 'POST', ...(input ? { body: input } : {}) })
+  }
+  completeGitHubConnection(input: { state: string; code: string; installationId: number; returnTo: string }) {
+    return this.json(connectionDetailSchema, '/connections/github/complete', { method: 'POST', body: input })
+  }
+  connectionRepositories(connectionId: string, signal?: AbortSignal) {
+    return this.json(repositoryListSchema, `/connections/${encodeURIComponent(connectionId)}/repositories`, { signal })
+  }
+  bindProjectSource(projectId: string, input: { connectionId: string; fullName: string }) {
+    return this.json(projectSourceResponseSchema, `/projects/${id.parse(projectId)}/source`, { method: 'PUT', body: input })
+  }
+  unbindProjectSource(projectId: string) {
+    return this.json(projectSourceResponseSchema, `/projects/${id.parse(projectId)}/source`, { method: 'DELETE' })
+  }
   projects(signal?: AbortSignal) { return this.json(z.object({ projects: z.array(projectSchema) }), '/projects?limit=100', { signal }) }
   project(projectId: string, signal?: AbortSignal) { return this.json(projectSchema, `/projects/${id.parse(projectId)}`, { signal }) }
   files(projectId: string, signal?: AbortSignal) { return this.json(fileTreeSchema, `/projects/${id.parse(projectId)}/files`, { signal }) }

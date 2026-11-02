@@ -14,14 +14,8 @@ import {
   reduceTerminal,
   type TerminalEntry,
 } from '@/lib/backend/terminal'
+import { genericToolStepLabel, isHiddenToolStep, lifecycleFeedLabels, toolStepLabel } from '@/lib/backend/feed-labels'
 
-const labels: Record<string, string> = {
-  'session.queued': 'Build queued', 'session.running': 'Build running', 'session.idle': 'Ready for your next message',
-  'session.failed': 'Build stopped', 'session.cancel_requested': 'Cancellation requested', 'session.awaiting_input': 'Waiting for your answer',
-  'sandbox.started': 'Workspace started', 'project.restored': 'Project restored', 'preview.ready': 'Preview ready',
-  'project.saved': 'Project saved', 'project.save_failed': 'Project save failed', 'agent.finished': 'Agent finished',
-  'agent.blocked': 'Agent needs attention', 'agent.specialist_started': 'Review started', 'agent.specialist_completed': 'Review completed',
-}
 const fileTools = ['write_file', 'edit_file'] as const
 type FileTool = (typeof fileTools)[number]
 function isFileTool(name: unknown): name is FileTool { return typeof name === 'string' && (fileTools as readonly string[]).includes(name) }
@@ -42,7 +36,7 @@ export function getFileToolInput(name: FileTool, input: unknown): { filePath: st
 
 const runningToolTitles = ['Running command', 'Editing file', 'Creating file'] as const
 function isRunningToolItem(item: ComputerTimelineEvent): boolean {
-  return item.status === 'running' && (runningToolTitles as readonly string[]).includes(item.title)
+  return item.status === 'running' && ((runningToolTitles as readonly string[]).includes(item.title) || typeof item.metadata?.toolName === 'string')
 }
 
 export function activity(event: SessionEvent, index: number): ComputerTimelineEvent | null {
@@ -82,20 +76,57 @@ export function activity(event: SessionEvent, index: number): ComputerTimelineEv
 
   const tool = event.type === 'agent.tool_call' || event.type === 'agent.tool_result'
   const name = typeof event.data.name === 'string' ? event.data.name : ''
+  if (tool && isHiddenToolStep(name)) return null
+  // A result closes the row its call opened (see updateToolStepEvent); it never adds a second one.
+  if (event.type === 'agent.tool_result') return null
   const input = event.data.input && typeof event.data.input === 'object' && !Array.isArray(event.data.input)
     ? event.data.input as Record<string, unknown>
     : {}
-  const title = event.type === 'agent.tool_call' && isComputerAction(name)
-    ? computerActionLabel(name, input)
-    : tool && name ? `${event.type === 'agent.tool_call' ? 'Using' : 'Finished'} ${name.slice(0, 100)}`
-    : event.type === 'agent.skill_used' ? `Used skill ${String(typeof event.data.title === 'string' && event.data.title ? event.data.title : name || 'skill').slice(0, 100)}` : labels[event.type]
+  const createdAt = new Date(Number(event.id.split('-')[0])).toISOString()
+  if (tool && name) {
+    const callId = typeof event.data.callId === 'string' && event.data.callId ? event.data.callId : undefined
+    const title = isComputerAction(name) ? computerActionLabel(name, input) : toolStepLabel(name, 'call', input) ?? genericToolStepLabel(name, 'call')
+    return { id: event.id, title, status: 'running', kind: 'code', createdAt, index,
+      metadata: { toolName: name, toolInputJson: JSON.stringify(input), ...(callId ? { callId } : {}) } }
+  }
+  const title = event.type === 'agent.skill_used'
+    ? `Used skill ${String(typeof event.data.title === 'string' && event.data.title ? event.data.title : name || 'skill').slice(0, 100)}`
+    : lifecycleFeedLabels[event.type]
   if (!title) return null
-  // run_command input/output is shown after redaction; other tools stay label-only.
   const description = typeof event.data.summary === 'string' ? event.data.summary.slice(0, 2000)
     : typeof event.data.error === 'string' ? event.data.error.slice(0, 2000) : undefined
-  return { id: event.id, title, status: event.type.endsWith('failed') || event.data.isError === true ? 'error' : 'complete',
-    kind: tool ? 'code' : 'planning', createdAt: new Date(Number(event.id.split('-')[0])).toISOString(), index,
+  return { id: event.id, title, status: event.type.endsWith('failed') ? 'error' : 'complete', kind: 'planning', createdAt, index,
     ...(description ? { description } : {}) }
+}
+
+/** Finds the open row a tool result belongs to: by call id when the server sent one, else the latest running tool row. */
+function runningToolIndex(events: ComputerTimelineEvent[], callId: string | undefined): number {
+  for (let current = events.length - 1; current >= 0; current -= 1) {
+    const candidate = events[current]
+    if (callId ? candidate.metadata?.callId === callId : isRunningToolItem(candidate)) return current
+  }
+  return -1
+}
+
+/** Closes the row of any tool other than run_command/file tools: past-tense title, done or failed. */
+export function updateToolStepEvent(events: ComputerTimelineEvent[], event: SessionEvent): ComputerTimelineEvent[] {
+  if (event.type !== 'agent.tool_result' || event.data.name === 'run_command' || isFileTool(event.data.name)) return events
+  const name = typeof event.data.name === 'string' ? event.data.name : ''
+  if (!name || isHiddenToolStep(name)) return events
+  const callId = typeof event.data.callId === 'string' && event.data.callId ? event.data.callId : undefined
+  const index = runningToolIndex(events, callId)
+  if (index < 0) return events
+  const current = events[index]
+  let input: Record<string, unknown> = {}
+  if (typeof current.metadata?.toolInputJson === 'string') { try { input = JSON.parse(current.metadata.toolInputJson) as Record<string, unknown> } catch { input = {} } }
+  const failed = event.data.isError === true
+  const description = typeof event.data.error === 'string' ? event.data.error.slice(0, 2000)
+    : failed && typeof event.data.text === 'string' ? event.data.text.slice(0, 400) : undefined
+  const next = events.slice()
+  next[index] = { ...current, status: failed ? 'error' : 'complete',
+    title: isComputerAction(name) ? current.title : toolStepLabel(name, 'result', input) ?? genericToolStepLabel(name, 'result'),
+    ...(description ? { description } : {}) }
+  return next
 }
 
 function updateCommandEvent(events: ComputerTimelineEvent[], event: SessionEvent): ComputerTimelineEvent[] {
@@ -228,8 +259,8 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
               scheduleText()
             }
             setTerminal((current) => reduceTerminal(current, event))
-            if (event.type === 'agent.tool_result' && (event.data.name === 'run_command' || isFileTool(event.data.name))) {
-              setEvents((current) => updateCommandEvent(current, event))
+            if (event.type === 'agent.tool_result') {
+              setEvents((current) => updateToolStepEvent(updateCommandEvent(current, event), event))
             }
             const item = activity(event, Number(event.id.split('-')[0]))
             if (item) setEvents((current) => [...current, item].slice(-300))
@@ -249,6 +280,6 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
     window.addEventListener('offline', offline); window.addEventListener('online', online)
     return () => { window.removeEventListener('offline', offline); window.removeEventListener('online', online); controller.abort(); if (refreshTimer !== undefined) clearTimeout(refreshTimer); if (textFrame !== undefined) cancelAnimationFrame(textFrame); refreshRef.current = async () => { throw new Error('The session connection is closed.') } }
   }, [id, user, authLoading, revision])
-  return { session, project, messages, queued, events, terminal, desktop, text, stopping, setStopping, preview: visiblePreview({ preview, session, publicPreviewEnabled: project?.publicPreviewEnabled === true }),
+  return { session, project, setProject, messages, queued, events, terminal, desktop, text, stopping, setStopping, preview: visiblePreview({ preview, session, publicPreviewEnabled: project?.publicPreviewEnabled === true }),
     fileCount, fileError, loading, error, streamError, connection, refresh, reconnect }
 }

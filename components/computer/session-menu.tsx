@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { useSettingsDialog } from "@/components/settings/settings-dialog"
 import { useAuth } from "@/contexts/auth-context"
+import { GitHubGlyph } from "@/components/integrations/connector-icons"
 import { cn } from "@/lib/utils"
 import type { ComputerSessionResponse } from "@/components/computer/session-types"
 import {
@@ -21,6 +22,7 @@ export type SessionMenuProps = {
   liveSiteUrl?: string
   contextUsage?: { maxTokens: number; usedTokens: number; usage: ContextUsage }
   onRename: () => void
+  onRepository?: () => void
   onOpenHistory?: () => void
   dark: boolean
   align: "start" | "center"
@@ -42,7 +44,7 @@ function ExternalRow({ href, icon, children }: { href?: string; icon: ReactNode;
 
 /** The session/account menu shared by the mobile and desktop title triggers. */
 export function SessionMenuContent({
-  session, projectFileCount, remainingTokens, planLabel, liveSiteUrl, contextUsage, onRename, onOpenHistory, dark, align,
+  session, projectFileCount, remainingTokens, planLabel, liveSiteUrl, contextUsage, onRename, onRepository, onOpenHistory, dark, align,
 }: SessionMenuProps) {
   const { userData } = useAuth()
   const { openSettings } = useSettingsDialog()
@@ -104,6 +106,9 @@ export function SessionMenuContent({
         )}
       </div>
       <DropdownMenuItem className={row} onSelect={onRename}><RenameIcon />Rename</DropdownMenuItem>
+      {onRepository && (
+        <DropdownMenuItem className={row} onSelect={onRepository} disabled={!session.projectId}><GitHubGlyph />Repository</DropdownMenuItem>
+      )}
       {onOpenHistory && (
         <DropdownMenuItem className={row} onSelect={onOpenHistory} disabled={!session.projectId}><HistoryIcon />Version history</DropdownMenuItem>
       )}

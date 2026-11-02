@@ -20,7 +20,7 @@ test('provider credentials are not part of the client-readable project document'
 })
 
 test('catalogue keeps the agreed provider order and every lifecycle state has a label', () => {
-  assert.deepEqual([...connectorKeys], ['netlify', 'vercel', 'slack', 'aws', 'mcp'])
+  assert.deepEqual([...connectorKeys], ['github', 'netlify', 'vercel', 'slack', 'aws', 'mcp'])
   for (const status of connectionStatuses) assert.ok(statusLabel[status].length > 0, status)
   assert.throws(() => catalogueSchema.parse({ connectors: [{ key: 'github', name: 'GitHub', description: '', authKind: 'oauth2', status: 'active', capabilities: [] }] }))
 })
