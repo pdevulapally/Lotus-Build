@@ -1,6 +1,6 @@
 "use client"
 
-import type { ComponentProps } from "react"
+import { memo, type ComponentProps } from "react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { cn } from "@/lib/utils"
@@ -53,10 +53,10 @@ const components: ComponentProps<typeof ReactMarkdown>["components"] = {
 }
 
 /** Assistant prose. Raw HTML is never rendered; links are restricted to web and mail schemes. */
-export function Markdown({ children, className }: { children: string; className?: string }) {
+export const Markdown = memo(function Markdown({ children, className }: { children: string; className?: string }) {
   return (
     <div className={cn("min-w-0 break-words text-[14px] leading-[1.75] text-foreground [overflow-wrap:anywhere]", className)}>
       <ReactMarkdown remarkPlugins={remarkPlugins} components={components} skipHtml>{children}</ReactMarkdown>
     </div>
   )
-}
+})

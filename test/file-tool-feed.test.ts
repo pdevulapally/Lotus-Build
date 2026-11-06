@@ -11,7 +11,7 @@ test('edit_file calls become diff-capable feed items', () => {
   assert.ok(item)
   assert.equal(item.title, 'Editing file')
   assert.equal(item.status, 'running')
-  assert.deepEqual(item.metadata, { filePath: 'app/page.tsx', editVariant: 'edit', oldContent: 'a', newContent: 'b', callId: 'c1' })
+  assert.deepEqual(item.metadata, { toolName: 'edit_file', filePath: 'app/page.tsx', editVariant: 'edit', oldContent: 'a', newContent: 'b', callId: 'c1' })
 })
 
 test('write_file calls carry the full new content', () => {

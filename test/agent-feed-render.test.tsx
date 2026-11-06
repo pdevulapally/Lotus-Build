@@ -1,0 +1,124 @@
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import test from 'node:test'
+import { createElement, type ComponentProps } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import ts from 'typescript'
+import type { AgentFeed } from '../components/computer/agent-feed'
+
+const require = createRequire(import.meta.url)
+const compiled = ts.transpileModule(readFileSync(new URL('../components/computer/agent-feed.tsx', import.meta.url), 'utf8'), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
+}).outputText
+const module = { exports: {} as { AgentFeed: typeof AgentFeed; splitStableBlocks: typeof import('../components/computer/agent-feed').splitStableBlocks } }
+const isolatedRequire = (id: string) => {
+  if (id === '@/components/ai-elements/shimmer') return { Shimmer: ({ children }: { children: React.ReactNode }) => createElement('span', null, children) }
+  if (id === '@/components/ui/markdown') return { Markdown: ({ children }: { children: React.ReactNode }) => createElement('p', null, children) }
+  return require(id.startsWith('@/') ? `../${id.slice(2)}` : id)
+}
+new Function('require', 'module', 'exports', compiled)(isolatedRequire, module, module.exports)
+const render = (props: Partial<ComponentProps<typeof AgentFeed>>) => renderToStaticMarkup(createElement(module.exports.AgentFeed, {
+  canonicalMessages: [], events: [], localMessages: [], status: 'running', editingIndex: null, editText: '', ...props,
+}))
+
+test('initial startup uses natural copy and confirmed processing supersedes the older queued snapshot', () => {
+  assert.match(render({ status: 'queued' }), /Starting your request/)
+  const html = render({ status: 'queued', liveLabel: 'Processing your request…' })
+  assert.match(html, /Processing your request/); assert.doesNotMatch(html, /Queued|Starting your request/)
+})
+
+test('the canonical feed displays streamed text immediately and does not duplicate the working indicator', () => {
+  const html = render({ streamText: 'Actual model response', liveLabel: 'Processing your request…' })
+  assert.match(html, /Actual model response/); assert.doesNotMatch(html, /Working|Processing your request/)
+})
+
+test('failed or interrupted file edits never claim to be edited or show a successful diff', () => {
+  for (const status of ['error', 'skipped'] as const) {
+    const html = render({ status: 'error', events: [{ id: '1-0', title: 'Editing file', kind: 'code', status, index: 0, createdAt: '2026-11-06T10:00:00Z',
+      metadata: { filePath: 'app.ts', editVariant: 'edit', oldContent: 'old', newContent: 'new' } }] })
+    assert.match(html, status === 'error' ? /Couldn&#x27;t edit/ : /Interrupted:/)
+    assert.doesNotMatch(html, />Edited|>Created|\+1/)
+  }
+})
+
+test('a running tool replaces the generic status and an interrupted command stays interrupted', () => {
+  const row = { id: '1-0', title: 'Running command', kind: 'code' as const, status: 'running' as const, index: 0, createdAt: '2026-11-06T10:00:00Z', metadata: { command: 'npm test' } }
+  assert.doesNotMatch(render({ events: [row] }), /Working/)
+  const html = render({ status: 'error', events: [{ ...row, status: 'skipped' }] })
+  assert.match(html, /Command interrupted/); assert.doesNotMatch(html, /Ran command/)
+})
+
+test('streamed markdown splits only at stable boundaries, preserving the full document', () => {
+  const { splitStableBlocks } = module.exports
+  const whole = 'para one\n\npara two\n\n```ts\nconst x = 1\n\nconst y = 2\n```\n\nlast'
+  const { done, tail } = splitStableBlocks(whole)
+  assert.deepEqual(done, ['para one', 'para two', '```ts\nconst x = 1\n\nconst y = 2\n```'])
+  assert.equal(tail, 'last')
+  assert.equal(done.join('\n\n') + '\n\n' + tail, whole)
+  // An open fence keeps everything after it in the live tail.
+  const open = splitStableBlocks('intro\n\n```ts\npartial code\n\nstill code')
+  assert.deepEqual(open.done, ['intro'])
+  assert.equal(open.tail, '```ts\npartial code\n\nstill code')
+  // A growing stream only ever moves text from the tail into done blocks.
+  const early = splitStableBlocks('one\n\ntwo\n\nthr')
+  const later = splitStableBlocks('one\n\ntwo\n\nthree\n\nfour')
+  assert.deepEqual(early.done, later.done.slice(0, early.done.length), 'done blocks are prefix-stable')
+})
+
+test('constructs that span blank lines are never split: loose lists, blockquotes, continuations', () => {
+  const { splitStableBlocks } = module.exports
+  // A loose list must stay one <ul> — splitting would make two tight lists.
+  const list = splitStableBlocks('- one\n\n- two\n\npara')
+  assert.deepEqual(list.done, ['- one\n\n- two']); assert.equal(list.tail, 'para')
+  // A nested list continuation defers the boundary the same way.
+  const nested = splitStableBlocks('- one\n\n  - nested\n\npara')
+  assert.deepEqual(nested.done, ['- one\n\n  - nested']); assert.equal(nested.tail, 'para')
+  // One blockquote across blank lines stays one blockquote.
+  const quote = splitStableBlocks('> first\n\n> second\n\nplain')
+  assert.deepEqual(quote.done, ['> first\n\n> second']); assert.equal(quote.tail, 'plain')
+  // An indented continuation is not a boundary.
+  const indent = splitStableBlocks('- item\n\n    continued\n\nnext')
+  assert.deepEqual(indent.done, ['- item\n\n    continued']); assert.equal(indent.tail, 'next')
+  // Reference definitions are collected for document-wide resolution.
+  const refs = splitStableBlocks('see [the docs][d]\n\n[d]: https://example.com\n\nend')
+  assert.deepEqual(refs.refs, ['[d]: https://example.com'])
+})
+
+test('split rendering matches unsplit react-markdown output for document-scoped constructs', () => {
+  const { splitStableBlocks } = module.exports
+  // react-markdown echoes source newlines between top-level blocks; that
+  // whitespace is insignificant between block elements, so normalise it.
+  const render = (text: string) => renderToStaticMarkup(
+    createElement(ReactMarkdown, { remarkPlugins: [remarkGfm] }, text)).replace(/>\n+</g, '><')
+  const cases: Record<string, string> = {
+    'reference link': 'See [the docs][d] and [site].\n\n[d]: https://example.com\n[site]: https://example.org',
+    'loose list': '- first\n\n- second\n\n- third',
+    'nested list': '- outer\n\n  - inner\n\n  - inner two',
+    'blockquote spanning blanks': '> quoted one\n\n> quoted two',
+    'fenced code with blanks': 'before\n\n```ts\nconst a = 1\n\nconst b = 2\n```\n\nafter',
+    'gfm table + task list': '| a | b |\n| - | - |\n| 1 | 2 |\n\n- [x] done\n- [ ] open',
+    'thematic break': 'part one\n\n---\n\npart two',
+    'setext heading': 'Title\n===\n\nbody',
+    'incomplete fence': 'text\n\n```ts\nconst partial = ',
+    'indented continuation': '- item\n\n    still the item\n\nafter',
+  }
+  for (const [name, text] of Object.entries(cases)) {
+    const { done, tail, refs } = splitStableBlocks(text)
+    const suffix = refs.length === 0 ? '' : '\n\n' + refs.join('\n')
+    const split = done.map((block) => render(block + suffix)).join('') + render(tail + suffix)
+    const whole = render(text)
+    assert.equal(split, whole, name)
+  }
+})
+
+test('streamed responses render through the memoized block splitter preserving the full document', () => {
+  const text = 'Intro **bold**\n\n```ts\nconst x = 1\n```\n\nDone'
+  // The stub renders each Markdown block as a <p>: three stable blocks in order.
+  const html = render({ streamText: text })
+  assert.match(html, /<p>Intro \*\*bold\*\*<\/p>/)
+  assert.match(html, /<p>```ts\nconst x = 1\n```<\/p>/)
+  assert.match(html, /<p>Done<\/p>/)
+})

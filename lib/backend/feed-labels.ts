@@ -11,12 +11,27 @@ export const lifecycleFeedLabels: Readonly<Record<string, string>> = {
   'session.cancel_requested': 'Stopping',
   'session.awaiting_input': 'Waiting for you',
   'preview.ready': 'Preview is ready',
+  'sandbox.started': 'Workspace environment started',
+  'desktop.ready': 'Desktop is ready',
   'repository.ready': 'Repository is ready',
   'project.saved': 'Saved your work',
   'project.save_failed': "Couldn't save your work",
   'agent.blocked': 'Needs your attention',
   'agent.specialist_started': 'Review started',
   'agent.specialist_completed': 'Review finished',
+}
+
+const executionLabels: Readonly<Record<string, string | null>> = {
+  'session.queued': 'Starting your request…',
+  'session.running': 'Starting your request…',
+  'agent.step': 'Processing your request…',
+  'agent.text': null, 'agent.tool_call': null,
+  'session.idle': null, 'session.failed': null, 'session.awaiting_input': null,
+}
+
+/** Safe live copy from actual execution signals; never render agent.step payloads. */
+export function executionLabel(previous: string | null, type: string): string | null {
+  return Object.hasOwn(executionLabels, type) ? executionLabels[type] : previous
 }
 
 export type ToolStepPhase = 'call' | 'result'

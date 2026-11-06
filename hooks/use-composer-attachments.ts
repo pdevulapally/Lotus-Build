@@ -56,12 +56,16 @@ export function useComposerAttachments(upload: (file: File) => Promise<Attachmen
     setNotice(null)
   }, [])
 
+  const restore = useCallback((refs: readonly AttachmentRef[]) => {
+    setItems((current) => current.length ? current : refs.map((ref) => ({ localId: crypto.randomUUID(), name: 'Attached image', previewUrl: '', status: 'ready' as const, ref })))
+  }, [])
+
   useEffect(() => () => { for (const item of itemsRef.current) URL.revokeObjectURL(item.previewUrl) }, [])
 
   const uploading = items.some((item) => item.status === "uploading")
   const failed = items.some((item) => item.status === "error")
   const refs = items.flatMap((item) => (item.ref ? [item.ref] : []))
-  return { items, add, remove, clear, notice, dismissNotice: () => setNotice(null), uploading, failed, refs }
+  return { items, add, remove, clear, restore, notice, dismissNotice: () => setNotice(null), uploading, failed, refs }
 }
 
 /** Image files from a paste or drop, ignoring everything else on the clipboard. */

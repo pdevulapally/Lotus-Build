@@ -16,6 +16,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { currentBackend } from "@/lib/backend/browser";
 import { pendingCommandStorage } from "@/lib/backend/pending-storage";
 import { createBuild, pendingBuild, type ProjectCreationRequest } from "@/lib/backend/create-build";
+import { acceptLatencyTrace, latencyTrace } from "@/lib/backend/latency";
 import { BrowserVoiceAudio } from "@/lib/voice/browser-audio";
 import { handoffVoiceAudio } from "@/lib/voice/launch";
 import { resolveModelSelection } from "@/lib/backend/model-selection";
@@ -218,9 +219,11 @@ export function AnimatedAIInput({
   const { user, account, accountError } = useAuth();
   const [submitError, setSubmitError] = useState<Error | null>(null);
   const submittingRef = useRef(false);
+  const submissionTrace = useRef<ReturnType<typeof latencyTrace> | null>(null);
 
   const [value, setValue] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  useEffect(() => { if (isCreating) submissionTrace.current?.mark('acknowledged'); }, [isCreating]);
   const [sessionMode, setSessionMode] = useState<ComputerSessionMode>("build");
   const [wasLoading, setWasLoading] = useState(false);
   const [selectedModel, setSelectedModel] = useState("");
@@ -291,6 +294,7 @@ export function AnimatedAIInput({
         return;
       }
       const draft = pending ?? readSessionDraft(sessionStorage);
+      if (pending) attachments.restore(pending.attachments);
       if (draft) { setValue(draft.prompt); setSessionMode(draft.mode); if (pending) setSelectedModel(pending.model); requestAnimationFrame(() => adjustHeight()); }
     } catch (reason) { setSubmitError(reason instanceof Error ? reason : new Error('Could not restore your draft.')); }
   }, [mode, user, adjustHeight]);
@@ -302,6 +306,7 @@ export function AnimatedAIInput({
     setSubmitError(null);
     setIsCreating(true);
     submittingRef.current = true;
+    const trace = latencyTrace(); trace.mark('submit'); submissionTrace.current = trace;
     let audio: BrowserVoiceAudio | undefined;
     try {
       if (!user || !account) throw new Error(accountError || 'Account details are not available.');
@@ -314,10 +319,14 @@ export function AnimatedAIInput({
         if (!policy.available || !policy.privacyVersion) throw new Error('Voice is not available right now. You can start your project with a message.');
       }
       const data = await createBuild(backend, pendingCommandStorage(), { ...request, uid: user.uid, model: effectiveModel });
+      acceptLatencyTrace(user.uid, data.id, trace, data.createdAt);
       if (audio) { handoffVoiceAudio(user.uid, data.id, audio); audio = undefined; }
-      attachments.clear();
-      sessionStorage.removeItem(draftKey);
+      // Navigate immediately after acceptance; draft cleanup cannot block it.
+      trace.mark('navigation');
       router.push(`/computer/${data.id}${request.entrypoint === 'voice' ? '?voice=1' : ''}`);
+      attachments.clear();
+      try { sessionStorage.removeItem(draftKey); }
+      catch { setSubmitError(new Error('Your request was accepted, but the saved draft could not be cleared. Continue in the opened session.')); }
     } catch (err) {
       audio?.close();
       setSubmitError(err instanceof Error ? err : new Error('Could not create session.'));
@@ -372,7 +381,7 @@ export function AnimatedAIInput({
         data-slot={isStart ? "assistant-composer" : undefined}
         onDragOver={(e) => { if (!disabled && imageFilesFrom(e.dataTransfer).length === 0 && !Array.from(e.dataTransfer.types).includes("Files")) return; e.preventDefault(); if (!disabled) setDragging(true); }}
         onDragLeave={() => setDragging(false)}
-        onDrop={(e) => { e.preventDefault(); setDragging(false); if (!disabled) attachments.add(imageFilesFrom(e.dataTransfer)); }}
+        onDrop={(e) => { e.preventDefault(); setDragging(false); if (!disabled && !isCreating) attachments.add(imageFilesFrom(e.dataTransfer)); }}
         className={cn(
           "group/composer relative overflow-hidden rounded-2xl border transition-[border-color,box-shadow] duration-200 motion-reduce:transition-none",
           "border-border bg-card",
@@ -418,8 +427,8 @@ export function AnimatedAIInput({
           )}
         </AnimatePresence>
 
-        <div inert={disabled} className={cn("px-3 pt-3 sm:px-4 sm:pt-4", compact && "pt-2.5 sm:pt-3", isSlimChat && "px-5 pt-4", isAssistant && "px-3.5 pt-3 sm:px-4 sm:pt-4", isAssistant && isSlimChat && "sm:px-3.5 sm:pt-3", disabled && "opacity-60")}>
-          <AttachmentStrip items={attachments.items} onRemove={attachments.remove} className="mb-3" />
+        <div inert={disabled || isCreating} className={cn("px-3 pt-3 sm:px-4 sm:pt-4", compact && "pt-2.5 sm:pt-3", isSlimChat && "px-5 pt-4", isAssistant && "px-3.5 pt-3 sm:px-4 sm:pt-4", isAssistant && isSlimChat && "sm:px-3.5 sm:pt-3", disabled && "opacity-60")}>
+          <AttachmentStrip items={attachments.items} onRemove={attachments.remove} disabled={disabled || isCreating} className="mb-3" />
           {attachments.notice && (
             <p role="alert" className="mb-2 flex items-center gap-2 text-xs text-destructive">
               {attachments.notice}
@@ -435,9 +444,9 @@ export function AnimatedAIInput({
             value={value}
             aria-label={mode === "chat" ? "Message the agent" : "Describe the software you want to build"}
             placeholder={placeholder ?? (isStart ? "Ask LotusBuild to build anything…" : "What can I help you build today?")}
-            disabled={disabled}
+            disabled={disabled || isCreating}
             onKeyDown={handleKeyDown}
-            onPaste={(e) => { const files = imageFilesFrom(e.clipboardData); if (files.length) { e.preventDefault(); attachments.add(files); } }}
+            onPaste={(e) => { const files = imageFilesFrom(e.clipboardData); if (files.length) { e.preventDefault(); if (!isCreating) attachments.add(files); } }}
             onChange={(e) => { setValue(e.target.value); adjustHeight(); }}
             className={cn(
               "w-full resize-none appearance-none border-0 bg-transparent p-0",
@@ -467,7 +476,7 @@ export function AnimatedAIInput({
             isAssistant && isSlimChat && "pt-0.5",
           )}
         >
-          <div data-slot="composer-tools" inert={disabled} className={cn("flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden", disabled && "opacity-60")}>
+          <div data-slot="composer-tools" inert={disabled || isCreating} className={cn("flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden", disabled && "opacity-60")}>
             {mode === "create" && !compact && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -718,6 +727,7 @@ export function AnimatedAIInput({
           {" "}for new line
         </p>
       )}
+      {isCreating && <p role="status" aria-live="polite" className="mt-2 text-sm text-muted-foreground">Submitting your request…</p>}
       <RequestErrorNotice error={submitError} planName={account?.plan.name} onClose={() => setSubmitError(null)} onManageProjects={onManageProjects} restoreFocus={() => textareaRef.current?.focus()}>
         {mode === 'create' && user && <button type="button" onClick={() => {
           pendingCommandStorage().removeItem(`lotus-current-build:${user.uid}`); setSubmitError(null);

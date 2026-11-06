@@ -1,16 +1,34 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { activity, updateToolStepEvent } from '../hooks/use-backend-session'
-import { genericToolStepLabel, lifecycleFeedLabels, toolStepLabel } from '../lib/backend/feed-labels'
+import { activity, interruptRunningToolEvents, updateToolStepEvent } from '../hooks/use-backend-session'
+import { executionLabel, genericToolStepLabel, lifecycleFeedLabels, toolStepLabel } from '../lib/backend/feed-labels'
 import type { SessionEvent } from '../lib/backend/client'
 
 const event = (type: string, data: Record<string, unknown>, id = '1700000000000-1'): SessionEvent => ({ id, type, data }) as unknown as SessionEvent
 
 test('machinery lifecycle events never become feed rows', () => {
-  for (const type of ['session.queued', 'session.running', 'session.idle', 'sandbox.started', 'project.restored', 'agent.finished']) {
+  for (const type of ['session.queued', 'session.running', 'session.idle', 'project.restored', 'agent.finished', 'agent.step']) {
     assert.equal(activity(event(type, {}), 0), null, type)
     assert.equal(lifecycleFeedLabels[type], undefined, type)
   }
+})
+
+test('confirmed processing is live copy, independent of sandbox and private step payloads', () => {
+  assert.equal(executionLabel(null, 'session.queued'), 'Starting your request…')
+  assert.equal(executionLabel(null, 'agent.step'), 'Processing your request…')
+  assert.equal(activity(event('agent.step', { secret: 'do not render', number: 2, of: 50 }), 0), null)
+  assert.equal(executionLabel('Processing your request…', 'agent.tool_call'), null)
+  assert.equal(executionLabel('Processing your request…', 'session.failed'), null)
+  assert.equal(activity(event('sandbox.started', {}), 0)?.title, 'Workspace environment started')
+  assert.equal(activity(event('desktop.ready', {}), 0)?.title, 'Desktop is ready')
+})
+
+test('ending a run cannot invent successful tool results', () => {
+  const row = activity(event('agent.tool_call', { name: 'read_file', input: { path: 'x' }, callId: 'c' }), 0)!
+  const interrupted = interruptRunningToolEvents([row])
+  assert.equal(interrupted[0].status, 'skipped')
+  const completed = updateToolStepEvent([row], event('agent.tool_result', { name: 'read_file', callId: 'c' }))
+  assert.strictEqual(interruptRunningToolEvents(completed), completed)
 })
 
 test('events a person cares about keep plain-language rows', () => {
@@ -46,4 +64,17 @@ test('internal bookkeeping tools are hidden and unknown tools degrade to readabl
   assert.equal(activity(event('agent.tool_call', { name: 'render_chart', input: {} }), 0)?.title, 'Using render chart')
   const row = activity(event('agent.tool_call', { name: 'render_chart', input: {} }), 0)!
   assert.equal(updateToolStepEvent([row], event('agent.tool_result', { name: 'render_chart', isError: false }))[0]?.title, 'Finished render chart')
+})
+
+test('tool results match both identity and name, including out-of-order results and old events without call IDs', () => {
+  const rows = [
+    activity(event('agent.tool_call', { name: 'read_file', input: { path: 'a' }, callId: 'a' }, '1-0'), 0)!,
+    activity(event('agent.tool_call', { name: 'search_files', input: {}, callId: 'b' }, '2-0'), 1)!,
+  ]
+  assert.strictEqual(updateToolStepEvent(rows, event('agent.tool_result', { name: 'search_files', callId: 'a' })), rows)
+  const updated = updateToolStepEvent(rows, event('agent.tool_result', { name: 'read_file', callId: 'a' }))
+  assert.equal(updated[0].status, 'complete'); assert.equal(updated[1].status, 'running')
+  assert.strictEqual(updateToolStepEvent(updated, event('agent.tool_result', { name: 'read_file', callId: 'a' })), updated)
+  const legacy = updateToolStepEvent(rows, event('agent.tool_result', { name: 'read_file' }))
+  assert.equal(legacy[0].status, 'complete'); assert.equal(legacy[1].status, 'running')
 })

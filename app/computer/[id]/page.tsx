@@ -80,6 +80,7 @@ import { DeployTerminal } from "@/components/project/deploy-terminal"
 
 
 import { AgentFeed } from "@/components/computer/agent-feed"
+import { sessionLatency } from "@/lib/backend/latency"
 import { VoiceControls } from "@/components/computer/voice-controls"
 import { ConversationScrollArea } from "@/components/computer/conversation-scroll-area"
 
@@ -286,6 +287,12 @@ export default function ComputerPage() {
   const raw = backend.session
   const loading = authLoading || backend.loading
   const error = backend.error
+  useEffect(() => {
+    if (!user || loading || !backend.project || !raw) return
+    const trace = sessionLatency(user.uid, id)
+    trace.mark('workspace')
+    if (backend.text || backend.liveLabel || backend.events.length) trace.mark('feedVisible')
+  }, [user, id, loading, raw, backend.project, backend.text, backend.liveLabel, backend.events])
   const effectiveStatus: ComputerSessionStatus = raw?.status === 'FAILED' ? 'error'
     : raw?.status === 'QUEUED' ? 'queued' : raw?.status === 'RUNNING' ? 'running' : 'idle'
   const session: ComputerSessionResponse | null = raw && backend.project ? { id: raw.id, projectId: raw.projectId,
@@ -568,7 +575,7 @@ export default function ComputerPage() {
           <ConversationScrollArea key={session.id}>
                 <AgentFeed
                   prompt={firstPrompt} events={session.timeline}
-                  canonicalMessages={backend.messages} queuedMessages={backend.queued} streamText={backend.text}
+                  canonicalMessages={backend.messages} queuedMessages={backend.queued} streamText={backend.text} liveLabel={backend.liveLabel}
                   localMessages={localMessages} status={feedStatus}
                   progress={sessionProgress}
                   optimisticStart={optimisticStart}

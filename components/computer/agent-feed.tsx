@@ -1,6 +1,6 @@
 "use client"
 
-import { Fragment, useEffect, useMemo, useRef, useState } from "react"
+import { Fragment, memo, useEffect, useMemo, useRef, useState } from "react"
 import { MessageAttachments } from "@/components/computer/message-attachments"
 import type { AttachmentRef } from "@/lib/backend/attachments"
 import { AnimatePresence, motion } from "framer-motion"
@@ -47,6 +47,7 @@ import { cn } from "@/lib/utils"
 import { Markdown } from "@/components/ui/markdown"
 
 const PROSE_EVENTS = ["Understanding insight", "Research insight", "Browser insight", "Build approach"]
+const commandStates = { pending: 'pending', running: 'running', complete: 'idle', error: 'error', skipped: 'interrupted' } as const
 
 const QUIET_COMPLETED_EVENTS = new Set([
   "Run started",
@@ -287,35 +288,39 @@ function PlanTool({ event, onApprovePlan }: { event: ComputerTimelineEvent; onAp
 function FeedFileItem({
   filePath,
   variant,
-  isRunning,
-  isPending,
+  status,
   oldContent,
   newContent,
 }: {
   filePath?: string
   variant: "edit" | "write"
-  isRunning: boolean
-  isPending: boolean
+  status: ComputerTimelineEvent['status']
   oldContent?: string
   newContent?: string
 }) {
   const [open, setOpen] = useState(false)
   const fileName = filePath?.split("/").pop() || filePath || ""
   const isWrite = variant === "write"
+  const isRunning = status === 'running'
+  const isPending = status === 'pending'
 
   const diffOps = useMemo<DiffOp[] | null>(() => {
-    if (isPending || isRunning) return null
+    if (status !== 'complete') return null
     if (isWrite && newContent) return newContent.split("\n").map((text) => ({ type: "add" as const, text }))
     if (oldContent !== undefined && newContent !== undefined) return lineDiff(oldContent, newContent)
     return null
-  }, [isPending, isRunning, isWrite, oldContent, newContent])
+  }, [status, isWrite, oldContent, newContent])
 
   const stats = useMemo(() => (diffOps ? countDiffStats(diffOps) : null), [diffOps])
   const hasDiff = Boolean(diffOps && diffOps.length > 0)
 
-  const label = isPending || isRunning
-    ? `${isWrite ? "Creating" : "Editing"} ${fileName}`
-    : `${isWrite ? "Created" : "Edited"} ${fileName}`
+  const label = `${{
+    pending: isWrite ? 'Waiting to create' : 'Waiting to edit',
+    running: isWrite ? 'Creating' : 'Editing',
+    complete: isWrite ? 'Created' : 'Edited',
+    error: isWrite ? "Couldn't create" : "Couldn't edit",
+    skipped: 'Interrupted:',
+  }[status]} ${fileName}`
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card">
@@ -379,7 +384,53 @@ function FeedFileItem({
   )
 }
 
-function FeedItem({
+/**
+ * Splits a streamed markdown string into completed blocks. A blank line is a
+ * stable boundary only where the following line cannot continue an open
+ * construct: blockquotes, lists and indented continuations span blank lines,
+ * so splitting there would turn one loose list or one blockquote into two.
+ * Reference definitions are document-scoped, so every block is parsed with
+ * the definitions seen so far — they render nothing on their own.
+ */
+const FENCE = /^ {0,3}```/
+const REFERENCE_DEFINITION = /^ {0,3}\[[^\]\n]+\]:\s*\S/
+const CONTINUATION_LINE = /^(?: {0,3}(?:>|[-*+]|\d{1,9}[.)])(?:[ \t]|$)| {2,}\S)/
+
+export function splitStableBlocks(text: string): { done: string[]; tail: string; refs: string[] } {
+  const done: string[] = []
+  const refs: string[] = []
+  const lines = text.split('\n')
+  const offsets: number[] = []
+  let offset = 0
+  for (const line of lines) { offsets.push(offset); offset += line.length + 1 }
+  let fenced = false
+  let start = 0
+  for (let i = 0; i < lines.length; i++) {
+    if (FENCE.test(lines[i])) { fenced = !fenced; continue }
+    if (fenced || lines[i].trim() !== '') continue
+    const next = lines.slice(i + 1).find((line) => line.trim() !== '') ?? ''
+    if (CONTINUATION_LINE.test(next)) continue
+    if (offsets[i] - 1 > start) done.push(text.slice(start, offsets[i] - 1))
+    start = offsets[i + 1] ?? text.length
+  }
+  let refFenced = false
+  for (const line of lines) {
+    if (FENCE.test(line)) { refFenced = !refFenced; continue }
+    if (!refFenced && REFERENCE_DEFINITION.test(line)) refs.push(line)
+  }
+  return { done, tail: text.slice(start), refs }
+}
+
+const StreamedMarkdown = memo(function StreamedMarkdown({ text }: { text: string }) {
+  const { done, tail, refs } = splitStableBlocks(text)
+  const suffix = refs.length === 0 ? '' : '\n\n' + refs.join('\n')
+  return <>
+    {done.map((block, i) => <Markdown key={i}>{block + suffix}</Markdown>)}
+    <Markdown>{tail + suffix}</Markdown>
+  </>
+})
+
+const FeedItem = memo(function FeedItem({
   event,
   isSessionRunning,
   onSupabaseSetup,
@@ -399,6 +450,7 @@ function FeedItem({
   const isError = event.status === "error"
   const isRunning = isSessionRunning && event.status === "running"
   const isSkipped = event.status === "skipped"
+  const toolStatus = event.status === 'running' && !isSessionRunning ? 'skipped' : event.status
   const title = getEventTitle(event)
   const description = isTokenLimitError(event.description)
     ? "You have used all credits for this cycle."
@@ -451,7 +503,7 @@ function FeedItem({
   if (event.title === "Response" && event.description) {
     return (
       <div className="py-3 pr-2">
-        <Markdown>{event.description}</Markdown>
+        <StreamedMarkdown text={event.description} />
       </div>
     )
   }
@@ -464,7 +516,7 @@ function FeedItem({
   if (commandMetadata) {
     return (
       <BashTool
-        state={event.status === "running" && isRunning ? "running" : "idle"}
+        state={commandStates[toolStatus]}
         command={commandMetadata.command}
         output={commandMetadata.output ?? description}
         className="my-2"
@@ -489,8 +541,7 @@ function FeedItem({
       <FeedFileItem
         filePath={generatedFilePath}
         variant={getEditToolVariant(event)}
-        isRunning={isRunning}
-        isPending={isRunning}
+        status={toolStatus}
         oldContent={fileContent.oldContent}
         newContent={fileContent.newContent}
       />
@@ -545,11 +596,11 @@ function FeedItem({
       </div>
     </div>
   )
-}
+})
 
 type CheckpointRestoreState = "idle" | "confirming" | "restoring"
 
-function UserMessageBubble({
+const UserMessageBubble = memo(function UserMessageBubble({
   canEdit = true,
   content, attachments, index, isEditing, editText,
   runId, isLastCheckpoint, onRestoreCheckpoint,
@@ -705,7 +756,7 @@ function UserMessageBubble({
     </Dialog>
     </>
   )
-}
+})
 
 export function AgentFeed({
   prompt, events, localMessages, status, optimisticStart,
@@ -713,11 +764,12 @@ export function AgentFeed({
   editingIndex, editText, onEditStart, onEditChange, onEditSubmit, onEditCancel,
   onSupabaseSetup, onSupabaseDecline, onClarificationAnswer, onApprovePlan,
   onRestoreCheckpoint,
-  canonicalMessages, queuedMessages, streamText,
+  canonicalMessages, queuedMessages, streamText, liveLabel,
 }: {
   canonicalMessages?: { seq: number; role: 'user' | 'assistant'; voiceSpeaker?: 'user' | 'assistant'; content: string; createdAt: string; attachments?: AttachmentRef[] }[]
   queuedMessages?: { id: string; prompt: string; attachments?: AttachmentRef[] }[]
   streamText?: string
+  liveLabel?: string | null
   prompt?: string
   events: ComputerTimelineEvent[]
   localMessages: LocalMessage[]
@@ -736,6 +788,43 @@ export function AgentFeed({
   onApprovePlan?: () => void
   onRestoreCheckpoint?: (runId: string) => Promise<void>
 }) {
+  // Streamed text re-renders this component every frame while callers rebuild
+  // these callbacks each render. Stable trampolines keep the memoized rows
+  // cheap; each wrapper still invokes the latest callback.
+  const latest = useRef({
+    onEditStart, onEditChange, onEditSubmit, onEditCancel,
+    onSupabaseSetup, onSupabaseDecline, onClarificationAnswer, onApprovePlan, onRestoreCheckpoint,
+  })
+  latest.current = {
+    onEditStart, onEditChange, onEditSubmit, onEditCancel,
+    onSupabaseSetup, onSupabaseDecline, onClarificationAnswer, onApprovePlan, onRestoreCheckpoint,
+  }
+  const stable = useRef<typeof latest.current | undefined>(undefined)
+  if (stable.current === undefined) {
+    stable.current = {
+      onEditStart: (i, c) => latest.current.onEditStart?.(i, c),
+      onEditChange: (t) => latest.current.onEditChange?.(t),
+      onEditSubmit: (i) => latest.current.onEditSubmit?.(i),
+      onEditCancel: () => latest.current.onEditCancel?.(),
+      onSupabaseSetup: () => latest.current.onSupabaseSetup?.(),
+      onSupabaseDecline: () => latest.current.onSupabaseDecline?.(),
+      onClarificationAnswer: (a) => latest.current.onClarificationAnswer?.(a),
+      onApprovePlan: () => latest.current.onApprovePlan?.(),
+      onRestoreCheckpoint: (r) => latest.current.onRestoreCheckpoint ? latest.current.onRestoreCheckpoint(r) : Promise.resolve(),
+    }
+  }
+  const cb = stable.current
+  const responseFallbacks = useRef(new WeakMap<object, ComputerTimelineEvent>())
+  const editStart = onEditStart ? cb.onEditStart : undefined
+  const editChange = onEditChange ? cb.onEditChange : undefined
+  const editSubmit = onEditSubmit ? cb.onEditSubmit : undefined
+  const editCancel = onEditCancel ? cb.onEditCancel : undefined
+  const supabaseSetup = onSupabaseSetup ? cb.onSupabaseSetup : undefined
+  const supabaseDecline = onSupabaseDecline ? cb.onSupabaseDecline : undefined
+  const clarifyAnswer = onClarificationAnswer ? cb.onClarificationAnswer : undefined
+  const approvePlan = onApprovePlan ? cb.onApprovePlan : undefined
+  const restoreCheckpoint = onRestoreCheckpoint ? cb.onRestoreCheckpoint : undefined
+
   const isRunning = status === "running" || status === "planning" || status === "queued"
   const visible = events.filter((e) => e.title !== "Session created")
   const { firstRunId, followUpRunIds } = getRunIdGroups(events)
@@ -767,25 +856,36 @@ export function AgentFeed({
   const showGlobalThinking = Boolean(progress?.active) && !hasActiveFeedStep
 
   if (canonicalMessages) {
+    // Message objects are stable across stream frames; keep the synthesized
+    // fallback events stable too so the memoized FeedItem can skip them.
     const rows = [
-      ...canonicalMessages.map((message) => ({ time: Date.parse(message.createdAt), key: `message-${message.seq}`, message: { ...message, role: message.voiceSpeaker ?? message.role }, event: undefined as ComputerTimelineEvent | undefined })),
+      ...canonicalMessages.map((message) => ({ time: Date.parse(message.createdAt), key: `message-${message.seq}`, message, event: undefined as ComputerTimelineEvent | undefined })),
       ...events.map((event) => ({ time: Date.parse(event.createdAt), key: `event-${event.id}`, message: undefined, event })),
     ].sort((left, right) => left.time - right.time)
+    const fallbackFor = (message: NonNullable<(typeof rows)[number]['message']>): ComputerTimelineEvent => {
+      let fallback = responseFallbacks.current.get(message)
+      if (fallback === undefined) {
+        fallback = { title: 'Response', description: message.content, status: 'complete', createdAt: message.createdAt, index: message.seq }
+        responseFallbacks.current.set(message, fallback)
+      }
+      return fallback
+    }
     return <div className="space-y-2.5 pb-4">
-      {rows.map(({ key, message, event }) => <div key={key} className={message?.role === 'user' ? 'pt-6 pb-3' : ''}>
-        {message?.role === 'user' ? <UserMessageBubble canEdit={false} content={message.content} attachments={message.attachments} index={message.seq} isEditing={false} editText=""
-          onEditStart={onEditStart} onEditChange={onEditChange} onEditSubmit={onEditSubmit} onEditCancel={onEditCancel} />
-          : <FeedItem event={event ?? { title: 'Response', description: message!.content, status: 'complete', createdAt: message!.createdAt, index: message!.seq }}
-            isLatest={false} isSessionRunning={isRunning} />}
-      </div>)}
+      {rows.map(({ key, message, event }) => { const role = message ? (message.voiceSpeaker ?? message.role) : undefined
+        return <div key={key} className={role === 'user' ? 'pt-6 pb-3' : ''}>
+        {role === 'user' ? <UserMessageBubble canEdit={false} content={message!.content} attachments={message!.attachments} index={message!.seq} isEditing={false} editText=""
+          onEditStart={editStart} onEditChange={editChange} onEditSubmit={editSubmit} onEditCancel={editCancel} />
+          : <FeedItem event={event ?? fallbackFor(message!)}
+            isLatest={false} isSessionRunning={isRunning} onSupabaseSetup={supabaseSetup} onSupabaseDecline={supabaseDecline} onClarificationAnswer={clarifyAnswer} onApprovePlan={approvePlan} />}
+      </div> })}
       {queuedMessages?.map((message) => <div key={message.id} className="pt-5">
         <UserMessageBubble canEdit={false} content={message.prompt} attachments={message.attachments} index={-1} isEditing={false} editText=""
-          onEditStart={onEditStart} onEditChange={onEditChange} onEditSubmit={onEditSubmit} onEditCancel={onEditCancel} />
+          onEditStart={editStart} onEditChange={editChange} onEditSubmit={editSubmit} onEditCancel={editCancel} />
         <p className="mt-1 text-xs text-muted-foreground">Queued</p>
       </div>)}
       {streamText && <FeedItem event={{ title: 'Response', description: streamText, status: 'running', createdAt: '', index: 0 }} isLatest isSessionRunning={isRunning} />}
-      {isRunning && <div className="py-2">
-        <Shimmer className="text-[13px] font-medium">{status === "queued" ? "Starting…" : "Working…"}</Shimmer>
+      {isRunning && !hasActiveFeedStep && !streamText && <div role="status" className="py-2">
+        <Shimmer className="text-[13px] font-medium">{liveLabel ?? (status === "queued" ? "Starting your request…" : "Working…")}</Shimmer>
       </div>}
       {onApprovePlan && !isRunning && <button type="button" className="mt-3 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={onApprovePlan}>Build this plan</button>}
     </div>
@@ -814,10 +914,10 @@ export function AgentFeed({
         event={event}
         isLatest={isLatest}
         isSessionRunning={isRunning}
-        onSupabaseSetup={onSupabaseSetup}
-        onSupabaseDecline={onSupabaseDecline}
-        onClarificationAnswer={onClarificationAnswer}
-        onApprovePlan={onApprovePlan}
+        onSupabaseSetup={supabaseSetup}
+        onSupabaseDecline={supabaseDecline}
+        onClarificationAnswer={clarifyAnswer}
+        onApprovePlan={approvePlan}
       />
     </motion.div>
   )
@@ -831,9 +931,9 @@ export function AgentFeed({
             editText={editingIndex === -1 ? editText : ""}
             runId={firstRunId ?? undefined}
             isLastCheckpoint={isInitialPromptLastCheckpoint}
-            onRestoreCheckpoint={onRestoreCheckpoint}
-            onEditStart={onEditStart} onEditChange={onEditChange}
-            onEditSubmit={onEditSubmit} onEditCancel={onEditCancel}
+            onRestoreCheckpoint={restoreCheckpoint}
+            onEditStart={editStart} onEditChange={editChange}
+            onEditSubmit={editSubmit} onEditCancel={editCancel}
           />
         </motion.div>
       )}
@@ -862,9 +962,9 @@ export function AgentFeed({
                   editText={editingIndex === i ? editText : ""}
                   runId={getFollowUpRunId(i)}
                   isLastCheckpoint={i === localUserCount - 1}
-                  onRestoreCheckpoint={onRestoreCheckpoint}
-                  onEditStart={onEditStart} onEditChange={onEditChange}
-                  onEditSubmit={onEditSubmit} onEditCancel={onEditCancel}
+                  onRestoreCheckpoint={restoreCheckpoint}
+                  onEditStart={editStart} onEditChange={editChange}
+                  onEditSubmit={editSubmit} onEditCancel={editCancel}
                 />
               </motion.div>
               {(runEventsById.get(msg.runId ?? followUpRunIds[localMessages.slice(0, i).filter((item) => item.role === "user").length]) ?? []).map((event, eventIndex, runEvents) =>
