@@ -177,7 +177,13 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
   const [streamError, setStreamError] = useState<string | null>(null)
   const [connection, setConnection] = useState<'connecting' | 'connected' | 'reconnecting' | 'offline'>('connecting')
   const scopeRef = useRef('')
-  const [stopping, setStopping] = useState(false)
+  const [stopping, setStoppingState] = useState(false)
+  // Stop acts at once in the feed: the live label and running step rows end here,
+  // and the server's own 'Stopped' row follows when it confirms.
+  const setStopping = useCallback((next: boolean) => {
+    setStoppingState(next)
+    if (next) { setLiveLabel(null); setEvents((current) => interruptRunningToolEvents(current)) }
+  }, [])
   const [revision, setRevision] = useState(0)
   const refreshRef = useRef<() => Promise<void>>(async () => { throw new Error('Session data is not loaded.') })
   const refresh = useCallback(() => refreshRef.current(), [])

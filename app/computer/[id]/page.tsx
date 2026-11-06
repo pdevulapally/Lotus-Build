@@ -575,7 +575,7 @@ export default function ComputerPage() {
           <ConversationScrollArea key={session.id}>
                 <AgentFeed
                   prompt={firstPrompt} events={session.timeline}
-                  canonicalMessages={backend.messages} queuedMessages={backend.queued} streamText={backend.text} liveLabel={backend.liveLabel}
+                  canonicalMessages={backend.messages} queuedMessages={backend.queued} streamText={isStopping ? '' : backend.text} liveLabel={backend.liveLabel} stopping={isStopping}
                   localMessages={localMessages} status={feedStatus}
                   progress={sessionProgress}
                   optimisticStart={optimisticStart}
@@ -617,7 +617,6 @@ export default function ComputerPage() {
               </div>
             })()}
             {backend.connection !== 'connected' && <p role="status" className="mb-2 text-xs text-muted-foreground">{backend.connection === 'offline' ? 'You are offline.' : 'Reconnecting...'} Showing the last confirmed task state. Accepted work runs on the server.</p>}
-            {isStopping && <p role="status" className="mb-2 text-xs text-muted-foreground">Cancellation accepted. Stopping further work; external actions already sent may have completed.</p>}
             {isStartingRun && <p role="status" className="mb-2 text-xs text-muted-foreground">Sending command. Waiting for confirmation...</p>}
             {pendingMessage && !isStartingRun && <p role="status" className="mb-2 text-xs text-muted-foreground">Message pending confirmation: {pendingMessage.prompt.slice(0, 160)}{' '}
               <button type="button" className="underline" onClick={() => { void handleRun(pendingMessage.prompt, pendingMessage.mode, pendingMessage.attachments, pendingMessage.inputResponse ?? null).catch(() => {}) }}>Retry original message</button>

@@ -764,12 +764,14 @@ export function AgentFeed({
   editingIndex, editText, onEditStart, onEditChange, onEditSubmit, onEditCancel,
   onSupabaseSetup, onSupabaseDecline, onClarificationAnswer, onApprovePlan,
   onRestoreCheckpoint,
-  canonicalMessages, queuedMessages, streamText, liveLabel,
+  canonicalMessages, queuedMessages, streamText, liveLabel, stopping = false,
 }: {
   canonicalMessages?: { seq: number; role: 'user' | 'assistant'; voiceSpeaker?: 'user' | 'assistant'; content: string; createdAt: string; attachments?: AttachmentRef[] }[]
   queuedMessages?: { id: string; prompt: string; attachments?: AttachmentRef[] }[]
   streamText?: string
   liveLabel?: string | null
+  /** Stop was accepted; the server has not yet confirmed. Nothing is shown as still working. */
+  stopping?: boolean
   prompt?: string
   events: ComputerTimelineEvent[]
   localMessages: LocalMessage[]
@@ -884,7 +886,8 @@ export function AgentFeed({
         <p className="mt-1 text-xs text-muted-foreground">Queued</p>
       </div>)}
       {streamText && <FeedItem event={{ title: 'Response', description: streamText, status: 'running', createdAt: '', index: 0 }} isLatest isSessionRunning={isRunning} />}
-      {isRunning && !hasActiveFeedStep && !streamText && <div role="status" className="py-2">
+      {isRunning && stopping && <p role="status" className="py-2 text-[13px] font-medium text-muted-foreground">Stopped</p>}
+      {isRunning && !stopping && !hasActiveFeedStep && !streamText && <div role="status" className="py-2">
         <Shimmer className="text-[13px] font-medium">{liveLabel ?? (status === "queued" ? "Starting your request…" : "Working…")}</Shimmer>
       </div>}
       {onApprovePlan && !isRunning && <button type="button" className="mt-3 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={onApprovePlan}>Build this plan</button>}
