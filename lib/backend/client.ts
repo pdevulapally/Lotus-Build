@@ -21,11 +21,14 @@ export const projectSchema = z.object({
   source: projectSourceSchema.optional(),
 })
 export const sessionSchema = z.object({
-  id, projectId: id, status: z.enum(['QUEUED', 'RUNNING', 'IDLE', 'FAILED']), model: z.string(),
+  id, projectId: id, status: z.enum(['QUEUED', 'RUNNING', 'IDLE', 'STOPPED', 'FAILED']), model: z.string(),
   effort: z.enum(['low', 'standard', 'high', 'xhigh']), mode: z.enum(['build', 'plan']),
   sandboxId: z.string().optional(), error: z.string().optional(), messageCount: z.number().int().nonnegative(),
   heartbeatAt: timestamp.optional(), createdAt: timestamp,
   cancelRequested: z.boolean().optional(),
+  /** Which run of this session the state describes; absent until the server starts numbering runs. */
+  execution: z.number().int().positive().optional(),
+  cancelRequestedAt: timestamp.optional(),
   fallback: z.object({ status: z.enum(['AWAITING_CONSENT', 'QUEUED', 'RUNNING', 'CAPACITY_WAIT', 'EXHAUSTED', 'SHARED_LIMIT', 'UNAVAILABLE', 'COMPLETED']),
     reason: z.string(), resumable: z.boolean(), checkpointId: id.optional(), lane: z.enum(['premium', 'fallback']).optional(), consent: z.boolean(),
     imageExpiresAt: timestamp.optional(), resetAt: timestamp.optional(), retryAt: timestamp.optional(), limitLabel: z.string().optional(),
@@ -299,7 +302,11 @@ export class BackendClient {
     return this.json(sessionSchema, `/sessions/${id.parse(sessionId)}/continuation`, { method: 'POST', body, key: keySchema.parse(key) })
   }
 
-  cancel(sessionId: string, key: string) { return this.json(sessionSchema, `/sessions/${id.parse(sessionId)}/cancel`, { method: 'POST', key: keySchema.parse(key) }) }
+  /** Stops one specific run: the server refuses a Stop whose `execution` is no longer the current one. */
+  cancel(sessionId: string, key: string, execution?: number) {
+    const body = execution === undefined ? undefined : z.object({ execution: z.number().int().positive() }).strict().parse({ execution })
+    return this.json(sessionSchema, `/sessions/${id.parse(sessionId)}/cancel`, { method: 'POST', key: keySchema.parse(key), ...(body === undefined ? {} : { body }) })
+  }
 
   /** One connection. Caller owns reconnect UI/backoff; control frames never advance the resume cursor. */
   async events(sessionId: string, options: { signal: AbortSignal; after?: string; onOpen?: () => void; onEvent: (event: SessionEvent) => void | Promise<void> }) {

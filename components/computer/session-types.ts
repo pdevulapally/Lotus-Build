@@ -4,7 +4,7 @@ import type {
   ComputerConversationTurn,
 } from "@/lib/computer-agent/types"
 
-export type ComputerSessionStatus = "idle" | "queued" | "planning" | "running" | "error" | "complete"
+export type ComputerSessionStatus = "idle" | "queued" | "planning" | "running" | "stopped" | "error" | "complete"
 
 export type ComputerTimelineEvent = {
   id?: string
@@ -55,6 +55,7 @@ export const STATUS_LABELS: Record<ComputerSessionStatus, string> = {
   queued: "Queued",
   planning: "Thinking",
   running: "Thinking",
+  stopped: "Stopped",
   error: "Error",
   complete: "Done",
 }

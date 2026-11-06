@@ -45,6 +45,7 @@ import {
 import type { ComputerSessionProgress } from "@/components/computer/session-progress-model"
 import { cn } from "@/lib/utils"
 import { Markdown } from "@/components/ui/markdown"
+import { STILL_STOPPING_AFTER_MS, stoppingLabels } from "@/lib/backend/feed-labels"
 
 const PROSE_EVENTS = ["Understanding insight", "Research insight", "Browser insight", "Build approach"]
 const commandStates = { pending: 'pending', running: 'running', complete: 'idle', error: 'error', skipped: 'interrupted' } as const
@@ -764,14 +765,16 @@ export function AgentFeed({
   editingIndex, editText, onEditStart, onEditChange, onEditSubmit, onEditCancel,
   onSupabaseSetup, onSupabaseDecline, onClarificationAnswer, onApprovePlan,
   onRestoreCheckpoint,
-  canonicalMessages, queuedMessages, streamText, liveLabel, stopping = false,
+  canonicalMessages, queuedMessages, streamText, liveLabel, stopping = false, stoppingSince = null,
 }: {
   canonicalMessages?: { seq: number; role: 'user' | 'assistant'; voiceSpeaker?: 'user' | 'assistant'; content: string; createdAt: string; attachments?: AttachmentRef[] }[]
   queuedMessages?: { id: string; prompt: string; attachments?: AttachmentRef[] }[]
   streamText?: string
   liveLabel?: string | null
-  /** Stop was accepted; the server has not yet confirmed. Nothing is shown as still working. */
+  /** The server accepted a Stop and is still ending the run; it reports the end itself. */
   stopping?: boolean
+  /** When the server recorded the Stop, so a slow one can be explained rather than left silent. */
+  stoppingSince?: string | null
   prompt?: string
   events: ComputerTimelineEvent[]
   localMessages: LocalMessage[]
@@ -790,6 +793,13 @@ export function AgentFeed({
   onApprovePlan?: () => void
   onRestoreCheckpoint?: (runId: string) => Promise<void>
 }) {
+  const [stoppingLong, setStoppingLong] = useState(false)
+  useEffect(() => {
+    if (!stopping) { setStoppingLong(false); return }
+    const since = stoppingSince ? Date.parse(stoppingSince) : Date.now()
+    const timer = setTimeout(() => setStoppingLong(true), Math.max(0, (Number.isFinite(since) ? since : Date.now()) + STILL_STOPPING_AFTER_MS - Date.now()))
+    return () => clearTimeout(timer)
+  }, [stopping, stoppingSince])
   // Streamed text re-renders this component every frame while callers rebuild
   // these callbacks each render. Stable trampolines keep the memoized rows
   // cheap; each wrapper still invokes the latest callback.
@@ -886,7 +896,7 @@ export function AgentFeed({
         <p className="mt-1 text-xs text-muted-foreground">Queued</p>
       </div>)}
       {streamText && <FeedItem event={{ title: 'Response', description: streamText, status: 'running', createdAt: '', index: 0 }} isLatest isSessionRunning={isRunning} />}
-      {isRunning && stopping && <p role="status" className="py-2 text-[13px] font-medium text-muted-foreground">Stopped</p>}
+      {isRunning && stopping && <p role="status" className="py-2 text-[13px] font-medium text-muted-foreground">{stoppingLong ? stoppingLabels.stillStopping : stoppingLabels.stopping}</p>}
       {isRunning && !stopping && !hasActiveFeedStep && !streamText && <div role="status" className="py-2">
         <Shimmer className="text-[13px] font-medium">{liveLabel ?? (status === "queued" ? "Starting your request…" : "Working…")}</Shimmer>
       </div>}

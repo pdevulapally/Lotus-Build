@@ -122,3 +122,15 @@ test('streamed responses render through the memoized block splitter preserving t
   assert.match(html, /<p>```ts\nconst x = 1\n```<\/p>/)
   assert.match(html, /<p>Done<\/p>/)
 })
+
+test('a stop the server has accepted reads as Stopping, never as Stopped, and keeps streamed text in view', () => {
+  const html = render({ stopping: true, streamText: 'Half an answer', events: [{ id: '1-0', title: 'Running command', kind: 'code', status: 'running', index: 0, createdAt: '2026-11-06T10:00:00Z', metadata: { command: 'npm test' } }] })
+  assert.match(html, /Stopping/); assert.doesNotMatch(html, /Stopped|Working|Interrupted/)
+  assert.match(html, /Half an answer/)
+})
+
+test('a confirmed stop is calm: the progress label says Stopped and nothing is styled as an error', () => {
+  const html = render({ status: 'stopped', progress: { state: 'idle', label: 'Stopped', description: 'Stopped before finishing. Send a message to continue.', active: false },
+    events: [{ id: '2-0', title: 'Stopped', kind: 'planning', status: 'complete', index: 1, createdAt: '2026-11-06T10:00:01Z' }] })
+  assert.match(html, /Stopped/); assert.doesNotMatch(html, /Stopping|Something went wrong|text-destructive/)
+})

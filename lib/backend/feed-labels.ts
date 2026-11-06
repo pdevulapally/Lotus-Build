@@ -7,8 +7,8 @@
 
 /** Lifecycle events worth a line of their own. Status is carried by the live status line, not by rows. */
 export const lifecycleFeedLabels: Readonly<Record<string, string>> = {
+  'session.stopped': 'Stopped',
   'session.failed': 'Stopped',
-  'session.cancel_requested': 'Stopping',
   'session.awaiting_input': 'Waiting for you',
   'preview.ready': 'Preview is ready',
   'sandbox.started': 'Workspace environment started',
@@ -21,12 +21,20 @@ export const lifecycleFeedLabels: Readonly<Record<string, string>> = {
   'agent.specialist_completed': 'Review finished',
 }
 
+/** Live copy while the server winds a stopped run down; it alone decides when "Stopped" is true. */
+export const stoppingLabels = {
+  stopping: 'Stopping',
+  stillStopping: 'Still stopping — making sure your work is saved',
+} as const
+/** How long a Stop may take before the live line explains what is still happening. */
+export const STILL_STOPPING_AFTER_MS = 5_000
+
 const executionLabels: Readonly<Record<string, string | null>> = {
   'session.queued': 'Starting your request…',
   'session.running': 'Starting your request…',
   'agent.step': 'Processing your request…',
   'agent.text': null, 'agent.tool_call': null,
-  'session.idle': null, 'session.failed': null, 'session.awaiting_input': null,
+  'session.idle': null, 'session.stopped': null, 'session.failed': null, 'session.awaiting_input': null,
 }
 
 /** Safe live copy from actual execution signals; never render agent.step payloads. */
