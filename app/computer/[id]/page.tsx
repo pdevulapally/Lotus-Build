@@ -296,7 +296,7 @@ export default function ComputerPage() {
   const effectiveStatus: ComputerSessionStatus = raw?.status === 'FAILED' ? 'error' : raw?.status === 'STOPPED' ? 'stopped'
     : raw?.status === 'QUEUED' ? 'queued' : raw?.status === 'RUNNING' ? 'running' : 'idle'
   const session: ComputerSessionResponse | null = raw && backend.project ? { id: raw.id, projectId: raw.projectId,
-    status: effectiveStatus, sessionMode: raw.mode, timeline: backend.events,
+    status: effectiveStatus, sessionMode: raw.mode, timeline: backend.events, execution: raw.execution,
     prompt: backend.messages[0]?.content, previewUrl: backend.preview, platform: backend.project.platform } : null
   const projectIntegration: ComputerProjectIntegration | null = backend.project ? { name: backend.project.name } : null
   const projectFileCount = backend.fileCount

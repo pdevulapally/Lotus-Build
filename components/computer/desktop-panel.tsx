@@ -7,10 +7,17 @@ import { BackendError } from "@/lib/backend/client"
 import { currentBackend } from "@/lib/backend/browser"
 import { desktopCloseAction, desktopSocketUrl, type DesktopState } from "@/lib/backend/desktop"
 
-export type DesktopViewState = "connecting" | "live" | "ended" | "unavailable" | "capacity" | "slow" | "failed"
+export type DesktopViewState =
+  | "connecting" | "live" | "ended" | "unavailable" | "capacity" | "slow" | "failed"
+  | "idle" | "starting" | "waiting" | "start-failed" | "not-offered"
 
 const stateCopy: Record<Exclude<DesktopViewState, "live">, string> = {
   connecting: "Connecting to the desktop…",
+  starting: "Starting the desktop…",
+  idle: "No desktop yet. The agent opens one when it needs to see the screen, or you can start it now.",
+  waiting: "Start desktop is available while the agent is working.",
+  "start-failed": "Couldn't start the desktop.",
+  "not-offered": "Start desktop isn't available on this server yet.",
   ended: "The desktop has ended. It will appear again on the next build.",
   unavailable: "No desktop for this session.",
   capacity: "Close another desktop view to watch here.",
@@ -21,10 +28,12 @@ const stateCopy: Record<Exclude<DesktopViewState, "live">, string> = {
 export function DesktopPanelView({
   state,
   onRetry,
+  onStart,
   children,
 }: {
   state: DesktopViewState
   onRetry?: () => void
+  onStart?: () => void
   children?: ReactNode
 }) {
   return (
@@ -37,11 +46,14 @@ export function DesktopPanelView({
       </div>
       {state !== "live" && (
         <div role="status" className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
-          {state === "connecting"
+          {state === "connecting" || state === "starting"
             ? <Shimmer className="text-sm font-medium">{stateCopy[state]}</Shimmer>
-            : <p className="text-sm font-medium text-muted-foreground">{stateCopy[state]}</p>}
+            : <p className="max-w-sm text-sm font-medium text-muted-foreground">{stateCopy[state]}</p>}
           {onRetry && (state === "failed" || state === "capacity" || state === "slow") && (
             <Button type="button" variant="outline" size="sm" onClick={onRetry}>Try again</Button>
+          )}
+          {onStart && (state === "idle" || state === "start-failed") && (
+            <Button type="button" variant="outline" size="sm" onClick={onStart}>{state === "idle" ? "Start desktop" : "Try again"}</Button>
           )}
         </div>
       )}
@@ -49,7 +61,44 @@ export function DesktopPanelView({
   )
 }
 
-export function DesktopPanel({ sessionId, desktop, active }: { sessionId: string; desktop: DesktopState; active: boolean }) {
+export type DesktopStartRequest = "none" | "sent" | "no-run" | "not-offered" | "failed"
+
+/**
+ * What a server answer to the request for run `requested` means now that run `current` is on screen:
+ * nothing at all when the run has moved on, so a late rejection never overwrites the newer run's state.
+ */
+export function settleStartRequest(requested: number, current: number | undefined, error: unknown): DesktopStartRequest | undefined {
+  return requested === current ? desktopStartOutcome(error) : undefined
+}
+
+/** What one answer from the server means for the Start desktop control; everything else stays derived from session events. */
+export function desktopStartOutcome(error: unknown): DesktopStartRequest {
+  if (!(error instanceof BackendError)) return "failed"
+  if (error.code === "desktop/no-active-run" || error.code === "session/execution-changed") return "no-run"
+  if (error.code === "desktop/unsupported" || error.status === 404) return "not-offered"
+  return "failed"
+}
+
+export function DesktopPanel({ sessionId, desktop, active, canStart, execution }: {
+  sessionId: string; desktop: DesktopState; active: boolean; canStart: boolean; execution?: number
+}) {
+  // Local only until the server's own `desktop.requested` / `desktop.ready` events take over,
+  // and reset whenever the run it was aimed at is no longer the one on screen.
+  const [startRequest, setStartRequest] = useState<DesktopStartRequest>("none")
+  const onScreen = useRef<{ sessionId: string; execution: number | undefined }>({ sessionId, execution })
+  onScreen.current = { sessionId, execution }
+  useEffect(() => { setStartRequest("none") }, [sessionId, execution, canStart])
+  useEffect(() => { if (desktop.status !== "none") setStartRequest("none") }, [desktop.status])
+  const requestStart = () => {
+    if (execution === undefined) { setStartRequest("not-offered"); return }
+    setStartRequest("sent")
+    const requested = { sessionId, execution }
+    void currentBackend().requestDesktop(sessionId, execution).catch((error: unknown) => {
+      if (onScreen.current.sessionId !== requested.sessionId) return
+      const next = settleStartRequest(requested.execution, onScreen.current.execution, error)
+      if (next !== undefined) setStartRequest(next)
+    })
+  }
   const targetRef = useRef<HTMLDivElement | null>(null)
   const [connectionState, setConnectionState] = useState<DesktopViewState>("connecting")
   const [retryAllowed, setRetryAllowed] = useState(false)
@@ -187,7 +236,14 @@ export function DesktopPanel({ sessionId, desktop, active }: { sessionId: string
   if (desktop.status === "ended") {
     return <DesktopPanelView state={desktop.reason === "error" ? "unavailable" : "ended"} />
   }
-  if (desktop.status === "none") return <DesktopPanelView state="unavailable" />
+  if (desktop.status === "starting" || (desktop.status === "none" && startRequest === "sent")) return <DesktopPanelView state="starting" />
+  if (desktop.status === "none") {
+    if (startRequest === "not-offered") return <DesktopPanelView state="not-offered" />
+    if (startRequest === "failed") return <DesktopPanelView state="start-failed" onStart={requestStart} />
+    return canStart && startRequest !== "no-run"
+      ? <DesktopPanelView state="idle" onStart={requestStart} />
+      : <DesktopPanelView state="waiting" />
+  }
 
   return (
     <DesktopPanelView state={connectionState} onRetry={retryAllowed ? retry : undefined}>

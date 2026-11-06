@@ -469,3 +469,30 @@ test('the session contract accepts a stopped run and its run number, and still a
   assert.throws(() => sessionSchema.parse({ ...base, status: 'CANCELLED' }))
   assert.throws(() => sessionSchema.parse({ ...base, execution: 0 }))
 })
+
+test('asking for the desktop posts to the session and accepts only the run-stamped acknowledgement', async () => {
+  const requests: { url: string; method?: string; body?: string }[] = []
+  const client = new BackendClient({
+    origin: 'https://api.example.test',
+    token: async () => 'id-token',
+    fetch: async (input, init) => {
+      requests.push({ url: String(input), method: init?.method, body: init?.body as string | undefined })
+      return Response.json({ sessionId: 'session_1', execution: 3, requested: true }, { status: 202 })
+    },
+  })
+  assert.deepEqual(await client.requestDesktop('session_1', 3), { sessionId: 'session_1', execution: 3, requested: true })
+  assert.deepEqual(requests, [{ url: 'https://api.example.test/sessions/session_1/desktop', method: 'POST', body: JSON.stringify({ execution: 3 }) }])
+  assert.throws(() => client.requestDesktop('session_1', 0), 'a run number is always a positive integer')
+
+  const refused = new BackendClient({
+    origin: 'https://api.example.test',
+    token: async () => 'id-token',
+    fetch: async () => Response.json({ error: { code: 'desktop/no-active-run', message: 'The desktop can be started while the agent is working.' } }, { status: 409 }),
+  })
+  await assert.rejects(refused.requestDesktop('session_1', 3), (error: unknown) => {
+    assert.ok(error instanceof BackendError)
+    assert.equal(error.code, 'desktop/no-active-run')
+    assert.equal(error.status, 409)
+    return true
+  })
+})
