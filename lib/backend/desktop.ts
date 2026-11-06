@@ -48,6 +48,8 @@ export function desktopSocketUrl(origin: string, sessionId: string, ticket: stri
 
 export function reduceDesktop(state: DesktopState, event: { type: string; data: Record<string, unknown> }): DesktopState {
   if (event.type === 'desktop.requested') return state.status === 'ready' ? state : { status: 'starting' }
+  // A run that ends without a desktop ends the request with it; nothing is left "starting".
+  if (state.status === 'starting' && (event.type === 'session.idle' || event.type === 'session.stopped' || event.type === 'session.failed')) return { status: 'none' }
   if (event.type === 'desktop.ready') {
     const { width, height } = event.data
     if (Number.isSafeInteger(width) && Number.isSafeInteger(height) && Number(width) > 0 && Number(height) > 0) {

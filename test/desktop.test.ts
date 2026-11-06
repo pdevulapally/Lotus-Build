@@ -44,6 +44,10 @@ test('desktop events fold in replay order, including an end without a prior read
   assert.deepEqual(reduceDesktop(ready, event('desktop.requested', { execution: 1 })), ready, 'a request never hides a desktop that is already up')
   assert.deepEqual(reduceDesktop({ status: 'starting' }, event('desktop.ready', { width: 1280, height: 800 })), ready)
   assert.deepEqual(reduceDesktop({ status: 'starting' }, event('desktop.ended', { reason: 'error' })), { status: 'ended', reason: 'error' })
+  for (const type of ['session.idle', 'session.stopped', 'session.failed']) {
+    assert.deepEqual(reduceDesktop({ status: 'starting' }, event(type, {})), none, `${type} ends a request that never became a desktop`)
+  }
+  assert.deepEqual(reduceDesktop(ready, event('session.idle', {})), ready, 'a live desktop is ended by desktop.ended, not by the run ending')
 })
 
 test('all documented WebSocket close codes map to the required policy', () => {
