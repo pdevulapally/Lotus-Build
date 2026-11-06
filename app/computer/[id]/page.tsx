@@ -605,6 +605,9 @@ export default function ComputerPage() {
               const message = runError instanceof Error ? runError.message : (runError || backend.streamError || backend.fileError || raw?.error || 'Live connection interrupted.')
               const allowance = /allows (\d[\d,]*) (\S+) of (.+?), and (\d[\d,]*) \S+ of that is already used or held/i.exec(message)
               const limit = runError instanceof Error ? presentRequestError(runError).isQuota : allowance !== null || isTokenLimitError(message)
+              // A configured fallback already explains the limit and offers the
+              // free-model continuation; the generic upgrade card would duplicate it.
+              if (limit && raw?.fallback !== undefined) return null
               const details = allowance === null ? undefined : { label: allowance[3], unit: allowance[2], limit: Number(allowance[1].replaceAll(',', '')), consumed: Number(allowance[4].replaceAll(',', '')), reserved: 0 }
               const error = runError instanceof Error ? runError : limit ? new BackendError(402, 'usage/limit-reached', message, undefined, details) : new Error(message)
               return <div className="mb-3">
