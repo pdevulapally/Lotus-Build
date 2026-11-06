@@ -7,10 +7,15 @@ import { BackendError } from "@/lib/backend/client"
 import { currentBackend } from "@/lib/backend/browser"
 import { desktopCloseAction, desktopSocketUrl, type DesktopState } from "@/lib/backend/desktop"
 
-export type DesktopViewState = "connecting" | "live" | "ended" | "unavailable" | "capacity" | "slow" | "failed"
+export type DesktopViewState =
+  | "connecting" | "live" | "ended" | "unavailable" | "capacity" | "slow" | "failed"
+  | "idle" | "starting" | "waiting"
 
 const stateCopy: Record<Exclude<DesktopViewState, "live">, string> = {
   connecting: "Connecting to the desktop…",
+  starting: "Starting the desktop…",
+  idle: "No desktop yet. The agent opens one when it needs to see the screen, or you can start it now.",
+  waiting: "Start desktop is available while the agent is working.",
   ended: "The desktop has ended. It will appear again on the next build.",
   unavailable: "No desktop for this session.",
   capacity: "Close another desktop view to watch here.",
@@ -21,10 +26,12 @@ const stateCopy: Record<Exclude<DesktopViewState, "live">, string> = {
 export function DesktopPanelView({
   state,
   onRetry,
+  onStart,
   children,
 }: {
   state: DesktopViewState
   onRetry?: () => void
+  onStart?: () => void
   children?: ReactNode
 }) {
   return (
@@ -37,11 +44,14 @@ export function DesktopPanelView({
       </div>
       {state !== "live" && (
         <div role="status" className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
-          {state === "connecting"
+          {state === "connecting" || state === "starting"
             ? <Shimmer className="text-sm font-medium">{stateCopy[state]}</Shimmer>
-            : <p className="text-sm font-medium text-muted-foreground">{stateCopy[state]}</p>}
+            : <p className="max-w-sm text-sm font-medium text-muted-foreground">{stateCopy[state]}</p>}
           {onRetry && (state === "failed" || state === "capacity" || state === "slow") && (
             <Button type="button" variant="outline" size="sm" onClick={onRetry}>Try again</Button>
+          )}
+          {onStart && state === "idle" && (
+            <Button type="button" variant="outline" size="sm" onClick={onStart}>Start desktop</Button>
           )}
         </div>
       )}
@@ -49,7 +59,15 @@ export function DesktopPanelView({
   )
 }
 
-export function DesktopPanel({ sessionId, desktop, active }: { sessionId: string; desktop: DesktopState; active: boolean }) {
+export function DesktopPanel({ sessionId, desktop, active, canStart }: { sessionId: string; desktop: DesktopState; active: boolean; canStart: boolean }) {
+  // Local only until the server's own `desktop.requested` / `desktop.ready` events take over.
+  const [startRequest, setStartRequest] = useState<"none" | "sent" | "no-run">("none")
+  const requestStart = () => {
+    setStartRequest("sent")
+    void currentBackend().requestDesktop(sessionId).catch((error: unknown) => {
+      setStartRequest(error instanceof BackendError && error.code === "desktop/no-active-run" ? "no-run" : "none")
+    })
+  }
   const targetRef = useRef<HTMLDivElement | null>(null)
   const [connectionState, setConnectionState] = useState<DesktopViewState>("connecting")
   const [retryAllowed, setRetryAllowed] = useState(false)
@@ -187,7 +205,12 @@ export function DesktopPanel({ sessionId, desktop, active }: { sessionId: string
   if (desktop.status === "ended") {
     return <DesktopPanelView state={desktop.reason === "error" ? "unavailable" : "ended"} />
   }
-  if (desktop.status === "none") return <DesktopPanelView state="unavailable" />
+  if (desktop.status === "starting" || (desktop.status === "none" && startRequest === "sent")) return <DesktopPanelView state="starting" />
+  if (desktop.status === "none") {
+    return canStart && startRequest !== "no-run"
+      ? <DesktopPanelView state="idle" onStart={requestStart} />
+      : <DesktopPanelView state="waiting" />
+  }
 
   return (
     <DesktopPanelView state={connectionState} onRetry={retryAllowed ? retry : undefined}>

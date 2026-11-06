@@ -75,6 +75,7 @@ const emailVerificationCodeSentSchema = z.object({
   resendAfterSeconds: z.number().int().nonnegative(),
 })
 const emailVerificationResultSchema = z.object({ verified: z.boolean() })
+const desktopRequestSchema = z.object({ sessionId: id, execution: z.number().int().positive(), requested: z.literal(true) }).strict()
 const desktopTicketSchema = z.object({
   ticket: z.string().min(1).max(2048),
   expiresInSeconds: z.number().positive(),
@@ -277,6 +278,11 @@ export class BackendClient {
       throw new BackendError(502, 'response/invalid', 'The server returned an invalid desktop ticket.')
     }
     return ticket
+  }
+  /** Asks the running agent to bring its desktop up; the server records the request against the current run. */
+  requestDesktop(sessionId: string) {
+    const encodedId = encodeURIComponent(id.parse(sessionId))
+    return this.json(desktopRequestSchema, `/sessions/${encodedId}/desktop`, { method: 'POST' })
   }
   messages(sessionId: string, signal?: AbortSignal) { return this.json(z.object({ messages: z.array(messageSchema) }), `/sessions/${id.parse(sessionId)}/messages?limit=200`, { signal }) }
   queuedMessages(sessionId: string, signal?: AbortSignal) { return this.json(z.object({ queuedMessages: z.array(queuedSchema), nextCursor: z.string().nullable() }), `/sessions/${id.parse(sessionId)}/queued-messages?limit=100`, { signal }) }

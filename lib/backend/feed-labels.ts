@@ -12,6 +12,7 @@ export const lifecycleFeedLabels: Readonly<Record<string, string>> = {
   'session.awaiting_input': 'Waiting for you',
   'preview.ready': 'Preview is ready',
   'sandbox.started': 'Workspace environment started',
+  'desktop.requested': 'Starting the desktop',
   'desktop.ready': 'Desktop is ready',
   'repository.ready': 'Repository is ready',
   'project.saved': 'Saved your work',

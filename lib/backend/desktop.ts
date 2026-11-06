@@ -2,6 +2,7 @@ import { backendOrigin } from '@/lib/backend/client'
 
 export type DesktopState =
   | { status: 'none' }
+  | { status: 'starting' }
   | { status: 'ready'; width: number; height: number }
   | { status: 'ended'; reason: 'session-ended' | 'sandbox-stopped' | 'error' }
 
@@ -46,6 +47,7 @@ export function desktopSocketUrl(origin: string, sessionId: string, ticket: stri
 }
 
 export function reduceDesktop(state: DesktopState, event: { type: string; data: Record<string, unknown> }): DesktopState {
+  if (event.type === 'desktop.requested') return state.status === 'ready' ? state : { status: 'starting' }
   if (event.type === 'desktop.ready') {
     const { width, height } = event.data
     if (Number.isSafeInteger(width) && Number.isSafeInteger(height) && Number(width) > 0 && Number(height) > 0) {

@@ -40,6 +40,10 @@ test('desktop events fold in replay order, including an end without a prior read
     reason: 'error',
   })
   assert.equal(reduceDesktop(none, event('desktop.ready', { width: 0, height: 800 })), none)
+  assert.deepEqual(reduceDesktop(none, event('desktop.requested', { execution: 1 })), { status: 'starting' })
+  assert.deepEqual(reduceDesktop(ready, event('desktop.requested', { execution: 1 })), ready, 'a request never hides a desktop that is already up')
+  assert.deepEqual(reduceDesktop({ status: 'starting' }, event('desktop.ready', { width: 1280, height: 800 })), ready)
+  assert.deepEqual(reduceDesktop({ status: 'starting' }, event('desktop.ended', { reason: 'error' })), { status: 'ended', reason: 'error' })
 })
 
 test('all documented WebSocket close codes map to the required policy', () => {
