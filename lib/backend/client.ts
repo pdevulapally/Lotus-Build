@@ -127,7 +127,7 @@ export class BackendClient {
     this.fetcher = (...args) => fetcher(...args)
   }
 
-  private async response(path: string, options: { method?: string; body?: unknown; raw?: { body: Blob; contentType: string }; key?: string; signal?: AbortSignal; after?: string; public?: true } = {}, forceRefresh = false): Promise<Response> {
+  private async response(path: string, options: { method?: string; body?: unknown; raw?: { body: Blob; contentType: string }; key?: string; signal?: AbortSignal; after?: string; public?: true } = {}, forceRefresh = false, rateLimited = false): Promise<Response> {
     const token = options.public ? undefined : await this.token(forceRefresh)
     options.signal?.throwIfAborted()
     if (!options.public && !token) throw new BackendError(401, 'auth/missing-token', 'Sign in to continue.')
@@ -148,6 +148,16 @@ export class BackendClient {
       const error = errorSchema.safeParse(body)
       if (!options.public && !forceRefresh && response.status === 401 && error.success && error.data.error.code === 'auth/token-expired') {
         return this.response(path, options, true)
+      }
+      // The server rate limiter rejects before doing work, so one retry after
+      // its own window is safe for reads and writes alike.
+      if (!rateLimited && error.success && error.data.error.code === 'rate-limit/exceeded') {
+        const seconds = Number((error.data.error.details as { retryAfterSeconds?: unknown } | undefined)?.retryAfterSeconds)
+        if (Number.isFinite(seconds) && seconds > 0 && seconds <= 60) {
+          await new Promise((resolve) => setTimeout(resolve, seconds * 1000))
+          options.signal?.throwIfAborted()
+          return this.response(path, options, forceRefresh, true)
+        }
       }
       throw error.success
         ? new BackendError(response.status, error.data.error.code, error.data.error.message, error.data.requestId, error.data.error.details)
