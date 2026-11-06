@@ -386,7 +386,11 @@ export default function ComputerPage() {
     busyRef.current = true; setRunError(null); setPendingCancellation(true)
     try { const accepted = await cancelSession(currentBackend(), pendingCommandStorage(), user.uid, raw.id, raw.execution); backend.applyState(accepted); setPendingCancellation(false);
       void backend.refresh().catch((reason) => setRunError(`Cancellation accepted, but refresh failed: ${reason instanceof Error ? reason.message : 'Request failed.'}`)) }
-    catch (reason) { setRunError(reason instanceof Error ? reason.message : 'Could not cancel session.') }
+    catch (reason) {
+      // A newer run started before the Stop landed: nothing was stopped, and that is not an error to show — just catch up with the server.
+      if (reason instanceof BackendError && reason.code === 'session/execution-changed') { setPendingCancellation(false); void backend.refresh().catch(() => {}) }
+      else setRunError(reason instanceof Error ? reason.message : 'Could not cancel session.')
+    }
     finally { busyRef.current = false; readPending() }
   }
   const handleContinue = async (lane: 'premium' | 'fallback', original?: ContinuationCommand) => {
