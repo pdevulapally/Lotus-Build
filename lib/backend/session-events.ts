@@ -51,11 +51,19 @@ export async function followSessionEvents(client: BackendClient, sessionId: stri
   const { signal } = options
   let cursor: string | undefined
   let failures = 0
+  let reconciliation: Promise<void> | undefined
   while (!signal.aborted) {
     let closing: string | undefined
     const openedAt = now()
     try {
-      await options.onReconcile?.()
+      // Hydration is independent of replay. Never hold the authenticated stream
+      // behind history/project requests, including during a reconnect.
+      if (!reconciliation && options.onReconcile) {
+        reconciliation = Promise.resolve().then(() => { if (!signal.aborted) return options.onReconcile?.() })
+          .catch((reason: unknown) => {
+            if (!signal.aborted) options.onError(reason instanceof Error ? reason.message : 'Session refresh failed.')
+          }).finally(() => { reconciliation = undefined })
+      }
       if (signal.aborted) return
       await client.events(sessionId, { signal, after: cursor, onOpen: options.onConnected, onEvent: async (event) => {
         if (signal.aborted) return

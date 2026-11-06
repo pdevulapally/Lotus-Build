@@ -14,7 +14,9 @@ import {
   reduceTerminal,
   type TerminalEntry,
 } from '@/lib/backend/terminal'
-import { genericToolStepLabel, isHiddenToolStep, lifecycleFeedLabels, toolStepLabel } from '@/lib/backend/feed-labels'
+import { executionLabel, genericToolStepLabel, isHiddenToolStep, lifecycleFeedLabels, toolStepLabel } from '@/lib/backend/feed-labels'
+import { loadSessionSnapshot, sessionEventStatus } from '@/lib/backend/session-snapshot'
+import { sessionLatency } from '@/lib/backend/latency'
 
 const fileTools = ['write_file', 'edit_file'] as const
 type FileTool = (typeof fileTools)[number]
@@ -34,9 +36,8 @@ export function getFileToolInput(name: FileTool, input: unknown): { filePath: st
   return { filePath, editVariant: 'write', newContent: record.content }
 }
 
-const runningToolTitles = ['Running command', 'Editing file', 'Creating file'] as const
 function isRunningToolItem(item: ComputerTimelineEvent): boolean {
-  return item.status === 'running' && ((runningToolTitles as readonly string[]).includes(item.title) || typeof item.metadata?.toolName === 'string')
+  return item.status === 'running' && typeof item.metadata?.toolName === 'string'
 }
 
 export function activity(event: SessionEvent, index: number): ComputerTimelineEvent | null {
@@ -52,7 +53,7 @@ export function activity(event: SessionEvent, index: number): ComputerTimelineEv
         kind: 'code',
         createdAt: new Date(Number(event.id.split('-')[0])).toISOString(),
         index,
-        metadata: { command: redactSecrets(command), ...(callId ? { callId } : {}) },
+        metadata: { toolName: 'run_command', command: redactSecrets(command), ...(callId ? { callId } : {}) },
       }
     }
   }
@@ -68,7 +69,7 @@ export function activity(event: SessionEvent, index: number): ComputerTimelineEv
         kind: 'code',
         createdAt: new Date(Number(event.id.split('-')[0])).toISOString(),
         index,
-        metadata: { ...file, ...(callId ? { callId } : {}) },
+        metadata: { toolName: event.data.name, ...file, ...(callId ? { callId } : {}) },
       }
     }
   }
@@ -100,10 +101,10 @@ export function activity(event: SessionEvent, index: number): ComputerTimelineEv
 }
 
 /** Finds the open row a tool result belongs to: by call id when the server sent one, else the latest running tool row. */
-function runningToolIndex(events: ComputerTimelineEvent[], callId: string | undefined): number {
+function runningToolIndex(events: ComputerTimelineEvent[], callId: string | undefined, name: string): number {
   for (let current = events.length - 1; current >= 0; current -= 1) {
     const candidate = events[current]
-    if (callId ? candidate.metadata?.callId === callId : isRunningToolItem(candidate)) return current
+    if (isRunningToolItem(candidate) && candidate.metadata?.toolName === name && (!callId || candidate.metadata?.callId === callId)) return current
   }
   return -1
 }
@@ -114,7 +115,7 @@ export function updateToolStepEvent(events: ComputerTimelineEvent[], event: Sess
   const name = typeof event.data.name === 'string' ? event.data.name : ''
   if (!name || isHiddenToolStep(name)) return events
   const callId = typeof event.data.callId === 'string' && event.data.callId ? event.data.callId : undefined
-  const index = runningToolIndex(events, callId)
+  const index = runningToolIndex(events, callId, name)
   if (index < 0) return events
   const current = events[index]
   let input: Record<string, unknown> = {}
@@ -132,14 +133,7 @@ export function updateToolStepEvent(events: ComputerTimelineEvent[], event: Sess
 function updateCommandEvent(events: ComputerTimelineEvent[], event: SessionEvent): ComputerTimelineEvent[] {
   if (event.type !== 'agent.tool_result' || (event.data.name !== 'run_command' && !isFileTool(event.data.name))) return events
   const callId = typeof event.data.callId === 'string' && event.data.callId ? event.data.callId : undefined
-  let index = -1
-  for (let current = events.length - 1; current >= 0; current -= 1) {
-    const candidate = events[current]
-    if (callId ? candidate.metadata?.callId === callId : isRunningToolItem(candidate)) {
-      index = current
-      break
-    }
-  }
+  const index = runningToolIndex(events, callId, event.data.name as string)
   if (index < 0) return events
 
   const rawText = typeof event.data.text === 'string' ? event.data.text : ''
@@ -154,12 +148,13 @@ function updateCommandEvent(events: ComputerTimelineEvent[], event: SessionEvent
   return next
 }
 
-function completeRunningCommandEvents(events: ComputerTimelineEvent[]): ComputerTimelineEvent[] {
+export function interruptRunningToolEvents(events: ComputerTimelineEvent[]): ComputerTimelineEvent[] {
   let changed = false
   const next = events.map((event) => {
     if (!isRunningToolItem(event)) return event
     changed = true
-    return { ...event, status: 'complete' as const }
+    // No result was received. Ending a run cannot prove a tool succeeded.
+    return { ...event, status: 'skipped' as const, description: 'Interrupted before a result was received.' }
   })
   return changed ? next : events
 }
@@ -173,6 +168,7 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
   const [terminal, setTerminal] = useState<TerminalEntry[]>([])
   const [desktop, setDesktop] = useState<DesktopState>({ status: 'none' })
   const [text, setText] = useState('')
+  const [liveLabel, setLiveLabel] = useState<string | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [fileCount, setFileCount] = useState<number | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
@@ -195,12 +191,20 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
     if (!sameScope) {
     setSession(null); setProject(null); setMessages([]); setQueued([]); setEvents([]); setTerminal([]); setText(''); setPreview(null)
     setDesktop({ status: 'none' })
+    setLiveLabel(null)
     setError(null); setStreamError(null); setStopping(false); setLoading(true)
     setFileCount(null); setFileError(null)
     }
     setConnection(navigator.onLine ? 'connecting' : 'offline')
     if (!user) { setError('Sign in to open this session.'); setLoading(false); return }
+    const latency = sessionLatency(user.uid, id)
     let loadVersion = 0
+    let stateVersion = 0
+    let latestStatus: BackendSession['status'] | undefined
+    let textVersion = 0
+    let turnEnded = false
+    let stateFingerprint: string | undefined
+    const fingerprint = (next: BackendSession) => JSON.stringify([next.status, next.messageCount, next.cancelRequested, next.pendingInput, next.fallback])
     let streamText = ''
     let refreshFailed = false
     let refreshTimer: ReturnType<typeof setTimeout> | undefined
@@ -209,17 +213,29 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
     const scheduleText = () => { if (textFrame === undefined) textFrame = requestAnimationFrame(flushText) }
     const reload = async () => {
       const version = ++loadVersion
+      const stateAtStart = stateVersion
+      const textAtStart = textVersion
       const client = currentBackend()
-      const [next, history, waiting] = await Promise.all([client.session(id, signal), client.messages(id, signal), client.queuedMessages(id, signal)])
-      const parent = await client.project(next.projectId, signal)
-      if (next.id !== id || parent.id !== next.projectId) throw new Error('The server returned a mismatched session or project.')
+      const { session: next, project: parent, messages: history, queued: waiting } = await loadSessionSnapshot(client, id, signal, (owned, parent) => {
+        if (signal.aborted || version !== loadVersion) return
+        setSession((current) => stateAtStart === stateVersion ? owned : current ?? { ...owned, status: latestStatus ?? owned.status })
+        if (stateAtStart === stateVersion) setStopping(owned.cancelRequested === true)
+        setProject(parent); setLoading(false)
+      })
       if (signal.aborted || version !== loadVersion) return
-      setSession(next); setStopping(next.cancelRequested === true); setProject(parent); setMessages(history.messages); setQueued(waiting.queuedMessages)
+      if (stateAtStart === stateVersion) { setSession(next); setStopping(next.cancelRequested === true); turnEnded = next.status === 'IDLE' || next.status === 'FAILED' }
+      setProject(parent); setMessages(history); setQueued(waiting)
+      setLoading(false); setError(null)
+      const loadedFingerprint = fingerprint(next)
+      if (stateFingerprint !== undefined && stateFingerprint !== loadedFingerprint) scheduleRefresh()
+      else stateFingerprint = loadedFingerprint
       void client.files(parent.id, signal).then((tree) => {
         if (!signal.aborted && version === loadVersion) { setFileCount(tree.truncated ? null : tree.files.length); setFileError(tree.truncated ? 'File listing is limited by the server. Open Code to inspect the saved files.' : null) }
       }).catch((reason) => { if (!signal.aborted && version === loadVersion) { setFileCount(null); setFileError(reason instanceof Error ? reason.message : 'Could not load saved files.') } })
       refreshFailed = false; setStreamError(null)
-      if (next.status === 'IDLE' || next.status === 'FAILED') { streamText = ''; setText('') }
+      if (textAtStart === textVersion && turnEnded) {
+        streamText = ''; if (textFrame !== undefined) { cancelAnimationFrame(textFrame); textFrame = undefined }; setText('')
+      }
     }
     refreshRef.current = reload
     const scheduleRefresh = () => {
@@ -231,28 +247,50 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
       }, 150)
     }
     void (async () => {
-      try { await reload(); if (!signal.aborted) setLoading(false) }
-      catch (reason) { if (!signal.aborted) { const message = reason instanceof Error ? reason.message : 'Could not load session.'; if (sameScope) setStreamError(message); else setError(message); setLoading(false) }; return }
       await followSessionEvents(currentBackend(), id, {
-          onReconcile: reload,
+          onReconcile: async () => {
+            try { await reload() }
+            catch (reason) {
+              if (!signal.aborted) { const message = reason instanceof Error ? reason.message : 'Could not load session.'; refreshFailed = true; setStreamError(message); if (!sameScope) setError(message); setLoading(false) }
+            }
+          },
           onReconnecting: () => { if (!signal.aborted) setConnection(navigator.onLine ? 'reconnecting' : 'offline') },
-          onReset: () => { streamText = ''; setText(''); setEvents([]); setTerminal([]); setDesktop({ status: 'none' }); setPreview(null) },
+          onReset: () => { textVersion++; streamText = ''; setText(''); setLiveLabel(null); setEvents([]); setTerminal([]); setDesktop({ status: 'none' }); setPreview(null); scheduleRefresh() },
           onState: (state) => {
+            if (signal.aborted) return
             const next = sessionSchema.parse(state)
             if (next.id !== id) throw new Error('Mismatched session state.')
+            stateVersion++
+            latestStatus = next.status
+            const nextFingerprint = fingerprint(next)
+            if (stateFingerprint !== undefined && stateFingerprint !== nextFingerprint) scheduleRefresh()
+            stateFingerprint = nextFingerprint
+            const ended = next.status === 'IDLE' || next.status === 'FAILED'
+            if (ended && !turnEnded) textVersion++
+            turnEnded = ended
+            if (ended) { setLiveLabel(null); setEvents((current) => interruptRunningToolEvents(current)) }
             setSession(next)
-            scheduleRefresh()
             setStopping(next.cancelRequested === true)
-            if (next.status === 'IDLE' || next.status === 'FAILED') { streamText = ''; setText('') }
+            // History catches up on durable turn/message events or reconnect.
+            // Heartbeat snapshots must not discard text before history arrives.
           },
-          signal, refreshToken: () => user.getIdToken(true), onError: setStreamError, onConnected: () => { setConnection('connected'); setStreamError(null) },
+          signal, refreshToken: () => user.getIdToken(true), onError: (message) => { if (!signal.aborted) setStreamError(message) }, onConnected: () => { if (!signal.aborted) { latency.mark('connected'); setConnection('connected'); if (!refreshFailed) setStreamError(null) } },
           onEvent: (event) => {
             if (signal.aborted) return
+            const status = sessionEventStatus[event.type]
+            if (status) {
+              latestStatus = status; stateVersion++
+              setSession((current) => current ? { ...current, status } : current)
+            }
+            latency.event(event.type, event.id)
+            if (['agent.step', 'agent.text', 'agent.tool_call'].includes(event.type)) latency.mark('modelReceived')
+            setLiveLabel((current) => executionLabel(current, event.type))
             if (event.type === 'preview.ready') setPreview(previewUrl(event.data.url, window.location.origin))
             if (event.type === 'sandbox.started') setPreview(null)
             setDesktop((current) => reduceDesktop(current, event))
-            if (event.type === 'session.running') { streamText = ''; if (textFrame !== undefined) { cancelAnimationFrame(textFrame); textFrame = undefined }; setText('') }
+            if (event.type === 'session.running') { turnEnded = false; textVersion++; streamText = ''; if (textFrame !== undefined) { cancelAnimationFrame(textFrame); textFrame = undefined }; setText('') }
             if (event.type === 'agent.text') {
+              textVersion++
               if (typeof event.data.delta !== 'string') throw new Error('The server returned an invalid text event.')
               streamText += event.data.delta
               if (streamText.length > 200_000) throw new Error('The live response exceeds the display limit. Reopen the session to load its saved messages.')
@@ -267,19 +305,27 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
             if (event.type === 'session.cancel_requested') setStopping(true)
             if (event.type === 'session.idle' || event.type === 'session.failed') {
               setStopping(false)
-              streamText = ''; if (textFrame !== undefined) { cancelAnimationFrame(textFrame); textFrame = undefined }; setText('')
-              setEvents((current) => completeRunningCommandEvents(current))
+              turnEnded = true; textVersion++
+              setEvents((current) => interruptRunningToolEvents(current))
             }
             if (['session.running', 'session.queued', 'session.idle', 'session.failed', 'session.awaiting_input', 'session.message_queued', 'session.message_dequeued', 'project.saved', 'voice.history_changed'].includes(event.type)) scheduleRefresh()
             if (!refreshFailed) setStreamError(null)
           },
       })
-    })()
+    })().catch((reason: unknown) => { if (!signal.aborted) { setStreamError(reason instanceof Error ? reason.message : 'Live connection failed.'); setLoading(false) } })
     const offline = () => { setConnection('offline'); setStreamError('You are offline. Showing the last confirmed task state.') }
     const online = () => { setConnection('reconnecting'); reconnect() }
     window.addEventListener('offline', offline); window.addEventListener('online', online)
     return () => { window.removeEventListener('offline', offline); window.removeEventListener('online', online); controller.abort(); if (refreshTimer !== undefined) clearTimeout(refreshTimer); if (textFrame !== undefined) cancelAnimationFrame(textFrame); refreshRef.current = async () => { throw new Error('The session connection is closed.') } }
   }, [id, user, authLoading, revision])
-  return { session, project, setProject, messages, queued, events, terminal, desktop, text, stopping, setStopping, preview: visiblePreview({ preview, session, publicPreviewEnabled: project?.publicPreviewEnabled === true }),
-    fileCount, fileError, loading, error, streamError, connection, refresh, reconnect }
+  // Effects clear the old scope after commit; do not expose it for that render.
+  const currentScope = !authLoading && scopeRef.current === `${user?.uid ?? ''}:${id}`
+  return { session: currentScope ? session : null, project: currentScope ? project : null, setProject,
+    messages: currentScope ? messages : [], queued: currentScope ? queued : [], events: currentScope ? events : [],
+    terminal: currentScope ? terminal : [], desktop: currentScope ? desktop : { status: 'none' as const }, text: currentScope ? text : '',
+    liveLabel: currentScope ? liveLabel : null, stopping: currentScope && stopping, setStopping,
+    preview: currentScope ? visiblePreview({ preview, session, publicPreviewEnabled: project?.publicPreviewEnabled === true }) : null,
+    fileCount: currentScope ? fileCount : null, fileError: currentScope ? fileError : null,
+    loading: !currentScope || loading, error: currentScope ? error : null, streamError: currentScope ? streamError : null,
+    connection, refresh, reconnect }
 }

@@ -108,6 +108,6 @@ test('authoritative state and history resets do not advance the event acknowledg
   await followSessionEvents(client, 's1', { signal: abort.signal, refreshToken: async () => {}, onError: () => {},
     onReconcile: async () => { reconciliations++ }, onState: () => { states++ }, onReset: () => { resets++ }, onEvent: (event) => { seen.push(event.id) },
   }, async () => {});
-  assert.deepEqual(cursors, [undefined, id(1)]); assert.equal(states, 1); assert.equal(resets, 1); assert.equal(reconciliations, 2);
+  assert.deepEqual(cursors, [undefined, id(1)]); assert.equal(states, 1); assert.equal(resets, 1); assert.equal(reconciliations, 1, 'an outstanding reconciliation is reused across immediate reconnects');
   assert.deepEqual(seen, [id(1), id(1), id(2)]); // A reset explicitly rebuilt the view.
 });

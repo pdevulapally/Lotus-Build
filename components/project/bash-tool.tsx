@@ -15,7 +15,7 @@ export type BashToolApproval = {
 }
 
 export type BashToolProps = {
-  state?: "idle" | "running"
+  state?: "idle" | "running" | "error" | "interrupted" | "pending"
   command: string
   output?: string
   approval?: BashToolApproval
@@ -102,6 +102,7 @@ export const BashTool = React.memo(function BashTool({
 }: BashToolProps) {
   const isRunning = state === "running"
   const summary = extractCommandSummary(command)
+  const label = { idle: 'Ran command', running: 'Running command', error: 'Command failed', interrupted: 'Command interrupted', pending: 'Command pending' }[state]
 
   return (
     <div className={cn("bg-card overflow-hidden rounded-2xl border border-border/70", className)}>
@@ -110,10 +111,10 @@ export const BashTool = React.memo(function BashTool({
           <Terminal className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           {isRunning ? (
             <TextShimmer className="truncate text-xs font-semibold">
-              Running command: {summary}
+              {label}: {summary}
             </TextShimmer>
           ) : (
-            <span className="truncate text-xs font-semibold text-muted-foreground">Ran command: {summary}</span>
+            <span className={cn("truncate text-xs font-semibold", state === 'error' ? 'text-destructive' : 'text-muted-foreground')}>{label}: {summary}</span>
           )}
         </div>
         {isRunning && <Shimmer className="shrink-0 text-[11px] font-medium">Running</Shimmer>}
