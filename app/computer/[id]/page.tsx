@@ -293,7 +293,7 @@ export default function ComputerPage() {
     trace.mark('workspace')
     if (backend.text || backend.liveLabel || backend.events.length) trace.mark('feedVisible')
   }, [user, id, loading, raw, backend.project, backend.text, backend.liveLabel, backend.events])
-  const effectiveStatus: ComputerSessionStatus = raw?.status === 'FAILED' ? 'error'
+  const effectiveStatus: ComputerSessionStatus = raw?.status === 'FAILED' ? 'error' : raw?.status === 'STOPPED' ? 'stopped'
     : raw?.status === 'QUEUED' ? 'queued' : raw?.status === 'RUNNING' ? 'running' : 'idle'
   const session: ComputerSessionResponse | null = raw && backend.project ? { id: raw.id, projectId: raw.projectId,
     status: effectiveStatus, sessionMode: raw.mode, timeline: backend.events,
@@ -384,9 +384,13 @@ export default function ComputerPage() {
   const handleStop = async () => {
     if (!raw || !user || busyRef.current) return
     busyRef.current = true; setRunError(null); setPendingCancellation(true)
-    try { const accepted = await cancelSession(currentBackend(), pendingCommandStorage(), user.uid, raw.id); backend.setStopping(accepted.cancelRequested === true); setPendingCancellation(false);
+    try { const accepted = await cancelSession(currentBackend(), pendingCommandStorage(), user.uid, raw.id, raw.execution); backend.applyState(accepted); setPendingCancellation(false);
       void backend.refresh().catch((reason) => setRunError(`Cancellation accepted, but refresh failed: ${reason instanceof Error ? reason.message : 'Request failed.'}`)) }
-    catch (reason) { backend.setStopping(false); setRunError(reason instanceof Error ? reason.message : 'Could not cancel session.') }
+    catch (reason) {
+      // A newer run started before the Stop landed: nothing was stopped, and that is not an error to show — just catch up with the server.
+      if (reason instanceof BackendError && reason.code === 'session/execution-changed') { setPendingCancellation(false); void backend.refresh().catch(() => {}) }
+      else setRunError(reason instanceof Error ? reason.message : 'Could not cancel session.')
+    }
     finally { busyRef.current = false; readPending() }
   }
   const handleContinue = async (lane: 'premium' | 'fallback', original?: ContinuationCommand) => {
@@ -575,7 +579,7 @@ export default function ComputerPage() {
           <ConversationScrollArea key={session.id}>
                 <AgentFeed
                   prompt={firstPrompt} events={session.timeline}
-                  canonicalMessages={backend.messages} queuedMessages={backend.queued} streamText={isStopping ? '' : backend.text} liveLabel={backend.liveLabel} stopping={isStopping}
+                  canonicalMessages={backend.messages} queuedMessages={backend.queued} streamText={backend.text} liveLabel={backend.liveLabel} stopping={isStopping} stoppingSince={raw?.cancelRequestedAt ?? null}
                   localMessages={localMessages} status={feedStatus}
                   progress={sessionProgress}
                   optimisticStart={optimisticStart}

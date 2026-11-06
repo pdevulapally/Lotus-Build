@@ -36,6 +36,24 @@ export function getFileToolInput(name: FileTool, input: unknown): { filePath: st
   return { filePath, editVariant: 'write', newContent: record.content }
 }
 
+const terminalStatuses: ReadonlySet<BackendSession['status']> = new Set(['IDLE', 'STOPPED', 'FAILED'])
+/** The server has nothing running for this session. */
+export function isTerminalStatus(status: BackendSession['status']): boolean { return terminalStatuses.has(status) }
+/** The server has accepted a Stop for the run that is still winding down. Only the server clears this, by ending the run. */
+export function isStopping(session: Pick<BackendSession, 'status' | 'cancelRequested'> | null): boolean {
+  return session !== null && !isTerminalStatus(session.status) && session.cancelRequested === true
+}
+
+/**
+ * Events carry the run they belong to once the server numbers runs. One that
+ * arrives after a later run has already been seen is stale and must not touch
+ * live state; history replays in order, so this never hides earlier runs.
+ */
+export function eventExecution(event: SessionEvent): number | undefined {
+  const value = event.data.execution
+  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : undefined
+}
+
 function isRunningToolItem(item: ComputerTimelineEvent): boolean {
   return item.status === 'running' && typeof item.metadata?.toolName === 'string'
 }
@@ -177,16 +195,13 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
   const [streamError, setStreamError] = useState<string | null>(null)
   const [connection, setConnection] = useState<'connecting' | 'connected' | 'reconnecting' | 'offline'>('connecting')
   const scopeRef = useRef('')
-  const [stopping, setStoppingState] = useState(false)
-  // Stop acts at once in the feed: the live label and running step rows end here,
-  // and the server's own 'Stopped' row follows when it confirms.
-  const setStopping = useCallback((next: boolean) => {
-    setStoppingState(next)
-    if (next) { setLiveLabel(null); setEvents((current) => interruptRunningToolEvents(current)) }
-  }, [])
   const [revision, setRevision] = useState(0)
   const refreshRef = useRef<() => Promise<void>>(async () => { throw new Error('Session data is not loaded.') })
   const refresh = useCallback(() => refreshRef.current(), [])
+  // A command's accepted response is server state too (a Stop comes back with
+  // cancelRequested set): it enters through the same door as a stream frame.
+  const applyStateRef = useRef<(next: BackendSession) => void>(() => {})
+  const applyState = useCallback((next: BackendSession) => applyStateRef.current(next), [])
   const reconnect = useCallback(() => setRevision((value) => value + 1), [])
   useEffect(() => {
     if (authLoading) return
@@ -198,7 +213,7 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
     setSession(null); setProject(null); setMessages([]); setQueued([]); setEvents([]); setTerminal([]); setText(''); setPreview(null)
     setDesktop({ status: 'none' })
     setLiveLabel(null)
-    setError(null); setStreamError(null); setStopping(false); setLoading(true)
+    setError(null); setStreamError(null); setLoading(true)
     setFileCount(null); setFileError(null)
     }
     setConnection(navigator.onLine ? 'connecting' : 'offline')
@@ -209,6 +224,7 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
     let latestStatus: BackendSession['status'] | undefined
     let textVersion = 0
     let turnEnded = false
+    let latestExecution = 0
     let stateFingerprint: string | undefined
     const fingerprint = (next: BackendSession) => JSON.stringify([next.status, next.messageCount, next.cancelRequested, next.pendingInput, next.fallback])
     let streamText = ''
@@ -225,11 +241,10 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
       const { session: next, project: parent, messages: history, queued: waiting } = await loadSessionSnapshot(client, id, signal, (owned, parent) => {
         if (signal.aborted || version !== loadVersion) return
         setSession((current) => stateAtStart === stateVersion ? owned : current ?? { ...owned, status: latestStatus ?? owned.status })
-        if (stateAtStart === stateVersion) setStopping(owned.cancelRequested === true)
         setProject(parent); setLoading(false)
       })
       if (signal.aborted || version !== loadVersion) return
-      if (stateAtStart === stateVersion) { setSession(next); setStopping(next.cancelRequested === true); turnEnded = next.status === 'IDLE' || next.status === 'FAILED' }
+      if (stateAtStart === stateVersion) { setSession(next); turnEnded = isTerminalStatus(next.status) }
       setProject(parent); setMessages(history); setQueued(waiting)
       setLoading(false); setError(null)
       const loadedFingerprint = fingerprint(next)
@@ -244,6 +259,23 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
       }
     }
     refreshRef.current = reload
+    const applyServerState = (next: BackendSession) => {
+      if (next.id !== id) throw new Error('Mismatched session state.')
+      stateVersion++
+      latestStatus = next.status
+      if (next.execution !== undefined) latestExecution = Math.max(latestExecution, next.execution)
+      const nextFingerprint = fingerprint(next)
+      if (stateFingerprint !== undefined && stateFingerprint !== nextFingerprint) scheduleRefresh()
+      stateFingerprint = nextFingerprint
+      const ended = isTerminalStatus(next.status)
+      if (ended && !turnEnded) textVersion++
+      turnEnded = ended
+      // Running rows end only when the server says the run has ended, never on
+      // the Stop request alone: the command may still be running until then.
+      if (ended) { setLiveLabel(null); setEvents((current) => interruptRunningToolEvents(current)) }
+      setSession(next)
+    }
+    applyStateRef.current = applyServerState
     const scheduleRefresh = () => {
       if (refreshTimer !== undefined) clearTimeout(refreshTimer)
       refreshTimer = setTimeout(() => {
@@ -264,25 +296,18 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
           onReset: () => { textVersion++; streamText = ''; setText(''); setLiveLabel(null); setEvents([]); setTerminal([]); setDesktop({ status: 'none' }); setPreview(null); scheduleRefresh() },
           onState: (state) => {
             if (signal.aborted) return
-            const next = sessionSchema.parse(state)
-            if (next.id !== id) throw new Error('Mismatched session state.')
-            stateVersion++
-            latestStatus = next.status
-            const nextFingerprint = fingerprint(next)
-            if (stateFingerprint !== undefined && stateFingerprint !== nextFingerprint) scheduleRefresh()
-            stateFingerprint = nextFingerprint
-            const ended = next.status === 'IDLE' || next.status === 'FAILED'
-            if (ended && !turnEnded) textVersion++
-            turnEnded = ended
-            if (ended) { setLiveLabel(null); setEvents((current) => interruptRunningToolEvents(current)) }
-            setSession(next)
-            setStopping(next.cancelRequested === true)
+            applyServerState(sessionSchema.parse(state))
             // History catches up on durable turn/message events or reconnect.
             // Heartbeat snapshots must not discard text before history arrives.
           },
           signal, refreshToken: () => user.getIdToken(true), onError: (message) => { if (!signal.aborted) setStreamError(message) }, onConnected: () => { if (!signal.aborted) { latency.mark('connected'); setConnection('connected'); if (!refreshFailed) setStreamError(null) } },
           onEvent: (event) => {
             if (signal.aborted) return
+            const execution = eventExecution(event)
+            if (execution !== undefined) {
+              if (execution < latestExecution) return
+              latestExecution = execution
+            }
             const status = sessionEventStatus[event.type]
             if (status) {
               latestStatus = status; stateVersion++
@@ -308,13 +333,12 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
             }
             const item = activity(event, Number(event.id.split('-')[0]))
             if (item) setEvents((current) => [...current, item].slice(-300))
-            if (event.type === 'session.cancel_requested') setStopping(true)
-            if (event.type === 'session.idle' || event.type === 'session.failed') {
-              setStopping(false)
+            if (event.type === 'session.cancel_requested') setSession((current) => current ? { ...current, cancelRequested: true } : current)
+            if (status !== undefined && isTerminalStatus(status)) {
               turnEnded = true; textVersion++
               setEvents((current) => interruptRunningToolEvents(current))
             }
-            if (['session.running', 'session.queued', 'session.idle', 'session.failed', 'session.awaiting_input', 'session.message_queued', 'session.message_dequeued', 'project.saved', 'voice.history_changed'].includes(event.type)) scheduleRefresh()
+            if (['session.running', 'session.queued', 'session.idle', 'session.stopped', 'session.failed', 'session.awaiting_input', 'session.message_queued', 'session.message_dequeued', 'project.saved', 'voice.history_changed'].includes(event.type)) scheduleRefresh()
             if (!refreshFailed) setStreamError(null)
           },
       })
@@ -322,14 +346,14 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
     const offline = () => { setConnection('offline'); setStreamError('You are offline. Showing the last confirmed task state.') }
     const online = () => { setConnection('reconnecting'); reconnect() }
     window.addEventListener('offline', offline); window.addEventListener('online', online)
-    return () => { window.removeEventListener('offline', offline); window.removeEventListener('online', online); controller.abort(); if (refreshTimer !== undefined) clearTimeout(refreshTimer); if (textFrame !== undefined) cancelAnimationFrame(textFrame); refreshRef.current = async () => { throw new Error('The session connection is closed.') } }
+    return () => { window.removeEventListener('offline', offline); window.removeEventListener('online', online); controller.abort(); if (refreshTimer !== undefined) clearTimeout(refreshTimer); if (textFrame !== undefined) cancelAnimationFrame(textFrame); refreshRef.current = async () => { throw new Error('The session connection is closed.') }; applyStateRef.current = () => {} }
   }, [id, user, authLoading, revision])
   // Effects clear the old scope after commit; do not expose it for that render.
   const currentScope = !authLoading && scopeRef.current === `${user?.uid ?? ''}:${id}`
   return { session: currentScope ? session : null, project: currentScope ? project : null, setProject,
     messages: currentScope ? messages : [], queued: currentScope ? queued : [], events: currentScope ? events : [],
     terminal: currentScope ? terminal : [], desktop: currentScope ? desktop : { status: 'none' as const }, text: currentScope ? text : '',
-    liveLabel: currentScope ? liveLabel : null, stopping: currentScope && stopping, setStopping,
+    liveLabel: currentScope ? liveLabel : null, stopping: currentScope && isStopping(session), applyState,
     preview: currentScope ? visiblePreview({ preview, session, publicPreviewEnabled: project?.publicPreviewEnabled === true }) : null,
     fileCount: currentScope ? fileCount : null, fileError: currentScope ? fileError : null,
     loading: !currentScope || loading, error: currentScope ? error : null, streamError: currentScope ? streamError : null,

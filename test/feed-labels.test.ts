@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { activity, interruptRunningToolEvents, updateToolStepEvent } from '../hooks/use-backend-session'
+import { activity, eventExecution, interruptRunningToolEvents, isStopping, isTerminalStatus, updateToolStepEvent } from '../hooks/use-backend-session'
 import { executionLabel, genericToolStepLabel, lifecycleFeedLabels, toolStepLabel } from '../lib/backend/feed-labels'
 import type { SessionEvent } from '../lib/backend/client'
 
 const event = (type: string, data: Record<string, unknown>, id = '1700000000000-1'): SessionEvent => ({ id, type, data }) as unknown as SessionEvent
 
 test('machinery lifecycle events never become feed rows', () => {
-  for (const type of ['session.queued', 'session.running', 'session.idle', 'project.restored', 'agent.finished', 'agent.step']) {
+  for (const type of ['session.queued', 'session.running', 'session.idle', 'session.cancel_requested', 'project.restored', 'agent.finished', 'agent.step']) {
     assert.equal(activity(event(type, {}), 0), null, type)
     assert.equal(lifecycleFeedLabels[type], undefined, type)
   }
@@ -36,6 +36,24 @@ test('events a person cares about keep plain-language rows', () => {
   assert.equal(activity(event('project.saved', {}), 0)?.title, 'Saved your work')
   assert.equal(activity(event('session.failed', { error: 'Cancelled by user' }), 0)?.status, 'error')
   assert.equal(activity(event('session.failed', { error: 'Cancelled by user' }), 0)?.title, 'Stopped')
+})
+
+test('a confirmed stop is a calm row, and only the server decides when a run is stopping or over', () => {
+  const stopped = activity(event('session.stopped', { execution: 3 }), 0)
+  assert.equal(stopped?.title, 'Stopped'); assert.equal(stopped?.status, 'complete')
+  assert.equal(executionLabel('Processing your request…', 'session.stopped'), null)
+  assert.equal(isStopping({ status: 'RUNNING', cancelRequested: true }), true)
+  assert.equal(isStopping({ status: 'QUEUED', cancelRequested: true }), true)
+  assert.equal(isStopping({ status: 'RUNNING', cancelRequested: false }), false)
+  for (const status of ['STOPPED', 'FAILED', 'IDLE'] as const) {
+    assert.equal(isStopping({ status, cancelRequested: true }), false, `${status} is over, not stopping`)
+    assert.equal(isTerminalStatus(status), true)
+  }
+  assert.equal(isTerminalStatus('RUNNING'), false)
+  assert.equal(eventExecution(event('agent.text', { execution: 2 })), 2)
+  assert.equal(eventExecution(event('agent.text', {})), undefined)
+  assert.equal(eventExecution(event('agent.text', { execution: '2' })), undefined)
+  assert.equal(eventExecution(event('agent.text', { execution: 0 })), undefined)
 })
 
 test('tool steps read as what the agent did, with the subject where it helps', () => {

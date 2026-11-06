@@ -86,6 +86,15 @@ export function deriveComputerSessionProgress(input: ProgressInput): ComputerSes
     }
   }
 
+  if (input.status === "stopped") {
+    return {
+      state: "idle",
+      label: "Stopped",
+      description: "Stopped before finishing. Send a message to continue.",
+      active: false,
+    }
+  }
+
   if (input.status === "complete" && input.session.previewUrl) {
     return {
       state: "complete",

@@ -2,7 +2,7 @@ import type { BackendClient, BackendProject, BackendSession } from './client'
 
 /** Durable lifecycle events confirm these statuses before the next snapshot. */
 export const sessionEventStatus: Readonly<Partial<Record<string, BackendSession['status']>>> = {
-  'session.queued': 'QUEUED', 'session.running': 'RUNNING', 'session.idle': 'IDLE', 'session.failed': 'FAILED',
+  'session.queued': 'QUEUED', 'session.running': 'RUNNING', 'session.idle': 'IDLE', 'session.stopped': 'STOPPED', 'session.failed': 'FAILED',
 }
 
 /** History and the queue must not delay the session → project dependency. */

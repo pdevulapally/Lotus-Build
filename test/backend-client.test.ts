@@ -177,7 +177,7 @@ test('core requests use the current server paths, validated bodies and stable mu
   await client.createProject({ name: ' App ' }, key)
   await client.createSession('p1', { prompt: ' Build ', model: 'configured-model' }, key)
   await client.sessions('p1'); await client.session('s1'); await client.messages('s1')
-  await client.sendMessage('s1', { prompt: ' Continue ' }, key); await client.cancel('s1', key)
+  await client.sendMessage('s1', { prompt: ' Continue ' }, key); await client.cancel('s1', key); await client.cancel('s1', key, 4)
   assert.equal(calls[0]!.url, 'https://api.example.test/projects?limit=100')
   for (const call of calls) {
     assert.equal(new Headers(call.init?.headers).get('authorization'), 'Bearer id-token')
@@ -188,6 +188,9 @@ test('core requests use the current server paths, validated bodies and stable mu
   assert.deepEqual(calls[1], calls[2], 'a caller retry retains its operation key and payload')
   assert.equal(new Headers(calls[7]!.init?.headers).get('idempotency-key'), key)
   assert.equal(calls[7]!.init?.body, JSON.stringify({ prompt: 'Continue' }))
+  assert.equal(calls[8]!.init?.body, undefined, 'a Stop without a known run sends no body')
+  assert.equal(calls[9]!.init?.body, JSON.stringify({ execution: 4 }), 'a Stop names the run it is meant for')
+  assert.throws(() => client.cancel('s1', key, 0), 'a run number is a positive integer')
 })
 
 test('malformed identifiers, prompts, keys and destinations are refused before a request', async () => {
@@ -455,4 +458,14 @@ test('session usage stays scoped to the current session and rejects malformed me
   assert.equal((await client.sessionUsage('s1')).meters[0]?.settled, 1)
   const bad = new BackendClient({ origin: 'https://api.example.test', token: async () => 'token', fetch: async () => Response.json({ sessionId: 's1', meters: [{ settled: 'unknown' }] }) })
   await assert.rejects(bad.sessionUsage('s1'), { code: 'response/invalid' })
+})
+
+test('the session contract accepts a stopped run and its run number, and still accepts servers that send neither', async () => {
+  const { sessionSchema } = await import('../lib/backend/client')
+  const base = { id: 's1', projectId: 'p1', status: 'RUNNING', model: 'm', effort: 'standard', mode: 'build', messageCount: 1, createdAt: '2026-11-06T10:00:00.000Z' }
+  assert.equal(sessionSchema.parse(base).execution, undefined)
+  const stopped = sessionSchema.parse({ ...base, status: 'STOPPED', execution: 7, cancelRequestedAt: '2026-11-06T10:00:05.000Z' })
+  assert.equal(stopped.status, 'STOPPED'); assert.equal(stopped.execution, 7); assert.equal(stopped.cancelRequestedAt, '2026-11-06T10:00:05.000Z')
+  assert.throws(() => sessionSchema.parse({ ...base, status: 'CANCELLED' }))
+  assert.throws(() => sessionSchema.parse({ ...base, execution: 0 }))
 })

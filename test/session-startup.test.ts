@@ -144,6 +144,54 @@ test('completion before history finishes keeps the live response until saved his
   assert.equal(h.render().session?.status, 'IDLE')
 })
 
+test('Stopping comes from the server and Stopped only from the server; stale events from an earlier run cannot touch the live view', async (t) => {
+  let stream!: { signal: AbortSignal; onEvent: (event: SessionEvent) => Promise<void> }
+  let current: BackendSession = { ...session, execution: 2 }
+  const client = { session: async () => ({ ...current }), project: async () => project,
+    messages: async () => ({ messages: [] }), queuedMessages: async () => ({ queuedMessages: [] }), files: async () => ({ files: [], truncated: false }),
+    events: async (_id: string, options: typeof stream) => { stream = options; await new Promise<void>((resolve) => options.signal.addEventListener('abort', () => resolve(), { once: true })) },
+  } as unknown as BackendClient
+  const h = hookHarness(t, client); await settle()
+  await stream.onEvent({ type: 'session.running', id: '1-0', data: { execution: 2 } })
+  await stream.onEvent({ type: 'agent.tool_call', id: '2-0', data: { execution: 2, name: 'run_command', input: { command: 'npm test' }, callId: 'c1' } })
+  await stream.onEvent({ type: 'agent.text', id: '3-0', data: { execution: 2, delta: 'Half an answer' } })
+  await new Promise((resolve) => setTimeout(resolve, 5))
+  assert.equal(h.render().stopping, false)
+
+  // The accepted Stop response is server state: it says the run is winding down, not that it has ended.
+  h.render().applyState({ ...current, cancelRequested: true, cancelRequestedAt: '2026-11-06T10:00:05.000Z' })
+  let state = h.render()
+  assert.equal(state.stopping, true, 'an accepted Stop shows as stopping')
+  assert.equal(state.session?.status, 'RUNNING', 'the run is still running until the server ends it')
+  assert.equal(state.text, 'Half an answer', 'streamed text is not thrown away on Stop')
+  assert.equal(state.events.find((event) => event.metadata?.callId === 'c1')?.status, 'running', 'a command the server has not ended is not marked interrupted')
+
+  await stream.onEvent({ type: 'session.cancel_requested', id: '4-0', data: { execution: 2 } })
+  assert.equal(h.render().stopping, true)
+
+  // A late event from an earlier run is ignored for live state.
+  await stream.onEvent({ type: 'agent.text', id: '5-0', data: { execution: 1, delta: ' from the past' } })
+  await new Promise((resolve) => setTimeout(resolve, 5))
+  assert.equal(h.render().text, 'Half an answer')
+
+  current = { ...current, status: 'STOPPED', cancelRequested: undefined, cancelRequestedAt: undefined }
+  await stream.onEvent({ type: 'session.stopped', id: '6-0', data: { execution: 2, stopAfterMs: 1200 } })
+  state = h.render()
+  assert.equal(state.stopping, false, 'the server ended the run')
+  assert.equal(state.session?.status, 'STOPPED')
+  assert.equal(state.events.find((event) => event.metadata?.callId === 'c1')?.status, 'skipped', 'running rows end only when the server says so')
+  assert.equal(state.events.find((event) => event.title === 'Stopped')?.status, 'complete', 'a stop is not an error row')
+  assert.equal(state.liveLabel, null)
+
+  // A state frame for a newer run supersedes the stopped one; the next run starts clean.
+  await stream.onEvent({ type: 'session.state', data: { ...current, status: 'RUNNING', execution: 3 } })
+  await stream.onEvent({ type: 'session.running', id: '7-0', data: { execution: 3 } })
+  await stream.onEvent({ type: 'agent.text', id: '8-0', data: { execution: 2, delta: 'stale' } })
+  await new Promise((resolve) => setTimeout(resolve, 5))
+  assert.equal(h.render().text, '', 'a stale delta from the stopped run cannot leak into the new run')
+  assert.equal(h.render().stopping, false)
+})
+
 test('latency measures use monotonic local intervals and separate journal durations without content or identities', () => {
   let time = 0; const rows: { name: string; duration: number }[] = []
   const trace = latencyTrace(() => time, (name, start, end) => rows.push({ name, duration: end - start }))
