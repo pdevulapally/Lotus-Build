@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, LoaderCircle } from 'lucide-react'
+import { LogoMark } from '@/components/ui/logo-loader'
 import { ArrowRightIcon, CheckIcon } from '@/components/ui/lotus-icons'
 import { Navbar } from '@/components/ui/navbar'
 import { Button } from '@/components/ui/button'
@@ -107,7 +108,7 @@ export default function PricingPage() {
 
         {!plans && !error && <div role="status" className={styles.statePanel}>
           <div className="flex items-center gap-3">
-            <LoaderCircle aria-hidden="true" className="size-5 shrink-0 animate-spin text-muted-foreground motion-reduce:animate-none" />
+            <LogoMark size={24} />
             <h3>Loading plans…</h3>
           </div>
           <p>Getting the latest prices and included usage.</p>

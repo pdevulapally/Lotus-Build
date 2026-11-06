@@ -27,12 +27,12 @@ import {
   CheckCircle2,
   Share2,
   ChevronDown,
-  Loader2,
   Lock,
   Plus,
   FolderOpen,
   ArrowUpRight,
 } from "lucide-react"
+import { LogoMark } from "@/components/ui/logo-loader"
 
 
 import { Button } from "@/components/ui/button"
@@ -816,7 +816,7 @@ export function ProjectsWorkspace() {
               <>
                 <DialogHeader className="items-center space-y-3 text-center sm:text-center">
                   <div data-billing-icon className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-muted">
-                    <Loader2 className="h-7 w-7 animate-spin text-foreground" strokeWidth={1.75} />
+                    <LogoMark size={28} />
                   </div>
                   <DialogTitle className="text-[20px] font-semibold tracking-tight text-foreground">
                     Confirming your subscription…

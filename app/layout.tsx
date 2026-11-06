@@ -1,4 +1,4 @@
-import { Shimmer } from "@/components/ai-elements/shimmer"
+import { LogoLoader } from "@/components/ui/logo-loader"
 import { legalIdentity } from "@/lib/legal/model"
 import type React from "react"
 import { Suspense } from "react"
@@ -120,7 +120,7 @@ export default function RootLayout({
         <MotionProvider>
           <AuthProvider>
             <SettingsDialogProvider>
-              <Suspense fallback={<main data-product-theme="dark" className="dark grid min-h-svh place-items-center bg-background text-sm" role="status"><Shimmer as="p" className="font-medium">Checking your account…</Shimmer></main>}>
+              <Suspense fallback={<LogoLoader label="Checking your account…" theme="dark" />}>
                 <VerifiedEmailGate>{children}</VerifiedEmailGate>
               </Suspense>
             </SettingsDialogProvider>

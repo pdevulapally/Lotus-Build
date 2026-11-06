@@ -22,7 +22,7 @@ import {
 import { SavedProjectFiles as ComputerCodePanel } from "@/components/computer/saved-project-content"
 import { cn } from "@/lib/utils"
 import { Shimmer } from "@/components/ai-elements/shimmer"
-import { LotusLogo } from "@/components/ui/lotus-logo"
+import { LogoLoader } from "@/components/ui/logo-loader"
 import styles from "./computer-workspace.module.css"
 import { IsolatedPreviewFrame } from "@/components/project/isolated-preview-frame"
 import { BrowserIcon, DesktopIcon, FilesIcon, HomeIcon, LiveSiteIcon, RefreshIcon, ResearchIcon, TerminalIcon } from "@/components/ui/lotus-icons"
@@ -976,12 +976,7 @@ function PreviewPane({
 }
 
 export function LoadingShell({ theme = "dark" }: { theme?: "light" | "dark" }) {
-  return (
-    <main data-product-theme={theme} className={cn(styles.shell, "flex h-[100dvh] items-center justify-center overflow-hidden bg-background text-foreground", theme === "dark" && "dark")} role="status" aria-busy="true" aria-label="Loading workspace">
-      <span className={styles.loadingMark} aria-hidden="true"><LotusLogo size={104} /></span>
-      <span className="sr-only">Loading your workspace…</span>
-    </main>
-  )
+  return <LogoLoader label="Loading your workspace…" theme={theme} className={cn(styles.shell, "h-[100dvh] min-h-0 overflow-hidden")} />
 }
 
 export function ErrorState({ message, theme = "dark" }: { message: string; theme?: "light" | "dark" }) {

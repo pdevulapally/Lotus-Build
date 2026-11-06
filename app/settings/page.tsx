@@ -11,7 +11,7 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2 } from "lucide-react"
+import { LogoLoader } from "@/components/ui/logo-loader"
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import { useSettingsDialog } from "@/components/settings/settings-dialog"
 
@@ -25,10 +25,7 @@ function SettingsRedirect() {
   }, [openSettings, router])
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-background px-6 text-center" role="status">
-      <Loader2 className="size-5 animate-spin text-muted-foreground" aria-hidden="true" />
-      <p className="text-sm font-medium text-muted-foreground">Opening your settings…</p>
-    </div>
+    <LogoLoader label="Opening your settings…" />
   )
 }
 

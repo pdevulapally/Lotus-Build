@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { Command } from 'cmdk'
-import { ArrowUpRight, FolderOpen, Loader2, Search, X } from 'lucide-react'
+import { ArrowUpRight, FolderOpen, Search, X } from 'lucide-react'
+import { LogoMark } from '@/components/ui/logo-loader'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import styles from './project-search-dialog.module.css'
 
@@ -27,7 +28,7 @@ export function ProjectSearchDialog({ projects, loading, error, onOpenProject }:
       <Command label="Saved projects" className={styles.command} loop>
         <div className={styles.inputRow}><Search size={21} strokeWidth={1.6} aria-hidden /><Command.Input autoFocus value={query} onValueChange={setQuery} aria-label="Search saved projects" placeholder="Find a project…" className={styles.input} /></div>
         <Command.List className={styles.list} aria-label="Project results" aria-busy={loading}>
-          {error ? <div role="alert" className={styles.message}><p className={styles.stateTitle}>Projects couldn’t be loaded</p><p className={styles.error}>{error}</p></div> : loading ? <div role="status" className={styles.message}><Loader2 className="mx-auto mb-3 size-5 animate-spin" aria-hidden /><p>Loading your projects…</p></div> : <>
+          {error ? <div role="alert" className={styles.message}><p className={styles.stateTitle}>Projects couldn’t be loaded</p><p className={styles.error}>{error}</p></div> : loading ? <div role="status" className={styles.message}><LogoMark size={24} className="mx-auto mb-3" /><p>Loading your projects…</p></div> : <>
             <Command.Empty className={styles.message}>
               <FolderOpen className="mx-auto mb-3 size-6" strokeWidth={1.5} aria-hidden />
               <p className={styles.stateTitle}>{projects.length ? 'No matching projects' : 'No saved projects yet'}</p>

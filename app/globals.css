@@ -769,6 +769,19 @@ html::-webkit-scrollbar {
   display: none !important;
 }
 
+@keyframes logo-breathe {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 0.5; }
+}
+
+.animate-logo-breathe {
+  animation: logo-breathe 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-logo-breathe { animation: none; opacity: 0.35; }
+}
+
 @keyframes shimmer {
   0% {
     background-position: 200% 0;
