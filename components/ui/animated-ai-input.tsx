@@ -366,7 +366,8 @@ export function AnimatedAIInput({
   const attachmentsSettled = !attachments.uploading && !attachments.failed;
   const canSubmit = value.trim().length > 0 && !isCreating && !isLoading && !disabled && attachmentsSettled;
   const canStop = mode === "chat" && isLoading && !disabled && !isStopping && typeof onStop === "function";
-  const showStop = canStop || (mode === "chat" && isLoading && isStopping);
+  // Once Stop is accepted the composer is already stopped; the server's confirmation only re-enables sending.
+  const showStop = canStop;
   const hasSubmitLabel = Boolean(submitLabel?.trim());
   const canCreateWithVoice = createWithVoice && mode === 'create' && Boolean(user);
   const hasVoiceEntry = Boolean(onOpenVoice) || canCreateWithVoice;
@@ -643,7 +644,7 @@ export function AnimatedAIInput({
                 })}
               </DropdownMenuContent>
             </DropdownMenu>)}
-            {isStopping && <Shimmer className="ml-1 shrink-0 text-xs font-medium" role="status">Stopping…</Shimmer>}
+            {isStopping && <span className="ml-1 shrink-0 text-xs font-medium text-muted-foreground" role="status">Stopped</span>}
           </div>
 
           <div data-slot="composer-actions" className="flex shrink-0 items-center gap-1">
@@ -673,12 +674,12 @@ export function AnimatedAIInput({
             {voiceControls}
             {(!voiceControls || !showVoice) && <motion.button
               type="button"
-              aria-label={isCreating ? "Creating project" : isStopping ? "Stopping" : canStop ? "Stop generating" : showVoice ? "Talk to LotusBuild" : (submitLabel?.trim() || (mode === "chat" ? "Send message" : "Start project"))}
+              aria-label={isCreating ? "Creating project" : isStopping ? "Stopped" : canStop ? "Stop generating" : showVoice ? "Talk to LotusBuild" : (submitLabel?.trim() || (mode === "chat" ? "Send message" : "Start project"))}
               title={showVoice ? "Talk to LotusBuild" : undefined}
               aria-expanded={showVoice && onOpenVoice ? voiceExpanded : undefined}
               aria-controls={showVoice && voiceExpanded ? voicePanelId : undefined}
               disabled={!canSubmit && !canStop && !canOpenVoice}
-              aria-busy={isCreating || isStopping || undefined}
+              aria-busy={isCreating || undefined}
               onClick={canStop ? onStop : showVoice ? onOpenVoice ?? (() => handleCreate({ entrypoint: 'voice', mode: 'plan' })) : handleSubmit}
               whileTap={canSubmit || canStop || canOpenVoice ? { scale: 0.94 } : {}}
               className={cn(
@@ -700,6 +701,8 @@ export function AnimatedAIInput({
                   <Square className={cn("h-3.5 w-3.5 fill-current", isStopping && "animate-pulse opacity-60")} />
                   {hasSubmitLabel && <span>Stop</span>}
                 </>
+              ) : isStopping ? (
+                <ArrowUp className="h-4 w-4 opacity-60" strokeWidth={2.5} />
               ) : isCreating || isLoading ? (
                 <ArrowUp className="h-4 w-4 animate-pulse opacity-60" strokeWidth={2.5} />
               ) : showVoice ? (
