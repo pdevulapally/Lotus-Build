@@ -832,7 +832,7 @@ export function WorkspaceContent({
   }
 
   if (activeTab === "desktop") {
-    return <DesktopPanel sessionId={session.id} desktop={desktop} active={panelOpen} canStart={session.status === "running"} />
+    return <DesktopPanel sessionId={session.id} desktop={desktop} active={panelOpen} canStart={session.status === "running"} execution={session.execution} />
   }
 
   if (activeTab === "research") {

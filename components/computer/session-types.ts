@@ -29,6 +29,8 @@ export type ComputerSessionResponse = {
   previewUrl?: string | null
   projectId?: string
   platform?: ProjectPlatform
+  /** The server's number for the current run; actions aimed at a run (Stop, Start desktop) name it. */
+  execution?: number
 }
 
 export type WorkspaceTab = "preview" | "desktop" | "browser" | "research" | "code" | "terminal"

@@ -9,13 +9,15 @@ import { desktopCloseAction, desktopSocketUrl, type DesktopState } from "@/lib/b
 
 export type DesktopViewState =
   | "connecting" | "live" | "ended" | "unavailable" | "capacity" | "slow" | "failed"
-  | "idle" | "starting" | "waiting"
+  | "idle" | "starting" | "waiting" | "start-failed" | "not-offered"
 
 const stateCopy: Record<Exclude<DesktopViewState, "live">, string> = {
   connecting: "Connecting to the desktop…",
   starting: "Starting the desktop…",
   idle: "No desktop yet. The agent opens one when it needs to see the screen, or you can start it now.",
   waiting: "Start desktop is available while the agent is working.",
+  "start-failed": "Couldn't start the desktop.",
+  "not-offered": "Start desktop isn't available on this server yet.",
   ended: "The desktop has ended. It will appear again on the next build.",
   unavailable: "No desktop for this session.",
   capacity: "Close another desktop view to watch here.",
@@ -50,8 +52,8 @@ export function DesktopPanelView({
           {onRetry && (state === "failed" || state === "capacity" || state === "slow") && (
             <Button type="button" variant="outline" size="sm" onClick={onRetry}>Try again</Button>
           )}
-          {onStart && state === "idle" && (
-            <Button type="button" variant="outline" size="sm" onClick={onStart}>Start desktop</Button>
+          {onStart && (state === "idle" || state === "start-failed") && (
+            <Button type="button" variant="outline" size="sm" onClick={onStart}>{state === "idle" ? "Start desktop" : "Try again"}</Button>
           )}
         </div>
       )}
@@ -59,14 +61,28 @@ export function DesktopPanelView({
   )
 }
 
-export function DesktopPanel({ sessionId, desktop, active, canStart }: { sessionId: string; desktop: DesktopState; active: boolean; canStart: boolean }) {
-  // Local only until the server's own `desktop.requested` / `desktop.ready` events take over.
-  const [startRequest, setStartRequest] = useState<"none" | "sent" | "no-run">("none")
+export type DesktopStartRequest = "none" | "sent" | "no-run" | "not-offered" | "failed"
+
+/** What one answer from the server means for the Start desktop control; everything else stays derived from session events. */
+export function desktopStartOutcome(error: unknown): DesktopStartRequest {
+  if (!(error instanceof BackendError)) return "failed"
+  if (error.code === "desktop/no-active-run" || error.code === "session/execution-changed") return "no-run"
+  if (error.code === "desktop/unsupported" || error.status === 404) return "not-offered"
+  return "failed"
+}
+
+export function DesktopPanel({ sessionId, desktop, active, canStart, execution }: {
+  sessionId: string; desktop: DesktopState; active: boolean; canStart: boolean; execution?: number
+}) {
+  // Local only until the server's own `desktop.requested` / `desktop.ready` events take over,
+  // and reset whenever the run it was aimed at is no longer the one on screen.
+  const [startRequest, setStartRequest] = useState<DesktopStartRequest>("none")
+  useEffect(() => { setStartRequest("none") }, [sessionId, execution, canStart])
+  useEffect(() => { if (desktop.status !== "none") setStartRequest("none") }, [desktop.status])
   const requestStart = () => {
+    if (execution === undefined) { setStartRequest("not-offered"); return }
     setStartRequest("sent")
-    void currentBackend().requestDesktop(sessionId).catch((error: unknown) => {
-      setStartRequest(error instanceof BackendError && error.code === "desktop/no-active-run" ? "no-run" : "none")
-    })
+    void currentBackend().requestDesktop(sessionId, execution).catch((error: unknown) => { setStartRequest(desktopStartOutcome(error)) })
   }
   const targetRef = useRef<HTMLDivElement | null>(null)
   const [connectionState, setConnectionState] = useState<DesktopViewState>("connecting")
@@ -207,6 +223,8 @@ export function DesktopPanel({ sessionId, desktop, active, canStart }: { session
   }
   if (desktop.status === "starting" || (desktop.status === "none" && startRequest === "sent")) return <DesktopPanelView state="starting" />
   if (desktop.status === "none") {
+    if (startRequest === "not-offered") return <DesktopPanelView state="not-offered" />
+    if (startRequest === "failed") return <DesktopPanelView state="start-failed" onStart={requestStart} />
     return canStart && startRequest !== "no-run"
       ? <DesktopPanelView state="idle" onStart={requestStart} />
       : <DesktopPanelView state="waiting" />

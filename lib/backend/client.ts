@@ -279,10 +279,11 @@ export class BackendClient {
     }
     return ticket
   }
-  /** Asks the running agent to bring its desktop up; the server records the request against the current run. */
-  requestDesktop(sessionId: string) {
+  /** Asks the running agent to bring its desktop up; the server records the request against `execution` and refuses a stale one. */
+  requestDesktop(sessionId: string, execution: number) {
     const encodedId = encodeURIComponent(id.parse(sessionId))
-    return this.json(desktopRequestSchema, `/sessions/${encodedId}/desktop`, { method: 'POST' })
+    const body = z.object({ execution: z.number().int().positive() }).strict().parse({ execution })
+    return this.json(desktopRequestSchema, `/sessions/${encodedId}/desktop`, { method: 'POST', body })
   }
   messages(sessionId: string, signal?: AbortSignal) { return this.json(z.object({ messages: z.array(messageSchema) }), `/sessions/${id.parse(sessionId)}/messages?limit=200`, { signal }) }
   queuedMessages(sessionId: string, signal?: AbortSignal) { return this.json(z.object({ queuedMessages: z.array(queuedSchema), nextCursor: z.string().nullable() }), `/sessions/${id.parse(sessionId)}/queued-messages?limit=100`, { signal }) }

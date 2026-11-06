@@ -480,15 +480,16 @@ test('asking for the desktop posts to the session and accepts only the run-stamp
       return Response.json({ sessionId: 'session_1', execution: 3, requested: true }, { status: 202 })
     },
   })
-  assert.deepEqual(await client.requestDesktop('session_1'), { sessionId: 'session_1', execution: 3, requested: true })
-  assert.deepEqual(requests, [{ url: 'https://api.example.test/sessions/session_1/desktop', method: 'POST', body: undefined }])
+  assert.deepEqual(await client.requestDesktop('session_1', 3), { sessionId: 'session_1', execution: 3, requested: true })
+  assert.deepEqual(requests, [{ url: 'https://api.example.test/sessions/session_1/desktop', method: 'POST', body: JSON.stringify({ execution: 3 }) }])
+  assert.throws(() => client.requestDesktop('session_1', 0), 'a run number is always a positive integer')
 
   const refused = new BackendClient({
     origin: 'https://api.example.test',
     token: async () => 'id-token',
     fetch: async () => Response.json({ error: { code: 'desktop/no-active-run', message: 'The desktop can be started while the agent is working.' } }, { status: 409 }),
   })
-  await assert.rejects(refused.requestDesktop('session_1'), (error: unknown) => {
+  await assert.rejects(refused.requestDesktop('session_1', 3), (error: unknown) => {
     assert.ok(error instanceof BackendError)
     assert.equal(error.code, 'desktop/no-active-run')
     assert.equal(error.status, 409)
