@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
-import { AlertCircle, Loader2 } from "lucide-react"
+import { AlertCircle } from "lucide-react"
+import { LogoMark } from "@/components/ui/logo-loader"
 import { Button } from "@/components/ui/button"
 import { LotusLogo } from "@/components/ui/lotus-logo"
 import { useAuth } from "@/contexts/auth-context"
@@ -69,7 +70,7 @@ export default function ProjectRouteBridgePage() {
         <div className="flex items-start gap-3">
           <div className="mt-0.5 rounded-full bg-accent-soft p-2 text-accent-soft-foreground">
             {state === "checking" ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <LogoMark size={16} />
             ) : (
               <AlertCircle className="h-4 w-4" />
             )}

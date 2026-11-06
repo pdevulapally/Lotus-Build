@@ -3,18 +3,14 @@
 import type { ReactNode } from "react"
 import { useEffect } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import { Shimmer } from "@/components/ai-elements/shimmer"
+import { LogoLoader } from "@/components/ui/logo-loader"
 import { useAuth } from "@/contexts/auth-context"
 import { getSafeRedirectPath } from "@/lib/auth/redirect"
 import { requiresVerifiedEmail } from "@/lib/auth/verified-email-route"
 import { Button } from "@/components/ui/button"
 
 function AccountLoading() {
-  return (
-    <main data-product-theme="dark" className="dark flex min-h-svh flex-col items-center justify-center gap-3 bg-background text-sm text-muted-foreground" role="status">
-      <Shimmer as="p" className="font-medium">Checking your account…</Shimmer>
-    </main>
-  )
+  return <LogoLoader label="Checking your account…" theme="dark" />
 }
 
 export function VerifiedEmailGate({ children }: { children: ReactNode }) {

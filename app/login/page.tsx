@@ -6,6 +6,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Eye, EyeOff, Loader2, Mail } from "lucide-react"
+import { LogoLoader } from "@/components/ui/logo-loader"
 import {
   AuthFormHeader,
   AuthSpinner,
@@ -102,9 +103,7 @@ export default function LoginPage() {
 
   if (loading) {
     return (
-      <div data-auth-theme="dark" role="status" aria-label="Loading your account" className="dark flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-      </div>
+      <LogoLoader label="Loading your account…" theme="dark" />
     )
   }
 

@@ -5,7 +5,7 @@ import React from "react"
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
-import { Loader2 } from "lucide-react"
+import { LogoLoader } from "@/components/ui/logo-loader"
 
 interface ProtectedRouteProps {
   children: React.ReactNode
@@ -24,12 +24,7 @@ export function ProtectedRoute({ children, requiredTokens = 0 }: ProtectedRouteP
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </div>
+      <LogoLoader label="Loading your account…" />
     )
   }
 

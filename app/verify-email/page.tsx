@@ -2,7 +2,8 @@
 
 import { Suspense, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Loader2, RefreshCw } from "lucide-react"
+import { RefreshCw } from "lucide-react"
+import { LogoLoader } from "@/components/ui/logo-loader"
 import { AuthShell } from "@/components/auth/auth-shell"
 import { EmailCodeVerification } from "@/components/auth/email-code-verification"
 import { AuthFormHeader } from "@/components/auth/auth-presentation"
@@ -13,9 +14,7 @@ import { getSafeRedirectPath } from "@/lib/auth/redirect"
 export default function VerifyEmailPage() {
   return (
     <Suspense fallback={
-      <div role="status" aria-label="Loading your account" className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="size-5 animate-spin text-muted-foreground" />
-      </div>
+      <LogoLoader label="Loading your account…" />
     }>
       <VerifyEmailContent />
     </Suspense>
@@ -54,9 +53,7 @@ function VerifyEmailContent() {
 
   if (loading || !user || (!account && !accountError) || account?.emailVerified) {
     return (
-      <div role="status" aria-label="Loading your account" className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="size-5 animate-spin text-muted-foreground" />
-      </div>
+      <LogoLoader label="Loading your account…" />
     )
   }
 
