@@ -5,14 +5,14 @@ import test from 'node:test'
 import { createElement, type ComponentProps } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import ts from 'typescript'
-import type { DesktopPanelView, desktopStartOutcome } from '../components/computer/desktop-panel'
+import type { DesktopPanelView, desktopStartOutcome, settleStartRequest } from '../components/computer/desktop-panel'
 import { BackendError } from '../lib/backend/client'
 
 const require = createRequire(import.meta.url)
 const compiled = ts.transpileModule(readFileSync(new URL('../components/computer/desktop-panel.tsx', import.meta.url), 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
 }).outputText
-const module = { exports: {} as { DesktopPanelView: typeof DesktopPanelView; desktopStartOutcome: typeof desktopStartOutcome } }
+const module = { exports: {} as { DesktopPanelView: typeof DesktopPanelView; desktopStartOutcome: typeof desktopStartOutcome; settleStartRequest: typeof settleStartRequest } }
 const isolatedRequire = (id: string) => {
   if (id === '@/components/ai-elements/shimmer') return { Shimmer: ({ children }: { children: React.ReactNode }) => createElement('span', { 'data-shimmer': '' }, children) }
   if (id === '@/components/ui/button') return { Button: (props: Record<string, unknown>) => createElement('button', { type: 'button' }, props.children as React.ReactNode) }
@@ -46,4 +46,13 @@ test('a failed Start desktop says so briefly and offers a retry; an older server
   assert.equal(outcome(error(404, 'route/not-found')), 'not-offered')
   assert.equal(outcome(error(500, 'internal')), 'failed')
   assert.equal(outcome(new TypeError('fetch failed')), 'failed')
+})
+
+test('a late answer for an earlier run changes nothing once a newer run is on screen', () => {
+  const settle = module.exports.settleStartRequest
+  const failure = new BackendError(500, 'internal', 'x')
+  assert.equal(settle(4, 5, failure), undefined, 'run 4 rejected after run 5 took the screen')
+  assert.equal(settle(4, undefined, failure), undefined, 'no run on screen any more')
+  assert.equal(settle(5, 5, failure), 'failed', 'the same run still shows its own failure')
+  assert.equal(settle(5, 5, new BackendError(409, 'session/execution-changed', 'x')), 'no-run')
 })

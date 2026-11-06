@@ -63,6 +63,14 @@ export function DesktopPanelView({
 
 export type DesktopStartRequest = "none" | "sent" | "no-run" | "not-offered" | "failed"
 
+/**
+ * What a server answer to the request for run `requested` means now that run `current` is on screen:
+ * nothing at all when the run has moved on, so a late rejection never overwrites the newer run's state.
+ */
+export function settleStartRequest(requested: number, current: number | undefined, error: unknown): DesktopStartRequest | undefined {
+  return requested === current ? desktopStartOutcome(error) : undefined
+}
+
 /** What one answer from the server means for the Start desktop control; everything else stays derived from session events. */
 export function desktopStartOutcome(error: unknown): DesktopStartRequest {
   if (!(error instanceof BackendError)) return "failed"
@@ -77,12 +85,19 @@ export function DesktopPanel({ sessionId, desktop, active, canStart, execution }
   // Local only until the server's own `desktop.requested` / `desktop.ready` events take over,
   // and reset whenever the run it was aimed at is no longer the one on screen.
   const [startRequest, setStartRequest] = useState<DesktopStartRequest>("none")
+  const onScreen = useRef<{ sessionId: string; execution: number | undefined }>({ sessionId, execution })
+  onScreen.current = { sessionId, execution }
   useEffect(() => { setStartRequest("none") }, [sessionId, execution, canStart])
   useEffect(() => { if (desktop.status !== "none") setStartRequest("none") }, [desktop.status])
   const requestStart = () => {
     if (execution === undefined) { setStartRequest("not-offered"); return }
     setStartRequest("sent")
-    void currentBackend().requestDesktop(sessionId, execution).catch((error: unknown) => { setStartRequest(desktopStartOutcome(error)) })
+    const requested = { sessionId, execution }
+    void currentBackend().requestDesktop(sessionId, execution).catch((error: unknown) => {
+      if (onScreen.current.sessionId !== requested.sessionId) return
+      const next = settleStartRequest(requested.execution, onScreen.current.execution, error)
+      if (next !== undefined) setStartRequest(next)
+    })
   }
   const targetRef = useRef<HTMLDivElement | null>(null)
   const [connectionState, setConnectionState] = useState<DesktopViewState>("connecting")
