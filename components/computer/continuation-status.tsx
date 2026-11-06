@@ -38,6 +38,9 @@ export function ContinuationStatus({ session, busy, onContinue, onCancel }: {
   const reduceMotion = useReducedMotion()
   const state = session.fallback
   if (!state) return null
+  // Informational states need no attention: the card dismisses once the
+  // continuation is actually running, and once it has already finished.
+  if (state.status === 'RUNNING' || state.status === 'COMPLETED') return null
   const offer = state.offer
   const paused = session.status === 'IDLE' && state.resumable
   const readyForFree = paused && offer !== undefined && ['AWAITING_CONSENT', 'EXHAUSTED', 'SHARED_LIMIT'].includes(state.status)
@@ -58,7 +61,7 @@ export function ContinuationStatus({ session, busy, onContinue, onCancel }: {
     <StatusIcon className="mb-1 size-[22px] text-foreground" />
     <h2 className="text-[17px] font-semibold leading-tight tracking-[-0.02em]">{titles[state.status]}</h2>
     <p className="text-sm leading-relaxed text-muted-foreground">{readyForFree ? 'Your premium allowance for this cycle is used up.' : state.reason}{detail && <> {detail}</>}</p>
-    {state.status !== 'COMPLETED' && <div className="mt-2.5 flex flex-wrap items-center gap-2">
+    {<div className="mt-2.5 flex flex-wrap items-center gap-2">
       {readyForFree && offer && <button type="button" className={primaryPill} disabled={busy} onClick={() => onContinue('fallback')}>Continue with free model</button>}
       {paused && <button type="button" className={readyForFree ? secondaryPill : primaryPill} disabled={busy} onClick={() => onContinue('premium')}>Retry with {session.model}</button>}
       <Link href="/pricing" className={secondaryPill}>View plans</Link>
