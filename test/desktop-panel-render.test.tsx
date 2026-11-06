@@ -35,9 +35,9 @@ test('the desktop tab offers Start desktop only while a run can take it, and is 
 
 test('a failed Start desktop says so briefly and offers a retry; an older server is named as such, never left spinning', () => {
   const failed = render({ state: 'start-failed', onStart: () => {} })
-  assert.match(failed, /Couldn(assert.match(failed, /Couldn.t start the desktop/)#x27;|')t start the desktop/); assert.match(failed, /<button[^>]*>Try again<\/button>/)
+  assert.match(failed, /Couldn(?:&#x27;|')t start the desktop/); assert.match(failed, /<button[^>]*>Try again<\/button>/)
   const notOffered = render({ state: 'not-offered', onStart: () => {} })
-  assert.match(notOffered, /isn(assert.match(notOffered, /isn.t available on this server yet/)#x27;|')t available on this server yet/); assert.doesNotMatch(notOffered, /<button/)
+  assert.match(notOffered, /isn(?:&#x27;|')t available on this server yet/); assert.doesNotMatch(notOffered, /<button/)
   const outcome = module.exports.desktopStartOutcome
   const error = (status: number, code: string) => new BackendError(status, code, 'x')
   assert.equal(outcome(error(409, 'desktop/no-active-run')), 'no-run')
