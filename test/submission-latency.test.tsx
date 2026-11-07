@@ -23,7 +23,7 @@ test('slow creation acknowledges immediately, blocks duplicate clicks, retains i
   const react = {
     useState(value: unknown) { const slot = index++; if (!mounted) slots[slot] = value; return [slots[slot], (next: unknown) => { slots[slot] = typeof next === 'function' ? next(slots[slot]) : next }] },
     useRef(value: unknown) { const slot = index++; if (!mounted) slots[slot] = { current: value }; return slots[slot] },
-    useCallback: (callback: unknown) => callback, useEffect: () => {},
+    useCallback: (callback: unknown) => callback, useMemo: (factory: () => unknown) => factory(), useEffect: () => {},
   }
   const values = new Map<string, string>()
   const storage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value) }, removeItem: (key: string) => { values.delete(key) } }

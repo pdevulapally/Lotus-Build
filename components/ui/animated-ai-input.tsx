@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { ArrowRight, ArrowUp, Check, Crown, ImagePlus, Mic, Plus, Square, Leaf, X, ChevronUp } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -23,8 +23,9 @@ import { resolveModelSelection } from "@/lib/backend/model-selection";
 import { RequestErrorNotice } from "@/components/ui/request-error";
 
 import {
-  COMPUTER_SESSION_MODES,
+  defaultComputerSessionMode,
   getComputerSessionModeConfig,
+  selectableSessionModeConfigs,
   type ComputerSessionMode,
 } from "@/lib/backend/session-modes";
 import {
@@ -225,6 +226,7 @@ export function AnimatedAIInput({
   const [isCreating, setIsCreating] = useState(false);
   useEffect(() => { if (isCreating) submissionTrace.current?.mark('acknowledged'); }, [isCreating]);
   const [sessionMode, setSessionMode] = useState<ComputerSessionMode>("build");
+  const sessionModeTouchedRef = useRef(false);
   const [wasLoading, setWasLoading] = useState(false);
   const [selectedModel, setSelectedModel] = useState("");
 
@@ -250,6 +252,8 @@ export function AnimatedAIInput({
     ? initialModel
     : resolveModelSelection(models, selectedModel);
   const displayModelLabel = account?.models.find((model) => model.id === effectiveModel)?.name || effectiveModel || 'Select model';
+  const availableSessionModes = useMemo(() => selectableSessionModeConfigs(account?.sessionModes), [account?.sessionModes]);
+  const accountDefaultSessionMode = defaultComputerSessionMode(account?.sessionModes, account?.defaultSessionMode);
   const selectedSessionMode = getComputerSessionModeConfig(sessionMode);
   const attachments = useComposerAttachments((file) => currentBackend().uploadAttachment(file));
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -273,7 +277,17 @@ export function AnimatedAIInput({
     setValue(suggestedPrompt);
     requestAnimationFrame(() => { textareaRef.current?.focus(); adjustHeight(); });
   }, [suggestedPrompt, promptRequestId, textareaRef, adjustHeight]);
-  useEffect(() => { if (suggestedMode) setSessionMode(suggestedMode); }, [suggestedMode, promptRequestId]);
+  useEffect(() => {
+    if (suggestedMode) {
+      sessionModeTouchedRef.current = true;
+      setSessionMode(suggestedMode);
+    }
+  }, [suggestedMode, promptRequestId]);
+  useEffect(() => {
+    if (mode !== 'create' || !account) return
+    const available = availableSessionModes.some((option) => option.id === sessionMode)
+    if (!available || !sessionModeTouchedRef.current) setSessionMode(accountDefaultSessionMode)
+  }, [mode, account, accountDefaultSessionMode, availableSessionModes, sessionMode])
 
 
 
@@ -295,7 +309,12 @@ export function AnimatedAIInput({
       }
       const draft = pending ?? readSessionDraft(sessionStorage);
       if (pending) attachments.restore(pending.attachments);
-      if (draft) { setValue(draft.prompt); setSessionMode(draft.mode); if (pending) setSelectedModel(pending.model); requestAnimationFrame(() => adjustHeight()); }
+      if (draft) {
+        setValue(draft.prompt)
+        if (draft.mode) { sessionModeTouchedRef.current = true; setSessionMode(draft.mode) }
+        if (pending) setSelectedModel(pending.model)
+        requestAnimationFrame(() => adjustHeight())
+      }
     } catch (reason) { setSubmitError(reason instanceof Error ? reason : new Error('Could not restore your draft.')); }
   }, [mode, user, adjustHeight]);
 
@@ -348,7 +367,7 @@ export function AnimatedAIInput({
     }
 
     if (mode === "create" && !user) {
-      saveSessionDraft(sessionStorage, { prompt: value.trim(), mode: sessionMode });
+      saveSessionDraft(sessionStorage, { prompt: value.trim(), ...(sessionModeTouchedRef.current ? { mode: sessionMode } : {}) });
       router.push("/login?redirect=" + encodeURIComponent("/"));
       return;
     }
@@ -496,12 +515,12 @@ export function AnimatedAIInput({
                   <DropdownMenuLabel className="px-2 pb-1 pt-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                     Mode
                   </DropdownMenuLabel>
-                  {COMPUTER_SESSION_MODES.map((option) => {
+                  {availableSessionModes.map((option) => {
                     const isSelected = sessionMode === option.id;
                     return (
                       <DropdownMenuItem
                         key={option.id}
-                        onSelect={() => setSessionMode(option.id)}
+                        onSelect={() => { sessionModeTouchedRef.current = true; setSessionMode(option.id) }}
                         className="rounded-md px-3 py-2.5 focus:bg-muted"
                       >
                         <div className="flex w-full items-start justify-between gap-3">

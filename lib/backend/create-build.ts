@@ -1,8 +1,9 @@
 import { z } from 'zod'
 import type { BackendClient } from './client'
 import { attachmentRefsSchema, sameAttachments, type AttachmentRef } from './attachments'
+import { computerSessionModeSchema, type ComputerSessionMode } from './session-modes'
 
-const baseAttemptSchema = z.object({ uid: z.string().min(1), model: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/), mode: z.enum(['build', 'plan']),
+const baseAttemptSchema = z.object({ uid: z.string().min(1), model: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/), mode: computerSessionModeSchema,
   projectKey: z.string().uuid(), sessionKey: z.string().uuid(), projectId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/).optional(),
   attachments: attachmentRefsSchema.default([]),
 })
@@ -11,7 +12,7 @@ const attemptSchema = z.union([
   baseAttemptSchema.extend({ entrypoint: z.literal('voice'), mode: z.literal('plan'), prompt: z.never().optional(), attachments: attachmentRefsSchema.max(0).default([]) }).strict(),
 ])
 export type ProjectCreationRequest =
-  | { entrypoint?: undefined; prompt: string; mode: 'build' | 'plan'; attachments?: readonly AttachmentRef[] }
+  | { entrypoint?: undefined; prompt: string; mode: ComputerSessionMode; attachments?: readonly AttachmentRef[] }
   | { entrypoint: 'voice'; mode: 'plan'; prompt?: never; attachments?: never }
 type Storage = Pick<globalThis.Storage, 'getItem' | 'setItem' | 'removeItem'>
 export function pendingBuild(storage: Storage, uid: string) {

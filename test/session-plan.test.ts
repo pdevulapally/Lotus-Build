@@ -50,6 +50,13 @@ test('approve and edit are offered only between runs with nothing else waiting o
   assert.equal(changed.canApprove, true)
   assert.equal(planAvailability(sessionSchema.parse(session)).canApprove, false)
   assert.equal(planAvailability(null).plan, undefined)
+  const automatic = planAvailability({ ...idle, mode: 'auto' })
+  assert.equal(automatic.approvalRequired, false)
+  assert.equal(automatic.canApprove, false)
+  assert.equal(automatic.canEdit, true)
+  const directBuild = planAvailability({ ...idle, mode: 'build' })
+  assert.equal(directBuild.approvalRequired, false)
+  assert.equal(directBuild.canApprove, false)
 })
 
 function memoryStorage() {

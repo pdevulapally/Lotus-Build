@@ -34,6 +34,7 @@ import { pendingCommandStorage } from "@/lib/backend/pending-storage"
 import { cancelSession, pendingCancelKey } from "@/lib/backend/cancel-session"
 import { approvePlan, editPlan, planAvailability } from "@/lib/backend/session-plan"
 import type { PlanCardActions } from "@/components/computer/plan-card"
+import type { ComputerSessionMode } from "@/lib/backend/session-modes"
 import type { AttachmentRef } from "@/lib/backend/attachments"
 
 
@@ -369,7 +370,7 @@ export default function ComputerPage() {
   useEffect(() => {
     if (backend.desktop.status === 'none' && activeTab === 'desktop') setActiveTab('preview')
   }, [activeTab, backend.desktop.status])
-  const handleRun = async (prompt: string, nextMode?: 'build' | 'plan', attachments: AttachmentRef[] = [], originalInput?: { id: string; answer: string } | null) => {
+  const handleRun = async (prompt: string, nextMode?: ComputerSessionMode, attachments: AttachmentRef[] = [], originalInput?: { id: string; answer: string } | null) => {
     if (busyRef.current) throw new Error('A message is already being submitted.')
     if (!raw || !user) throw new Error('Session is not available.')
     busyRef.current = true; setIsStartingRun(true); setRunError(null)
@@ -428,6 +429,7 @@ export default function ComputerPage() {
     } finally { busyRef.current = false; setPlanBusy(false) }
   }
   const planActions: PlanCardActions = {
+    approvalRequired: planState.approvalRequired ?? false,
     canApprove: planState.canApprove, canEdit: planState.canEdit, busy: planBusy,
     onApprove: (revision) => { void runPlanCommand('approve the plan', async () => { if (raw && user) backend.applyState(await approvePlan(currentBackend(), pendingCommandStorage(), user.uid, raw.id, revision)) }) },
     onEdit: (revision, update) => { void runPlanCommand('update the plan', async () => { if (raw && user) await editPlan(currentBackend(), pendingCommandStorage(), user.uid, raw.id, revision, update) }) },
