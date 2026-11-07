@@ -62,11 +62,17 @@ test('permission denial never opens a provider connection and always releases au
   const f = fixture({}, { start: async () => { throw Object.assign(new Error('denied'), { name: 'NotAllowedError' }) } })
   await f.call.start(); assert.equal(f.sockets.length, 0); assert.equal(f.stats().closed, 1); assert.match(f.errors[0], /permission was denied/)
 })
-test('expired access and privacy-policy failures do not reconnect or start new tasks', async () => {
-  for (const code of [4401, 4429, 4503, 4410]) {
+test('expired access, privacy-policy and provider-configuration failures do not reconnect or start new tasks', async () => {
+  for (const code of [4401, 4429, 4503, 4504, 4410]) {
     const f = fixture(); await f.call.start(); f.ready(); f.sockets[0].close(code)
     assert.equal(f.states.at(-1), 'error'); assert.equal(f.sockets.length, 1); assert.equal(f.stats().closed, 1)
   }
+})
+
+test('provider configuration drift is never misreported as a browser privacy-permission failure', async () => {
+  const f = fixture(); await f.call.start(); f.ready(); f.sockets[0].close(4504)
+  assert.equal(f.errors.at(-1), 'Voice configuration changed and needs review. Continue in text for now.')
+  assert.doesNotMatch(f.errors.at(-1) ?? '', /privacy policy|microphone/i)
 })
 test('muting and ending affect audio only, leaving task controls in text', async () => {
   const f = fixture(); await f.call.start(); f.ready(); f.call.mute(true)

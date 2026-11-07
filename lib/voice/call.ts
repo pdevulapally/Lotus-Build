@@ -17,6 +17,7 @@ const terminalReasons: Readonly<Record<number, string>> = {
   4413: 'Voice could not keep up with this connection. Continue in text.',
   4429: 'Voice reached a usage or capacity limit. Continue in text.',
   4503: 'Voice is unavailable under the required privacy policy. Continue in text.',
+  4504: 'Voice configuration changed and needs review. Continue in text for now.',
 }
 
 /** Audio can reconnect; accepted commands never replay. The existing HTTP pending-command ledger owns retries. */
