@@ -14,9 +14,9 @@ export function getComputerSessionModeConfig(value: ComputerSessionMode) {
   return config
 }
 
-/** Only modes both this client and the server know enter the picker. */
+/** Only modes both this client and the server know enter the picker; before an account loads, every mode is offered with Auto first. */
 export function selectableSessionModeConfigs(advertised: readonly string[] | undefined) {
-  const available = new Set(advertised ?? ['build', 'plan'])
+  const available = new Set(advertised ?? computerSessionModes)
   return COMPUTER_SESSION_MODES.filter((mode) => available.has(mode.id))
 }
 
