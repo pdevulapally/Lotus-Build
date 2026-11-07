@@ -6,6 +6,7 @@ import { CreditCard, Gauge, RefreshCw, UserRound, type LucideIcon } from 'lucide
 import { useAuth } from '@/contexts/auth-context'
 import { currentBackend } from '@/lib/backend/browser'
 import type { BackendUsage } from '@/lib/backend/client'
+import { quantityWithUnit } from '@/lib/plans/format'
 import { EmailCodeVerification } from '@/components/auth/email-code-verification'
 import { Button } from '@/components/ui/button'
 import { CookiePreferencesButton } from '@/components/cookie-banner'
@@ -67,9 +68,11 @@ export function SettingsDialogProvider({ children }: { children: ReactNode }) {
 type UsageMeterProps = { meter: BackendUsage['meters'][number] }
 
 function UsageMeter({ meter }: UsageMeterProps) {
-  const hasLimit = meter.hardLimit > 0
-  const isAtLimit = hasLimit && meter.totalUsed >= meter.hardLimit
-  const progress = hasLimit ? Math.min((meter.totalUsed / meter.hardLimit) * 100, 100) : null
+  // A numeric limit draws the bar. "unlimited" is stated by the server (builds); a zero is not read as either.
+  const limit = typeof meter.hardLimit === 'number' && meter.hardLimit > 0 ? meter.hardLimit : null
+  const isAtLimit = limit !== null && meter.totalUsed >= limit
+  const progress = limit !== null ? Math.min((meter.totalUsed / limit) * 100, 100) : null
+  const usedLabel = meter.unit === 'count' ? 'used' : `${meter.unit} used`
 
   return (
     <section className="py-6 first:pt-0" aria-labelledby={`usage-${meter.meterKey}`}>
@@ -90,12 +93,14 @@ function UsageMeter({ meter }: UsageMeterProps) {
       <div className="mt-5 flex flex-wrap items-baseline justify-between gap-2">
         <p>
           <span className="text-3xl font-semibold tabular-nums tracking-tight">{meter.totalUsed.toLocaleString()}</span>
-          {hasLimit ? (
+          {limit !== null ? (
             <span className="ml-2 text-sm text-muted-foreground">
-              of {meter.hardLimit.toLocaleString()} {meter.unit}
+              of {quantityWithUnit(meter.unit, limit)}
             </span>
           ) : (
-            <span className="ml-2 text-sm text-muted-foreground">{meter.unit} used</span>
+            <span className="ml-2 text-sm text-muted-foreground">
+              {usedLabel}{meter.hardLimit === 'unlimited' && ' · Unlimited'}
+            </span>
           )}
         </p>
         {progress !== null && (
@@ -103,15 +108,15 @@ function UsageMeter({ meter }: UsageMeterProps) {
         )}
       </div>
 
-      {progress !== null && (
+      {progress !== null && limit !== null && (
         <div
           className="mt-4 h-1.5 overflow-hidden rounded-full bg-muted"
           role="progressbar"
           aria-label={`${meter.label} usage`}
           aria-valuemin={0}
-          aria-valuemax={meter.hardLimit}
-          aria-valuenow={Math.min(meter.totalUsed, meter.hardLimit)}
-          aria-valuetext={`${meter.totalUsed.toLocaleString()} of ${meter.hardLimit.toLocaleString()} ${meter.unit}`}
+          aria-valuemax={limit}
+          aria-valuenow={Math.min(meter.totalUsed, limit)}
+          aria-valuetext={`${meter.totalUsed.toLocaleString()} of ${quantityWithUnit(meter.unit, limit)}`}
         >
           <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${progress}%` }} />
         </div>

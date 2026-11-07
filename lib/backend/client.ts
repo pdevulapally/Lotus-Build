@@ -56,11 +56,13 @@ export const accountSchema = z.object({
   })),
   models: z.array(z.object({ id: z.string(), name: z.string().min(1), efforts: z.array(z.enum(['low', 'standard', 'high', 'xhigh'])), maxOutputTokens: z.number().int().positive() })),
 })
+// Builds are unlimited by count; the server says so explicitly rather than sending a zero.
+const allowanceQuantity = z.union([z.number(), z.literal('unlimited')])
 export const usageSchema = z.object({ uid: z.string(), plan: z.object({ key: z.string(), name: z.string() }),
   meters: z.array(z.object({ meterKey: z.string(), unit: z.string(), label: z.string(),
     kind: z.enum(['COUNTER', 'GAUGE']), resetPeriod: z.enum(['NEVER', 'DAILY', 'MONTHLY']),
     consumed: z.number().nonnegative(), reserved: z.number().nonnegative(), totalUsed: z.number().nonnegative(),
-    includedAllowance: z.number(), hardLimit: z.number(), overageEnabled: z.boolean(), periodStart: timestamp,
+    includedAllowance: allowanceQuantity, hardLimit: allowanceQuantity, overageEnabled: z.boolean(), periodStart: timestamp,
   })),
 })
 const queuedSchema = z.object({ id, sessionId: id, prompt: z.string(), attachments: z.array(attachmentRefSchema).default([]), createdAt: timestamp })
@@ -90,7 +92,7 @@ export type SessionEvent = { id?: string; type: string; data: Record<string, unk
 const planSchema = z.object({ key: z.string(), name: z.string(), rank: z.number(),
   price: z.object({ amountMinor: z.number().int().positive(), currency: z.string().regex(/^[a-z]{3}$/), interval: z.enum(['day', 'week', 'month', 'year']) }).optional(),
   capabilities: z.array(capabilitySchema.and(z.object({ label: z.string() }))),
-  allowances: z.array(z.object({ key: z.string(), label: z.string(), unit: z.string(), included: z.number(), limit: z.number() })),
+  allowances: z.array(z.object({ key: z.string(), label: z.string(), unit: z.string(), included: allowanceQuantity, limit: allowanceQuantity })),
 })
 export type BackendPlan = z.infer<typeof planSchema>
 

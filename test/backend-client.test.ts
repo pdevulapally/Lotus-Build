@@ -385,6 +385,23 @@ test('a pending chat message retains its identity across reload and refuses diff
   assert.equal(accepted, 1); assert.equal(state.values.size, 0)
 })
 
+test('plans and usage accept an explicit unlimited quantity beside numeric ones', async () => {
+  const meter = { meterKey: 'builds.started', unit: 'count', label: 'Builds', kind: 'COUNTER', resetPeriod: 'MONTHLY', consumed: 12, reserved: 0, totalUsed: 12, includedAllowance: 'unlimited', hardLimit: 'unlimited', overageEnabled: false, periodStart: createdAt }
+  const plan = { key: 'free', name: 'Free', rank: 0, capabilities: [], allowances: [
+    { key: 'builds.started', label: 'Builds', unit: 'count', included: 'unlimited', limit: 'unlimited' },
+    { key: 'ai.tokens.input', label: 'AI input', unit: 'tokens', included: 300000, limit: 300000 },
+  ] }
+  const client = new BackendClient({ origin: 'https://api.example.test', token: async () => 'token', fetch: async (input) => {
+    const path = new URL(String(input)).pathname
+    return Response.json(path === '/plans' ? { plans: [plan] } : { uid: 'alice', plan: { key: 'free', name: 'Free' }, meters: [meter] })
+  } })
+  assert.equal((await client.plans()).plans[0]!.allowances[0]!.limit, 'unlimited')
+  assert.equal((await client.usage()).meters[0]!.hardLimit, 'unlimited')
+  const rejecting = new BackendClient({ origin: 'https://api.example.test', token: async () => 'token', fetch: async () =>
+    Response.json({ uid: 'alice', plan: { key: 'free', name: 'Free' }, meters: [{ ...meter, hardLimit: 'lots' }] }) })
+  await assert.rejects(rejecting.usage())
+})
+
 test('current account, usage and queued-message response shapes are validated', async () => {
   const client = new BackendClient({ origin: 'https://api.example.test', token: async () => 'token', fetch: async (input) => {
     const path = new URL(String(input)).pathname
