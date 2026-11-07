@@ -610,6 +610,7 @@ export default function ComputerPage() {
 
                   onClarificationAnswer={handleClarificationAnswer}
                   plan={raw?.plan ?? null} planActions={planActions}
+                  delivery={raw?.delivery ?? null}
 
                 />
           </ConversationScrollArea>

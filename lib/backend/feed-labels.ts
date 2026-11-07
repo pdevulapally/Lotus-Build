@@ -62,6 +62,7 @@ const toolStepCopy: Readonly<Record<string, ToolStepCopy>> = {
   git_diff: { call: 'Reviewing changes', result: 'Reviewed changes', subject: (input) => text(input, 'path') },
   git_log: { call: 'Reading recent commits', result: 'Read recent commits' },
   git_commit: { call: 'Committing', result: 'Committed', subject: (input) => text(input, 'message', 60)?.split('\n')[0] },
+  publish_pull_request: { call: 'Publishing the pull request', result: 'Published the pull request', subject: (input) => text(input, 'title', 60) },
   run_validation: { call: 'Running checks', result: 'Ran checks' },
   consult_specialist: { call: 'Asking a reviewer', result: 'Heard back from the reviewer' },
   submit_review: { call: 'Writing up the review', result: 'Wrote up the review' },

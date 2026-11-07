@@ -17,6 +17,7 @@ import {
 import { executionLabel, genericToolStepLabel, isHiddenToolStep, lifecycleFeedLabels, toolStepLabel } from '@/lib/backend/feed-labels'
 import { loadSessionSnapshot, sessionEventStatus } from '@/lib/backend/session-snapshot'
 import { applyPlanEvent } from '@/lib/backend/session-plan'
+import { applyDeliveryEvent } from '@/lib/backend/delivery'
 import { sessionLatency } from '@/lib/backend/latency'
 
 const fileTools = ['write_file', 'edit_file'] as const
@@ -227,7 +228,7 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
     let turnEnded = false
     let latestExecution = 0
     let stateFingerprint: string | undefined
-    const fingerprint = (next: BackendSession) => JSON.stringify([next.status, next.messageCount, next.cancelRequested, next.pendingInput, next.fallback])
+    const fingerprint = (next: BackendSession) => JSON.stringify([next.status, next.messageCount, next.cancelRequested, next.pendingInput, next.fallback, next.delivery])
     let streamText = ''
     let refreshFailed = false
     let refreshTimer: ReturnType<typeof setTimeout> | undefined
@@ -336,11 +337,12 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
             if (item) setEvents((current) => [...current, item].slice(-300))
             if (event.type === 'session.cancel_requested') setSession((current) => current ? { ...current, cancelRequested: true } : current)
             if (event.type === 'session.plan_updated') setSession((current) => applyPlanEvent(current, event))
+            if (event.type === 'delivery.updated') setSession((current) => applyDeliveryEvent(current, event))
             if (status !== undefined && isTerminalStatus(status)) {
               turnEnded = true; textVersion++
               setEvents((current) => interruptRunningToolEvents(current))
             }
-            if (['session.running', 'session.queued', 'session.idle', 'session.stopped', 'session.failed', 'session.awaiting_input', 'session.message_queued', 'session.message_dequeued', 'project.saved', 'voice.history_changed'].includes(event.type)) scheduleRefresh()
+            if (['session.running', 'session.queued', 'session.idle', 'session.stopped', 'session.failed', 'session.awaiting_input', 'session.message_queued', 'session.message_dequeued', 'project.saved', 'voice.history_changed', 'delivery.updated'].includes(event.type)) scheduleRefresh()
             if (!refreshFailed) setStreamError(null)
           },
       })
