@@ -16,6 +16,7 @@ import {
 } from '@/lib/backend/terminal'
 import { executionLabel, genericToolStepLabel, isHiddenToolStep, lifecycleFeedLabels, toolStepLabel } from '@/lib/backend/feed-labels'
 import { loadSessionSnapshot, sessionEventStatus } from '@/lib/backend/session-snapshot'
+import { applyPlanEvent } from '@/lib/backend/session-plan'
 import { sessionLatency } from '@/lib/backend/latency'
 
 const fileTools = ['write_file', 'edit_file'] as const
@@ -334,6 +335,7 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
             const item = activity(event, Number(event.id.split('-')[0]))
             if (item) setEvents((current) => [...current, item].slice(-300))
             if (event.type === 'session.cancel_requested') setSession((current) => current ? { ...current, cancelRequested: true } : current)
+            if (event.type === 'session.plan_updated') setSession((current) => applyPlanEvent(current, event))
             if (status !== undefined && isTerminalStatus(status)) {
               turnEnded = true; textVersion++
               setEvents((current) => interruptRunningToolEvents(current))

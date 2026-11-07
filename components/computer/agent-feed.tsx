@@ -16,8 +16,6 @@ import {
 import {
   Check,
   ChevronRight,
-  ChevronsDown,
-  ChevronsUp,
   Copy,
   Database,
   FileCode2,
@@ -45,6 +43,8 @@ import {
 import type { ComputerSessionProgress } from "@/components/computer/session-progress-model"
 import { cn } from "@/lib/utils"
 import { Markdown } from "@/components/ui/markdown"
+import { PlanCard, type PlanCardActions } from "@/components/computer/plan-card"
+import type { SessionPlan } from "@/lib/backend/session-plan"
 import { STILL_STOPPING_AFTER_MS, stoppingLabels } from "@/lib/backend/feed-labels"
 
 const PROSE_EVENTS = ["Understanding insight", "Research insight", "Browser insight", "Build approach"]
@@ -168,20 +168,6 @@ function formatClarificationAnswerSet(
     .join("\n\n")
 }
 
-function sanitizePlanText(text: string): string {
-  return text
-    .split("\n")
-    .filter((line) => !/^[ \t]*[-*_]{3,}[ \t]*$/.test(line))
-    .map((line) => line.trimEnd())
-    .join("\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim()
-}
-
-function PlanDescription({ text }: { text: string }) {
-  return <Markdown className="text-[13px] leading-relaxed text-muted-foreground [&_h3]:text-[13px] [&_h4]:text-[11px] [&_h4]:uppercase [&_h4]:tracking-[0.12em] [&_h4]:text-muted-foreground">{text.replace(/^#\s.*$/m, "")}</Markdown>
-}
-
 function SupabaseQuestionCard({ onSetup, onDecline }: { onSetup: () => void; onDecline?: () => void }) {
   const [dismissed, setDismissed] = useState(false)
   const [setting, setSetting] = useState(false)
@@ -226,65 +212,6 @@ function SupabaseQuestionCard({ onSetup, onDecline }: { onSetup: () => void; onD
     </div>
   )
 }
-
-function PlanTool({ event, onApprovePlan }: { event: ComputerTimelineEvent; onApprovePlan?: () => void }) {
-  const [isExpanded, setIsExpanded] = useState(false)
-  const [isApproving, setIsApproving] = useState(false)
-  const summary = sanitizePlanText(event.description || "")
-
-  const handleApprove = async () => {
-    if (isApproving || !onApprovePlan) return
-    setIsApproving(true)
-    try { await onApprovePlan() } finally { setIsApproving(false) }
-  }
-
-  return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card">
-      <div className="flex items-center justify-between gap-2 border-b border-border/70 px-3.5 py-2.5">
-        <span className="text-xs font-semibold text-muted-foreground">Plan drafted</span>
-        {summary && (
-          <button
-            type="button"
-            onClick={() => setIsExpanded((v) => !v)}
-            className="flex items-center gap-1 rounded-md px-1 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-          >
-            {isExpanded ? (
-              <ChevronsUp className="h-3 w-3 shrink-0" />
-            ) : (
-              <ChevronsDown className="h-3 w-3 shrink-0" />
-            )}
-            {isExpanded ? "Show less" : "Read detailed plan"}
-          </button>
-        )}
-      </div>
-      {summary && (
-        <div
-          className={cn(
-            "overflow-hidden px-3.5 pb-3.5 pt-3",
-            !isExpanded && "max-h-[94px]",
-          )}
-        >
-          <PlanDescription text={summary} />
-        </div>
-      )}
-      {onApprovePlan && (
-        <div className="flex items-center gap-3 border-t border-border/70 px-3.5 py-3">
-          <button
-            type="button"
-            onClick={handleApprove}
-            disabled={isApproving}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50"
-          >
-            <Check className="h-3.5 w-3.5 shrink-0" />
-            {isApproving ? "Starting build…" : "Approve and build"}
-          </button>
-          <span className="text-[11px] text-muted-foreground">or type to revise</span>
-        </div>
-      )}
-    </div>
-  )
-}
-
 
 function FeedFileItem({
   filePath,
@@ -437,7 +364,6 @@ const FeedItem = memo(function FeedItem({
   onSupabaseSetup,
   onSupabaseDecline,
   onClarificationAnswer,
-  onApprovePlan,
 }: {
   event: ComputerTimelineEvent
   isLatest: boolean
@@ -445,7 +371,6 @@ const FeedItem = memo(function FeedItem({
   onSupabaseSetup?: () => void
   onSupabaseDecline?: () => void
   onClarificationAnswer?: (answer: string) => void
-  onApprovePlan?: () => void
 }) {
   const isComplete = event.status === "complete"
   const isError = event.status === "error"
@@ -507,10 +432,6 @@ const FeedItem = memo(function FeedItem({
         <StreamedMarkdown text={event.description} />
       </div>
     )
-  }
-
-  if (event.title === "Planning execution" && isComplete && event.description) {
-    return <PlanTool event={event} onApprovePlan={onApprovePlan} />
   }
 
   const commandMetadata = getCommandMetadata(event)
@@ -763,7 +684,7 @@ export function AgentFeed({
   prompt, events, localMessages, status, optimisticStart,
   progress,
   editingIndex, editText, onEditStart, onEditChange, onEditSubmit, onEditCancel,
-  onSupabaseSetup, onSupabaseDecline, onClarificationAnswer, onApprovePlan,
+  onSupabaseSetup, onSupabaseDecline, onClarificationAnswer, plan, planActions,
   onRestoreCheckpoint,
   canonicalMessages, queuedMessages, streamText, liveLabel, stopping = false, stoppingSince = null,
 }: {
@@ -790,7 +711,9 @@ export function AgentFeed({
   onSupabaseSetup?: () => void
   onSupabaseDecline?: () => void
   onClarificationAnswer?: (answer: string) => void
-  onApprovePlan?: () => void
+  /** The session's structured plan, rendered once after the activity; absent until the agent proposes one. */
+  plan?: SessionPlan | null
+  planActions?: PlanCardActions
   onRestoreCheckpoint?: (runId: string) => Promise<void>
 }) {
   const [stoppingLong, setStoppingLong] = useState(false)
@@ -805,11 +728,11 @@ export function AgentFeed({
   // cheap; each wrapper still invokes the latest callback.
   const latest = useRef({
     onEditStart, onEditChange, onEditSubmit, onEditCancel,
-    onSupabaseSetup, onSupabaseDecline, onClarificationAnswer, onApprovePlan, onRestoreCheckpoint,
+    onSupabaseSetup, onSupabaseDecline, onClarificationAnswer, onRestoreCheckpoint,
   })
   latest.current = {
     onEditStart, onEditChange, onEditSubmit, onEditCancel,
-    onSupabaseSetup, onSupabaseDecline, onClarificationAnswer, onApprovePlan, onRestoreCheckpoint,
+    onSupabaseSetup, onSupabaseDecline, onClarificationAnswer, onRestoreCheckpoint,
   }
   const stable = useRef<typeof latest.current | undefined>(undefined)
   if (stable.current === undefined) {
@@ -821,7 +744,6 @@ export function AgentFeed({
       onSupabaseSetup: () => latest.current.onSupabaseSetup?.(),
       onSupabaseDecline: () => latest.current.onSupabaseDecline?.(),
       onClarificationAnswer: (a) => latest.current.onClarificationAnswer?.(a),
-      onApprovePlan: () => latest.current.onApprovePlan?.(),
       onRestoreCheckpoint: (r) => latest.current.onRestoreCheckpoint ? latest.current.onRestoreCheckpoint(r) : Promise.resolve(),
     }
   }
@@ -834,7 +756,6 @@ export function AgentFeed({
   const supabaseSetup = onSupabaseSetup ? cb.onSupabaseSetup : undefined
   const supabaseDecline = onSupabaseDecline ? cb.onSupabaseDecline : undefined
   const clarifyAnswer = onClarificationAnswer ? cb.onClarificationAnswer : undefined
-  const approvePlan = onApprovePlan ? cb.onApprovePlan : undefined
   const restoreCheckpoint = onRestoreCheckpoint ? cb.onRestoreCheckpoint : undefined
 
   const isRunning = status === "running" || status === "planning" || status === "queued"
@@ -888,7 +809,7 @@ export function AgentFeed({
         {role === 'user' ? <UserMessageBubble canEdit={false} content={message!.content} attachments={message!.attachments} index={message!.seq} isEditing={false} editText=""
           onEditStart={editStart} onEditChange={editChange} onEditSubmit={editSubmit} onEditCancel={editCancel} />
           : <FeedItem event={event ?? fallbackFor(message!)}
-            isLatest={false} isSessionRunning={isRunning} onSupabaseSetup={supabaseSetup} onSupabaseDecline={supabaseDecline} onClarificationAnswer={clarifyAnswer} onApprovePlan={approvePlan} />}
+            isLatest={false} isSessionRunning={isRunning} onSupabaseSetup={supabaseSetup} onSupabaseDecline={supabaseDecline} onClarificationAnswer={clarifyAnswer} />}
       </div> })}
       {queuedMessages?.map((message) => <div key={message.id} className="pt-5">
         <UserMessageBubble canEdit={false} content={message.prompt} attachments={message.attachments} index={-1} isEditing={false} editText=""
@@ -900,7 +821,7 @@ export function AgentFeed({
       {isRunning && !stopping && !hasActiveFeedStep && !streamText && <div role="status" className="py-2">
         <Shimmer className="text-[13px] font-medium">{liveLabel ?? (status === "queued" ? "Starting your request…" : "Working…")}</Shimmer>
       </div>}
-      {onApprovePlan && !isRunning && <button type="button" className="mt-3 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={onApprovePlan}>Build this plan</button>}
+      {plan && <PlanCard plan={plan} actions={planActions} />}
     </div>
   }
 
@@ -930,7 +851,6 @@ export function AgentFeed({
         onSupabaseSetup={supabaseSetup}
         onSupabaseDecline={supabaseDecline}
         onClarificationAnswer={clarifyAnswer}
-        onApprovePlan={approvePlan}
       />
     </motion.div>
   )
@@ -997,6 +917,8 @@ export function AgentFeed({
           renderFeedItem(event, eventIndex === runEvents.length - 1 && isRunning, event.id ?? `${runId}-${event.title}-${eventIndex}`)
         )
       )}
+
+      {plan && <PlanCard plan={plan} actions={planActions} />}
 
       <AnimatePresence>
         {showGlobalThinking && (

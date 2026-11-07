@@ -32,6 +32,8 @@ import { presentRequestError } from "@/lib/backend/error-presentation"
 import { continueSession, readPendingContinuation, type ContinuationCommand } from "@/lib/backend/continue-session"
 import { pendingCommandStorage } from "@/lib/backend/pending-storage"
 import { cancelSession, pendingCancelKey } from "@/lib/backend/cancel-session"
+import { approvePlan, editPlan, planAvailability } from "@/lib/backend/session-plan"
+import type { PlanCardActions } from "@/components/computer/plan-card"
 import type { AttachmentRef } from "@/lib/backend/attachments"
 
 
@@ -313,6 +315,7 @@ export default function ComputerPage() {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('preview')
   const [runError, setRunError] = useState<Error | string | null>(null)
   const [isStartingRun, setIsStartingRun] = useState(false)
+  const [planBusy, setPlanBusy] = useState(false)
   const [pendingMessage, setPendingMessage] = useState<ReturnType<typeof readPendingMessage>>(null)
   const [pendingContinuation, setPendingContinuation] = useState<ReturnType<typeof readPendingContinuation>>(null)
   const [pendingCancellation, setPendingCancellation] = useState(false)
@@ -413,8 +416,22 @@ export default function ComputerPage() {
     finally { busyRef.current = false; setIsStartingRun(false); readPending() }
   }
   const requestPreviewRecovery = () => { backend.reconnect(); setPreviewNavSrc(null); setPreviewReloadNonce((value) => value + 1) }
-  const showPlanApproval = raw?.fallback === undefined && raw?.pendingInput === undefined && raw?.mode === 'plan' && raw.status === 'IDLE' && backend.messages.some((message) => message.role === 'assistant')
-  const handleApprovePlan = () => { void handleRun('Build the plan we just reviewed.', 'build').catch(() => { /* handleRun exposes the error in the feed. */ }) }
+  const planState = planAvailability(raw)
+  const runPlanCommand = async (label: string, command: () => Promise<unknown>) => {
+    if (!raw || !user || busyRef.current) return
+    busyRef.current = true; setPlanBusy(true); setRunError(null)
+    try { await command(); await backend.refresh() }
+    catch (reason) {
+      // The plan moved on under this tab (another tab or the agent changed it): the refreshed card is the answer, not an error.
+      if (reason instanceof BackendError && reason.code === 'plan/stale-revision') void backend.refresh().catch(() => {})
+      else setRunError(reason instanceof Error ? reason.message : `Could not ${label}.`)
+    } finally { busyRef.current = false; setPlanBusy(false) }
+  }
+  const planActions: PlanCardActions = {
+    canApprove: planState.canApprove, canEdit: planState.canEdit, busy: planBusy,
+    onApprove: (revision) => { void runPlanCommand('approve the plan', async () => { if (raw && user) backend.applyState(await approvePlan(currentBackend(), pendingCommandStorage(), user.uid, raw.id, revision)) }) },
+    onEdit: (revision, update) => { void runPlanCommand('update the plan', async () => { if (raw && user) await editPlan(currentBackend(), pendingCommandStorage(), user.uid, raw.id, revision, update) }) },
+  }
   const handleHistoryRestored = () => { void backend.refresh().catch((reason) => setRunError(String(reason))) }
   const handleClarificationAnswer = async (answer: string) => { await handleRun(answer) }
   const closeWorkspacePanel = () => {
@@ -589,7 +606,7 @@ export default function ComputerPage() {
 
 
                   onClarificationAnswer={handleClarificationAnswer}
-                  onApprovePlan={showPlanApproval ? handleApprovePlan : undefined}
+                  plan={raw?.plan ?? null} planActions={planActions}
 
                 />
           </ConversationScrollArea>

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { planUpdateSchema, sessionPlanSchema, type PlanUpdate } from './session-plan'
 import { catalogueSchema, connectionDetailSchema, connectionListSchema, connectionStartSchema, disconnectSchema, projectSourceResponseSchema, projectSourceSchema, repositoryListSchema, type ConnectorKey } from './connections'
 import { attachmentRefSchema, attachmentRefsSchema, isAttachmentMediaType, storedAttachmentSchema, type AttachmentRef } from './attachments'
 
@@ -20,9 +21,12 @@ export const projectSchema = z.object({
   status: z.enum(['draft', 'deleting']), publicPreviewEnabled: z.boolean(), createdAt: timestamp,
   source: projectSourceSchema.optional(),
 })
+export const sessionModes = ['build', 'plan'] as const
+/** The server may add modes before this client learns them; an unknown mode must not make a session unreadable. */
+export const sessionModeSchema = z.string().min(1).max(32)
 export const sessionSchema = z.object({
   id, projectId: id, status: z.enum(['QUEUED', 'RUNNING', 'IDLE', 'STOPPED', 'FAILED']), model: z.string(),
-  effort: z.enum(['low', 'standard', 'high', 'xhigh']), mode: z.enum(['build', 'plan']),
+  effort: z.enum(['low', 'standard', 'high', 'xhigh']), mode: sessionModeSchema,
   sandboxId: z.string().optional(), error: z.string().optional(), messageCount: z.number().int().nonnegative(),
   heartbeatAt: timestamp.optional(), createdAt: timestamp,
   cancelRequested: z.boolean().optional(),
@@ -35,6 +39,8 @@ export const sessionSchema = z.object({
     offer: z.object({ provider: z.enum(['anthropic', 'openrouter']).optional(), model: z.string(), effort: z.enum(['low', 'standard', 'high', 'xhigh']), estimatedInput: z.boolean().optional() }).optional(),
   }).optional(),
   pendingInput: z.object({ id, kind: z.enum(['question', 'approval']), prompt: z.string() }).optional(),
+  /** The structured plan the agent proposed; absent until it proposes one. */
+  plan: sessionPlanSchema.optional(),
 })
 export const messageSchema = z.object({
   seq: z.number().int().nonnegative(), role: z.enum(['user', 'assistant']), content: z.string(), createdAt: timestamp,
@@ -309,6 +315,17 @@ export class BackendClient {
   continueSession(sessionId: string, input: { checkpointId: string; lane: 'premium' | 'fallback'; model: string; effort: 'low' | 'standard' | 'high' | 'xhigh' }, key: string) {
     const body = z.object({ checkpointId: id, lane: z.enum(['premium', 'fallback']), model: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/), effort: z.enum(['low', 'standard', 'high', 'xhigh']) }).strict().parse(input)
     return this.json(sessionSchema, `/sessions/${id.parse(sessionId)}/continuation`, { method: 'POST', body, key: keySchema.parse(key) })
+  }
+
+  /** Approves the plan revision the user read; the server refuses any other revision and starts the build itself. */
+  approvePlan(sessionId: string, revision: number, key: string) {
+    const body = z.object({ revision: z.number().int().positive() }).strict().parse({ revision })
+    return this.json(sessionSchema, `/sessions/${id.parse(sessionId)}/plan/approve`, { method: 'POST', body, key: keySchema.parse(key) })
+  }
+  /** A user edit becomes a new revision and withdraws any approval; `revision` must be the one the user edited. */
+  editPlan(sessionId: string, revision: number, update: PlanUpdate, key: string) {
+    const body = { revision: z.number().int().positive().parse(revision), ...planUpdateSchema.parse(update) }
+    return this.json(z.object({ plan: sessionPlanSchema }), `/sessions/${id.parse(sessionId)}/plan`, { method: 'PATCH', body, key: keySchema.parse(key) })
   }
 
   /** Stops one specific run: the server refuses a Stop whose `execution` is no longer the current one. */
