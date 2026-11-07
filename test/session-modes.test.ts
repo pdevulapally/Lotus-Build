@@ -13,15 +13,22 @@ const account = {
   plan: { key: 'free', name: 'Free' }, capabilities: [], limits: [], models: [],
 }
 
-test('an older backend keeps Build/Plan and Build as the safe default', () => {
+test('without advertised modes (signed out or older backend) Auto, Build and Plan are offered with Auto default', () => {
   const parsed = accountSchema.parse(account)
-  assert.deepEqual(parsed.sessionModes, ['build', 'plan'])
-  assert.equal(parsed.defaultSessionMode, 'build')
+  assert.deepEqual([...parsed.sessionModes].sort(), ['auto', 'build', 'plan'])
+  assert.equal(parsed.defaultSessionMode, 'auto')
+  assert.deepEqual(selectableSessionModeConfigs(undefined).map((mode) => mode.id), ['auto', 'build', 'plan'])
+  assert.equal(defaultComputerSessionMode(undefined, undefined), 'auto')
+  assert.equal(defaultComputerSessionMode(parsed.sessionModes, parsed.defaultSessionMode), 'auto')
+})
+
+test('a backend that advertises only Build and Plan keeps Build as the default', () => {
+  const parsed = accountSchema.parse({ ...account, sessionModes: ['build', 'plan'], defaultSessionMode: 'build' })
   assert.deepEqual(selectableSessionModeConfigs(parsed.sessionModes).map((mode) => mode.id), ['build', 'plan'])
   assert.equal(defaultComputerSessionMode(parsed.sessionModes, parsed.defaultSessionMode), 'build')
 })
 
-test('Auto appears and becomes default only when the server advertises it', () => {
+test('Auto appears first and is the default when the server advertises it', () => {
   const parsed = accountSchema.parse({ ...account, sessionModes: ['build', 'plan', 'auto'], defaultSessionMode: 'auto' })
   assert.deepEqual(selectableSessionModeConfigs(parsed.sessionModes).map((mode) => mode.id), ['auto', 'build', 'plan'])
   assert.equal(defaultComputerSessionMode(parsed.sessionModes, parsed.defaultSessionMode), 'auto')

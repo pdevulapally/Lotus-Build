@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { planUpdateSchema, sessionPlanSchema, type PlanUpdate } from './session-plan'
-import { computerSessionModeSchema, type ComputerSessionMode } from './session-modes'
+import { computerSessionModeSchema, computerSessionModes, type ComputerSessionMode } from './session-modes'
 export { computerSessionModes as sessionModes } from './session-modes'
 import { catalogueSchema, connectionDetailSchema, connectionListSchema, connectionStartSchema, disconnectSchema, projectSourceResponseSchema, projectSourceSchema, repositoryListSchema, type ConnectorKey } from './connections'
 import { attachmentRefSchema, attachmentRefsSchema, isAttachmentMediaType, storedAttachmentSchema, type AttachmentRef } from './attachments'
@@ -65,8 +65,8 @@ export const accountSchema = z.object({
   uid: z.string().min(1), email: z.string(), emailVerified: z.boolean(), displayName: z.string().optional(),
   photoUrl: z.string().optional(), projectCount: z.number().int().nonnegative(),
   plan: z.object({ key: z.string(), name: z.string() }), subscriptionStatus: z.string().optional(),
-  sessionModes: z.array(z.string().min(1).max(32)).default(['build', 'plan']),
-  defaultSessionMode: z.string().min(1).max(32).default('build'),
+  sessionModes: z.array(z.string().min(1).max(32)).default([...computerSessionModes]),
+  defaultSessionMode: z.string().min(1).max(32).default('auto'),
   capabilities: z.array(capabilitySchema), limits: z.array(z.object({
     meterKey: z.string(), includedAllowance: z.number(), hardLimit: z.number(), overageEnabled: z.boolean(),
   })),
