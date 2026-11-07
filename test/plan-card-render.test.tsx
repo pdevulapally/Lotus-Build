@@ -30,7 +30,9 @@ const plan: SessionPlan = {
   ],
   questions: [{ id: 'q1', text: 'Persist between reloads?' }], checks: ['npm test'], decisions: [], risks: [], source: 'agent',
 }
-const actions = (overrides: Partial<ComponentProps<typeof PlanCard>['actions'] & object> = {}) => ({ canApprove: true, canEdit: true, busy: false, onApprove: () => {}, onEdit: () => {}, ...overrides })
+const actions = (overrides: Partial<NonNullable<ComponentProps<typeof PlanCard>['actions']>> = {}): NonNullable<ComponentProps<typeof PlanCard>['actions']> => ({
+  approvalRequired: true, canApprove: true, canEdit: true, busy: false, onApprove: () => {}, onEdit: () => {}, ...overrides,
+})
 
 test('the card shows every step with its real status and what still needs the user', () => {
   const html = render({ plan, actions: actions() })
@@ -64,6 +66,13 @@ test('an approved plan reads as approved, and one changed since approval says so
   assert.match(changed, /Plan changed since you approved it/); assert.match(changed, /Approve the changes and build/)
   const answered = render({ plan: { ...plan, questions: [{ id: 'q1', text: 'Persist?', answer: 'Yes' }] }, actions: actions() })
   assert.match(answered, /Your answers/); assert.match(answered, /You: Yes/); assert.match(answered, /or type to revise/)
+})
+
+test('an Auto plan is informational and never becomes an approval gate', () => {
+  const html = render({ plan, actions: actions({ approvalRequired: false, canApprove: false }) })
+  assert.match(html, /Working plan/)
+  assert.doesNotMatch(html, /Approve and build|Approve the changes/)
+  assert.match(html, />Skip</)
 })
 
 test('model-authored text is rendered as text, never as markup', () => {

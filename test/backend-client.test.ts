@@ -206,6 +206,20 @@ test('malformed identifiers, prompts, keys and destinations are refused before a
   }
 })
 
+test('Auto is accepted in session and message commands once the account advertises it', async () => {
+  const calls: { path: string; method: string; body: unknown }[] = []
+  const client = new BackendClient({ origin: 'https://api.example.test', token: async () => 'token', fetch: async (input, init) => {
+    calls.push({ path: new URL(String(input)).pathname, method: String(init?.method), body: JSON.parse(String(init?.body)) })
+    return Response.json(new URL(String(input)).pathname.endsWith('/messages') ? { queued: false, session: { ...session, mode: 'auto' } } : { ...session, mode: 'auto' })
+  } })
+  await client.createSession('p1', { prompt: 'Decide what this needs', model: 'configured-model', mode: 'auto' }, key)
+  await client.sendMessage('s1', { prompt: 'Continue intelligently', mode: 'auto' }, key)
+  assert.deepEqual(calls, [
+    { path: '/projects/p1/sessions', method: 'POST', body: { prompt: 'Decide what this needs', model: 'configured-model', mode: 'auto' } },
+    { path: '/sessions/s1/messages', method: 'POST', body: { prompt: 'Continue intelligently', mode: 'auto' } },
+  ])
+})
+
 test('server auth and idempotency errors retain stable codes without retrying mutations', async () => {
   let sent = 0
   const client = new BackendClient({ origin: 'https://api.example.test', token: async () => 'token', fetch: async () => {
@@ -464,7 +478,10 @@ test('sign-in drafts preserve the supported mode without selecting a model or st
   const state = storage()
   saveSessionDraft(state, { prompt: 'Build a portal', mode: 'plan' })
   assert.deepEqual(readSessionDraft(state), { prompt: 'Build a portal', mode: 'plan' })
-  assert.throws(() => saveSessionDraft(state, { prompt: 'Build', mode: 'auto' as 'build' }))
+  saveSessionDraft(state, { prompt: 'Decide for me', mode: 'auto' })
+  assert.deepEqual(readSessionDraft(state), { prompt: 'Decide for me', mode: 'auto' })
+  saveSessionDraft(state, { prompt: 'Choose after sign-in' })
+  assert.deepEqual(readSessionDraft(state), { prompt: 'Choose after sign-in' })
 })
 
 test('session usage stays scoped to the current session and rejects malformed meter data', async () => {

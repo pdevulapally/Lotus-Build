@@ -1,5 +1,7 @@
 import { z } from 'zod'
 import { planUpdateSchema, sessionPlanSchema, type PlanUpdate } from './session-plan'
+import { computerSessionModeSchema, type ComputerSessionMode } from './session-modes'
+export { computerSessionModes as sessionModes } from './session-modes'
 import { catalogueSchema, connectionDetailSchema, connectionListSchema, connectionStartSchema, disconnectSchema, projectSourceResponseSchema, projectSourceSchema, repositoryListSchema, type ConnectorKey } from './connections'
 import { attachmentRefSchema, attachmentRefsSchema, isAttachmentMediaType, storedAttachmentSchema, type AttachmentRef } from './attachments'
 
@@ -21,7 +23,6 @@ export const projectSchema = z.object({
   status: z.enum(['draft', 'deleting']), publicPreviewEnabled: z.boolean(), createdAt: timestamp,
   source: projectSourceSchema.optional(),
 })
-export const sessionModes = ['build', 'plan'] as const
 /** The server may add modes before this client learns them; an unknown mode must not make a session unreadable. */
 export const sessionModeSchema = z.string().min(1).max(32)
 export const sessionSchema = z.object({
@@ -57,6 +58,8 @@ export const accountSchema = z.object({
   uid: z.string().min(1), email: z.string(), emailVerified: z.boolean(), displayName: z.string().optional(),
   photoUrl: z.string().optional(), projectCount: z.number().int().nonnegative(),
   plan: z.object({ key: z.string(), name: z.string() }), subscriptionStatus: z.string().optional(),
+  sessionModes: z.array(z.string().min(1).max(32)).default(['build', 'plan']),
+  defaultSessionMode: z.string().min(1).max(32).default('build'),
   capabilities: z.array(capabilitySchema), limits: z.array(z.object({
     meterKey: z.string(), includedAllowance: z.number(), hardLimit: z.number(), overageEnabled: z.boolean(),
   })),
@@ -269,9 +272,9 @@ export class BackendClient {
   }
   async deleteProject(projectId: string) { await this.response(`/projects/${id.parse(projectId)}`, { method: 'DELETE' }) }
   sessions(projectId: string, signal?: AbortSignal) { return this.json(z.object({ sessions: z.array(sessionSchema) }), `/projects/${id.parse(projectId)}/sessions?limit=100`, { signal }) }
-  createSession(projectId: string, input: { prompt: string; model: string; mode?: 'build' | 'plan'; effort?: 'low' | 'standard' | 'high' | 'xhigh'; attachments?: AttachmentRef[] }, key: string) {
+  createSession(projectId: string, input: { prompt: string; model: string; mode?: ComputerSessionMode; effort?: 'low' | 'standard' | 'high' | 'xhigh'; attachments?: AttachmentRef[] }, key: string) {
     const body = z.object({ prompt: promptSchema, model: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/),
-      mode: z.enum(['build', 'plan']).optional(), effort: z.enum(['low', 'standard', 'high', 'xhigh']).optional(), attachments: attachmentRefsSchema.optional() }).strict().parse(input)
+      mode: computerSessionModeSchema.optional(), effort: z.enum(['low', 'standard', 'high', 'xhigh']).optional(), attachments: attachmentRefsSchema.optional() }).strict().parse(input)
     return this.json(sessionSchema, `/projects/${id.parse(projectId)}/sessions`, { method: 'POST', body, key: keySchema.parse(key) })
   }
   createVoiceSession(projectId: string, model: string, key: string) {
@@ -295,8 +298,8 @@ export class BackendClient {
   }
   messages(sessionId: string, signal?: AbortSignal) { return this.json(z.object({ messages: z.array(messageSchema) }), `/sessions/${id.parse(sessionId)}/messages?limit=200`, { signal }) }
   queuedMessages(sessionId: string, signal?: AbortSignal) { return this.json(z.object({ queuedMessages: z.array(queuedSchema), nextCursor: z.string().nullable() }), `/sessions/${id.parse(sessionId)}/queued-messages?limit=100`, { signal }) }
-  sendMessage(sessionId: string, input: { prompt: string; steer?: boolean; mode?: 'build' | 'plan'; attachments?: AttachmentRef[]; inputResponse?: { id: string; answer: string } }, key: string) {
-    const body = z.object({ prompt: promptSchema, steer: z.boolean().optional(), mode: z.enum(['build', 'plan']).optional(), attachments: attachmentRefsSchema.optional(),
+  sendMessage(sessionId: string, input: { prompt: string; steer?: boolean; mode?: ComputerSessionMode; attachments?: AttachmentRef[]; inputResponse?: { id: string; answer: string } }, key: string) {
+    const body = z.object({ prompt: promptSchema, steer: z.boolean().optional(), mode: computerSessionModeSchema.optional(), attachments: attachmentRefsSchema.optional(),
       inputResponse: z.object({ id, answer: promptSchema }).strict().optional() }).strict().parse(input)
     return this.json(acceptedMessageSchema, `/sessions/${id.parse(sessionId)}/messages`, { method: 'POST', body, key: keySchema.parse(key) })
   }

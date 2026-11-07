@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 import type { PlanStep, PlanStepStatus, PlanUpdate, SessionPlan } from "@/lib/backend/session-plan"
 
 export type PlanCardActions = {
+  approvalRequired: boolean
   canApprove: boolean
   canEdit: boolean
   busy: boolean
@@ -28,8 +29,8 @@ function StepMark({ status }: { status: PlanStepStatus }) {
   return <Circle className={cn(className, "text-muted-foreground/70")} aria-hidden />
 }
 
-function headline(plan: SessionPlan, canApprove: boolean) {
-  if (plan.approvedRevision === undefined) return canApprove ? "Before I build" : "Plan"
+function headline(plan: SessionPlan, actions?: PlanCardActions) {
+  if (plan.approvedRevision === undefined) return actions?.approvalRequired === true ? (actions.canApprove ? "Before I build" : "Plan") : "Working plan"
   if (plan.approvedRevision === plan.revision) return "Approved plan"
   return "Plan changed since you approved it"
 }
@@ -55,7 +56,7 @@ export function PlanCard({ plan, actions }: { plan: SessionPlan; actions?: PlanC
   return (
     <section aria-label="Plan" data-plan-revision={plan.revision} className="my-3 overflow-hidden rounded-2xl border border-border bg-card">
       <div className="flex items-center justify-between gap-2 border-b border-border/70 px-3.5 py-2.5">
-        <span className="text-xs font-semibold text-muted-foreground">{headline(plan, actions?.canApprove === true)}</span>
+        <span className="text-xs font-semibold text-muted-foreground">{headline(plan, actions)}</span>
         <span className="text-[11px] text-muted-foreground">{plan.steps.length === 0 ? "" : `${progress} of ${plan.steps.length} done`}</span>
       </div>
       <div className="px-3.5 pb-3.5 pt-3">
@@ -137,7 +138,7 @@ export function PlanCard({ plan, actions }: { plan: SessionPlan; actions?: PlanC
           </dl>
         )}
       </div>
-      {actions && (actions.canApprove || actions.busy) && (
+      {actions?.approvalRequired === true && (actions.canApprove || actions.busy) && (
         <div className="flex items-center gap-3 border-t border-border/70 px-3.5 py-3">
           <button
             type="button"

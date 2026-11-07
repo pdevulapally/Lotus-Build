@@ -42,9 +42,10 @@ const activeStatuses: ReadonlySet<BackendSession['status']> = new Set(['QUEUED',
 /** Mirrors the server's gate: approve/edit only between runs, with nothing else waiting on the user. */
 export function planAvailability(session: BackendSession | null | undefined) {
   const plan = session?.plan
-  if (!session || !plan) return { plan: undefined, canApprove: false, canEdit: false } as const
+  if (!session || !plan) return { plan: undefined, approvalRequired: false, canApprove: false, canEdit: false } as const
   const settled = !activeStatuses.has(session.status) && session.pendingInput === undefined && session.fallback === undefined
-  return { plan, canApprove: settled && plan.approvedRevision !== plan.revision, canEdit: settled } as const
+  const approvalRequired = session.mode === 'plan'
+  return { plan, approvalRequired, canApprove: approvalRequired && settled && plan.approvedRevision !== plan.revision, canEdit: settled } as const
 }
 
 type Storage = Pick<globalThis.Storage, 'getItem' | 'setItem' | 'removeItem'>
