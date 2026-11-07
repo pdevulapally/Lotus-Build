@@ -4,6 +4,7 @@ import { computerSessionModeSchema, type ComputerSessionMode } from './session-m
 export { computerSessionModes as sessionModes } from './session-modes'
 import { catalogueSchema, connectionDetailSchema, connectionListSchema, connectionStartSchema, disconnectSchema, projectSourceResponseSchema, projectSourceSchema, repositoryListSchema, type ConnectorKey } from './connections'
 import { attachmentRefSchema, attachmentRefsSchema, isAttachmentMediaType, storedAttachmentSchema, type AttachmentRef } from './attachments'
+import { deliverySchema } from './delivery'
 
 const id = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/)
 const timestamp = z.string().datetime({ offset: true })
@@ -44,6 +45,8 @@ export const sessionSchema = z.object({
       label: z.string().min(1).max(120), description: z.string().max(300).optional(),
     })).min(2).max(4).optional() })).min(1).max(4).optional(),
   }).optional(),
+  /** Autonomous pull-request checks and deployment monitoring, when this task has been published. */
+  delivery: deliverySchema.optional(),
   /** The structured plan the agent proposed; absent until it proposes one. */
   plan: sessionPlanSchema.optional(),
 })

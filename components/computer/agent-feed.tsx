@@ -45,6 +45,8 @@ import { cn } from "@/lib/utils"
 import { Markdown } from "@/components/ui/markdown"
 import { PlanCard, type PlanCardActions } from "@/components/computer/plan-card"
 import type { SessionPlan } from "@/lib/backend/session-plan"
+import { DeliveryCard } from "@/components/computer/delivery-card"
+import type { Delivery } from "@/lib/backend/delivery"
 import { STILL_STOPPING_AFTER_MS, stoppingLabels } from "@/lib/backend/feed-labels"
 
 const PROSE_EVENTS = ["Understanding insight", "Research insight", "Browser insight", "Build approach"]
@@ -684,7 +686,7 @@ export function AgentFeed({
   prompt, events, localMessages, status, optimisticStart,
   progress,
   editingIndex, editText, onEditStart, onEditChange, onEditSubmit, onEditCancel,
-  onSupabaseSetup, onSupabaseDecline, onClarificationAnswer, plan, planActions,
+  onSupabaseSetup, onSupabaseDecline, onClarificationAnswer, plan, planActions, delivery,
   onRestoreCheckpoint,
   canonicalMessages, queuedMessages, streamText, liveLabel, stopping = false, stoppingSince = null,
 }: {
@@ -714,6 +716,8 @@ export function AgentFeed({
   /** The session's structured plan, rendered once after the activity; absent until the agent proposes one. */
   plan?: SessionPlan | null
   planActions?: PlanCardActions
+  /** The current pull-request delivery, kept visible while checks and deployment continue in the background. */
+  delivery?: Delivery | null
   onRestoreCheckpoint?: (runId: string) => Promise<void>
 }) {
   const [stoppingLong, setStoppingLong] = useState(false)
@@ -822,6 +826,7 @@ export function AgentFeed({
         <Shimmer className="text-[13px] font-medium">{liveLabel ?? (status === "queued" ? "Starting your request…" : "Working…")}</Shimmer>
       </div>}
       {plan && <PlanCard plan={plan} actions={planActions} />}
+      {delivery && <DeliveryCard delivery={delivery} />}
     </div>
   }
 
@@ -919,6 +924,7 @@ export function AgentFeed({
       )}
 
       {plan && <PlanCard plan={plan} actions={planActions} />}
+      {delivery && <DeliveryCard delivery={delivery} />}
 
       <AnimatePresence>
         {showGlobalThinking && (
