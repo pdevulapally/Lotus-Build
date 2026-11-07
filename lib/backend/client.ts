@@ -39,7 +39,11 @@ export const sessionSchema = z.object({
     imageExpiresAt: timestamp.optional(), resetAt: timestamp.optional(), retryAt: timestamp.optional(), limitLabel: z.string().optional(),
     offer: z.object({ provider: z.enum(['anthropic', 'openrouter']).optional(), model: z.string(), effort: z.enum(['low', 'standard', 'high', 'xhigh']), estimatedInput: z.boolean().optional() }).optional(),
   }).optional(),
-  pendingInput: z.object({ id, kind: z.enum(['question', 'approval']), prompt: z.string() }).optional(),
+  pendingInput: z.object({ id, kind: z.enum(['question', 'approval']), prompt: z.string(),
+    questions: z.array(z.object({ id: z.string(), prompt: z.string().min(1).max(1000), options: z.array(z.object({
+      label: z.string().min(1).max(120), description: z.string().max(300).optional(),
+    })).min(2).max(4).optional() })).min(1).max(4).optional(),
+  }).optional(),
   /** The structured plan the agent proposed; absent until it proposes one. */
   plan: sessionPlanSchema.optional(),
 })

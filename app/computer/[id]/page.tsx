@@ -26,6 +26,7 @@ import { useAutoOpenWorkspace } from "@/hooks/use-auto-open-workspace"
 
 import { sendMessage, readPendingMessage } from "@/lib/backend/send-message"
 import { ContinuationStatus } from "@/components/computer/continuation-status"
+import { PendingInputCard } from "@/components/computer/pending-input-card"
 import { RequestError } from "@/components/ui/request-error"
 import { BackendError } from "@/lib/backend/client"
 import { presentRequestError } from "@/lib/backend/error-presentation"
@@ -651,14 +652,11 @@ export default function ComputerPage() {
               <button type="button" className="underline" onClick={() => { void handleContinue(pendingContinuation.lane, pendingContinuation) }}>Retry original continuation</button>
             </p>}
             {raw && <ContinuationStatus session={raw} busy={isStartingRun} onContinue={(lane) => { void handleContinue(lane) }} onCancel={() => { void handleStop() }} />}
-            {raw?.pendingInput && <section aria-label="Waiting for your response" className="mb-3 text-sm text-foreground">
-              <p>{raw.pendingInput.prompt}</p>
-              {raw.pendingInput.kind === 'approval' ? <p className="mt-2 flex gap-3">
-                <button type="button" className="underline" disabled={isStartingRun} onClick={() => { void handleRun('approve').catch(() => {}) }}>Approve</button>
-                <button type="button" className="underline" disabled={isStartingRun} onClick={() => { void handleRun('reject').catch(() => {}) }}>Reject</button>
-              </p> : <p className="text-xs text-muted-foreground">Reply below to continue. Work is paused until you answer.</p>}
-              <button type="button" className="mt-2 text-xs underline" onClick={() => { void handleStop() }}>Cancel task</button>
-            </section>}
+            {raw?.pendingInput && <PendingInputCard key={raw.pendingInput.id}
+              request={raw.pendingInput}
+              busy={isStartingRun}
+              onAnswer={(answer) => { void handleRun(answer).catch(() => {}) }}
+            />}
             <VoiceControls key={`${user?.uid}:${raw?.id}`} session={raw} identity={user?.uid} refresh={backend.refresh} initiallyExpanded={openVoice}>
               {(voiceProps) => <AnimatedAIInput
                 {...voiceProps}
