@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert'
 import { test } from 'node:test'
-import { describeAllowance, describeCountCapabilities, featuredPlanKey, formatAllowanceValue, formatPlanPrice } from '../lib/plans/format'
+import { describeAllowance, describeCountCapabilities, featuredPlanKey, formatAllowanceValue, formatPlanPrice, quantityWithUnit } from '../lib/plans/format'
 
 test('allowance units read as humans say them', () => {
   assert.equal(formatAllowanceValue('tokens', 1_200_000), '1.2M tokens')
@@ -15,6 +15,17 @@ test('allowance units read as humans say them', () => {
 test('a ceiling is only shown when the limit exceeds the included amount', () => {
   assert.deepEqual(describeAllowance({ key: 'a', label: 'Builds', unit: 'count', included: 10, limit: 10 }), { included: '10' })
   assert.deepEqual(describeAllowance({ key: 'a', label: 'Builds', unit: 'count', included: 200, limit: 400 }), { included: '200', ceiling: 'up to 400' })
+})
+
+test('an allowance the server states as unlimited reads as Unlimited, never inferred from a zero', () => {
+  assert.deepEqual(describeAllowance({ key: 'builds.started', label: 'Builds', unit: 'count', included: 'unlimited', limit: 'unlimited' }), { included: 'Unlimited' })
+  assert.deepEqual(describeAllowance({ key: 'builds.started', label: 'Builds', unit: 'count', included: 10, limit: 'unlimited' }), { included: 'Unlimited' })
+  assert.deepEqual(describeAllowance({ key: 'sandbox.concurrent.mobile', label: 'Mobile sandboxes', unit: 'count', included: 0, limit: 0 }), { included: '0' })
+})
+
+test('counts carry no unit word; other units keep theirs', () => {
+  assert.equal(quantityWithUnit('count', 12), '12')
+  assert.equal(quantityWithUnit('tokens', 1200), '1,200 tokens')
 })
 
 test('prices drop trailing zero pence and name the interval', () => {

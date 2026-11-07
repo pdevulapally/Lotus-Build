@@ -33,8 +33,17 @@ export function formatAllowanceValue(unit: string, value: number): string {
   }
 }
 
-/** "Included" value plus an "up to" ceiling only when the server reports a higher hard limit. */
+/** A quantity with its unit word, except "count", which reads as a bare number ("12", not "12 count"). */
+export function quantityWithUnit(unit: string, value: number): string {
+  return unit === 'count' ? value.toLocaleString('en-GB') : `${value.toLocaleString('en-GB')} ${unit}`
+}
+
+/**
+ * "Included" value plus an "up to" ceiling only when the server reports a higher hard limit.
+ * "Unlimited" is a value the server states explicitly (e.g. builds); it is never inferred from a zero.
+ */
 export function describeAllowance(allowance: Allowance): { included: string; ceiling?: string } {
+  if (allowance.included === 'unlimited' || allowance.limit === 'unlimited') return { included: 'Unlimited' }
   const included = formatAllowanceValue(allowance.unit, allowance.included)
   if (allowance.limit <= allowance.included) return { included }
   return { included, ceiling: `up to ${formatAllowanceValue(allowance.unit, allowance.limit)}` }
