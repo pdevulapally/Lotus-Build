@@ -14,7 +14,7 @@ import {
   reduceTerminal,
   type TerminalEntry,
 } from '@/lib/backend/terminal'
-import { executionLabel, genericToolStepLabel, isHiddenToolStep, lifecycleFeedLabels, toolStepLabel } from '@/lib/backend/feed-labels'
+import { executionLabel, genericToolStepLabel, isHiddenToolStep, lifecycleFeedLabels, toolFailureLabel, toolStepLabel } from '@/lib/backend/feed-labels'
 import { loadSessionSnapshot, sessionEventStatus } from '@/lib/backend/session-snapshot'
 import { applyPlanEvent } from '@/lib/backend/session-plan'
 import { applyDeliveryEvent } from '@/lib/backend/delivery'
@@ -169,11 +169,14 @@ export function updateToolStepEvent(events: ComputerTimelineEvent[], event: Sess
   let input: Record<string, unknown> = {}
   if (typeof current.metadata?.toolInputJson === 'string') { try { input = JSON.parse(current.metadata.toolInputJson) as Record<string, unknown> } catch { input = {} } }
   const failed = event.data.isError === true
+  // A tool with its own failure copy (see feed-labels) speaks to the person in
+  // its title; its result text is addressed to the model and stays hidden.
+  const phase = failed ? 'failed' : 'result'
   const description = typeof event.data.error === 'string' ? event.data.error.slice(0, 2000)
-    : failed && typeof event.data.text === 'string' ? event.data.text.slice(0, 400) : undefined
+    : failed && toolFailureLabel(name) === undefined && typeof event.data.text === 'string' ? event.data.text.slice(0, 400) : undefined
   const next = events.slice()
   next[index] = { ...current, status: failed ? 'error' : 'complete',
-    title: isComputerAction(name) ? current.title : toolStepLabel(name, 'result', input) ?? genericToolStepLabel(name, 'result'),
+    title: isComputerAction(name) ? current.title : toolStepLabel(name, phase, input) ?? genericToolStepLabel(name, phase),
     ...(description ? { description } : {}) }
   return next
 }
@@ -389,7 +392,7 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
     messages: currentScope ? messages : [], queued: currentScope ? queued : [], events: currentScope ? events : [],
     terminal: currentScope ? terminal : [], desktop: currentScope ? desktop : { status: 'none' as const }, text: currentScope ? text : '',
     liveLabel: currentScope ? liveLabel : null, stopping: currentScope && isStopping(session), applyState,
-    preview: currentScope ? visiblePreview({ preview, session, publicPreviewEnabled: project?.publicPreviewEnabled === true }) : null,
+    preview: currentScope ? visiblePreview({ preview, session }) : null,
     fileCount: currentScope ? fileCount : null, fileError: currentScope ? fileError : null,
     loading: !currentScope || loading, error: currentScope ? error : null, streamError: currentScope ? streamError : null,
     connection, refresh, reconnect }

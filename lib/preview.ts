@@ -16,10 +16,12 @@ export function previewUrl(value: unknown, appOrigin: string): string {
  * clears `sandboxId` when it releases the machine (end of build, limit reached,
  * failure), and a fresh `sandbox.started` means any earlier URL belongs to a
  * machine that is gone. Rendering a dead URL shows a blank frame, so the
- * preview is derived from both rather than kept as independent truth.
+ * preview is derived from both rather than kept as independent truth. The
+ * link the server sends is already private to the owner; whether the project
+ * is also shared publicly does not decide whether the owner sees it.
  */
-export function visiblePreview(input: { preview: string | null; session: { sandboxId?: string } | null; publicPreviewEnabled: boolean }): string | null {
-  if (!input.publicPreviewEnabled || input.preview === null || input.session === null) return null
+export function visiblePreview(input: { preview: string | null; session: { sandboxId?: string } | null }): string | null {
+  if (input.preview === null || input.session === null) return null
   return input.session.sandboxId === undefined ? null : input.preview
 }
 
