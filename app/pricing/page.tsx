@@ -136,11 +136,13 @@ export default function PricingPage() {
                 {featured && <span className={styles.badge}>Most popular</span>}
               </div>
               <div className={styles.price}>
-                {price ? <><span className={styles.amount}>{price.amount}</span><span className={styles.interval}>{price.interval}</span></>
+                {price && plan.billing.perSeat ? <><span className={styles.amount}>{price.amount}</span><span className={styles.interval}>per seat {price.interval} · {plan.billing.minSeats} seats minimum</span></>
+                  : price ? <><span className={styles.amount}>{price.amount}</span><span className={styles.interval}>{price.interval}</span></>
                   : <><span className={styles.amount}>{plan.name}</span><span className={styles.interval}>included with every account</span></>}
               </div>
               <div className={styles.planAction}>
                 {isCurrent ? <span className={styles.currentAction}><CheckIcon width={16} height={16} />Current plan</span>
+                  : plan.billing.perSeat ? <Link href={user ? '/settings' : '/signup?redirect=%2Fsettings'} className={styles.chooseQuiet}>{user ? 'Set up in Settings' : 'Create an account to start'}<ArrowRightIcon width={16} height={16} /></Link>
                   : plan.price ? <button type="button" disabled={busy !== null} onClick={() => void subscribe(plan)} className={styles.choose} aria-busy={busy === plan.key}>
                     {busy === plan.key ? <><LoaderCircle aria-hidden="true" className="size-4 animate-spin motion-reduce:animate-none" /> Opening checkout…</> : <>Choose {plan.name}<ArrowRightIcon width={16} height={16} /></>}
                   </button>
