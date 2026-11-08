@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { activity, eventExecution, interruptRunningToolEvents, isStopping, isTerminalStatus, updateToolStepEvent } from '../hooks/use-backend-session'
+import { activity, closeSpokenParagraph, eventExecution, interruptRunningToolEvents, isStopping, isTerminalStatus, reduceThinking, updateToolStepEvent } from '../hooks/use-backend-session'
 import { executionLabel, genericToolStepLabel, lifecycleFeedLabels, toolStepLabel } from '../lib/backend/feed-labels'
 import type { SessionEvent } from '../lib/backend/client'
 
@@ -95,4 +95,24 @@ test('tool results match both identity and name, including out-of-order results 
   assert.strictEqual(updateToolStepEvent(updated, event('agent.tool_result', { name: 'read_file', callId: 'a' })), updated)
   const legacy = updateToolStepEvent(rows, event('agent.tool_result', { name: 'read_file' }))
   assert.equal(legacy[0].status, 'complete'); assert.equal(legacy[1].status, 'running')
+})
+
+test('thinking deltas fold into one running row per step that any other run event closes', () => {
+  const first = reduceThinking([], event('agent.thinking', { delta: 'Read the ' }, '1700000000001-1'), 1)
+  const grown = reduceThinking(first, event('agent.thinking', { delta: 'failing test.' }, '1700000000002-1'), 2)
+  assert.equal(grown.length, 1)
+  assert.deepEqual([grown[0].kind, grown[0].status, grown[0].title, grown[0].description], ['thinking', 'running', 'Thinking', 'Read the failing test.'])
+  const closed = reduceThinking(grown, event('agent.tool_call', { name: 'read_file', input: { path: 'x' } }, '1700000000003-1'), 3)
+  assert.equal(closed[0].status, 'complete')
+  const next = reduceThinking(closed, event('agent.thinking', { delta: 'Now fix it.' }, '1700000000004-1'), 4)
+  assert.equal(next.length, 2)
+  assert.equal(next[1].description, 'Now fix it.')
+  assert.throws(() => reduceThinking([], event('agent.thinking', { delta: 7 }), 0), /invalid thinking event/)
+  assert.equal(activity(event('agent.thinking', { delta: 'private' }), 0), null)
+})
+
+test('what the agent said before a tool step does not run into what it says after it', () => {
+  assert.equal(closeSpokenParagraph(''), '')
+  assert.equal(closeSpokenParagraph('Reading the hero first. '), 'Reading the hero first.\n\n')
+  assert.equal(closeSpokenParagraph('Already closed.\n\n'), 'Already closed.\n\n')
 })
