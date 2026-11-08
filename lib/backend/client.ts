@@ -38,7 +38,7 @@ export const sessionSchema = z.object({
   fallback: z.object({ status: z.enum(['AWAITING_CONSENT', 'QUEUED', 'RUNNING', 'CAPACITY_WAIT', 'EXHAUSTED', 'SHARED_LIMIT', 'UNAVAILABLE', 'COMPLETED']),
     reason: z.string(), resumable: z.boolean(), checkpointId: id.optional(), lane: z.enum(['premium', 'fallback']).optional(), consent: z.boolean(),
     imageExpiresAt: timestamp.optional(), resetAt: timestamp.optional(), retryAt: timestamp.optional(), limitLabel: z.string().optional(),
-    offer: z.object({ provider: z.enum(['anthropic', 'openrouter']).optional(), model: z.string(), effort: z.enum(['low', 'standard', 'high', 'xhigh']), estimatedInput: z.boolean().optional() }).optional(),
+    offer: z.object({ provider: z.enum(['anthropic', 'nvidia']).optional(), model: z.string(), effort: z.enum(['low', 'standard', 'high', 'xhigh']), estimatedInput: z.boolean().optional() }).optional(),
   }).optional(),
   pendingInput: z.object({ id, kind: z.enum(['question', 'approval']), prompt: z.string(),
     questions: z.array(z.object({ id: z.string(), prompt: z.string().min(1).max(1000), options: z.array(z.object({

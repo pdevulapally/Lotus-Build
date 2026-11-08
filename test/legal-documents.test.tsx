@@ -48,7 +48,7 @@ test('both actual legal documents render consistent identity, version, dates and
 test('consumer remedies and key processing boundaries remain explicit', () => {
   const privacy = JSON.stringify(privacyPolicy)
   const terms = JSON.stringify(termsOfService)
-  for (const text of ['OpenRouter', 'ElevenLabs', 'GitHub', 'withdraw', 'erasure', 'international']) assert.ok(privacy.toLowerCase().includes(text.toLowerCase()))
+  for (const text of ['NVIDIA', 'ElevenLabs', 'GitHub', 'withdraw', 'erasure', 'international']) assert.ok(privacy.toLowerCase().includes(text.toLowerCase()))
   for (const text of ['death or personal injury', 'fraudulent misrepresentation', 'consumer', 'cooling-off', 'reasonable care and skill']) assert.ok(terms.includes(text))
   assert.doesNotMatch(privacy, /never.*train|always encrypted|Every request is authenticated|deleted immediately/)
 })
