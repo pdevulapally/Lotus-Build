@@ -44,7 +44,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { useAuth } from "@/contexts/auth-context"
+import { useAuth, type Workspace } from "@/contexts/auth-context"
 import { AnimatedAIInput } from "@/components/ui/animated-ai-input"
 import { cn } from "@/lib/utils"
 
@@ -106,8 +106,8 @@ function Sidebar({
   setScope: (s: "user" | "team") => void
   projectsExpanded: boolean
   setProjectsExpanded: (value: boolean | ((previous: boolean) => boolean)) => void
-  workspaces: Array<{ id: string; name: string; slug?: string }>
-  currentWorkspace: { id: string; name: string; slug?: string } | null
+  workspaces: readonly Workspace[]
+  currentWorkspace: Workspace | null
   switchWorkspace: (workspaceId: string) => Promise<void>
   isPaidUser: boolean
   collapsed?: boolean
