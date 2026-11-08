@@ -116,3 +116,13 @@ test('what the agent said before a tool step does not run into what it says afte
   assert.equal(closeSpokenParagraph('Reading the hero first. '), 'Reading the hero first.\n\n')
   assert.equal(closeSpokenParagraph('Already closed.\n\n'), 'Already closed.\n\n')
 })
+
+test('a failed tool row reads as customer copy and never shows the model-facing result text', () => {
+  const row = activity(event('agent.tool_call', { name: 'start_preview', input: { command: 'npm run dev', port: 3000 }, callId: 'p1' }), 0)!
+  const [failed] = updateToolStepEvent([row], event('agent.tool_result', { name: 'start_preview', callId: 'p1', isError: true, text: 'Public previews are disabled. Do not expose another port.' }))
+  assert.equal(failed.status, 'error')
+  assert.equal(failed.title, 'The preview could not start')
+  assert.equal(failed.description, undefined)
+  assert.equal(toolStepLabel('git_commit', 'failed'), 'Committing did not finish')
+  assert.equal(genericToolStepLabel('render_chart', 'failed'), 'Could not finish render chart')
+})
