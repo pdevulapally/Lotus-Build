@@ -142,7 +142,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
           <OrganisationGeneralPage busy={busy} {...props.organisation.general} />
         ) : page === 'org-members' && props.organisation.members ? (
           <OrganisationMembersPage busy={busy} {...props.organisation.members} />
-        ) : page === 'org-usage' && props.organisation.general ? (
+        ) : page === 'org-usage' ? (
           <UsagePage usage={props.organisation.usage} busy={busy} onRefresh={props.onRefresh} />
         ) : page === 'org-plan' && props.organisation.plan ? (
           <OrganisationPlanPage busy={busy} {...props.organisation.plan} />
