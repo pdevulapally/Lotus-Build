@@ -20,11 +20,13 @@ import { Button } from '@/components/ui/button'
 type Outcome = { kind: 'pending' } | { kind: 'joined'; name: string } | { kind: 'failed'; message: string }
 
 const failureCopy: Readonly<Record<string, string>> = {
-  'organisation/invitation-invalid': 'This invitation link is not valid. Ask the person who invited you to send a new one.',
-  'organisation/invitation-expired': 'This invitation has expired. Ask the person who invited you to send a new one.',
-  'organisation/invitation-email-mismatch': 'This invitation was sent to a different email address. Sign in with the address that received it.',
+  'organisation/invitation-invalid': 'This invitation link is not valid, or it was sent to a different email address. Sign in with the address that received it, or ask for a new invitation.',
+  'organisation/invitation-not-found': 'This invitation has expired or been withdrawn. Ask the person who invited you to send a new one.',
+  'organisation/not-found': 'This invitation has expired or been withdrawn. Ask the person who invited you to send a new one.',
+  'organisation/already-member': 'You are already a member of this organisation.',
   'organisation/seats-full': 'The organisation has no free seats. Its owner needs to add a seat before you can join.',
-  'account/email-unverified': 'Verify your email address first, then open this link again.',
+  'organisation/limit-reached': 'The organisation has no free seats. Its owner needs to add a seat before you can join.',
+  'auth/email-not-verified': 'Verify your email address first, then open this link again.',
 }
 
 function AcceptInvitation() {
