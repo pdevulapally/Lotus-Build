@@ -67,11 +67,31 @@ export type BackendClosure = z.infer<typeof closureSchema>
 const subscriptionSchema = z.object({ planKey: z.string(), status: z.string(), currentPeriodEnd: timestamp, cancelAtPeriodEnd: z.boolean() })
 export type BackendSubscription = z.infer<typeof subscriptionSchema>
 const planKey = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,63}$/)
+export const organisationRoles = ['owner', 'admin', 'member'] as const
+export type OrganisationRole = (typeof organisationRoles)[number]
+const workspaceSchema = z.object({ id: z.string().min(1), kind: z.enum(['personal', 'organisation']), name: z.string(), slug: z.string().nullable().optional(), role: z.enum(organisationRoles) })
+export type BackendWorkspace = z.infer<typeof workspaceSchema>
+const organisationSchema = z.object({ id: z.string().min(1), name: z.string(), slug: z.string(), role: z.enum(organisationRoles),
+  memberCount: z.number().int().nonnegative(), seats: z.number().int().nonnegative(), createdAt: timestamp })
+export type BackendOrganisation = z.infer<typeof organisationSchema>
+const memberSchema = z.object({ uid: z.string().min(1), role: z.enum(organisationRoles), email: z.string(), displayName: z.string().nullable(), joinedAt: timestamp })
+export type BackendMember = z.infer<typeof memberSchema>
+const invitationSchema = z.object({ id: z.string().min(1), email: z.string(), role: z.enum(['admin', 'member']), createdAt: timestamp, expiresAt: timestamp })
+export type BackendInvitation = z.infer<typeof invitationSchema>
+const organisationSubscriptionSchema = z.object({ planKey: z.string(), planName: z.string(), status: z.string(), seats: z.number().int().positive(), currentPeriodEnd: timestamp, cancelAtPeriodEnd: z.boolean() })
+const organisationBillingSchema = z.object({ subscription: organisationSubscriptionSchema.nullable(), memberCount: z.number().int().nonnegative(),
+  plans: z.array(z.object({ key: z.string(), name: z.string(), price: z.object({ amountMinor: z.number(), currency: z.string(), interval: z.string() }).nullable().optional(), minSeats: z.number().int().positive() })) })
+export type BackendOrganisationBilling = z.infer<typeof organisationBillingSchema>
+const organisationName = z.string().trim().min(2).max(80)
+const assignableRole = z.enum(['admin', 'member'])
+const invitationToken = z.string().regex(/^[A-Za-z0-9_-]{43}$/)
 export const accountSchema = z.object({
   uid: z.string().min(1), email: z.string(), emailVerified: z.boolean(), displayName: z.string().optional(),
   photoUrl: z.string().optional(), projectCount: z.number().int().nonnegative(),
   plan: z.object({ key: z.string(), name: z.string() }), subscriptionStatus: z.string().optional(),
   closing: closureSchema.nullable().optional(),
+  // Personal first, then each organisation the account belongs to; servers before organisations send none.
+  workspaces: z.array(workspaceSchema).default([]),
   sessionModes: z.array(z.string().min(1).max(32)).default([...computerSessionModes]),
   defaultSessionMode: z.string().min(1).max(32).default('auto'),
   capabilities: z.array(capabilitySchema), limits: z.array(z.object({
@@ -114,7 +134,10 @@ export type BackendAccount = z.infer<typeof accountSchema>
 export type BackendUsage = z.infer<typeof usageSchema>
 export type BackendMessage = z.infer<typeof messageSchema>
 export type SessionEvent = { id?: string; type: string; data: Record<string, unknown> }
+const planBillingSchema = z.object({ perSeat: z.boolean(), minSeats: z.number().int().positive() })
 const planSchema = z.object({ key: z.string(), name: z.string(), rank: z.number(),
+  // Older servers send no billing shape; such plans are per account.
+  billing: planBillingSchema.default({ perSeat: false, minSeats: 1 }),
   price: z.object({ amountMinor: z.number().int().positive(), currency: z.string().regex(/^[a-z]{3}$/), interval: z.enum(['day', 'week', 'month', 'year']) }).optional(),
   capabilities: z.array(capabilitySchema.and(z.object({ label: z.string() }))),
   allowances: z.array(z.object({ key: z.string(), label: z.string(), unit: z.string(), included: allowanceQuantity, limit: allowanceQuantity })),
@@ -197,6 +220,9 @@ export class BackendClient {
     return response
   }
 
+  /** A mutation whose success is the status alone (204); the server sends no body to validate. */
+  private async empty(path: string, options?: Parameters<BackendClient['response']>[1]): Promise<void> { await this.response(path, options) }
+
   private async json<T>(schema: z.ZodType<T>, path: string, options?: Parameters<BackendClient['response']>[1]): Promise<T> {
     const response = await this.response(path, options)
     let body: unknown
@@ -243,6 +269,23 @@ export class BackendClient {
     '/billing/subscription/preview', { method: 'POST', body: { planKey: planKey.parse(key) } }) }
   changePlan(key: string) { return this.json(z.object({ subscription: subscriptionSchema }), '/billing/subscription', { method: 'POST', body: { planKey: planKey.parse(key) } }) }
   setCancellation(cancelAtPeriodEnd: boolean) { return this.json(z.object({ subscription: subscriptionSchema }), '/billing/subscription/cancellation', { method: 'POST', body: { cancelAtPeriodEnd } }) }
+  createOrganisation(name: string, key: string) { return this.json(organisationSchema, '/organisations', { method: 'POST', body: { name: organisationName.parse(name) }, key }) }
+  organisation(orgId: string, signal?: AbortSignal) { return this.json(organisationSchema, `/organisations/${id.parse(orgId)}`, { signal }) }
+  renameOrganisation(orgId: string, name: string) { return this.json(organisationSchema, `/organisations/${id.parse(orgId)}`, { method: 'PATCH', body: { name: organisationName.parse(name) } }) }
+  deleteOrganisation(orgId: string, confirmation: string) { return this.empty(`/organisations/${id.parse(orgId)}`, { method: 'DELETE', body: { confirmation: z.string().min(1).max(80).parse(confirmation) } }) }
+  organisationMembers(orgId: string, signal?: AbortSignal) { return this.json(z.object({ members: z.array(memberSchema) }), `/organisations/${id.parse(orgId)}/members`, { signal }) }
+  changeMemberRole(orgId: string, uid: string, role: 'admin' | 'member') { return this.json(memberSchema, `/organisations/${id.parse(orgId)}/members/${id.parse(uid)}`, { method: 'PATCH', body: { role: assignableRole.parse(role) } }) }
+  removeMember(orgId: string, uid: string) { return this.empty(`/organisations/${id.parse(orgId)}/members/${id.parse(uid)}`, { method: 'DELETE' }) }
+  leaveOrganisation(orgId: string) { return this.empty(`/organisations/${id.parse(orgId)}/leave`, { method: 'POST' }) }
+  transferOwnership(orgId: string, uid: string) { return this.empty(`/organisations/${id.parse(orgId)}/transfer-ownership`, { method: 'POST', body: { uid: id.parse(uid) } }) }
+  organisationInvitations(orgId: string, signal?: AbortSignal) { return this.json(z.object({ invitations: z.array(invitationSchema) }), `/organisations/${id.parse(orgId)}/invitations`, { signal }) }
+  inviteMember(orgId: string, email: string, role: 'admin' | 'member') { return this.json(invitationSchema, `/organisations/${id.parse(orgId)}/invitations`, { method: 'POST', body: { email: z.string().trim().min(3).max(254).parse(email), role: assignableRole.parse(role) } }) }
+  revokeInvitation(orgId: string, invitationId: string) { return this.empty(`/organisations/${id.parse(orgId)}/invitations/${id.parse(invitationId)}`, { method: 'DELETE' }) }
+  acceptInvitation(orgId: string, token: string) { return this.json(organisationSchema, `/organisations/${id.parse(orgId)}/invitations/accept`, { method: 'POST', body: { token: invitationToken.parse(token) } }) }
+  organisationBilling(orgId: string, signal?: AbortSignal) { return this.json(organisationBillingSchema, `/organisations/${id.parse(orgId)}/billing`, { signal }) }
+  organisationCheckout(orgId: string, key: string, seats: number) { return this.json(z.object({ url: z.url().startsWith('https://') }), `/organisations/${id.parse(orgId)}/billing/checkout`, { method: 'POST', body: { planKey: planKey.parse(key), seats: z.number().int().min(1).max(500).parse(seats) } }) }
+  changeSeats(orgId: string, seats: number) { return this.json(z.object({ subscription: organisationSubscriptionSchema }), `/organisations/${id.parse(orgId)}/billing/seats`, { method: 'POST', body: { seats: z.number().int().min(1).max(500).parse(seats) } }) }
+  organisationPortal(orgId: string) { return this.json(z.object({ url: z.url().startsWith('https://') }), `/organisations/${id.parse(orgId)}/billing/portal`, { method: 'POST' }) }
   closeAccount(confirmation: string) { return this.json(z.object({ closure: closureSchema }), '/me/close', { method: 'POST', body: { confirmation: z.string().min(3).max(320).parse(confirmation) } }) }
   async keepAccount(): Promise<void> { await this.response('/me/close', { method: 'DELETE' }) }
   connectionCatalogue(signal?: AbortSignal) { return this.json(catalogueSchema, '/connections/catalogue', { signal }) }

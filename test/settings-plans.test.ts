@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import type { BackendAccount, BackendPlan, BackendSubscription } from '../lib/backend/client'
 import { describeChangeCharge, longDate, planChoices } from '../lib/settings/plans'
 
-const plan = (key: string, rank: number, amountMinor?: number): BackendPlan => ({ key, name: key, rank, capabilities: [], allowances: [],
+const plan = (key: string, rank: number, amountMinor?: number): BackendPlan => ({ key, name: key, rank, billing: { perSeat: false, minSeats: 1 }, capabilities: [], allowances: [],
   ...(amountMinor === undefined ? {} : { price: { amountMinor, currency: 'gbp', interval: 'month' } }) })
 const plans = [plan('business', 3, 7200), plan('free', 1), plan('pro', 2, 2400)]
 const account = (key: string) => ({ plan: { key, name: key } }) as BackendAccount

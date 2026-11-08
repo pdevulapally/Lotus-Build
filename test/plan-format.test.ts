@@ -34,7 +34,7 @@ test('prices drop trailing zero pence and name the interval', () => {
 })
 
 test('the featured plan is the middle paid tier, or the only paid tier', () => {
-  const plan = (key: string, rank: number, priced: boolean) => ({ key, name: key, rank, capabilities: [], allowances: [], ...(priced ? { price: { amountMinor: 100, currency: 'gbp', interval: 'month' as const } } : {}) })
+  const plan = (key: string, rank: number, priced: boolean) => ({ key, name: key, rank, billing: { perSeat: false, minSeats: 1 }, capabilities: [], allowances: [], ...(priced ? { price: { amountMinor: 100, currency: 'gbp', interval: 'month' as const } } : {}) })
   assert.equal(featuredPlanKey([plan('free', 0, false), plan('pro', 1, true), plan('business', 2, true)]), 'pro')
   assert.equal(featuredPlanKey([plan('free', 0, false), plan('pro', 1, true), plan('business', 2, true), plan('scale', 3, true)]), 'business')
   assert.equal(featuredPlanKey([plan('free', 0, false)]), undefined)

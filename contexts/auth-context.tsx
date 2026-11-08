@@ -5,7 +5,7 @@ import { onAuthStateChanged, signInWithPopup, signInWithEmailAndPassword, create
   signOut as firebaseSignOut, sendPasswordResetEmail, type User } from 'firebase/auth'
 import { auth, googleProvider, githubProvider } from '@/lib/firebase'
 import { currentBackend } from '@/lib/backend/browser'
-import type { BackendAccount, BackendUsage } from '@/lib/backend/client'
+import type { BackendAccount, BackendUsage, BackendWorkspace } from '@/lib/backend/client'
 
 type UserData = {
   uid: string; email: string | null; displayName: string | null; photoURL: string | null; planId: string; planName: string
@@ -13,11 +13,13 @@ type UserData = {
   tokenUsage?: { used: number; remaining: number; periodStart: Date; periodEnd: Date }
   tokensLimit?: number; currentWorkspaceId?: string; referralCount?: number; referralCreditsEarned?: number; createdAt?: Date
 }
-type Workspace = { id: string; name: string; slug: string; ownerId: string; createdAt: Date; updatedAt: Date }
+/** A workspace the account can work in: the personal one (id = uid) or an organisation, as the server lists them in /me. */
+export type Workspace = BackendWorkspace
+const workspaceStorageKey = (uid: string) => `lotusbuild.workspace.${uid}`
 type AuthState = {
   user: User | null; userData: UserData | null; account: BackendAccount | null; usage: BackendUsage | null
   loading: boolean; accountError: string | null; refreshAccount: () => Promise<void>
-  workspaces: Workspace[]; currentWorkspace: Workspace | null; switchWorkspace: (id: string) => Promise<void>
+  workspaces: readonly Workspace[]; currentWorkspace: Workspace | null; switchWorkspace: (id: string) => Promise<void>
   getOptionalAuthHeader: () => Promise<Record<string, string>>
   signInWithGoogle: () => Promise<void>; signInWithGithub: () => Promise<void>
   signInWithEmail: (email: string, password: string) => Promise<void>
@@ -68,13 +70,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     uid: account.uid, email: account.email, displayName: account.displayName ?? null, photoURL: account.photoUrl ?? null,
     planId: account.plan.key, planName: account.plan.name,
   } : null, [account])
+  // The server lists the workspaces; which one is current is a client choice remembered per account.
+  const workspaces = useMemo<readonly Workspace[]>(() => account?.workspaces ?? [], [account])
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null)
+  useEffect(() => {
+    if (!account) { setSelectedWorkspaceId(null); return }
+    try { setSelectedWorkspaceId(window.localStorage.getItem(workspaceStorageKey(account.uid))) } catch { setSelectedWorkspaceId(null) }
+  }, [account])
+  const currentWorkspace = useMemo<Workspace | null>(() => {
+    if (workspaces.length === 0) return null
+    return workspaces.find((workspace) => workspace.id === selectedWorkspaceId) ?? workspaces.find((workspace) => workspace.kind === 'personal') ?? workspaces[0] ?? null
+  }, [workspaces, selectedWorkspaceId])
+  const switchWorkspace = useCallback(async (id: string) => {
+    if (!account) throw new Error('Sign in to switch workspaces.')
+    if (!workspaces.some((workspace) => workspace.id === id)) throw new Error('That workspace is not available to this account.')
+    setSelectedWorkspaceId(id)
+    try { window.localStorage.setItem(workspaceStorageKey(account.uid), id) } catch { /* selection is per tab when storage is unavailable */ }
+  }, [account, workspaces])
   const getOptionalAuthHeader = useCallback(async (): Promise<Record<string, string>> => {
     const identity = auth.currentUser
     return identity ? { Authorization: `Bearer ${await identity.getIdToken()}` } : {}
   }, [])
   return <AuthContext.Provider value={{ user, userData, account, usage, loading, accountError, refreshAccount,
-    workspaces: [], currentWorkspace: null,
-    switchWorkspace: async () => { throw new Error('Team workspaces are not connected to the current backend yet.') },
+    workspaces, currentWorkspace, switchWorkspace,
     getOptionalAuthHeader,
     signInWithGoogle: async () => { await signInWithPopup(auth, googleProvider) },
     signInWithGithub: async () => { await signInWithPopup(auth, githubProvider) },
