@@ -79,6 +79,8 @@ export const usageSchema = z.object({ uid: z.string(), plan: z.object({ key: z.s
     kind: z.enum(['COUNTER', 'GAUGE']), resetPeriod: z.enum(['NEVER', 'DAILY', 'MONTHLY']),
     consumed: z.number().nonnegative(), reserved: z.number().nonnegative(), totalUsed: z.number().nonnegative(),
     includedAllowance: allowanceQuantity, hardLimit: allowanceQuantity, overageEnabled: z.boolean(), periodStart: timestamp,
+    // What the server says this meter is for; older servers send none, and the meter is then shown as itself.
+    role: z.string().optional(),
   })),
 })
 const queuedSchema = z.object({ id, sessionId: id, prompt: z.string(), attachments: z.array(attachmentRefSchema).default([]), createdAt: timestamp })

@@ -7,6 +7,8 @@ const quotaDetails = z.object({
   limit: z.number().finite().nonnegative(),
   consumed: z.number().finite().nonnegative(),
   reserved: z.number().finite().nonnegative(),
+  resetPeriod: z.enum(['NEVER', 'DAILY', 'MONTHLY']).optional(),
+  resetAt: z.string().optional(),
 })
 
 const projectLimitDetails = z.object({
@@ -32,7 +34,9 @@ export function presentRequestError(error: Error, planName?: string) {
         : 'Your plan’s project spaces are full. Your idea is still here—delete an existing project or view plans with more space.'
       : isQuota
       ? quota?.success
-        ? `${plan}’s ${quota.data.label.toLowerCase()} for this cycle are used up. Upgrade for much higher limits.`
+        ? quota.data.resetPeriod === 'DAILY'
+          ? `${plan}’s ${quota.data.label.toLowerCase()} for today are used up. More is available tomorrow, or upgrade for much higher limits.`
+          : `${plan}’s ${quota.data.label.toLowerCase()} for this cycle are used up. Upgrade for much higher limits.`
         : 'This request would exceed your plan’s allowance. Upgrade for much higher limits.'
       : error.message,
     quota: quota?.success ? quota.data : null,
