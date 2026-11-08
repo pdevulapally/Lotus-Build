@@ -33,7 +33,7 @@ export function CodeTreeNode({
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
           aria-label={`${open ? "Collapse" : "Expand"} ${node.name}`}
-          className="flex w-full items-center gap-1.5 rounded-md py-[4px] pr-2 text-[12px] text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+          className="flex w-full items-center gap-1.5 rounded-md py-[4px] pr-2 text-left text-[12px] text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
           style={{ paddingLeft: `${depth * 14 + 8}px` }}
         >
           {open
@@ -78,7 +78,7 @@ export function CodeTreeNode({
       onClick={() => onSelect(node.path)}
       aria-current={isSelected ? "true" : undefined}
       className={cn(
-        "flex w-full items-center gap-1.5 rounded-md py-[4px] pr-2 text-[12px] transition-colors",
+        "flex w-full items-center gap-1.5 rounded-md py-[4px] pr-2 text-left text-[12px] transition-colors",
         isSelected
           ? "bg-foreground/8 text-foreground"
           : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
