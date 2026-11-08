@@ -186,18 +186,21 @@ export function Reasoning({
   className,
   isStreaming,
   defaultOpen = true,
+  autoOpen = true,
   children,
 }: {
   className?: string
   isStreaming?: boolean
   defaultOpen?: boolean
+  /** Whether streaming unfolds the block; false keeps it collapsed until the user opens it. */
+  autoOpen?: boolean
   children: React.ReactNode
 }) {
   const [open, setOpen] = React.useState(defaultOpen)
 
   React.useEffect(() => {
-    if (isStreaming) setOpen(true)
-  }, [isStreaming])
+    if (isStreaming && autoOpen) setOpen(true)
+  }, [isStreaming, autoOpen])
 
   return (
     <ReasoningContext.Provider value={{ isStreaming: Boolean(isStreaming), open }}>

@@ -10,7 +10,7 @@ export type ComputerTimelineEvent = {
   id?: string
   title: string
   status: "pending" | "running" | "complete" | "error" | "skipped"
-  kind?: "understanding" | "research" | "browser" | "planning" | "code" | "sandbox" | "fix" | "security" | "user" | "question"
+  kind?: "understanding" | "research" | "browser" | "planning" | "code" | "sandbox" | "fix" | "security" | "user" | "question" | "thinking"
   createdAt: string
   description?: string
   runId?: string

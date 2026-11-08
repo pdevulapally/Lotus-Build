@@ -38,6 +38,34 @@ export function getFileToolInput(name: FileTool, input: unknown): { filePath: st
   return { filePath, editVariant: 'write', newContent: record.content }
 }
 
+/** Text spoken before a tool step and text spoken after it are separate thoughts; keep them separate paragraphs. */
+export function closeSpokenParagraph(text: string): string {
+  return text.length === 0 || text.endsWith('\n\n') ? text : `${text.trimEnd()}\n\n`
+}
+
+const thinkingDisplayLimit = 200_000
+/**
+ * The model's reasoning for the current step, folded into one feed row that
+ * grows as it streams. Any other event from the run closes it, so a step's
+ * thinking sits above the actions it led to and the next step opens a new row.
+ */
+export function reduceThinking(events: ComputerTimelineEvent[], event: SessionEvent, index: number): ComputerTimelineEvent[] {
+  const open = events.findLastIndex((item) => item.kind === 'thinking' && item.status === 'running')
+  if (event.type === 'agent.thinking') {
+    if (typeof event.data.delta !== 'string') throw new Error('The server returned an invalid thinking event.')
+    if (!event.id || event.data.delta.length === 0) return events
+    if (open === -1) {
+      return [...events, { id: event.id, title: 'Thinking', kind: 'thinking', status: 'running', index,
+        createdAt: new Date(Number(event.id.split('-')[0])).toISOString(), description: event.data.delta }]
+    }
+    const current = events[open]!
+    const description = ((current.description ?? '') + event.data.delta).slice(0, thinkingDisplayLimit)
+    return events.map((item, position) => position === open ? { ...item, description } : item)
+  }
+  if (open === -1 || !event.type.startsWith('agent.') && !event.type.startsWith('session.')) return events
+  return events.map((item, position) => position === open ? { ...item, status: 'complete' as const } : item)
+}
+
 const terminalStatuses: ReadonlySet<BackendSession['status']> = new Set(['IDLE', 'STOPPED', 'FAILED'])
 /** The server has nothing running for this session. */
 export function isTerminalStatus(status: BackendSession['status']): boolean { return terminalStatuses.has(status) }
@@ -316,12 +344,13 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
               setSession((current) => current ? { ...current, status } : current)
             }
             latency.event(event.type, event.id)
-            if (['agent.step', 'agent.text', 'agent.tool_call'].includes(event.type)) latency.mark('modelReceived')
+            if (['agent.step', 'agent.thinking', 'agent.text', 'agent.tool_call'].includes(event.type)) latency.mark('modelReceived')
             setLiveLabel((current) => executionLabel(current, event.type))
             if (event.type === 'preview.ready') setPreview(previewUrl(event.data.url, window.location.origin))
             if (event.type === 'sandbox.started') setPreview(null)
             setDesktop((current) => reduceDesktop(current, event))
             if (event.type === 'session.running') { turnEnded = false; textVersion++; streamText = ''; if (textFrame !== undefined) { cancelAnimationFrame(textFrame); textFrame = undefined }; setText('') }
+            if (event.type === 'agent.tool_call' && streamText.length > 0) { streamText = closeSpokenParagraph(streamText); scheduleText() }
             if (event.type === 'agent.text') {
               textVersion++
               if (typeof event.data.delta !== 'string') throw new Error('The server returned an invalid text event.')
@@ -333,7 +362,9 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
             if (event.type === 'agent.tool_result') {
               setEvents((current) => updateToolStepEvent(updateCommandEvent(current, event), event))
             }
-            const item = activity(event, Number(event.id.split('-')[0]))
+            const index = Number(event.id.split('-')[0])
+            setEvents((current) => reduceThinking(current, event, index))
+            const item = activity(event, index)
             if (item) setEvents((current) => [...current, item].slice(-300))
             if (event.type === 'session.cancel_requested') setSession((current) => current ? { ...current, cancelRequested: true } : current)
             if (event.type === 'session.plan_updated') setSession((current) => applyPlanEvent(current, event))

@@ -134,3 +134,11 @@ test('a confirmed stop is calm: the progress label says Stopped and nothing is s
     events: [{ id: '2-0', title: 'Stopped', kind: 'planning', status: 'complete', index: 1, createdAt: '2026-11-06T10:00:01Z' }] })
   assert.match(html, /Stopped/); assert.doesNotMatch(html, /Stopping|Something went wrong|text-destructive/)
 })
+
+test('a thinking row renders collapsed as a calm trigger, keeping the reasoning text folded until opened', () => {
+  const thinking = { id: '1-0', title: 'Thinking', kind: 'thinking' as const, status: 'running' as const, index: 0, createdAt: '2026-11-06T10:00:00Z', description: 'The failing assertion points at the reducer.' }
+  const live = render({ events: [thinking] })
+  assert.match(live, /Thinking/); assert.doesNotMatch(live, /failing assertion/)
+  const done = render({ status: 'complete', events: [{ ...thinking, status: 'complete' as const }] })
+  assert.match(done, /Thought process/); assert.doesNotMatch(done, /failing assertion/)
+})
