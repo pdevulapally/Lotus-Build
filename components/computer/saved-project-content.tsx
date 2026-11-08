@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react'
 import Editor from '@monaco-editor/react'
 import { currentBackend } from '@/lib/backend/browser'
 import type { BackendFileTree, BackendFile, BackendHistory, BackendChanges } from '@/lib/backend/client'
-import { getLanguageFromPath } from '@/lib/projects/utils'
+import { buildFileTree, getLanguageFromPath } from '@/lib/projects/utils'
+import { CodeTreeNode } from '@/components/computer/file-tree'
 
 export function SavedProjectFiles({ projectId, codeTheme = 'light' }: { projectId?: string; codeTheme?: 'light' | 'dark'; files?: Array<{path: string; content: string}>; getAuthHeader?: () => Promise<Record<string, string>> }) {
   const [tree, setTree] = useState<BackendFileTree | null>(null)
@@ -49,7 +50,7 @@ export function SavedProjectFiles({ projectId, codeTheme = 'light' }: { projectI
     {error && <p role="alert" className="border-b border-destructive/20 bg-destructive/5 px-4 py-3 text-xs leading-relaxed text-destructive">{error}</p>}
     {tree?.truncated && <p className="px-4 py-2 text-xs">The server has limited this file listing. The ZIP contains the saved branch.</p>}
     {!tree && !error ? <p role="status" className="p-4 text-sm">Loading files…</p> : tree?.files.length === 0 ? <p className="p-4 text-sm text-muted-foreground">No saved files yet.</p> : <div className="flex min-h-0 flex-1">
-      <nav aria-label="Project files" className="w-36 shrink-0 overflow-auto border-r border-border bg-background/50 p-2 sm:w-56">{tree?.files.map((entry) => <button key={entry.path} title={entry.path} onClick={() => setPath(entry.path)} aria-current={path === entry.path ? 'true' : undefined} className={`block w-full truncate rounded-lg px-2 py-2 text-left font-mono text-xs transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${path === entry.path ? 'bg-muted font-semibold text-foreground' : 'text-muted-foreground'}`}>{entry.path}</button>)}</nav>
+      <nav aria-label="Project files" className="w-44 shrink-0 overflow-auto border-r border-border bg-background/50 py-2 pr-1 sm:w-60">{buildFileTree(tree!.files.map((entry) => ({ path: entry.path, content: '' }))).map((node) => <CodeTreeNode key={node.path} node={node} selectedPath={path} onSelect={setPath} />)}</nav>
       <div className="min-w-0 flex-1">{busy ? <p role="status" className="p-4 text-sm">Loading file…</p> : file?.binary ? <p className="p-4 text-sm">Binary file. Download the ZIP to open it.</p> : file && <>
         {file.truncated && <p className="px-4 py-2 text-xs">Showing the first part of this file. Download the ZIP for its full content.</p>}
         <Editor height="100%" language={getLanguageFromPath(file.path)} value={file.content ?? ''} theme={codeTheme === 'dark' ? 'vs-dark' : 'vs'} options={{ readOnly: true, minimap: { enabled: false }, fontSize: 12, automaticLayout: true, scrollBeyondLastLine: false }} />
