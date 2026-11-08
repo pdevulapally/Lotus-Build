@@ -1,14 +1,19 @@
 import type { ReactNode } from 'react'
 import { CreditCard, Gauge, RefreshCw, ShieldCheck, SlidersHorizontal, UserRound, type LucideIcon } from 'lucide-react'
-import type { BackendAccount, BackendUsage } from '@/lib/backend/client'
+import type { BackendAccount, BackendUsage, BackendWorkspace } from '@/lib/backend/client'
+import { Building2, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { WorkspaceSwitcher } from './workspace-switcher'
+import { OrganisationGeneralPage, type OrganisationGeneralPageProps } from './organisation/general-page'
+import { OrganisationMembersPage, type OrganisationMembersPageProps } from './organisation/members-page'
+import { OrganisationPlanPage, type OrganisationPlanPageProps } from './organisation/plan-page'
 import { AccountPage } from './account-page'
 import { PreferencesPage } from './preferences-page'
 import { PrivacyPage } from './privacy-page'
 import { PlanPage, type PlanPageProps } from './plan-page'
 import { UsagePage } from './usage-page'
 
-export type SettingsPage = 'account' | 'preferences' | 'privacy' | 'usage' | 'plan'
+export type SettingsPage = 'account' | 'preferences' | 'privacy' | 'usage' | 'plan' | 'org-general' | 'org-members' | 'org-plan'
 
 interface PageDefinition { readonly label: string; readonly description: string; readonly icon: LucideIcon }
 interface NavGroup { readonly label: string; readonly pages: readonly SettingsPage[] }
@@ -19,12 +24,28 @@ export const SETTINGS_PAGES: Readonly<Record<SettingsPage, PageDefinition>> = {
   privacy: { label: 'Privacy & data', description: 'Cookies, and closing your account.', icon: ShieldCheck },
   usage: { label: 'Usage', description: 'What you have used this period, and when it resets.', icon: Gauge },
   plan: { label: 'Plan & billing', description: 'Your plan, changing it, and billing.', icon: CreditCard },
+  'org-general': { label: 'General', description: 'The organisation’s name, ownership, and leaving or deleting it.', icon: Building2 },
+  'org-members': { label: 'Members', description: 'Who is in the organisation, their roles, and pending invitations.', icon: Users },
+  'org-plan': { label: 'Plan & billing', description: 'The Teams plan for this organisation, its seats, and billing.', icon: CreditCard },
 }
 
 export const SETTINGS_NAV: readonly NavGroup[] = [
   { label: 'Account', pages: ['account', 'preferences', 'privacy'] },
   { label: 'Workspace', pages: ['usage', 'plan'] },
 ]
+export const ORGANISATION_NAV: readonly NavGroup[] = [
+  { label: 'Organisation', pages: ['org-general', 'org-members', 'org-plan'] },
+]
+export const isOrganisationPage = (page: SettingsPage) => page.startsWith('org-')
+/** The sections for a workspace kind, so a switch always lands on a page that exists for it. */
+export const navFor = (workspace: BackendWorkspace | null) => workspace?.kind === 'organisation' ? ORGANISATION_NAV : SETTINGS_NAV
+
+/** Everything the organisation pages need, loaded by the dialog for the selected organisation. */
+export interface OrganisationSettings {
+  readonly general: Omit<OrganisationGeneralPageProps, 'busy'> | null
+  readonly members: Omit<OrganisationMembersPageProps, 'busy'> | null
+  readonly plan: Omit<OrganisationPlanPageProps, 'busy'> | null
+}
 
 export interface SettingsPanelProps {
   readonly page: SettingsPage
@@ -39,6 +60,11 @@ export interface SettingsPanelProps {
   readonly plan: Omit<PlanPageProps, 'account' | 'usage' | 'busy'>
   readonly onCloseAccount: () => void
   readonly onKeepAccount: () => void
+  readonly workspaces: readonly BackendWorkspace[]
+  readonly workspace: BackendWorkspace | null
+  readonly onSelectWorkspace: (workspace: BackendWorkspace) => void
+  readonly onCreateOrganisation: () => void
+  readonly organisation: OrganisationSettings
   /** The dialog title element, so the accessible name belongs to the dialog that owns the panel. */
   readonly title: ReactNode
   readonly description: (text: string) => ReactNode
@@ -51,9 +77,14 @@ export function SettingsPanel(props: SettingsPanelProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
       <aside className="flex shrink-0 flex-col border-b border-border/70 bg-muted/40 sm:w-56 sm:border-b-0 sm:border-r">
-        <div className="px-5 pb-3 pt-5 pr-14 sm:px-5 sm:pb-4 sm:pt-6">{props.title}</div>
+        <div className="px-5 pb-3 pt-5 pr-14 sm:px-5 sm:pb-3 sm:pt-6">{props.title}</div>
+        {account !== null && (
+          <div className="px-3 pb-3 sm:pb-4">
+            <WorkspaceSwitcher workspaces={props.workspaces} current={props.workspace} onSelect={props.onSelectWorkspace} onCreate={props.onCreateOrganisation} disabled={busy} />
+          </div>
+        )}
         <nav className="flex gap-4 overflow-x-auto px-3 pb-3 [scrollbar-width:none] sm:flex-col sm:gap-5 sm:overflow-x-visible sm:px-3 sm:pb-5" aria-label="Settings sections">
-          {SETTINGS_NAV.map((group) => (
+          {navFor(props.workspace).map((group) => (
             <div key={group.label} className="flex shrink-0 gap-1 sm:flex-col">
               <p className="hidden px-2 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground sm:block">{group.label}</p>
               {group.pages.map((item) => {
@@ -102,8 +133,16 @@ export function SettingsPanel(props: SettingsPanelProps) {
           <PrivacyPage account={account} busy={busy} onCloseAccount={props.onCloseAccount} onKeepAccount={props.onKeepAccount} />
         ) : page === 'usage' ? (
           <UsagePage usage={usage} busy={busy} onRefresh={props.onRefresh} />
-        ) : (
+        ) : page === 'plan' ? (
           <PlanPage account={account} usage={usage} busy={busy} {...props.plan} />
+        ) : page === 'org-general' && props.organisation.general ? (
+          <OrganisationGeneralPage busy={busy} {...props.organisation.general} />
+        ) : page === 'org-members' && props.organisation.members ? (
+          <OrganisationMembersPage busy={busy} {...props.organisation.members} />
+        ) : page === 'org-plan' && props.organisation.plan ? (
+          <OrganisationPlanPage busy={busy} {...props.organisation.plan} />
+        ) : (
+          <p className="text-sm text-muted-foreground">Loading organisation…</p>
         )}
       </main>
     </div>
