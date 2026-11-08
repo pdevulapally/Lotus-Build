@@ -1,15 +1,14 @@
 import type { ReactNode } from 'react'
-import { Blocks, CreditCard, Gauge, RefreshCw, ShieldCheck, SlidersHorizontal, UserRound, type LucideIcon } from 'lucide-react'
+import { CreditCard, Gauge, RefreshCw, ShieldCheck, SlidersHorizontal, UserRound, type LucideIcon } from 'lucide-react'
 import type { BackendAccount, BackendUsage } from '@/lib/backend/client'
 import { Button } from '@/components/ui/button'
 import { AccountPage } from './account-page'
-import { IntegrationsPage } from './integrations-page'
 import { PreferencesPage } from './preferences-page'
 import { PrivacyPage } from './privacy-page'
 import { PlanPage } from './plan-page'
 import { UsagePage } from './usage-page'
 
-export type SettingsPage = 'account' | 'preferences' | 'privacy' | 'usage' | 'plan' | 'integrations'
+export type SettingsPage = 'account' | 'preferences' | 'privacy' | 'usage' | 'plan'
 
 interface PageDefinition { readonly label: string; readonly description: string; readonly icon: LucideIcon }
 interface NavGroup { readonly label: string; readonly pages: readonly SettingsPage[] }
@@ -20,12 +19,11 @@ export const SETTINGS_PAGES: Readonly<Record<SettingsPage, PageDefinition>> = {
   privacy: { label: 'Privacy & data', description: 'Cookies, and requests about your data.', icon: ShieldCheck },
   usage: { label: 'Usage', description: 'What you have used this period, and when it resets.', icon: Gauge },
   plan: { label: 'Plan & billing', description: 'Your plan, what it includes, and billing.', icon: CreditCard },
-  integrations: { label: 'Integrations', description: 'Services LotusBuild can deploy to and work with.', icon: Blocks },
 }
 
 export const SETTINGS_NAV: readonly NavGroup[] = [
   { label: 'Account', pages: ['account', 'preferences', 'privacy'] },
-  { label: 'Workspace', pages: ['usage', 'plan', 'integrations'] },
+  { label: 'Workspace', pages: ['usage', 'plan'] },
 ]
 
 export interface SettingsPanelProps {
@@ -102,8 +100,6 @@ export function SettingsPanel(props: SettingsPanelProps) {
           <PreferencesPage account={account} />
         ) : page === 'privacy' ? (
           <PrivacyPage busy={busy} onRequestErasure={props.onRequestErasure} />
-        ) : page === 'integrations' ? (
-          <IntegrationsPage />
         ) : page === 'usage' ? (
           <UsagePage usage={usage} busy={busy} onRefresh={props.onRefresh} />
         ) : (
