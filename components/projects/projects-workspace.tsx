@@ -9,7 +9,7 @@ import { ProjectSearchDialog } from "@/components/projects/project-search-dialog
 import { SidebarProfileMenu } from "@/components/projects/sidebar-profile-menu"
 import { SidebarIntegrationsLink } from "@/components/projects/sidebar-integrations-link"
 import navigationStyles from "@/components/projects/sidebar-navigation.module.css"
-import { Suspense, useCallback, useEffect, useId, useMemo, useState } from "react"
+import { Suspense, useEffect, useId, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { LotusLogo } from "@/components/ui/lotus-logo"
@@ -79,9 +79,6 @@ function Sidebar({
   signOut,
   onClose,
   onToggle,
-  isTeamsPlan,
-  scope,
-  setScope,
   projectsExpanded,
   setProjectsExpanded,
   workspaces,
@@ -101,9 +98,6 @@ function Sidebar({
   signOut: () => void
   onClose?: () => void
   onToggle?: () => void
-  isTeamsPlan: boolean
-  scope: "user" | "team"
-  setScope: (s: "user" | "team") => void
   projectsExpanded: boolean
   setProjectsExpanded: (value: boolean | ((previous: boolean) => boolean)) => void
   workspaces: readonly Workspace[]
@@ -130,17 +124,16 @@ function Sidebar({
   }
   const recentBuildsHeadingId = useId()
   const recentBuildsListId = useId()
-  const scopeToggleLabelId = useId()
   const otherWorkspaces = workspaces.filter((w) => w.id !== currentWorkspace?.id)
   const selectedWorkspaceName = currentWorkspace?.name ?? "Personal workspace"
   const selectedWorkspaceInitial = selectedWorkspaceName.charAt(0).toUpperCase()
   const recentBuilds = filtered.slice(0, RECENT_BUILDS_LIMIT)
   const hiddenBuildCount = Math.max(0, filtered.length - recentBuilds.length)
-  const recentBuildsLabel = scope === "team" ? "Recent team builds" : "Recent builds"
+  const organisationSelected = currentWorkspace?.kind === "organisation"
+  const recentBuildsLabel = organisationSelected ? `Recent builds in ${selectedWorkspaceName}` : "Recent builds"
   const accountName = user?.displayName ?? user?.email?.split("@")[0] ?? "User"
   const handleWorkspaceSelect = async (workspaceId: string) => {
     await switchWorkspace(workspaceId)
-    if (isTeamsPlan) setScope("team")
     onClose?.()
     router.push("/")
   }
@@ -213,7 +206,7 @@ function Sidebar({
         className={cn("group mb-1 mx-2 flex min-h-11 w-[calc(100%-1rem)] items-center gap-2 rounded-lg px-3 text-left text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", collapsed && "justify-center px-0")}
       >
         {collapsed ? <FolderOpen className="size-4" strokeWidth={1.7} aria-hidden="true" /> : <>
-          <span className="flex-1">{scope === "team" ? "Team projects" : "Projects"}</span>
+          <span className="flex-1">{organisationSelected ? `${selectedWorkspaceName} projects` : "Projects"}</span>
           <ChevronDown className={cn("size-3.5 transition-transform motion-reduce:transition-none", !projectsExpanded && "-rotate-90")} aria-hidden="true" />
         </>}
       </button>
@@ -496,9 +489,7 @@ export function ProjectsWorkspace() {
   const { user, userData, account, workspaces, currentWorkspace, switchWorkspace, signOut, accountError, refreshAccount } = useAuth()
   const { openSettings } = useSettingsDialog()
 
-  const isTeamsPlan = !!userData?.planId && userData.planId === "team"
   const isPaidUser = !!userData?.planId && userData.planId !== "free"
-  const [scope, setScope] = useState<"user" | "team">("user")
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(false)
   const [projectsExpanded, setProjectsExpanded] = useState(true)
@@ -537,25 +528,14 @@ export function ProjectsWorkspace() {
   }, [checkoutSuccessOpen, isPaidUser])
 
   useEffect(() => {
-    if (!isTeamsPlan && scope === "team") setScope("user")
-  }, [isTeamsPlan, scope])
-
-  useEffect(() => {
     document.body.style.overflow = mobileSidebarOpen ? "hidden" : ""
     return () => { document.body.style.overflow = "" }
   }, [mobileSidebarOpen])
 
-  const getAuthHeader = useCallback(async (): Promise<Record<string, string>> => {
-    if (!user) return {}
-    const token = await user.getIdToken()
-    return { Authorization: `Bearer ${token}` }
-  }, [user])
 
   const { projects, loading: projectsLoading, error: projectsError, refresh: refreshProjects } = useProjectList({
-    scope,
     uid: user?.uid ?? null,
-    workspaceId: scope === "team" ? userData?.currentWorkspaceId || null : null,
-    getAuthHeader,
+    workspaceId: currentWorkspace?.kind === "organisation" ? currentWorkspace.id : null,
   })
 
   const stats = useMemo(() => {
@@ -594,9 +574,6 @@ export function ProjectsWorkspace() {
     onProjectsChanged: refreshProjects,
     user,
     signOut,
-    isTeamsPlan,
-    scope,
-    setScope,
     projectsExpanded,
     setProjectsExpanded,
     workspaces,
@@ -736,6 +713,11 @@ export function ProjectsWorkspace() {
                       </section>
 
                       <div className={cn(styles.composerSlot, "relative")}>
+                        {currentWorkspace?.kind === "organisation" && (
+                          <p className="mb-2 text-xs text-muted-foreground" role="status">
+                            New projects go to <span className="font-medium text-foreground">{currentWorkspace.name}</span>, shared with its members.
+                          </p>
+                        )}
                         <AnimatedAIInput
                           inputId="workspace-brief"
                           createWithVoice

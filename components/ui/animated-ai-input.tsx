@@ -217,7 +217,7 @@ export function AnimatedAIInput({
   footerHintsClassName,
 }: AnimatedAIInputProps) {
   const router = useRouter();
-  const { user, account, accountError } = useAuth();
+  const { user, account, accountError, currentWorkspace } = useAuth();
   const [submitError, setSubmitError] = useState<Error | null>(null);
   const submittingRef = useRef(false);
   const submissionTrace = useRef<ReturnType<typeof latencyTrace> | null>(null);
@@ -337,7 +337,9 @@ export function AnimatedAIInput({
         const policy = await backend.voice();
         if (!policy.available || !policy.privacyVersion) throw new Error('Voice is not available right now. You can start your project with a message.');
       }
-      const data = await createBuild(backend, pendingCommandStorage(), { ...request, uid: user.uid, model: effectiveModel });
+      // A build belongs to the selected workspace: the account's own, or the organisation chosen in the sidebar.
+      const workspaceId = currentWorkspace?.kind === 'organisation' ? currentWorkspace.id : undefined;
+      const data = await createBuild(backend, pendingCommandStorage(), { ...request, uid: user.uid, model: effectiveModel, ...(workspaceId === undefined ? {} : { workspaceId }) });
       acceptLatencyTrace(user.uid, data.id, trace, data.createdAt);
       if (audio) { handoffVoiceAudio(user.uid, data.id, audio); audio = undefined; }
       // Navigate immediately after acceptance; draft cleanup cannot block it.

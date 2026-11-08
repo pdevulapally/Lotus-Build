@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useAuth } from '@/contexts/auth-context'
 import { currentBackend } from '@/lib/backend/browser'
-import type { BackendInvitation, BackendMember, BackendOrganisation, BackendOrganisationBilling, BackendPlan, BackendSubscription, BackendWorkspace } from '@/lib/backend/client'
+import type { BackendInvitation, BackendMember, BackendOrganisation, BackendOrganisationBilling, BackendPlan, BackendSubscription, BackendUsage, BackendWorkspace } from '@/lib/backend/client'
 import { longDate } from '@/lib/settings/plans'
 import { can } from '@/lib/settings/organisations'
 import { CreateOrganisationDialog } from './organisation/create-organisation-dialog'
@@ -42,18 +42,19 @@ export function SettingsDialogProvider({ children }: { children: ReactNode }) {
 
 type OrganisationHandlers = {
   organisation: BackendOrganisation | null; members: readonly BackendMember[] | null; invitations: readonly BackendInvitation[] | null
-  billing: BackendOrganisationBilling | null; currentUid: string
+  billing: BackendOrganisationBilling | null; usage: BackendUsage | null; currentUid: string
   onRename: (name: string) => void; onTransfer: (uid: string) => void; onLeave: () => void; onDelete: () => void
   onInvite: () => void; onChangeRole: (uid: string, role: 'admin' | 'member') => void; onRemove: (member: BackendMember) => void; onRevoke: (invitation: BackendInvitation) => void
   onCheckout: (planKey: string, seats: number) => void; onChangeSeats: (seats: number) => void; onManageBilling: () => void
 }
 /** Page props for the selected organisation; null pages until it has loaded. */
 function organisationSettings(h: OrganisationHandlers): OrganisationSettings {
-  if (h.organisation === null) return { general: null, members: null, plan: null }
+  if (h.organisation === null) return { general: null, members: null, plan: null, usage: null }
   return {
     general: { organisation: h.organisation, members: h.members, currentUid: h.currentUid, onRename: h.onRename, onTransfer: h.onTransfer, onLeave: h.onLeave, onDelete: h.onDelete },
     members: { organisation: h.organisation, members: h.members, invitations: h.invitations, currentUid: h.currentUid, onInvite: h.onInvite, onChangeRole: h.onChangeRole, onRemove: h.onRemove, onRevoke: h.onRevoke },
     plan: { organisation: h.organisation, billing: h.billing, onCheckout: h.onCheckout, onChangeSeats: h.onChangeSeats, onManageBilling: h.onManageBilling },
+    usage: h.usage,
   }
 }
 
@@ -87,13 +88,14 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
   const [members, setMembers] = useState<readonly BackendMember[] | null>(null)
   const [invitations, setInvitations] = useState<readonly BackendInvitation[] | null>(null)
   const [orgBilling, setOrgBilling] = useState<BackendOrganisationBilling | null>(null)
+  const [orgUsage, setOrgUsage] = useState<BackendUsage | null>(null)
   const [orgRevision, setOrgRevision] = useState(0)
   const [creatingOrganisation, setCreatingOrganisation] = useState(false)
   const [inviting, setInviting] = useState(false)
   const [deletingOrganisation, setDeletingOrganisation] = useState(false)
   const [removing, setRemoving] = useState<BackendMember | null>(null)
   useEffect(() => {
-    setOrganisation(null); setMembers(null); setInvitations(null); setOrgBilling(null)
+    setOrganisation(null); setMembers(null); setInvitations(null); setOrgBilling(null); setOrgUsage(null)
     if (!open || orgId === null) return
     const controller = new AbortController()
     void (async () => {
@@ -102,13 +104,15 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
         const current = await backend.organisation(orgId, controller.signal)
         if (controller.signal.aborted) return
         setOrganisation(current)
-        const [people, pending, billing] = await Promise.all([
+        const [people, pending, billing, pooled] = await Promise.all([
           backend.organisationMembers(orgId, controller.signal),
           can(current.role, 'invite') ? backend.organisationInvitations(orgId, controller.signal) : Promise.resolve({ invitations: [] as readonly BackendInvitation[] }),
           can(current.role, 'viewBilling') ? backend.organisationBilling(orgId, controller.signal) : Promise.resolve(null),
+          // Pooled usage is visible to every member; the server refuses anyone else.
+          backend.usage(controller.signal, orgId).catch(() => null),
         ])
         if (controller.signal.aborted) return
-        setMembers(people.members); setInvitations(pending.invitations); setOrgBilling(billing)
+        setMembers(people.members); setInvitations(pending.invitations); setOrgBilling(billing); setOrgUsage(pooled)
       } catch (reason) {
         if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : 'The organisation could not be loaded.')
       }
@@ -167,7 +171,7 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
           verification={account && !account.emailVerified ? (
             <EmailCodeVerification email={user?.email ?? account.email} autoSend={false} onVerified={() => setMessage('Email verified.')} />
           ) : undefined}
-          onRefresh={() => void perform(refreshAccount)}
+          onRefresh={() => void perform(async () => { await refreshAccount(); if (orgId !== null) setOrgRevision((value) => value + 1) })}
           plan={{
             plans,
             subscription,
@@ -193,7 +197,7 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
           onSelectWorkspace={(workspace: BackendWorkspace) => void perform(async () => { await switchWorkspace(workspace.id) })}
           onCreateOrganisation={() => { setError(null); setMessage(null); setCreatingOrganisation(true) }}
           organisation={organisationSettings({
-            organisation, members, invitations, billing: orgBilling, currentUid: account?.uid ?? '',
+            organisation, members, invitations, billing: orgBilling, usage: orgUsage, currentUid: account?.uid ?? '',
             onRename: (name) => void perform(async () => { if (orgId) { await currentBackend().renameOrganisation(orgId, name); await reloadOrganisation(); setMessage('Organisation renamed.') } }),
             onTransfer: (uid) => void perform(async () => { if (orgId) { await currentBackend().transferOwnership(orgId, uid); await reloadOrganisation(); setMessage('Ownership transferred. You are now an admin.') } }),
             onLeave: () => void perform(async () => { if (orgId) { await currentBackend().leaveOrganisation(orgId); const personal = workspaces.find((w) => w.kind === 'personal'); if (personal) await switchWorkspace(personal.id); await refreshAccount(); setMessage('You left the organisation.') } }),

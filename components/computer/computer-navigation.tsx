@@ -30,7 +30,7 @@ export function ComputerNavigation({ currentProjectId, mobileOpen, onMobileOpenC
 }) {
   const router = useRouter()
   const { user, account, userData, signOut } = useAuth()
-  const { projects, loading, error, refresh } = useProjectList({ scope: "user", uid: user?.uid })
+  const { projects, loading, error, refresh } = useProjectList({ uid: user?.uid })
   const [collapsed, setCollapsed] = useState(false)
   const [expanded, setExpanded] = useState(true)
   const [navigationError, setNavigationError] = useState<string | null>(null)

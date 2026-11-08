@@ -530,3 +530,28 @@ test('asking for the desktop posts to the session and accepts only the run-stamp
     return true
   })
 })
+
+
+test('workspace-scoped requests name the organisation only when one is selected, and refuse malformed ids', async () => {
+  const calls: { url: string; init: RequestInit | undefined }[] = []
+  const usage = { uid: 'u1', plan: { key: 'teams', name: 'Teams' }, meters: [] }
+  const client = new BackendClient({ origin: 'https://api.example.test', token: async () => 'id-token', fetch: async (input, init) => {
+    calls.push({ url: String(input), init })
+    const path = new URL(String(input)).pathname
+    return Response.json(path === '/me/usage' ? usage : path === '/projects' && init?.method === 'POST' ? project : { projects: [project] })
+  } })
+  await client.projects(); await client.projects(undefined, 'org-1')
+  await client.usage(); await client.usage(undefined, 'org-1')
+  await client.createProject({ name: 'App' }, key); await client.createProject({ name: 'App', workspaceId: 'org-1' }, key)
+  assert.deepEqual(calls.slice(0, 4).map((call) => call.url), [
+    'https://api.example.test/projects?limit=100', 'https://api.example.test/projects?limit=100&workspace=org-1',
+    'https://api.example.test/me/usage', 'https://api.example.test/me/usage?workspace=org-1',
+  ])
+  assert.deepEqual(JSON.parse(String(calls[4]!.init?.body)), { name: 'App' })
+  assert.deepEqual(JSON.parse(String(calls[5]!.init?.body)), { name: 'App', workspaceId: 'org-1' })
+  for (const bad of ['', 'not valid', '../x', 'a'.repeat(129)]) {
+    await assert.rejects(async () => client.projects(undefined, bad)); await assert.rejects(async () => client.usage(undefined, bad))
+    await assert.rejects(async () => client.createProject({ name: 'App', workspaceId: bad }, key))
+  }
+  assert.equal(calls.length, 6, 'a refused id never reaches the network')
+})

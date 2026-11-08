@@ -21,6 +21,8 @@ export type BackendHistory = z.infer<typeof historySchema>
 export type BackendChanges = z.infer<typeof changesSchema>
 export const projectSchema = z.object({
   id, name: z.string(), description: z.string().optional(), platform: z.enum(['web', 'mobile']),
+  /** The workspace it belongs to (the owner's uid when personal); older servers send none. */
+  workspaceId: z.string().optional(),
   status: z.enum(['draft', 'deleting']), publicPreviewEnabled: z.boolean(), createdAt: timestamp,
   source: projectSourceSchema.optional(),
 })
@@ -69,6 +71,7 @@ export type BackendSubscription = z.infer<typeof subscriptionSchema>
 const planKey = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,63}$/)
 export const organisationRoles = ['owner', 'admin', 'member'] as const
 export type OrganisationRole = (typeof organisationRoles)[number]
+const workspaceIdSchema = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/)
 const workspaceSchema = z.object({ id: z.string().min(1), kind: z.enum(['personal', 'organisation']), name: z.string(), slug: z.string().nullable().optional(), role: z.enum(organisationRoles) })
 export type BackendWorkspace = z.infer<typeof workspaceSchema>
 const organisationSchema = z.object({ id: z.string().min(1), name: z.string(), slug: z.string(), role: z.enum(organisationRoles),
@@ -258,7 +261,10 @@ export class BackendClient {
     const body = z.object({ code: z.string().regex(/^[0-9]{6}$/) }).strict().parse({ code })
     return this.json(emailVerificationResultSchema, '/auth/email-verification/verify', { method: 'POST', body })
   }
-  usage(signal?: AbortSignal) { return this.json(usageSchema, '/me/usage', { signal }) }
+  /** Usage for the caller's own workspace, or for an organisation they belong to. */
+  usage(signal?: AbortSignal, workspaceId?: string) {
+    return this.json(usageSchema, `/me/usage${workspaceId === undefined ? '' : `?workspace=${workspaceIdSchema.parse(workspaceId)}`}`, { signal })
+  }
   sessionUsage(sessionId: string, signal?: AbortSignal) { return this.json(z.object({ sessionId: id,
     meters: z.array(z.object({ meterKey: z.string(), unit: z.string(), label: z.string(), settled: z.number().nonnegative(), open: z.number().nonnegative() })) }), `/sessions/${id.parse(sessionId)}/usage`, { signal }) }
   plans(signal?: AbortSignal) { return this.json(z.object({ plans: z.array(planSchema) }), '/plans', { signal, public: true }) }
@@ -310,7 +316,11 @@ export class BackendClient {
   unbindProjectSource(projectId: string) {
     return this.json(projectSourceResponseSchema, `/projects/${id.parse(projectId)}/source`, { method: 'DELETE' })
   }
-  projects(signal?: AbortSignal) { return this.json(z.object({ projects: z.array(projectSchema) }), '/projects?limit=100', { signal }) }
+  /** The caller's own projects, or an organisation's when `workspaceId` names one they belong to. */
+  projects(signal?: AbortSignal, workspaceId?: string) {
+    const query = workspaceId === undefined ? '' : `&workspace=${workspaceIdSchema.parse(workspaceId)}`
+    return this.json(z.object({ projects: z.array(projectSchema) }), `/projects?limit=100${query}`, { signal })
+  }
   project(projectId: string, signal?: AbortSignal) { return this.json(projectSchema, `/projects/${id.parse(projectId)}`, { signal }) }
   files(projectId: string, signal?: AbortSignal) { return this.json(fileTreeSchema, `/projects/${id.parse(projectId)}/files`, { signal }) }
   file(projectId: string, path: string, signal?: AbortSignal) {
@@ -327,9 +337,10 @@ export class BackendClient {
     const body = z.object({ name: z.string().trim().min(1).max(100).regex(/^[^\u0000-\u001f\u007f]+$/) }).parse({ name })
     return this.json(projectSchema, `/projects/${id.parse(projectId)}`, { method: 'PATCH', body })
   }
-  createProject(input: { name: string; description?: string }, key: string) {
+  createProject(input: { name: string; description?: string; workspaceId?: string }, key: string) {
     const body = z.object({ name: z.string().trim().min(1).max(100).regex(/^[^\u0000-\u001f\u007f]+$/),
-      description: z.string().trim().max(500).regex(/^[^\u0000-\u001f\u007f]+$/).optional() }).strict().parse(input)
+      description: z.string().trim().max(500).regex(/^[^\u0000-\u001f\u007f]+$/).optional(),
+      workspaceId: workspaceIdSchema.optional() }).strict().parse(input)
     return this.json(projectSchema, '/projects', { method: 'POST', body, key: keySchema.parse(key) })
   }
   async deleteProject(projectId: string) { await this.response(`/projects/${id.parse(projectId)}`, { method: 'DELETE' }) }

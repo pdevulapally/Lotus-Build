@@ -6,14 +6,16 @@ import { computerSessionModeSchema, type ComputerSessionMode } from './session-m
 const baseAttemptSchema = z.object({ uid: z.string().min(1), model: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/), mode: computerSessionModeSchema,
   projectKey: z.string().uuid(), sessionKey: z.string().uuid(), projectId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/).optional(),
   attachments: attachmentRefsSchema.default([]),
+  /** The organisation the project is created in; absent means the account's own workspace. */
+  workspaceId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/).optional(),
 })
 const attemptSchema = z.union([
   baseAttemptSchema.extend({ entrypoint: z.undefined().optional(), prompt: z.string().trim().min(1).max(8000).regex(/^[^\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]+$/) }).strict(),
   baseAttemptSchema.extend({ entrypoint: z.literal('voice'), mode: z.literal('plan'), prompt: z.never().optional(), attachments: attachmentRefsSchema.max(0).default([]) }).strict(),
 ])
 export type ProjectCreationRequest =
-  | { entrypoint?: undefined; prompt: string; mode: ComputerSessionMode; attachments?: readonly AttachmentRef[] }
-  | { entrypoint: 'voice'; mode: 'plan'; prompt?: never; attachments?: never }
+  | { entrypoint?: undefined; prompt: string; mode: ComputerSessionMode; attachments?: readonly AttachmentRef[]; workspaceId?: string }
+  | { entrypoint: 'voice'; mode: 'plan'; prompt?: never; attachments?: never; workspaceId?: string }
 type Storage = Pick<globalThis.Storage, 'getItem' | 'setItem' | 'removeItem'>
 export function pendingBuild(storage: Storage, uid: string) {
   const raw = storage.getItem(`lotus-current-build:${uid}`)
@@ -38,7 +40,7 @@ export async function createBuild(client: BackendClient, storage: Storage,
   if (!attempt.projectId) {
     // A project name is a display label; the full prompt belongs to the session.
     const name = input.entrypoint === 'voice' ? 'New project' : input.prompt.replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, 100)
-    const project = await client.createProject({ name }, attempt.projectKey)
+    const project = await client.createProject({ name, ...(attempt.workspaceId === undefined ? {} : { workspaceId: attempt.workspaceId }) }, attempt.projectKey)
     attempt = { ...attempt, projectId: project.id }
     storage.setItem(storageKey, JSON.stringify(attempt))
   }

@@ -13,7 +13,7 @@ import { PrivacyPage } from './privacy-page'
 import { PlanPage, type PlanPageProps } from './plan-page'
 import { UsagePage } from './usage-page'
 
-export type SettingsPage = 'account' | 'preferences' | 'privacy' | 'usage' | 'plan' | 'org-general' | 'org-members' | 'org-plan'
+export type SettingsPage = 'account' | 'preferences' | 'privacy' | 'usage' | 'plan' | 'org-general' | 'org-members' | 'org-usage' | 'org-plan'
 
 interface PageDefinition { readonly label: string; readonly description: string; readonly icon: LucideIcon }
 interface NavGroup { readonly label: string; readonly pages: readonly SettingsPage[] }
@@ -26,6 +26,7 @@ export const SETTINGS_PAGES: Readonly<Record<SettingsPage, PageDefinition>> = {
   plan: { label: 'Plan & billing', description: 'Your plan, changing it, and billing.', icon: CreditCard },
   'org-general': { label: 'General', description: 'The organisation’s name, ownership, and leaving or deleting it.', icon: Building2 },
   'org-members': { label: 'Members', description: 'Who is in the organisation, their roles, and pending invitations.', icon: Users },
+  'org-usage': { label: 'Usage', description: 'What the organisation has used this period, pooled across its seats.', icon: Gauge },
   'org-plan': { label: 'Plan & billing', description: 'The Teams plan for this organisation, its seats, and billing.', icon: CreditCard },
 }
 
@@ -34,7 +35,7 @@ export const SETTINGS_NAV: readonly NavGroup[] = [
   { label: 'Workspace', pages: ['usage', 'plan'] },
 ]
 export const ORGANISATION_NAV: readonly NavGroup[] = [
-  { label: 'Organisation', pages: ['org-general', 'org-members', 'org-plan'] },
+  { label: 'Organisation', pages: ['org-general', 'org-members', 'org-usage', 'org-plan'] },
 ]
 export const isOrganisationPage = (page: SettingsPage) => page.startsWith('org-')
 /** The sections for a workspace kind, so a switch always lands on a page that exists for it. */
@@ -45,6 +46,8 @@ export interface OrganisationSettings {
   readonly general: Omit<OrganisationGeneralPageProps, 'busy'> | null
   readonly members: Omit<OrganisationMembersPageProps, 'busy'> | null
   readonly plan: Omit<OrganisationPlanPageProps, 'busy'> | null
+  /** Pooled usage for the organisation; null until it has loaded. */
+  readonly usage: BackendUsage | null
 }
 
 export interface SettingsPanelProps {
@@ -139,6 +142,8 @@ export function SettingsPanel(props: SettingsPanelProps) {
           <OrganisationGeneralPage busy={busy} {...props.organisation.general} />
         ) : page === 'org-members' && props.organisation.members ? (
           <OrganisationMembersPage busy={busy} {...props.organisation.members} />
+        ) : page === 'org-usage' && props.organisation.general ? (
+          <UsagePage usage={props.organisation.usage} busy={busy} onRefresh={props.onRefresh} />
         ) : page === 'org-plan' && props.organisation.plan ? (
           <OrganisationPlanPage busy={busy} {...props.organisation.plan} />
         ) : (
