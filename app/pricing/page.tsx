@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { RevealGroup, RevealItem } from '@/components/ui/reveal'
 import { FooterSection } from '@/components/sections/footer-section'
 import { useAuth } from '@/contexts/auth-context'
+import { useSettingsDialog } from '@/components/settings/settings-dialog'
 import { currentBackend } from '@/lib/backend/browser'
 import { clearCheckoutAttempt, readCheckoutAttempt, saveCheckoutAttempt, type CheckoutAttempt } from '@/lib/backend/checkout-attempt'
 import type { BackendPlan } from '@/lib/backend/client'
@@ -20,6 +21,7 @@ import billingStyles from '@/components/billing/billing-dialog.module.css'
 
 export default function PricingPage() {
   const { user, account, loading: authLoading } = useAuth(); const router = useRouter()
+  const { openSettings } = useSettingsDialog()
   const [plans, setPlans] = useState<BackendPlan[] | null>(null)
   const [error, setError] = useState<string | null>(null); const [busy, setBusy] = useState<string | null>(null)
   const submitting = useRef(false); const [revision, setRevision] = useState(0)
@@ -54,6 +56,8 @@ export default function PricingPage() {
   }, [revision])
   const subscribe = async (plan: BackendPlan) => {
     if (!user) { router.push('/login?redirect=/pricing'); return }
+    // An existing subscriber changes plan in place from Settings; checkout would refuse a second subscription.
+    if (account?.subscriptionStatus) { openSettings('plan'); return }
     if (submitting.current) return
     submitting.current = true; setBusy(plan.key); setError(null)
     try {

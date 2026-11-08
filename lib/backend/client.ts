@@ -61,10 +61,17 @@ const capabilitySchema = z.discriminatedUnion('kind', [
   z.object({ key: z.string(), kind: z.literal('string'), value: z.string() }),
   z.object({ key: z.string(), kind: z.literal('stringList'), value: z.array(z.string()) }),
 ])
+export const closureStatuses = ['CLOSING', 'ERASED', 'BLOCKED'] as const
+const closureSchema = z.object({ status: z.enum(closureStatuses), reference: z.string(), requestedAt: timestamp, closesAt: timestamp })
+export type BackendClosure = z.infer<typeof closureSchema>
+const subscriptionSchema = z.object({ planKey: z.string(), status: z.string(), currentPeriodEnd: timestamp, cancelAtPeriodEnd: z.boolean() })
+export type BackendSubscription = z.infer<typeof subscriptionSchema>
+const planKey = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,63}$/)
 export const accountSchema = z.object({
   uid: z.string().min(1), email: z.string(), emailVerified: z.boolean(), displayName: z.string().optional(),
   photoUrl: z.string().optional(), projectCount: z.number().int().nonnegative(),
   plan: z.object({ key: z.string(), name: z.string() }), subscriptionStatus: z.string().optional(),
+  closing: closureSchema.nullable().optional(),
   sessionModes: z.array(z.string().min(1).max(32)).default([...computerSessionModes]),
   defaultSessionMode: z.string().min(1).max(32).default('auto'),
   capabilities: z.array(capabilitySchema), limits: z.array(z.object({
@@ -230,11 +237,14 @@ export class BackendClient {
     meters: z.array(z.object({ meterKey: z.string(), unit: z.string(), label: z.string(), settled: z.number().nonnegative(), open: z.number().nonnegative() })) }), `/sessions/${id.parse(sessionId)}/usage`, { signal }) }
   plans(signal?: AbortSignal) { return this.json(z.object({ plans: z.array(planSchema) }), '/plans', { signal, public: true }) }
   billingPortal() { return this.json(z.object({ url: z.url().startsWith('https://') }), '/billing/portal', { method: 'POST' }) }
-  checkout(planKey: string) { return this.json(z.object({ url: z.url().startsWith('https://') }), '/billing/checkout', {
-    method: 'POST', body: { planKey: z.string().regex(/^[a-z0-9][a-z0-9_-]{0,63}$/).parse(planKey) },
-  }) }
-  requestErasure() { return this.json(z.object({ request: z.object({ reference: z.string(), kind: z.literal('erasure'), status: z.enum(['RECEIVED', 'IN_PROGRESS', 'COMPLETED']), receivedAt: timestamp }), message: z.string() }),
-    '/me/privacy-requests', { method: 'POST', body: { kind: 'erasure' } }) }
+  checkout(key: string) { return this.json(z.object({ url: z.url().startsWith('https://') }), '/billing/checkout', { method: 'POST', body: { planKey: planKey.parse(key) } }) }
+  subscription(signal?: AbortSignal) { return this.json(z.object({ subscription: subscriptionSchema.nullable() }), '/billing/subscription', { signal }) }
+  previewPlanChange(key: string) { return this.json(z.object({ planKey: z.string(), amountDueMinor: z.number().int(), currency: z.string().regex(/^[a-z]{3}$/), appliesNow: z.boolean() }),
+    '/billing/subscription/preview', { method: 'POST', body: { planKey: planKey.parse(key) } }) }
+  changePlan(key: string) { return this.json(z.object({ subscription: subscriptionSchema }), '/billing/subscription', { method: 'POST', body: { planKey: planKey.parse(key) } }) }
+  setCancellation(cancelAtPeriodEnd: boolean) { return this.json(z.object({ subscription: subscriptionSchema }), '/billing/subscription/cancellation', { method: 'POST', body: { cancelAtPeriodEnd } }) }
+  closeAccount(confirmation: string) { return this.json(z.object({ closure: closureSchema }), '/me/close', { method: 'POST', body: { confirmation: z.string().min(3).max(320).parse(confirmation) } }) }
+  async keepAccount(): Promise<void> { await this.response('/me/close', { method: 'DELETE' }) }
   connectionCatalogue(signal?: AbortSignal) { return this.json(catalogueSchema, '/connections/catalogue', { signal }) }
   connections(signal?: AbortSignal) { return this.json(connectionListSchema, '/connections', { signal }) }
   connection(id: string, signal?: AbortSignal) { return this.json(connectionDetailSchema, `/connections/${encodeURIComponent(id)}`, { signal }) }

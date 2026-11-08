@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { AccountPage } from './account-page'
 import { PreferencesPage } from './preferences-page'
 import { PrivacyPage } from './privacy-page'
-import { PlanPage } from './plan-page'
+import { PlanPage, type PlanPageProps } from './plan-page'
 import { UsagePage } from './usage-page'
 
 export type SettingsPage = 'account' | 'preferences' | 'privacy' | 'usage' | 'plan'
@@ -16,9 +16,9 @@ interface NavGroup { readonly label: string; readonly pages: readonly SettingsPa
 export const SETTINGS_PAGES: Readonly<Record<SettingsPage, PageDefinition>> = {
   account: { label: 'Profile', description: 'Who you are on LotusBuild.', icon: UserRound },
   preferences: { label: 'Preferences', description: 'How LotusBuild works for you, and the models your plan can run.', icon: SlidersHorizontal },
-  privacy: { label: 'Privacy & data', description: 'Cookies, and requests about your data.', icon: ShieldCheck },
+  privacy: { label: 'Privacy & data', description: 'Cookies, and closing your account.', icon: ShieldCheck },
   usage: { label: 'Usage', description: 'What you have used this period, and when it resets.', icon: Gauge },
-  plan: { label: 'Plan & billing', description: 'Your plan, what it includes, and billing.', icon: CreditCard },
+  plan: { label: 'Plan & billing', description: 'Your plan, changing it, and billing.', icon: CreditCard },
 }
 
 export const SETTINGS_NAV: readonly NavGroup[] = [
@@ -36,9 +36,9 @@ export interface SettingsPanelProps {
   readonly error: string | null
   readonly verification?: ReactNode
   readonly onRefresh: () => void
-  readonly onManageBilling: () => void
-  readonly onComparePlans: () => void
-  readonly onRequestErasure: () => void
+  readonly plan: Omit<PlanPageProps, 'account' | 'usage' | 'busy'>
+  readonly onCloseAccount: () => void
+  readonly onKeepAccount: () => void
   /** The dialog title element, so the accessible name belongs to the dialog that owns the panel. */
   readonly title: ReactNode
   readonly description: (text: string) => ReactNode
@@ -99,11 +99,11 @@ export function SettingsPanel(props: SettingsPanelProps) {
         ) : page === 'preferences' ? (
           <PreferencesPage account={account} />
         ) : page === 'privacy' ? (
-          <PrivacyPage busy={busy} onRequestErasure={props.onRequestErasure} />
+          <PrivacyPage account={account} busy={busy} onCloseAccount={props.onCloseAccount} onKeepAccount={props.onKeepAccount} />
         ) : page === 'usage' ? (
           <UsagePage usage={usage} busy={busy} onRefresh={props.onRefresh} />
         ) : (
-          <PlanPage account={account} usage={usage} busy={busy} onManageBilling={props.onManageBilling} onComparePlans={props.onComparePlans} />
+          <PlanPage account={account} usage={usage} busy={busy} {...props.plan} />
         )}
       </main>
     </div>
