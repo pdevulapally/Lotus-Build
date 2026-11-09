@@ -43,9 +43,10 @@ export function executionLabel(previous: string | null, type: string): string | 
   return Object.hasOwn(executionLabels, type) ? executionLabels[type] : previous
 }
 
-export type ToolStepPhase = 'call' | 'result'
+export type ToolStepPhase = 'call' | 'result' | 'failed'
 
-type ToolStepCopy = { readonly call: string; readonly result: string; readonly subject?: (input: Readonly<Record<string, unknown>>) => string | undefined }
+/** `failed` is what the person reads when the tool did not do its job; the tool's own error text is written for the model and never shown. */
+type ToolStepCopy = { readonly call: string; readonly result: string; readonly failed?: string; readonly subject?: (input: Readonly<Record<string, unknown>>) => string | undefined }
 
 const text = (input: Readonly<Record<string, unknown>>, key: string, max = 80): string | undefined => {
   const value = input[key]
@@ -57,7 +58,7 @@ const toolStepCopy: Readonly<Record<string, ToolStepCopy>> = {
   list_files: { call: 'Looking through files', result: 'Looked through files' },
   read_file: { call: 'Reading', result: 'Read', subject: (input) => text(input, 'path') },
   search_files: { call: 'Searching files', result: 'Searched files', subject: (input) => { const query = text(input, 'query', 60); return query === undefined ? undefined : `for “${query}”` } },
-  start_preview: { call: 'Starting the preview', result: 'Started the preview' },
+  start_preview: { call: 'Starting the preview', result: 'Started the preview', failed: 'The preview could not start' },
   git_status: { call: 'Checking what changed', result: 'Checked what changed' },
   git_diff: { call: 'Reviewing changes', result: 'Reviewed changes', subject: (input) => text(input, 'path') },
   git_log: { call: 'Reading recent commits', result: 'Read recent commits' },
@@ -85,10 +86,17 @@ export function toolStepLabel(name: string, phase: ToolStepPhase, input: Readonl
   const copy = toolStepCopy[name]
   if (copy === undefined) return undefined
   const subject = copy.subject?.(input)
-  return subject === undefined ? copy[phase] : `${copy[phase]} ${subject}`
+  const label = phase === 'failed' ? copy.failed ?? `${copy.call} did not finish` : copy[phase]
+  return subject === undefined ? label : `${label} ${subject}`
+}
+
+/** The person-facing failure line a tool declares, if it has one; such a tool keeps its model-facing result text to itself. */
+export function toolFailureLabel(name: string): string | undefined {
+  return toolStepCopy[name]?.failed
 }
 
 /** A readable fallback for a tool the maps do not know yet: "Using render_chart" → "Using render chart". */
 export function genericToolStepLabel(name: string, phase: ToolStepPhase): string {
-  return `${phase === 'call' ? 'Using' : 'Finished'} ${name.replace(/_/g, ' ').slice(0, 100)}`
+  const verb = phase === 'call' ? 'Using' : phase === 'failed' ? 'Could not finish' : 'Finished'
+  return `${verb} ${name.replace(/_/g, ' ').slice(0, 100)}`
 }

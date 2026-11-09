@@ -9,7 +9,8 @@
     "type-check": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "test:contracts": "node --import tsx --test test/*.test.ts test/*.test.tsx",
-    "test:lifecycle": "node --import tsx --import ./test/support/dom.ts --import ./test/support/register-stubs.ts --test test/lifecycle/*.test.tsx"
+    "test:lifecycle": "node --import tsx --import ./test/support/dom.ts --import ./test/support/register-stubs.ts --test test/lifecycle/*.test.tsx",
+    "test:hook": "node --import tsx --import ./test/support/hook-stubs.ts --test test/hook/*.test.tsx"
   },
   "dependencies": {
     "@astryxdesign/core": "0.7.1",
@@ -89,7 +90,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/three": "0.186.0",
-    "jsdom": "^25.0.1",
+    "jsdom": "^26.1.0",
     "postcss": "^8.5",
     "tailwindcss": "^4.3.1",
     "tsx": "^4.23.1",

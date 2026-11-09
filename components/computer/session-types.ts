@@ -16,6 +16,8 @@ export type ComputerTimelineEvent = {
   runId?: string
   index: number
   metadata?: Record<string, string | number | boolean | null>
+  /** The server's run this row belongs to; the feed scopes incomplete-record warnings by it. */
+  execution?: number
 }
 
 export type ComputerSessionResponse = {

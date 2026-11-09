@@ -3,6 +3,7 @@
 
 
 
+import { incompleteRunsShown, runEndUnrecorded } from '@/lib/backend/feed-incomplete'
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 
 
@@ -609,6 +610,8 @@ export default function ComputerPage() {
 
 
                   onClarificationAnswer={handleClarificationAnswer}
+                  incompleteRuns={incompleteRunsShown(raw?.feedIncomplete, session.timeline, raw?.execution, backend.incompleteRuns, raw?.runEnds)}
+                  endUnrecorded={raw !== null && runEndUnrecorded(raw.status, raw.execution, raw.runStart, raw.runEnds)}
                   plan={raw?.plan ?? null} planActions={planActions}
                   delivery={raw?.delivery ?? null}
 

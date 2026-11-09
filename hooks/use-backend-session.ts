@@ -14,7 +14,8 @@ import {
   reduceTerminal,
   type TerminalEntry,
 } from '@/lib/backend/terminal'
-import { executionLabel, genericToolStepLabel, isHiddenToolStep, lifecycleFeedLabels, toolStepLabel } from '@/lib/backend/feed-labels'
+import { incompleteRunFromEvent, mergeSessionEvidence, runEndFromEvent } from '@/lib/backend/feed-incomplete'
+import { executionLabel, genericToolStepLabel, isHiddenToolStep, lifecycleFeedLabels, toolFailureLabel, toolStepLabel } from '@/lib/backend/feed-labels'
 import { loadSessionSnapshot, sessionEventStatus } from '@/lib/backend/session-snapshot'
 import { applyPlanEvent } from '@/lib/backend/session-plan'
 import { applyDeliveryEvent } from '@/lib/backend/delivery'
@@ -55,7 +56,7 @@ export function reduceThinking(events: ComputerTimelineEvent[], event: SessionEv
     if (typeof event.data.delta !== 'string') throw new Error('The server returned an invalid thinking event.')
     if (!event.id || event.data.delta.length === 0) return events
     if (open === -1) {
-      return [...events, { id: event.id, title: 'Thinking', kind: 'thinking', status: 'running', index,
+      return [...events, { id: event.id, title: 'Thinking', kind: 'thinking', status: 'running', index, ...(eventExecution(event) === undefined ? {} : { execution: eventExecution(event) }),
         createdAt: new Date(Number(event.id.split('-')[0])).toISOString(), description: event.data.delta }]
     }
     const current = events[open]!
@@ -89,6 +90,13 @@ function isRunningToolItem(item: ComputerTimelineEvent): boolean {
 }
 
 export function activity(event: SessionEvent, index: number): ComputerTimelineEvent | null {
+  const row = activityRow(event, index)
+  if (row === null) return null
+  const execution = eventExecution(event)
+  return execution === undefined ? row : { ...row, execution }
+}
+
+function activityRow(event: SessionEvent, index: number): ComputerTimelineEvent | null {
   if (!event.id) return null
   if (event.type === 'agent.tool_call' && event.data.name === 'run_command') {
     const command = getRunCommandInput(event.data.input)
@@ -169,16 +177,19 @@ export function updateToolStepEvent(events: ComputerTimelineEvent[], event: Sess
   let input: Record<string, unknown> = {}
   if (typeof current.metadata?.toolInputJson === 'string') { try { input = JSON.parse(current.metadata.toolInputJson) as Record<string, unknown> } catch { input = {} } }
   const failed = event.data.isError === true
+  // A tool with its own failure copy (see feed-labels) speaks to the person in
+  // its title; its result text is addressed to the model and stays hidden.
+  const phase = failed ? 'failed' : 'result'
   const description = typeof event.data.error === 'string' ? event.data.error.slice(0, 2000)
-    : failed && typeof event.data.text === 'string' ? event.data.text.slice(0, 400) : undefined
+    : failed && toolFailureLabel(name) === undefined && typeof event.data.text === 'string' ? event.data.text.slice(0, 400) : undefined
   const next = events.slice()
   next[index] = { ...current, status: failed ? 'error' : 'complete',
-    title: isComputerAction(name) ? current.title : toolStepLabel(name, 'result', input) ?? genericToolStepLabel(name, 'result'),
+    title: isComputerAction(name) ? current.title : toolStepLabel(name, phase, input) ?? genericToolStepLabel(name, phase),
     ...(description ? { description } : {}) }
   return next
 }
 
-function updateCommandEvent(events: ComputerTimelineEvent[], event: SessionEvent): ComputerTimelineEvent[] {
+export function updateCommandEvent(events: ComputerTimelineEvent[], event: SessionEvent): ComputerTimelineEvent[] {
   if (event.type !== 'agent.tool_result' || (event.data.name !== 'run_command' && !isFileTool(event.data.name))) return events
   const callId = typeof event.data.callId === 'string' && event.data.callId ? event.data.callId : undefined
   const index = runningToolIndex(events, callId, event.data.name as string)
@@ -209,6 +220,7 @@ export function interruptRunningToolEvents(events: ComputerTimelineEvent[]): Com
 
 export function useBackendSession(id: string, user: User | null, authLoading: boolean) {
   const [session, setSession] = useState<BackendSession | null>(null)
+  const [incompleteRuns, setIncompleteRuns] = useState<number[]>([])
   const [project, setProject] = useState<BackendProject | null>(null)
   const [messages, setMessages] = useState<BackendMessage[]>([])
   const [queued, setQueued] = useState<{ id: string; prompt: string }[]>([])
@@ -240,7 +252,7 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
     const sameScope = scopeRef.current === scope
     scopeRef.current = scope
     if (!sameScope) {
-    setSession(null); setProject(null); setMessages([]); setQueued([]); setEvents([]); setTerminal([]); setText(''); setPreview(null)
+    setSession(null); setProject(null); setMessages([]); setQueued([]); setEvents([]); setIncompleteRuns([]); setTerminal([]); setText(''); setPreview(null)
     setDesktop({ status: 'none' })
     setLiveLabel(null)
     setError(null); setStreamError(null); setLoading(true)
@@ -270,11 +282,11 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
       const client = currentBackend()
       const { session: next, project: parent, messages: history, queued: waiting } = await loadSessionSnapshot(client, id, signal, (owned, parent) => {
         if (signal.aborted || version !== loadVersion) return
-        setSession((current) => stateAtStart === stateVersion ? owned : current ?? { ...owned, status: latestStatus ?? owned.status })
+        setSession((current) => stateAtStart === stateVersion ? mergeSessionEvidence(current, owned) : current ?? { ...owned, status: latestStatus ?? owned.status })
         setProject(parent); setLoading(false)
       })
       if (signal.aborted || version !== loadVersion) return
-      if (stateAtStart === stateVersion) { setSession(next); turnEnded = isTerminalStatus(next.status) }
+      if (stateAtStart === stateVersion) { setSession((current) => mergeSessionEvidence(current, next)); turnEnded = isTerminalStatus(next.status) }
       setProject(parent); setMessages(history); setQueued(waiting)
       setLoading(false); setError(null)
       const loadedFingerprint = fingerprint(next)
@@ -303,7 +315,7 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
       // Running rows end only when the server says the run has ended, never on
       // the Stop request alone: the command may still be running until then.
       if (ended) { setLiveLabel(null); setEvents((current) => interruptRunningToolEvents(current)) }
-      setSession(next)
+      setSession((current) => mergeSessionEvidence(current, next))
     }
     applyStateRef.current = applyServerState
     const scheduleRefresh = () => {
@@ -323,7 +335,7 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
             }
           },
           onReconnecting: () => { if (!signal.aborted) setConnection(navigator.onLine ? 'reconnecting' : 'offline') },
-          onReset: () => { textVersion++; streamText = ''; setText(''); setLiveLabel(null); setEvents([]); setTerminal([]); setDesktop({ status: 'none' }); setPreview(null); scheduleRefresh() },
+          onReset: () => { textVersion++; streamText = ''; latestExecution = 0; setText(''); setLiveLabel(null); setEvents([]); setIncompleteRuns([]); setTerminal([]); setDesktop({ status: 'none' }); setPreview(null); scheduleRefresh() },
           onState: (state) => {
             if (signal.aborted) return
             applyServerState(sessionSchema.parse(state))
@@ -338,6 +350,10 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
               if (execution < latestExecution) return
               latestExecution = execution
             }
+            const ended = runEndFromEvent(event)
+            if (ended !== undefined) setSession((current) => current ? mergeSessionEvidence(current, { ...current, runEnd: ended, runEnds: { ...(current.runEnds ?? {}), [String(ended.execution)]: ended } }) : current)
+            const declared = incompleteRunFromEvent(event)
+            if (declared !== undefined) setIncompleteRuns((current) => current.includes(declared) ? current : [...current, declared])
             const status = sessionEventStatus[event.type]
             if (status) {
               latestStatus = status; stateVersion++
@@ -385,11 +401,11 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
   }, [id, user, authLoading, revision])
   // Effects clear the old scope after commit; do not expose it for that render.
   const currentScope = !authLoading && scopeRef.current === `${user?.uid ?? ''}:${id}`
-  return { session: currentScope ? session : null, project: currentScope ? project : null, setProject,
+  return { session: currentScope ? session : null, project: currentScope ? project : null, setProject, incompleteRuns: currentScope ? incompleteRuns : [],
     messages: currentScope ? messages : [], queued: currentScope ? queued : [], events: currentScope ? events : [],
     terminal: currentScope ? terminal : [], desktop: currentScope ? desktop : { status: 'none' as const }, text: currentScope ? text : '',
     liveLabel: currentScope ? liveLabel : null, stopping: currentScope && isStopping(session), applyState,
-    preview: currentScope ? visiblePreview({ preview, session, publicPreviewEnabled: project?.publicPreviewEnabled === true }) : null,
+    preview: currentScope ? visiblePreview({ preview, session }) : null,
     fileCount: currentScope ? fileCount : null, fileError: currentScope ? fileError : null,
     loading: !currentScope || loading, error: currentScope ? error : null, streamError: currentScope ? streamError : null,
     connection, refresh, reconnect }
