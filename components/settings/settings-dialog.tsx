@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { useAuth } from '@/contexts/auth-context'
 import { currentBackend } from '@/lib/backend/browser'
 import type { BackendPlan, BackendSubscription } from '@/lib/backend/client'
-import { withIntent } from '@/lib/backend/intent-key'
+import { subscriptionIntent, withIntent } from '@/lib/backend/intent-key'
 import { longDate } from '@/lib/settings/plans'
 import { EmailCodeVerification } from '@/components/auth/email-code-verification'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
@@ -120,7 +120,7 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
             }),
             onChangePlan: (plan, relation) => { setError(null); setMessage(null); setPlanChange({ plan, relation }) },
             onSetCancellation: (cancelAtPeriodEnd) => void perform(async () => {
-              const result = await withIntent(`billing/cancellation:${cancelAtPeriodEnd}`, (key) => currentBackend().setCancellation(cancelAtPeriodEnd, key))
+              const result = await withIntent(subscriptionIntent(`cancellation:${cancelAtPeriodEnd}`), (key) => currentBackend().setCancellation(cancelAtPeriodEnd, key))
               await reloadBilling()
               setMessage(cancelAtPeriodEnd
                 ? `Your plan ends on ${longDate(result.subscription.currentPeriodEnd)}. You keep everything it includes until then.`
@@ -140,10 +140,10 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
           preview={previewPlanChange}
           onClose={() => setPlanChange(null)}
           onConfirm={(plan) => void perform(async () => {
-            const result = await withIntent(`billing/plan:${plan.key}`, (key) => currentBackend().changePlan(plan.key, key))
+            const result = await withIntent(subscriptionIntent(`plan:${plan.key}`), (key) => currentBackend().changePlan(plan.key, key))
             setPlanChange(null)
             await reloadBilling()
-            setMessage(`You are now on ${plan.name}. It renews on ${longDate(result.subscription.currentPeriodEnd)}.`)
+            setMessage(`You are now on ${plans?.find((each) => each.key === result.subscription.planKey)?.name ?? result.subscription.planKey}. It renews on ${longDate(result.subscription.currentPeriodEnd)}.`)
           })}
         />
         {account && (
