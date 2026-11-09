@@ -45,7 +45,7 @@ test('slow creation acknowledges immediately, blocks duplicate clicks, retains i
   const isolatedRequire = (id: string) => {
     if (id === 'react') return react
     if (id === 'next/navigation') return { useRouter: () => ({ push: (path: string) => { navigations.push(path) } }) }
-    if (id === '@/contexts/auth-context') return { useAuth: () => ({ user: { uid: 'alice' }, account: { models: [{ id: 'configured', name: 'Configured' }], plan: { name: 'Business' } } }) }
+    if (id === '@/contexts/auth-context') return { useAuth: () => ({ user: { uid: 'alice' }, account: { models: [{ id: 'configured', name: 'Configured' }], plan: { name: 'Business' } }, models: [{ id: 'configured', name: 'Configured' }] }) }
     if (id === '@/lib/backend/browser') return { currentBackend: () => backend }
     if (id === '@/lib/backend/pending-storage') return { pendingCommandStorage: () => storage }
     if (id === '@/components/ui/request-error') return { RequestErrorNotice: () => null }

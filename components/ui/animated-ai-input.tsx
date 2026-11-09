@@ -217,7 +217,7 @@ export function AnimatedAIInput({
   footerHintsClassName,
 }: AnimatedAIInputProps) {
   const router = useRouter();
-  const { user, account, accountError, currentWorkspace } = useAuth();
+  const { user, account, accountError, currentWorkspace, models: workspaceModels } = useAuth();
   const [submitError, setSubmitError] = useState<Error | null>(null);
   const submittingRef = useRef(false);
   const submissionTrace = useRef<ReturnType<typeof latencyTrace> | null>(null);
@@ -247,11 +247,12 @@ export function AnimatedAIInput({
     if (closed && !textareaRef.current?.disabled) textareaRef.current?.focus();
   }, [voiceExpanded, textareaRef]);
 
-  const models = account?.models.map((model) => model.id) ?? [];
+  // The current workspace's models, not the account's own: a member on Free builds with the organisation's plan there.
+  const models = workspaceModels?.map((model) => model.id) ?? [];
   const effectiveModel = mode === 'chat' && initialModel
     ? initialModel
     : resolveModelSelection(models, selectedModel);
-  const displayModelLabel = account?.models.find((model) => model.id === effectiveModel)?.name || effectiveModel || 'Select model';
+  const displayModelLabel = workspaceModels?.find((model) => model.id === effectiveModel)?.name || effectiveModel || 'Select model';
   const availableSessionModes = useMemo(() => selectableSessionModeConfigs(account?.sessionModes), [account?.sessionModes]);
   const accountDefaultSessionMode = defaultComputerSessionMode(account?.sessionModes, account?.defaultSessionMode);
   const selectedSessionMode = getComputerSessionModeConfig(sessionMode);
@@ -641,7 +642,7 @@ export function AnimatedAIInput({
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-1.5">
                             <span className={cn("text-sm font-medium", isLocked ? "text-foreground/70" : "text-foreground")}>
-                              {account?.models.find((entry) => entry.id === model)?.name || model}
+                              {workspaceModels?.find((entry) => entry.id === model)?.name || model}
                             </span>
                             {meta.badges.map((b) => (
                               <Badge key={b}>{b}</Badge>
