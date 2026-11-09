@@ -590,10 +590,23 @@ test('an operation key lives until its surface is confirmed: kept across network
   assert.notEqual(bob.key(business), first); assert.notEqual(bob.key(seatsIntent('org1', 5)), alice.key(seatsIntent('org1', 5)))
   assert.equal(alice.key(business), first, 'another account minting keys changes nothing for this one')
   assert.throws(() => intentStore({ uid: '', storage }), 'no account, no intents')
-  storage.setItem('lotus-intents:carol', JSON.stringify({ uid: 'alice', next: 1, surfaces: { 'billing/subscription': { 'plan:business': { key: first, generation: 0 } } } }))
-  assert.notEqual(intentStore({ uid: 'carol', storage }).key(business), first, 'a record naming another account is not trusted')
+  // An existing record that cannot be trusted — naming another account, or malformed — is neither used nor
+  // replaced: it may be the only identity of an operation still unresolved, so the caller is told to review it.
+  const foreign = JSON.stringify({ uid: 'alice', next: 1, surfaces: { 'billing/subscription': { 'plan:business': { key: first, generation: 0 } } } })
+  storage.setItem('lotus-intents:carol', foreign)
+  assert.throws(() => intentStore({ uid: 'carol', storage }).key(business), { name: 'IntentRecordError' }, 'a record naming another account is not trusted')
+  assert.equal(storage.getItem('lotus-intents:carol'), foreign, 'and is left as it was')
   storage.setItem('lotus-intents:dave', '{not json')
-  assert.ok(intentStore({ uid: 'dave', storage }).key(business), 'a malformed record is ignored')
+  assert.throws(() => intentStore({ uid: 'dave', storage }).key(business), { name: 'IntentRecordError' }, 'a malformed record is not minted over')
+  assert.equal(storage.getItem('lotus-intents:dave'), '{not json')
+  await assert.rejects(intentStore({ uid: 'dave', storage }).run(business, async () => assert.fail('never asked')), { name: 'IntentRecordError' })
+  storage.removeItem('lotus-intents:carol'); storage.removeItem('lotus-intents:dave')
+  // Two tabs minting one intent: when the other tab's write lands between this tab's write and its read-back,
+  // this tab follows the identity it reads back, so both tabs ask for one operation.
+  const racy = memoryStorage(); let stolen: string | undefined
+  const raced = { ...racy, setItem: (k: string, v: string) => { racy.setItem(k, v); if (stolen === undefined) { const other = intentStore({ uid: 'erin', storage: racy }); racy.removeItem(k); stolen = other.key(seatsIntent('org1', 3)) } } }
+  const mine = intentStore({ uid: 'erin', storage: raced }).key(seatsIntent('org1', 3))
+  assert.equal(mine, stolen, 'the identity read back after the write is the one followed')
   // A unknown → B confirmed → a fresh A: the lost Business attempt is superseded, never replayed — also after a reload.
   await alice.run(pro, async () => undefined)
   assert.notEqual(alice.key(business), first, 'confirming Pro settles the unresolved Business attempt asked before it; choosing Business again is a new operation')
