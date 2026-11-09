@@ -28,6 +28,7 @@ export const backend = {
       return { uid, email: `${uid}@example.test`, emailVerified: true, projectCount: 0, plan: { key: 'free', name: 'Free' }, workspaces: workspaces.filter((w) => !backend.missingWorkspaces.has(w.id)), capabilities: {}, closing: null }
     },
     async usage() { const uid = (await import('./firebase')).auth.currentUser?.uid ?? 'nobody'; return { uid, meters: [] } },
+    async models(_signal?: AbortSignal, workspaceId?: string) { const uid = (await import('./firebase')).auth.currentUser?.uid ?? 'nobody'; backend.calls.push(`models:${workspaceId ?? uid}`); return { workspaceId: workspaceId ?? uid, plan: { key: workspaceId ? 'teams' : 'free', name: workspaceId ? 'Teams' : 'Free' }, models: [] } },
     async plans() { return { plans: [] } },
     async subscription() { return { subscription: null } },
     async organisation(orgId: string) { backend.calls.push(`organisation:${orgId}`); return organisationOf(orgId) },
