@@ -267,8 +267,8 @@ export class BackendClient {
   subscription(signal?: AbortSignal) { return this.json(z.object({ subscription: subscriptionSchema.nullable() }), '/billing/subscription', { signal }) }
   previewPlanChange(key: string) { return this.json(z.object({ planKey: z.string(), amountDueMinor: z.number().int(), currency: z.string().regex(/^[a-z]{3}$/), appliesNow: z.boolean() }),
     '/billing/subscription/preview', { method: 'POST', body: { planKey: planKey.parse(key) } }) }
-  changePlan(key: string, operationKey: string) { return this.json(z.object({ subscription: subscriptionSchema }), '/billing/subscription', { method: 'POST', body: { planKey: planKey.parse(key) }, key: keySchema.parse(operationKey) }) }
-  setCancellation(cancelAtPeriodEnd: boolean, operationKey: string) { return this.json(z.object({ subscription: subscriptionSchema }), '/billing/subscription/cancellation', { method: 'POST', body: { cancelAtPeriodEnd }, key: keySchema.parse(operationKey) }) }
+  changePlan(key: string, operationKey: string) { return this.json(z.object({ subscription: subscriptionSchema.nullable() }), '/billing/subscription', { method: 'POST', body: { planKey: planKey.parse(key) }, key: keySchema.parse(operationKey) }) }
+  setCancellation(cancelAtPeriodEnd: boolean, operationKey: string) { return this.json(z.object({ subscription: subscriptionSchema.nullable() }), '/billing/subscription/cancellation', { method: 'POST', body: { cancelAtPeriodEnd }, key: keySchema.parse(operationKey) }) }
   createOrganisation(name: string, key: string) { return this.json(organisationSchema, '/organisations', { method: 'POST', body: { name: organisationName.parse(name) }, key }) }
   organisation(orgId: string, signal?: AbortSignal) { return this.json(organisationSchema, `/organisations/${id.parse(orgId)}`, { signal }) }
   renameOrganisation(orgId: string, name: string) { return this.json(organisationSchema, `/organisations/${id.parse(orgId)}`, { method: 'PATCH', body: { name: organisationName.parse(name) } }) }

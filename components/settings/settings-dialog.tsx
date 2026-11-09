@@ -4,12 +4,13 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { useAuth } from '@/contexts/auth-context'
 import { currentBackend } from '@/lib/backend/browser'
 import type { BackendInvitation, BackendMember, BackendOrganisation, BackendOrganisationBilling, BackendPlan, BackendSubscription, BackendWorkspace } from '@/lib/backend/client'
-import { seatsIntent, subscriptionIntent, withIntent } from '@/lib/backend/intent-key'
-import { longDate } from '@/lib/settings/plans'
 import { can } from '@/lib/settings/organisations'
 import { CreateOrganisationDialog } from './organisation/create-organisation-dialog'
 import { InviteMemberDialog } from './organisation/invite-member-dialog'
 import { TypedConfirmationDialog } from './typed-confirmation-dialog'
+import { intentStore, seatsIntent, subscriptionIntent, type IntentStore } from '@/lib/backend/intent-key'
+import { pendingCommandStorage } from '@/lib/backend/pending-storage'
+import { describeSubscriptionOutcome, longDate } from '@/lib/settings/plans'
 import { EmailCodeVerification } from '@/components/auth/email-code-verification'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { SettingsPanel, isOrganisationPage, navFor, type OrganisationSettings, type SettingsPage } from './settings-panel'
@@ -134,6 +135,12 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
     })()
     return () => controller.abort()
   }, [open, page, account, billingRevision])
+  const uid = account?.uid ?? ''
+  const intents = useMemo(() => uid === '' ? null : intentStore({ uid, storage: pendingCommandStorage() }), [uid])
+  const intend = <T,>(intent: Parameters<IntentStore['run']>[0], work: (key: string) => Promise<T>): Promise<T> => {
+    if (intents === null) throw new Error('Sign in again to change your plan.')
+    return intents.run(intent, work)
+  }
   const reloadBilling = async () => { await refreshAccount(); setBillingRevision((value) => value + 1) }
 
   const perform = async (work: () => Promise<void>) => {
@@ -182,11 +189,9 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
             }),
             onChangePlan: (plan, relation) => { setError(null); setMessage(null); setPlanChange({ plan, relation }) },
             onSetCancellation: (cancelAtPeriodEnd) => void perform(async () => {
-              const result = await withIntent(subscriptionIntent(`cancellation:${cancelAtPeriodEnd}`), (key) => currentBackend().setCancellation(cancelAtPeriodEnd, key))
+              const result = await intend(subscriptionIntent(`cancellation:${cancelAtPeriodEnd}`), (key) => currentBackend().setCancellation(cancelAtPeriodEnd, key))
               await reloadBilling()
-              setMessage(cancelAtPeriodEnd
-                ? `Your plan ends on ${longDate(result.subscription.currentPeriodEnd)}. You keep everything it includes until then.`
-                : 'Your plan continues and renews as before.')
+              setMessage(describeSubscriptionOutcome(result.subscription, plans))
             }),
           }}
           workspaces={workspaces}
@@ -204,7 +209,7 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
             onRemove: (member) => { setError(null); setMessage(null); setRemoving(member) },
             onRevoke: (invitation) => void perform(async () => { if (orgId) { await currentBackend().revokeInvitation(orgId, invitation.id); await reloadOrganisation(); setMessage('Invitation revoked.') } }),
             onCheckout: (planKey, seats) => void perform(async () => { if (orgId) { const result = await currentBackend().organisationCheckout(orgId, planKey, seats); window.location.assign(result.url) } }),
-            onChangeSeats: (seats) => void perform(async () => { if (orgId) { const result = await withIntent(seatsIntent(orgId, seats), (key) => currentBackend().changeSeats(orgId, seats, key)); await reloadOrganisation(); setMessage(`${result.subscription.seats} seats from now on.`) } }),
+            onChangeSeats: (seats) => void perform(async () => { if (orgId) { const result = await intend(seatsIntent(orgId, seats), (key) => currentBackend().changeSeats(orgId, seats, key)); await reloadOrganisation(); setMessage(`${result.subscription.seats} seats from now on.`) } }),
             onManageBilling: () => void perform(async () => { if (orgId) { const result = await currentBackend().organisationPortal(orgId); window.location.assign(result.url) } }),
           })}
           onCloseAccount={() => { setError(null); setMessage(null); setClosingAccount(true) }}
@@ -220,10 +225,10 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
           preview={previewPlanChange}
           onClose={() => setPlanChange(null)}
           onConfirm={(plan) => void perform(async () => {
-            const result = await withIntent(subscriptionIntent(`plan:${plan.key}`), (key) => currentBackend().changePlan(plan.key, key))
+            const result = await intend(subscriptionIntent(`plan:${plan.key}`), (key) => currentBackend().changePlan(plan.key, key))
             setPlanChange(null)
             await reloadBilling()
-            setMessage(`You are now on ${plans?.find((each) => each.key === result.subscription.planKey)?.name ?? result.subscription.planKey}. It renews on ${longDate(result.subscription.currentPeriodEnd)}.`)
+            setMessage(describeSubscriptionOutcome(result.subscription, plans))
           })}
         />
         <CreateOrganisationDialog open={creatingOrganisation} busy={busy} onClose={() => setCreatingOrganisation(false)}

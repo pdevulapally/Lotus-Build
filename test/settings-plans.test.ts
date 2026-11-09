@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert'
 import { test } from 'node:test'
 import type { BackendAccount, BackendPlan, BackendSubscription } from '../lib/backend/client'
-import { describeChangeCharge, longDate, planChoices } from '../lib/settings/plans'
+import { describeChangeCharge, longDate, planChoices, describeSubscriptionOutcome } from '../lib/settings/plans'
 
 const plan = (key: string, rank: number, amountMinor?: number): BackendPlan => ({ key, name: key, rank, billing: { perSeat: false, minSeats: 1 }, capabilities: [], allowances: [],
   ...(amountMinor === undefined ? {} : { price: { amountMinor, currency: 'gbp', interval: 'month' } }) })
@@ -21,7 +21,18 @@ test('a subscriber sees upgrade and downgrade by rank, and the free plan as lett
 })
 
 test('the change charge reads from Stripe\'s preview, never from a client computation', () => {
-  assert.match(describeChangeCharge({ amountDueMinor: 4800, currency: 'gbp' }), /^£48 is charged today/)
-  assert.match(describeChangeCharge({ amountDueMinor: 0, currency: 'gbp' }), /^Nothing to pay today/)
+  assert.match(describeChangeCharge({ amountDueMinor: 4800, currency: 'gbp' }), /^Your next invoice comes to £48: the prorated difference/)
+  assert.doesNotMatch(describeChangeCharge({ amountDueMinor: 4800, currency: 'gbp' }), /charged today/, 'create_prorations bills the difference on the next invoice; nothing is taken today')
+  assert.match(describeChangeCharge({ amountDueMinor: 0, currency: 'gbp' }), /^Nothing more to pay/)
   assert.equal(longDate('2026-12-08T12:00:00.000Z'), '8 December 2026')
+})
+
+test('what the user is told after a change comes from the returned subscription, not the requested target', () => {
+  const plans = [{ key: 'pro', name: 'Pro' }, { key: 'business', name: 'Business' }]
+  const end = '2026-12-01T00:00:00.000Z'
+  assert.equal(describeSubscriptionOutcome({ planKey: 'pro', cancelAtPeriodEnd: false, currentPeriodEnd: end }, plans), 'You are on Pro. It renews on 1 December 2026.')
+  assert.match(describeSubscriptionOutcome({ planKey: 'pro', cancelAtPeriodEnd: true, currentPeriodEnd: end }, plans), /on Pro until 1 December 2026, when it ends/)
+  assert.doesNotMatch(describeSubscriptionOutcome({ planKey: 'pro', cancelAtPeriodEnd: true, currentPeriodEnd: end }, plans), /renews/)
+  assert.equal(describeSubscriptionOutcome({ planKey: 'unknown', cancelAtPeriodEnd: false, currentPeriodEnd: end }, null), 'You are on unknown. It renews on 1 December 2026.')
+  assert.equal(describeSubscriptionOutcome(null, plans), 'You no longer have a paid plan.')
 })
