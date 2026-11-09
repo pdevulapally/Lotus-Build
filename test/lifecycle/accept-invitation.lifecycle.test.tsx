@@ -4,6 +4,7 @@ import { StrictMode, act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { AuthProvider } from '../../contexts/auth-context'
 import AcceptInvitationPage from '../../app/invitations/accept/page'
+import { SettingsDialogProvider } from '../../components/settings/settings-dialog'
 import { auth } from '../support/stubs/firebase'
 import { backend } from '../support/stubs/backend-browser'
 import { navigation, setInvitationQuery } from '../support/stubs/next-navigation'
@@ -16,7 +17,7 @@ import { workspaceStorageKey } from '../../contexts/auth-context'
  */
 const flush = async () => { await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) }) }
 const text = () => document.body.textContent ?? ''
-const tree = () => createElement(AuthProvider, null, createElement(AcceptInvitationPage))
+const tree = () => createElement(AuthProvider, null, createElement(SettingsDialogProvider, null, createElement(AcceptInvitationPage)))
 const mount = async (strict = false) => {
   const container = document.body.appendChild(document.createElement('div'))
   let root!: Root
@@ -95,5 +96,23 @@ test('a new invitation in the query while the first is in flight starts its own 
   assert.doesNotMatch(text(), /Acme/, 'the detached first operation does not report into the page')
   backend.acceptGates[1]!.open(); await flush(); await flush()
   assert.match(text(), /Acme/)
+  await page.unmount()
+})
+
+test('the page moves from invitation A (Acme) to invitation B (Beta); B completes first, then A late: the visible result is Beta and A\'s late completion does not switch the workspace back', async () => {
+  reset(); auth.signIn('alice')
+  const page = await mount(); await flush()
+  assert.deepEqual(backend.calls.filter((c) => c.startsWith('accept:')), ['accept:org1:43'])
+  setInvitationQuery('org2', 'b'.repeat(43)); await page.rerender(); await flush()
+  assert.equal(backend.acceptGates.length, 2)
+  const callsBefore = backend.calls.length
+  backend.acceptGates[1]!.open(); await flush(); await flush()            // B (Beta) completes first
+  assert.match(text(), /Beta/); assert.equal(storedWorkspace('alice'), 'org2')
+  const afterB = backend.calls.length
+  backend.acceptGates[0]!.open(); await flush(); await flush()            // A (Acme) completes late
+  assert.equal(storedWorkspace('alice'), 'org2', 'the detached operation must not switch the workspace back to Acme')
+  assert.match(text(), /Beta/); assert.doesNotMatch(text(), /Acme/)
+  assert.deepEqual(backend.calls.slice(afterB), [], 'no refresh or other side effect from the late completion')
+  assert.ok(backend.calls.slice(callsBefore, afterB).some((c) => c.startsWith('me:')), 'B\'s own completion did refresh')
   await page.unmount()
 })
