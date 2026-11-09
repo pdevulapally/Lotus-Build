@@ -99,7 +99,7 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
   const [deletingOrganisation, setDeletingOrganisation] = useState(false)
   const [removing, setRemoving] = useState<BackendMember | null>(null)
   useEffect(() => {
-    setOrganisation(null); setMembers(null); setInvitations(null)
+    setOrganisation(null); setMembers(null); setInvitations(null); setOrgUsage(null)
     if (!open || orgId === null) return
     const controller = new AbortController()
     void (async () => {
