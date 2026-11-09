@@ -6,7 +6,7 @@ import { AuthProvider } from '../../contexts/auth-context'
 import AcceptInvitationPage from '../../app/invitations/accept/page'
 import { SettingsDialogProvider } from '../../components/settings/settings-dialog'
 import { auth } from '../support/stubs/firebase'
-import { backend } from '../support/stubs/backend-browser'
+import { backend, gate } from '../support/stubs/backend-browser'
 import { navigation, setInvitationQuery } from '../support/stubs/next-navigation'
 import { resetAcceptances } from '../../lib/organisations/accept-invitation'
 import { workspaceStorageKey } from '../../contexts/auth-context'
@@ -18,15 +18,23 @@ import { workspaceStorageKey } from '../../contexts/auth-context'
 const flush = async () => { await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) }) }
 const text = () => document.body.textContent ?? ''
 const tree = () => createElement(AuthProvider, null, createElement(SettingsDialogProvider, null, createElement(AcceptInvitationPage)))
+/** A test that failed mid-way leaves its tree mounted; the next mount removes it so trees never share a document. */
+const mounted: (() => Promise<void>)[] = []
 const mount = async (strict = false) => {
+  for (const leftover of mounted.splice(0)) await leftover()
   const container = document.body.appendChild(document.createElement('div'))
   let root!: Root
   const render = async () => { await act(async () => { root.render(strict ? createElement(StrictMode, null, tree()) : tree()) }) }
   await act(async () => { root = createRoot(container) }); await render()
-  return { root, container, rerender: render, unmount: async () => { await act(async () => root.unmount()); container.remove() } }
+  const unmount = async () => { await act(async () => root.unmount()); container.remove(); mounted.splice(mounted.indexOf(unmount), 1) }
+  mounted.push(unmount)
+  return { root, container, rerender: render, unmount }
 }
 const storedWorkspace = (uid: string) => window.localStorage.getItem(workspaceStorageKey(uid))
-const reset = () => { backend.reset(); resetAcceptances(); navigation.pushes.length = 0; setInvitationQuery('org1', 'a'.repeat(43)); window.localStorage.clear(); if (auth.currentUser) auth.signOut() }
+const unhandled: unknown[] = []
+process.on('unhandledRejection', (reason) => { unhandled.push(reason) })
+const openButton = () => [...document.querySelectorAll('button')].find((b) => b.textContent?.includes('Open the organisation'))
+const reset = () => { unhandled.length = 0; backend.reset(); resetAcceptances(); navigation.pushes.length = 0; setInvitationQuery('org1', 'a'.repeat(43)); window.localStorage.clear(); if (auth.currentUser) auth.signOut() }
 
 test('normal acceptance: Alice signed in, the page accepts, refreshes her account and selects the organisation', async () => {
   reset(); auth.signIn('alice')
@@ -150,5 +158,57 @@ test('A fails while detached; returning to A shows the failure, not a spinner, a
   assert.match(text(), /expired or been withdrawn/)
   assert.doesNotMatch(text(), /Checking your invitation/)
   assert.equal(storedWorkspace('alice'), null, 'a failure owes no selection')
+  await page.unmount()
+})
+
+test('returning to A before its owed refresh has answered: the page says joined but Open the organisation is withheld (disabled, no navigation); it opens once the workspace is confirmed', async () => {
+  reset(); auth.signIn('alice')
+  const page = await mount(); await flush()
+  setInvitationQuery('org2', 'b'.repeat(43)); await page.rerender(); await flush()
+  backend.acceptGates[0]!.open(); await flush(); await flush()            // A settles while detached
+  backend.meGate = gate()                                                  // the returning page's refresh is slow
+  setInvitationQuery('org1', 'a'.repeat(43)); await page.rerender(); await flush()
+  assert.match(text(), /You’re in Acme/); assert.match(text(), /Setting up the organisation/)
+  const open = openButton(); assert.ok(open, 'the action is shown'); assert.equal(open.disabled, true, 'but withheld until the workspace is ready')
+  navigation.pushes.length = 0
+  await act(async () => { open.click() }); await flush()
+  assert.deepEqual(navigation.pushes, [], 'clicking early navigates nowhere'); assert.equal(storedWorkspace('alice'), null, 'and selects nothing')
+  backend.meGate.open(); backend.meGate = undefined; await flush(); await flush()
+  assert.equal(storedWorkspace('alice'), 'org1'); assert.match(text(), /now your selected workspace/)
+  assert.equal(openButton()!.disabled, false)
+  await act(async () => { openButton()!.click() }); await flush()
+  assert.deepEqual(navigation.pushes, ['/'])
+  assert.equal(backend.acceptGates.length, 2, 'one submission throughout'); assert.deepEqual(unhandled, [])
+  await page.unmount()
+})
+
+test('the owed refresh fails: joined is shown with the failure and no way into a wrong workspace; Try again repeats only the refresh and selection, never the invitation', async () => {
+  reset(); auth.signIn('alice')
+  const page = await mount(); await flush()
+  setInvitationQuery('org2', 'b'.repeat(43)); await page.rerender(); await flush()
+  backend.acceptGates[0]!.open(); await flush(); await flush()
+  backend.meFailures.add('alice')
+  setInvitationQuery('org1', 'a'.repeat(43)); await page.rerender(); await flush(); await flush()
+  assert.match(text(), /You’re in Acme/); assert.match(text(), /could not be opened as your workspace: Your account could not be loaded right now/)
+  assert.equal(openButton(), undefined, 'no Open while the workspace is not ready'); assert.equal(storedWorkspace('alice'), null)
+  const accepts = backend.calls.filter((c) => c.startsWith('accept:')).length
+  const retry = [...document.querySelectorAll('button')].find((b) => b.textContent?.includes('Try again')); assert.ok(retry)
+  await act(async () => { retry.click() }); await flush(); await flush()
+  assert.equal(backend.calls.filter((c) => c.startsWith('accept:')).length, accepts, 'the token is not sent again')
+  assert.equal(storedWorkspace('alice'), 'org1', 'the retry made the workspace ready'); assert.match(text(), /now your selected workspace/)
+  assert.equal(openButton()!.disabled, false); assert.deepEqual(unhandled, [])
+  await page.unmount()
+})
+
+test('the selection fails (the refreshed account does not list the organisation): told truthfully, nothing navigates, and Try again recovers once the membership is there', async () => {
+  reset(); auth.signIn('alice'); backend.missingWorkspaces.add('org1')
+  const page = await mount(); await flush()
+  backend.acceptGates[0]!.open(); await flush(); await flush(); await flush()
+  assert.match(text(), /You’re in Acme/); assert.match(text(), /could not be opened as your workspace: That workspace is not available to this account/)
+  assert.equal(openButton(), undefined); assert.equal(storedWorkspace('alice'), null); assert.deepEqual(navigation.pushes, [])
+  backend.missingWorkspaces.clear()
+  const retry = [...document.querySelectorAll('button')].find((b) => b.textContent?.includes('Try again')); assert.ok(retry)
+  await act(async () => { retry.click() }); await flush(); await flush()
+  assert.equal(storedWorkspace('alice'), 'org1'); assert.equal(backend.acceptGates.length, 1, 'one submission'); assert.deepEqual(unhandled, [])
   await page.unmount()
 })

@@ -11,12 +11,22 @@ export const backend = {
   billingGates: new Map<string, Gate>(),
   billingFailures: new Set<string>(),
   acceptFailures: new Set<string>(),
+  /** The account refresh (`me`): an optional gate it awaits, accounts whose refresh fails once, and organisations left out of the returned memberships. */
+  meGate: undefined as Gate | undefined,
+  meFailures: new Set<string>(),
+  missingWorkspaces: new Set<string>(),
   /** One gate per `acceptInvitation` call, in call order: the test decides which completion lands, and when. */
   acceptGates: [] as Gate[],
   calls: [] as string[],
-  reset() { backend.acceptGates = []; backend.calls = []; backend.reconcileGate = gate(); backend.billingGates = new Map(); backend.billingFailures = new Set(); backend.acceptFailures = new Set(); backend.reconcileAnswer = { subscription: teamsSubscription, pending: null } },
+  reset() { backend.acceptGates = []; backend.calls = []; backend.reconcileGate = gate(); backend.billingGates = new Map(); backend.billingFailures = new Set(); backend.acceptFailures = new Set(); backend.meGate = undefined; backend.meFailures = new Set(); backend.missingWorkspaces = new Set(); backend.reconcileAnswer = { subscription: teamsSubscription, pending: null } },
   client: {
-    async me() { const uid = (await import('./firebase')).auth.currentUser?.uid ?? 'nobody'; backend.calls.push(`me:${uid}`); return { uid, email: `${uid}@example.test`, emailVerified: true, projectCount: 0, plan: { key: 'free', name: 'Free' }, workspaces: [{ id: uid, kind: 'personal', name: 'Personal', role: 'owner' }, { id: 'org1', kind: 'organisation', name: 'Acme', role: 'owner', slug: 'acme' }, { id: 'org2', kind: 'organisation', name: 'Beta', role: 'owner', slug: 'beta' }], capabilities: {}, closing: null } },
+    async me() {
+      const uid = (await import('./firebase')).auth.currentUser?.uid ?? 'nobody'; backend.calls.push(`me:${uid}`)
+      if (backend.meGate) await backend.meGate.opened
+      if (backend.meFailures.delete(uid)) throw new Error('Your account could not be loaded right now.')
+      const workspaces = [{ id: uid, kind: 'personal', name: 'Personal', role: 'owner' }, { id: 'org1', kind: 'organisation', name: 'Acme', role: 'owner', slug: 'acme' }, { id: 'org2', kind: 'organisation', name: 'Beta', role: 'owner', slug: 'beta' }]
+      return { uid, email: `${uid}@example.test`, emailVerified: true, projectCount: 0, plan: { key: 'free', name: 'Free' }, workspaces: workspaces.filter((w) => !backend.missingWorkspaces.has(w.id)), capabilities: {}, closing: null }
+    },
     async usage() { const uid = (await import('./firebase')).auth.currentUser?.uid ?? 'nobody'; return { uid, meters: [] } },
     async plans() { return { plans: [] } },
     async subscription() { return { subscription: null } },
