@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode, useRef } from 'react'
 import { useAuth } from '@/contexts/auth-context'
 import { currentBackend } from '@/lib/backend/browser'
 import type { BackendInvitation, BackendMember, BackendOrganisation, BackendOrganisationBilling, BackendPlan, BackendSubscription, BackendWorkspace } from '@/lib/backend/client'
@@ -11,6 +11,7 @@ import { TypedConfirmationDialog } from './typed-confirmation-dialog'
 import { intentStore, seatsIntent, subscriptionIntent, type IntentStore } from '@/lib/backend/intent-key'
 import { pendingCommandStorage } from '@/lib/backend/pending-storage'
 import { describeSubscriptionOutcome, longDate } from '@/lib/settings/plans'
+import { principalFence } from '@/lib/settings/principal-fence'
 import { EmailCodeVerification } from '@/components/auth/email-code-verification'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { SettingsPanel, isOrganisationPage, navFor, type OrganisationSettings, type SettingsPage } from './settings-panel'
@@ -143,18 +144,13 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
   }
   const reloadBilling = async () => { await refreshAccount(); setBillingRevision((value) => value + 1) }
 
-  const perform = async (work: () => Promise<void>) => {
+  const uidRef = useRef(uid); uidRef.current = uid
+  const fenced = useMemo(() => principalFence(() => uidRef.current), [])
+  // A different account signed in: nothing the previous one was looking at or waiting for carries over.
+  useEffect(() => { setPlanChange(null); setClosingAccount(false); setMessage(null); setError(null); setBusy(false) }, [uid])
+  const perform = async (work: (live: () => boolean) => Promise<void>) => {
     if (busy) return
-    setBusy(true)
-    setError(null)
-    setMessage(null)
-    try {
-      await work()
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'The operation failed.')
-    } finally {
-      setBusy(false)
-    }
+    await fenced(work, { busy: setBusy, error: setError, message: setMessage })
   }
   const changePage = (next: SettingsPage) => { setPage(next); setMessage(null); setError(null) }
   const previewPlanChange = useCallback((planKey: string) => currentBackend().previewPlanChange(planKey), [])
@@ -175,23 +171,24 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
           verification={account && !account.emailVerified ? (
             <EmailCodeVerification email={user?.email ?? account.email} autoSend={false} onVerified={() => setMessage('Email verified.')} />
           ) : undefined}
-          onRefresh={() => void perform(refreshAccount)}
+          onRefresh={() => void perform(() => refreshAccount())}
           plan={{
             plans,
             subscription,
-            onManageBilling: () => void perform(async () => {
+            onManageBilling: () => void perform(async (live) => {
               const result = await currentBackend().billingPortal()
-              window.location.assign(result.url)
+              if (live()) window.location.assign(result.url)
             }),
-            onSubscribe: (plan) => void perform(async () => {
+            onSubscribe: (plan) => void perform(async (live) => {
               const result = await currentBackend().checkout(plan.key)
-              window.location.assign(result.url)
+              if (live()) window.location.assign(result.url)
             }),
             onChangePlan: (plan, relation) => { setError(null); setMessage(null); setPlanChange({ plan, relation }) },
-            onSetCancellation: (cancelAtPeriodEnd) => void perform(async () => {
+            onSetCancellation: (cancelAtPeriodEnd) => void perform(async (live) => {
               const result = await intend(subscriptionIntent(`cancellation:${cancelAtPeriodEnd}`), (key) => currentBackend().setCancellation(cancelAtPeriodEnd, key))
+              if (!live()) return
               await reloadBilling()
-              setMessage(describeSubscriptionOutcome(result.subscription, plans))
+              if (live()) setMessage(describeSubscriptionOutcome(result.subscription, plans))
             }),
           }}
           workspaces={workspaces}
@@ -213,10 +210,11 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
             onManageBilling: () => void perform(async () => { if (orgId) { const result = await currentBackend().organisationPortal(orgId); window.location.assign(result.url) } }),
           })}
           onCloseAccount={() => { setError(null); setMessage(null); setClosingAccount(true) }}
-          onKeepAccount={() => void perform(async () => {
+          onKeepAccount={() => void perform(async (live) => {
             await currentBackend().keepAccount()
+            if (!live()) return
             await refreshAccount()
-            setMessage('Your account stays open. Nothing was deleted.')
+            if (live()) setMessage('Your account stays open. Nothing was deleted.')
           })}
         />
         <PlanChangeDialog
@@ -224,11 +222,12 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
           busy={busy}
           preview={previewPlanChange}
           onClose={() => setPlanChange(null)}
-          onConfirm={(plan) => void perform(async () => {
+          onConfirm={(plan) => void perform(async (live) => {
             const result = await intend(subscriptionIntent(`plan:${plan.key}`), (key) => currentBackend().changePlan(plan.key, key))
+            if (!live()) return
             setPlanChange(null)
             await reloadBilling()
-            setMessage(describeSubscriptionOutcome(result.subscription, plans))
+            if (live()) setMessage(describeSubscriptionOutcome(result.subscription, plans))
           })}
         />
         <CreateOrganisationDialog open={creatingOrganisation} busy={busy} onClose={() => setCreatingOrganisation(false)}
@@ -282,11 +281,12 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
             busy={busy}
             graceDays={30}
             onClose={() => setClosingAccount(false)}
-            onConfirm={(confirmation) => void perform(async () => {
+            onConfirm={(confirmation) => void perform(async (live) => {
               const result = await currentBackend().closeAccount(confirmation)
+              if (!live()) return
               setClosingAccount(false)
               await refreshAccount()
-              setMessage(`Your account closes on ${longDate(result.closure.closesAt)}. Until then you can keep it from this page.`)
+              if (live()) setMessage(`Your account closes on ${longDate(result.closure.closesAt)}. Until then you can keep it from this page.`)
             })}
           />
         )}
