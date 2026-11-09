@@ -19,6 +19,8 @@ const workspaceStorageKey = (uid: string) => `lotusbuild.workspace.${uid}`
 type AuthState = {
   user: User | null; userData: UserData | null; account: BackendAccount | null; usage: BackendUsage | null
   loading: boolean; accountError: string | null; refreshAccount: () => Promise<void>
+  /** Counts sign-in/sign-out transitions: work started under one signed-in session must not land in the next, even for the same account. */
+  authEpoch: number
   workspaces: readonly Workspace[]; currentWorkspace: Workspace | null; switchWorkspace: (id: string) => Promise<void>
   getOptionalAuthHeader: () => Promise<Record<string, string>>
   signInWithGoogle: () => Promise<void>; signInWithGithub: () => Promise<void>
@@ -34,6 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [account, setAccount] = useState<BackendAccount | null>(null)
   const [usage, setUsage] = useState<BackendUsage | null>(null)
   const [loading, setLoading] = useState(true)
+  const [authEpoch, setAuthEpoch] = useState(0)
   const [accountError, setAccountError] = useState<string | null>(null)
   const accountRequest = useRef(0)
   const refreshAccount = useCallback(async () => {
@@ -60,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (identity) => {
       const current = ++version
       accountRequest.current++
-      setUser(identity); setAccount(null); setUsage(null); setAccountError(null); setLoading(true)
+      setUser(identity); setAccount(null); setUsage(null); setAccountError(null); setLoading(true); setAuthEpoch((value) => value + 1)
       try { if (identity) await refreshAccount() } catch { /* The explicit account error is rendered by consumers. */ }
       finally { if (current === version) setLoading(false) }
     })
@@ -91,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const identity = auth.currentUser
     return identity ? { Authorization: `Bearer ${await identity.getIdToken()}` } : {}
   }, [])
-  return <AuthContext.Provider value={{ user, userData, account, usage, loading, accountError, refreshAccount,
+  return <AuthContext.Provider value={{ user, userData, account, usage, loading, accountError, refreshAccount, authEpoch,
     workspaces, currentWorkspace, switchWorkspace,
     getOptionalAuthHeader,
     signInWithGoogle: async () => { await signInWithPopup(auth, googleProvider) },
