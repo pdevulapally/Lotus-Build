@@ -665,6 +665,11 @@ test('a Settings action belongs to the account signed in when it started: after 
   const failing = perform(async () => { await new Promise<void>((resolve) => { release = resolve }); throw new Error('declined') }, actions)
   uid = 'carol'; release(); await failing
   assert.deepEqual(seen, ['busy:true', 'error:null', 'message:null'], 'nor does A\'s failure')
+  // Same account, new signed-in session: a completion from before the sign-out is not current after sign-in.
+  uid = 'alice#1'; seen.length = 0
+  const earlier = perform(async (live) => { await new Promise<void>((resolve) => { release = resolve }); if (live()) actions.message('pre-sign-out quote confirmed') }, actions)
+  uid = 'alice#2'; release(); await earlier
+  assert.deepEqual(seen, ['busy:true', 'error:null', 'message:null'], 'the same account in a new session sees nothing from the old one')
   seen.length = 0
   await perform(async (live) => { if (live()) actions.message('done') }, actions)
   assert.deepEqual(seen, ['busy:true', 'error:null', 'message:null', 'message:done', 'busy:false'], 'the same account sees its own outcome')

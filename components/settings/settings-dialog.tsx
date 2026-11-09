@@ -45,7 +45,7 @@ export function SettingsDialogProvider({ children }: { children: ReactNode }) {
  * which stay here with the busy/message/error state they produce.
  */
 export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: { open: boolean; onOpenChange: (value: boolean) => void; initialPage?: SettingsPage }) {
-  const { user, account, usage, accountError, refreshAccount } = useAuth()
+  const { user, account, usage, accountError, refreshAccount, authEpoch } = useAuth()
   const [page, setPage] = useState<SettingsPage>(initialPage)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
@@ -82,10 +82,13 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
   }
   const reloadBilling = async () => { await refreshAccount(); setBillingRevision((value) => value + 1) }
 
-  const uidRef = useRef(uid); uidRef.current = uid
-  const fenced = useMemo(() => principalFence(() => uidRef.current), [])
+  // The signed-in session, not just the account: signing out and back in as the same account is a new principal.
+  const principal = uid === '' ? '' : `${uid}#${authEpoch}`
+  const principalRef = useRef(principal); principalRef.current = principal
+  const fenced = useMemo(() => principalFence(() => principalRef.current), [])
   // A different account signed in: nothing the previous one was looking at or waiting for carries over.
-  useEffect(() => { setPlanChange(null); setClosingAccount(false); setMessage(null); setError(null); setBusy(false) }, [uid])
+  // A new principal starts from a clean dialog: nothing the previous one saw, cached or was waiting for carries over.
+  useEffect(() => { setPlans(null); setSubscription(undefined); setPlanChange(null); setClosingAccount(false); setMessage(null); setError(null); setBusy(false) }, [principal])
   const perform = async (work: (live: () => boolean) => Promise<void>) => {
     if (busy) return
     await fenced(work, { busy: setBusy, error: setError, message: setMessage })
