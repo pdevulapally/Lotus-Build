@@ -531,15 +531,19 @@ test('asking for the desktop posts to the session and accepts only the run-stamp
   })
 })
 
-test('an operation key lives until its surface is confirmed: kept across network, 5xx, in-progress and refused answers; a success settles every unresolved intent on that surface; another target or surface is another key', async () => {
-  const { intentKey, seatsIntent, settleSurface, subscriptionIntent, withIntent } = await import('../lib/backend/intent-key')
+const memoryStorage = () => { const items = new Map<string, string>(); return { getItem: (k: string) => items.get(k) ?? null, setItem: (k: string, v: string) => { items.set(k, v) }, removeItem: (k: string) => { items.delete(k) } } }
+
+test('an operation key lives until its surface is confirmed: kept across network, 5xx, in-progress and refused answers and across a reload; a success settles the intents asked before it on that surface, never a newer one; another target, surface or account is another key', async () => {
+  const { clearIntents, intentStore, seatsIntent, subscriptionIntent } = await import('../lib/backend/intent-key')
+  const storage = memoryStorage()
+  const alice = intentStore({ uid: 'alice', storage })
   const business = subscriptionIntent('plan:business'); const pro = subscriptionIntent('plan:pro')
-  const first = intentKey(business)
-  assert.equal(intentKey(business), first, 'the same intended action keeps its key across retries')
-  assert.notEqual(intentKey(pro), first, 'another plan is another intent')
-  assert.notEqual(intentKey(seatsIntent('org1', 5)), intentKey(seatsIntent('org1', 6)), 'another seat count is another intent')
-  assert.notEqual(intentKey(seatsIntent('org1', 5)), intentKey(seatsIntent('org2', 5)), 'another organisation is another surface')
-  assert.notEqual(intentKey(subscriptionIntent('cancellation:true')), intentKey(subscriptionIntent('cancellation:false')))
+  const first = alice.key(business)
+  assert.equal(alice.key(business), first, 'the same intended action keeps its key across retries')
+  assert.notEqual(alice.key(pro), first, 'another plan is another intent')
+  assert.notEqual(alice.key(seatsIntent('org1', 5)), alice.key(seatsIntent('org1', 6)), 'another seat count is another intent')
+  assert.notEqual(alice.key(seatsIntent('org1', 5)), alice.key(seatsIntent('org2', 5)), 'another organisation is another surface')
+  assert.notEqual(alice.key(subscriptionIntent('cancellation:true')), alice.key(subscriptionIntent('cancellation:false')))
   const outcomes: unknown[] = [
     new TypeError('Failed to fetch'),
     new BackendError(503, 'billing/processing', 'Still processing'),
@@ -550,34 +554,65 @@ test('an operation key lives until its surface is confirmed: kept across network
     new BackendError(409, 'billing/too-few-seats', 'Refused'),
   ]
   for (const outcome of outcomes) {
-    await assert.rejects(withIntent(business, async () => { throw outcome }))
-    assert.equal(intentKey(business), first, `${String((outcome as Error).message)}: the server recorded no success, so the retry is the same operation`)
+    await assert.rejects(alice.run(business, async () => { throw outcome }))
+    assert.equal(alice.key(business), first, `${String((outcome as Error).message)}: the server recorded no success, so the retry is the same operation`)
   }
-  // A unknown → B confirmed → a fresh A: the lost Business attempt is superseded, never replayed.
-  const seen: string[] = []
-  await withIntent(pro, async (key) => { seen.push(key) })
-  assert.notEqual(intentKey(business), first, 'confirming Pro settles the unresolved Business attempt; choosing Business again is a new operation')
-  const seats5 = intentKey(seatsIntent('org1', 5))
-  await withIntent(subscriptionIntent('cancellation:true'), async () => undefined)
-  assert.equal(intentKey(seatsIntent('org1', 5)), seats5, 'a subscription success does not settle an organisation\'s seat intent')
+  // Reload: a new store over the same account's storage continues the same operations.
+  assert.equal(intentStore({ uid: 'alice', storage }).key(business), first, 'the key survives a page load')
+  assert.equal(intentStore({ uid: 'alice', storage }).key(seatsIntent('org1', 5)), alice.key(seatsIntent('org1', 5)))
+  // Another account on the same browser sees none of them and cannot reuse them.
+  const bob = intentStore({ uid: 'bob', storage })
+  assert.notEqual(bob.key(business), first); assert.notEqual(bob.key(seatsIntent('org1', 5)), alice.key(seatsIntent('org1', 5)))
+  assert.equal(alice.key(business), first, 'another account minting keys changes nothing for this one')
+  assert.throws(() => intentStore({ uid: '', storage }), 'no account, no intents')
+  storage.setItem('lotus-intents:carol', JSON.stringify({ uid: 'alice', next: 1, surfaces: { 'billing/subscription': { 'plan:business': { key: first, generation: 0 } } } }))
+  assert.notEqual(intentStore({ uid: 'carol', storage }).key(business), first, 'a record naming another account is not trusted')
+  storage.setItem('lotus-intents:dave', '{not json')
+  assert.ok(intentStore({ uid: 'dave', storage }).key(business), 'a malformed record is ignored')
+  // A unknown → B confirmed → a fresh A: the lost Business attempt is superseded, never replayed — also after a reload.
+  await alice.run(pro, async () => undefined)
+  assert.notEqual(alice.key(business), first, 'confirming Pro settles the unresolved Business attempt asked before it; choosing Business again is a new operation')
+  assert.notEqual(intentStore({ uid: 'alice', storage }).key(business), first, 'and nothing in storage resurrects it')
+  // A then B in flight: A's success settles only what was asked up to A. B keeps its key, retries under it,
+  // and a late duplicate of A's success cannot erase it either.
+  const a = alice.key(subscriptionIntent('plan:a')); const b = alice.key(subscriptionIntent('plan:b'))
+  await alice.run(subscriptionIntent('plan:a'), async () => undefined)
+  assert.equal(alice.key(subscriptionIntent('plan:b')), b, 'a newer unresolved action survives an older success')
+  assert.notEqual(alice.key(subscriptionIntent('plan:a')), a, 'the settled action itself is new next time')
+  alice.settle('billing/subscription', 0)
+  assert.equal(alice.key(subscriptionIntent('plan:b')), b, 'a late repeat of the older completion changes nothing for it')
+  await assert.rejects(alice.run(subscriptionIntent('plan:b'), async (key) => { assert.equal(key, b); throw new TypeError('Failed to fetch') }))
+  assert.equal(alice.key(subscriptionIntent('plan:b')), b)
+  await alice.run(subscriptionIntent('plan:b'), async (key) => { assert.equal(key, b) })
+  assert.notEqual(alice.key(subscriptionIntent('plan:b')), b, 'its own success settles it')
+  const seats5 = alice.key(seatsIntent('org1', 5))
+  await alice.run(subscriptionIntent('cancellation:true'), async () => undefined)
+  assert.equal(alice.key(seatsIntent('org1', 5)), seats5, 'a subscription success does not settle an organisation\'s seat intent')
   // Double-click: two concurrent attempts of one intent share one key.
   const keys: string[] = []
-  await Promise.all([withIntent(seatsIntent('org1', 5), async (key) => { keys.push(key) }), withIntent(seatsIntent('org1', 5), async (key) => { keys.push(key) })])
+  await Promise.all([alice.run(seatsIntent('org1', 5), async (key) => { keys.push(key) }), alice.run(seatsIntent('org1', 5), async (key) => { keys.push(key) })])
   assert.deepEqual(keys, [seats5, seats5])
-  settleSurface('billing/subscription'); settleSurface('organisation/org1/seats'); settleSurface('organisation/org2/seats')
-  // Through the client: same intent → same key and byte-identical payload; the key is validated before any request.
+  // Signing out leaves nothing of this account behind; the other account's record stays.
+  const bobSeats = bob.key(seatsIntent('org1', 5))
+  clearIntents(storage, 'alice')
+  assert.equal(storage.getItem('lotus-intents:alice'), null); assert.equal(intentStore({ uid: 'bob', storage }).key(seatsIntent('org1', 5)), bobSeats)
+  // Through the client: same intent → same key and byte-identical payload, including after a reload with
+  // the answer lost; the key is validated before any request; a change may leave no subscription.
   const calls: { url: string; init?: RequestInit }[] = []
   const client = new BackendClient({ origin: 'https://api.example.test', token: async () => 'id-token', fetch: (async (url: RequestInfo | URL, init?: RequestInit) => {
     calls.push({ url: String(url), init })
-    return new Response(JSON.stringify({ subscription: { planKey: 'business', planName: 'Business', status: 'active', cancelAtPeriodEnd: false, currentPeriodEnd: '2026-12-01T00:00:00.000Z' } }), { status: 200, headers: { 'content-type': 'application/json' } })
+    return new Response(JSON.stringify({ subscription: calls.length === 3 ? null : { planKey: 'business', status: 'active', cancelAtPeriodEnd: false, currentPeriodEnd: '2026-12-01T00:00:00.000Z' } }), { status: 200, headers: { 'content-type': 'application/json' } })
   }) as typeof fetch })
-  const key = intentKey(business)
-  await client.changePlan('business', key); await client.changePlan('business', key)
-  await client.setCancellation(true, intentKey(subscriptionIntent('cancellation:true')))
+  const key = alice.key(business)
+  await client.changePlan('business', key)
+  await client.changePlan('business', intentStore({ uid: 'alice', storage }).key(business))
+  const gone = await client.setCancellation(true, alice.key(subscriptionIntent('cancellation:true')))
+  assert.equal(gone.subscription, null, 'a change that leaves no subscription is a legitimate answer')
   assert.equal(new Headers(calls[0]!.init?.headers).get('idempotency-key'), key)
-  assert.deepEqual(calls[0], calls[1], 'a retry of the same intent is the same request')
+  assert.deepEqual(calls[0], calls[1], 'a retry of the same intent after a reload is the same request')
   assert.notEqual(new Headers(calls[2]!.init?.headers).get('idempotency-key'), key)
   assert.throws(() => client.changePlan('business', 'short'), 'an invalid key is a definite client error, sent nowhere')
   assert.equal(calls.length, 3)
-  settleSurface('billing/subscription')
+  clearIntents(storage, 'alice')
 })
+
