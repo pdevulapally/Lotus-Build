@@ -18,7 +18,7 @@ import { acceptanceKey, attachAcceptance } from '@/lib/organisations/accept-invi
 import { LogoLoader } from '@/components/ui/logo-loader'
 import { Button } from '@/components/ui/button'
 
-type Outcome = { kind: 'pending' } | { kind: 'joined'; name: string } | { kind: 'failed'; message: string }
+type Outcome = { kind: 'pending' } | { kind: 'joined'; id: string; name: string } | { kind: 'failed'; message: string }
 
 const failureCopy: Readonly<Record<string, string>> = {
   'organisation/invitation-invalid': 'This invitation link is not valid, or it was sent to a different email address. Sign in with the address that received it, or ask for a new invitation.',
@@ -68,7 +68,11 @@ function AcceptInvitation() {
           {outcome.kind === 'joined' ? 'The organisation is now one of your workspaces. Switch to it from Settings whenever you like.' : outcome.message}
         </p>
         <div className="flex justify-center gap-3">
-          {outcome.kind === 'joined' && <Button type="button" onClick={() => { openSettings('org-members'); router.replace('/') }}>Open the organisation</Button>}
+          {outcome.kind === 'joined' && (
+            <Button type="button" onClick={() => { void switchWorkspace(outcome.id).catch(() => undefined).then(() => { openSettings('org-members'); router.replace('/') }) }}>
+              Open the organisation
+            </Button>
+          )}
           <Button asChild variant={outcome.kind === 'joined' ? 'outline' : 'default'}><Link href="/">Go to my workspace</Link></Button>
         </div>
       </section>
