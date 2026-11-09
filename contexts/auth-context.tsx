@@ -23,6 +23,8 @@ type AuthState = {
   authEpoch: number
   /** The signed-in principal (`uid#authEpoch`) as it is *now* — read through a ref, so a continuation started before an unmount or a sign-in still sees the live value. */
   principal: () => string
+  /** The models the *current workspace's* plan allows — an organisation's for its members, the account's own otherwise; `null` while unknown. */
+  models: readonly BackendAccount['models'][number][] | null
   workspaces: readonly Workspace[]; currentWorkspace: Workspace | null; switchWorkspace: (id: string, available?: readonly Workspace[]) => Promise<void>
   getOptionalAuthHeader: () => Promise<Record<string, string>>
   signInWithGoogle: () => Promise<void>; signInWithGithub: () => Promise<void>
@@ -92,6 +94,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (workspaces.length === 0) return null
     return workspaces.find((workspace) => workspace.id === selectedWorkspaceId) ?? workspaces.find((workspace) => workspace.kind === 'personal') ?? workspaces[0] ?? null
   }, [workspaces, selectedWorkspaceId])
+  // Workspace models are keyed to the principal and workspace that asked: cleared before the request, and a
+  // response that arrives after either changed is dropped, so one workspace's models are never shown under another.
+  const [organisationModels, setOrganisationModels] = useState<{ key: string; models: BackendAccount['models'] } | null>(null)
+  useEffect(() => {
+    if (!account || currentWorkspace?.kind !== 'organisation') { setOrganisationModels(null); return }
+    const key = `${principalRef.current}:${currentWorkspace.id}`
+    setOrganisationModels(null)
+    const controller = new AbortController()
+    currentBackend().models(controller.signal, currentWorkspace.id)
+      .then((result) => { if (!controller.signal.aborted && key === `${principalRef.current}:${currentWorkspace.id}`) setOrganisationModels({ key, models: result.models }) })
+      .catch(() => { /* unknown stays unknown: the composer offers nothing rather than another workspace's models */ })
+    return () => controller.abort()
+  }, [account, currentWorkspace])
+  const models = useMemo<BackendAccount['models'] | null>(() => {
+    if (!account || !currentWorkspace) return null
+    if (currentWorkspace.kind !== 'organisation') return account.models
+    return organisationModels?.key === `${principalRef.current}:${currentWorkspace.id}` ? organisationModels.models : null
+  }, [account, currentWorkspace, organisationModels])
   // Read through refs: a caller that refreshed the account a moment ago (an organisation just created or joined)
   // must see the refreshed memberships, not the ones its closure captured.
   const current = useRef({ account, workspaces }); current.current = { account, workspaces }
@@ -111,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return identity ? { Authorization: `Bearer ${await identity.getIdToken()}` } : {}
   }, [])
   return <AuthContext.Provider value={{ user, userData, account, usage, loading, accountError, refreshAccount, authEpoch, principal,
-    workspaces, currentWorkspace, switchWorkspace,
+    models, workspaces, currentWorkspace, switchWorkspace,
     getOptionalAuthHeader,
     signInWithGoogle: async () => { await signInWithPopup(auth, googleProvider) },
     signInWithGithub: async () => { await signInWithPopup(auth, githubProvider) },

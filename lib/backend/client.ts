@@ -97,6 +97,7 @@ export type BackendSeatRecovery = z.infer<typeof seatRecoverySchema>
 const organisationName = z.string().trim().min(2).max(80)
 const assignableRole = z.enum(['admin', 'member'])
 const invitationToken = z.string().regex(/^[A-Za-z0-9_-]{43}$/)
+const modelSchema = z.object({ id: z.string(), name: z.string().min(1), efforts: z.array(z.enum(['low', 'standard', 'high', 'xhigh'])), maxOutputTokens: z.number().int().positive() })
 export const accountSchema = z.object({
   uid: z.string().min(1), email: z.string(), emailVerified: z.boolean(), displayName: z.string().optional(),
   photoUrl: z.string().optional(), projectCount: z.number().int().nonnegative(),
@@ -109,10 +110,12 @@ export const accountSchema = z.object({
   capabilities: z.array(capabilitySchema), limits: z.array(z.object({
     meterKey: z.string(), includedAllowance: z.number(), hardLimit: z.number(), overageEnabled: z.boolean(),
   })),
-  models: z.array(z.object({ id: z.string(), name: z.string().min(1), efforts: z.array(z.enum(['low', 'standard', 'high', 'xhigh'])), maxOutputTokens: z.number().int().positive() })),
+  models: z.array(modelSchema),
 })
 // Builds are unlimited by count; the server says so explicitly rather than sending a zero.
 const allowanceQuantity = z.union([z.number(), z.literal('unlimited')])
+export const workspaceModelsSchema = z.object({ workspaceId: z.string(), plan: z.object({ key: z.string(), name: z.string() }), models: z.array(modelSchema) })
+export type BackendWorkspaceModels = z.infer<typeof workspaceModelsSchema>
 export const usageSchema = z.object({ uid: z.string(), plan: z.object({ key: z.string(), name: z.string() }),
   meters: z.array(z.object({ meterKey: z.string(), unit: z.string(), label: z.string(),
     kind: z.enum(['COUNTER', 'GAUGE']), resetPeriod: z.enum(['NEVER', 'DAILY', 'MONTHLY']),
@@ -269,6 +272,10 @@ export class BackendClient {
   verifyEmailCode(code: string) {
     const body = z.object({ code: z.string().regex(/^[0-9]{6}$/) }).strict().parse({ code })
     return this.json(emailVerificationResultSchema, '/auth/email-verification/verify', { method: 'POST', body })
+  }
+  /** The models a workspace's plan allows: the caller's own by default, or an organisation they belong to. */
+  models(signal?: AbortSignal, workspaceId?: string) {
+    return this.json(workspaceModelsSchema, `/me/models${workspaceId === undefined ? '' : `?workspace=${workspaceIdSchema.parse(workspaceId)}`}`, { signal })
   }
   /** Usage for the caller's own workspace, or for an organisation they belong to. */
   usage(signal?: AbortSignal, workspaceId?: string) {

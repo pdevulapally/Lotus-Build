@@ -731,3 +731,19 @@ test('a Settings action belongs to the account signed in when it started: after 
   await perform(async () => { throw new Error('declined') }, actions)
   assert.deepEqual(seen, ['busy:true', 'error:null', 'message:null', 'error:declined', 'busy:false'])
 })
+
+test('the models of a workspace come from /me/models for that workspace and are validated', async () => {
+  const requested: string[] = []
+  const model = { id: 'large', name: 'Large', efforts: ['standard', 'high'], maxOutputTokens: 4000 }
+  const client = new BackendClient({ origin: 'https://api.example.test', token: async () => 'token', fetch: async (input) => {
+    const url = new URL(String(input)); requested.push(url.pathname + url.search)
+    return Response.json({ workspaceId: url.searchParams.get('workspace') ?? 'alice', plan: { key: 'teams', name: 'Teams' }, models: [model] })
+  } })
+  assert.equal((await client.models(undefined, 'org-1')).models[0]!.id, 'large')
+  assert.equal((await client.models()).workspaceId, 'alice')
+  assert.deepEqual(requested, ['/me/models?workspace=org-1', '/me/models'])
+  await assert.rejects(async () => client.models(undefined, 'not a workspace id'), 'the workspace id is validated before the request')
+  const rejecting = new BackendClient({ origin: 'https://api.example.test', token: async () => 'token', fetch: async () =>
+    Response.json({ workspaceId: 'org-1', plan: { key: 'teams', name: 'Teams' }, models: [{ ...model, efforts: ['extreme'] }] }) })
+  await assert.rejects(rejecting.models(undefined, 'org-1'), 'an unknown effort fails validation')
+})
