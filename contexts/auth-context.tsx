@@ -18,10 +18,10 @@ export type Workspace = BackendWorkspace
 const workspaceStorageKey = (uid: string) => `lotusbuild.workspace.${uid}`
 type AuthState = {
   user: User | null; userData: UserData | null; account: BackendAccount | null; usage: BackendUsage | null
-  loading: boolean; accountError: string | null; refreshAccount: () => Promise<void>
+  loading: boolean; accountError: string | null; refreshAccount: () => Promise<BackendAccount | undefined>
   /** Counts sign-in/sign-out transitions: work started under one signed-in session must not land in the next, even for the same account. */
   authEpoch: number
-  workspaces: readonly Workspace[]; currentWorkspace: Workspace | null; switchWorkspace: (id: string) => Promise<void>
+  workspaces: readonly Workspace[]; currentWorkspace: Workspace | null; switchWorkspace: (id: string, available?: readonly Workspace[]) => Promise<void>
   getOptionalAuthHeader: () => Promise<Record<string, string>>
   signInWithGoogle: () => Promise<void>; signInWithGithub: () => Promise<void>
   signInWithEmail: (email: string, password: string) => Promise<void>
@@ -50,6 +50,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (auth.currentUser !== identity || request !== accountRequest.current) return
       if (nextAccount.uid !== identity.uid || nextUsage.uid !== identity.uid) throw new Error('The server returned data for a different account.')
       setAccount(nextAccount); setUsage(nextUsage); setAccountError(null)
+      // Handed back as well as set: state lands on the next render, and a caller about to select a workspace
+      // the refresh just revealed must not have to check a list captured before it.
+      return nextAccount
     } catch (error) {
       if (auth.currentUser === identity && request === accountRequest.current) {
         setAccount(null); setUsage(null)
@@ -87,8 +90,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Read through refs: a caller that refreshed the account a moment ago (an organisation just created or joined)
   // must see the refreshed memberships, not the ones its closure captured.
   const current = useRef({ account, workspaces }); current.current = { account, workspaces }
-  const switchWorkspace = useCallback(async (id: string) => {
-    const { account: signedIn, workspaces: available } = current.current
+  const switchWorkspace = useCallback(async (id: string, fresh?: readonly Workspace[]) => {
+    const { account: signedIn, workspaces: rendered } = current.current
+    const available = fresh ?? rendered
     if (!signedIn) throw new Error('Sign in to switch workspaces.')
     if (!available.some((workspace) => workspace.id === id)) throw new Error('That workspace is not available to this account.')
     setSelectedWorkspaceId(id)
@@ -107,7 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signUpWithEmail: async (email, password) => { await createUserWithEmailAndPassword(auth, email, password) },
     sendPasswordResetEmail: async (email) => { await sendPasswordResetEmail(auth, email) },
     signOut: async () => { await firebaseSignOut(auth) },
-    updateTokensUsed: refreshAccount,
+    updateTokensUsed: async () => { await refreshAccount() },
     hasTokens: (required) => required === 0 && account !== null,
     remainingTokens: null,
   }}>{children}</AuthContext.Provider>

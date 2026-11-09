@@ -560,7 +560,7 @@ test('workspace-scoped requests name the organisation only when one is selected,
 const memoryStorage = () => { const items = new Map<string, string>(); return { getItem: (k: string) => items.get(k) ?? null, setItem: (k: string, v: string) => { items.set(k, v) }, removeItem: (k: string) => { items.delete(k) } } }
 
 test('an operation key lives until its surface is confirmed: kept across network, 5xx, in-progress and refused answers and across a reload; a success settles the intents asked before it on that surface, never a newer one; another target, surface or account is another key', async () => {
-  const { createOrganisationIntent, intentStore, seatsIntent, subscriptionIntent } = await import('../lib/backend/intent-key')
+  const { createOrganisationIntent, intentStore, organisationName, seatsIntent, subscriptionIntent } = await import('../lib/backend/intent-key')
   const storage = memoryStorage()
   const alice = intentStore({ uid: 'alice', storage })
   const business = subscriptionIntent('plan:business'); const pro = subscriptionIntent('plan:pro')
@@ -683,10 +683,17 @@ test('an operation key lives until its surface is confirmed: kept across network
   assert.equal(new Headers(calls[0]!.init?.headers).get('idempotency-key'), key)
   assert.deepEqual(calls[0], calls[1], 'a retry of the same intent after a reload is the same request')
   assert.notEqual(new Headers(calls[2]!.init?.headers).get('idempotency-key'), key)
-  await client.createOrganisation('Acme Ltd', alice.key(createOrganisationIntent('Acme Ltd'))).catch(() => undefined)
-  assert.equal(new Headers(calls.at(-1)!.init?.headers).get('idempotency-key'), intentStore({ uid: 'alice', storage }).key(createOrganisationIntent('acme ltd ')),
-    'creating an organisation of one name is one operation across confirmations and reloads, whatever the spacing or case')
-  assert.notEqual(alice.key(createOrganisationIntent('Acme Ltd')), alice.key(createOrganisationIntent('Acme Labs')))
+  await client.createOrganisation(organisationName(' Acme Ltd '), alice.key(createOrganisationIntent(' Acme Ltd '))).catch(() => undefined)
+  assert.equal(new Headers(calls.at(-1)!.init?.headers).get('idempotency-key'), intentStore({ uid: 'alice', storage }).key(createOrganisationIntent('Acme Ltd')),
+    'creating an organisation of one name is one operation across confirmations and reloads, whatever the surrounding spacing')
+  assert.equal(JSON.parse(String(calls.at(-1)!.init?.body)).name, 'Acme Ltd', 'the name sent is the trimmed one, so a retry is byte-identical')
+  assert.notEqual(alice.key(createOrganisationIntent('Acme Ltd')), alice.key(createOrganisationIntent('acme ltd')), 'a case-edited name is a distinct operation, not a conflicting payload under the same key')
+  // Separate creations are independent operations: B's success settles B alone; unknown A keeps its key for its retry.
+  const keyA = alice.key(createOrganisationIntent('Alpha'))
+  await alice.run(createOrganisationIntent('Beta'), async () => 'created')
+  assert.equal(alice.key(createOrganisationIntent('Alpha')), keyA, 'Beta succeeding does not supersede Alpha, whose outcome is still unknown')
+  await alice.run(createOrganisationIntent('Alpha'), async () => 'created')
+  assert.notEqual(alice.key(createOrganisationIntent('Alpha')), keyA, 'a genuinely new Alpha after Alpha succeeded is a new operation')
   calls.pop()
   await client.changeSeats('org1', 5, alice.key(seatsIntent('org1', 5))).catch(() => undefined) // the stub answers with a personal subscription; the request itself is what is checked here
   assert.equal(new Headers(calls[3]!.init?.headers).get('idempotency-key'), intentStore({ uid: 'alice', storage }).key(seatsIntent('org1', 5)), 'a seat change carries the key of its intended seat count, also after a reload')

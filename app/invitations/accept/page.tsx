@@ -14,6 +14,7 @@ import { currentBackend } from '@/lib/backend/browser'
 import { BackendError } from '@/lib/backend/client'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { useSettingsDialog } from '@/components/settings/settings-dialog'
+import { acceptInvitation } from '@/lib/organisations/accept-invitation'
 import { LogoLoader } from '@/components/ui/logo-loader'
 import { Button } from '@/components/ui/button'
 
@@ -32,29 +33,32 @@ const failureCopy: Readonly<Record<string, string>> = {
 function AcceptInvitation() {
   const params = useSearchParams()
   const router = useRouter()
-  const { account, refreshAccount, switchWorkspace } = useAuth()
+  const { account, authEpoch, refreshAccount, switchWorkspace } = useAuth()
   const { openSettings } = useSettingsDialog()
   const [outcome, setOutcome] = useState<Outcome>({ kind: 'pending' })
-  const attempted = useRef(false)
+  const principal = account ? `${account.uid}#${authEpoch}` : ''
+  const current = useRef(principal); current.current = principal
+  const attempted = useRef('')
   const orgId = params.get('organisation')
   const token = params.get('token')
 
   useEffect(() => {
-    if (attempted.current || !account) return
-    attempted.current = true
+    // One attempt per signed-in principal: the same account signed in again is a new one.
+    if (principal === '' || attempted.current === principal) return
+    attempted.current = principal
     if (!orgId || !token) { setOutcome({ kind: 'failed', message: failureCopy['organisation/invitation-invalid']! }); return }
-    void (async () => {
-      try {
-        const organisation = await currentBackend().acceptInvitation(orgId, token)
-        await refreshAccount()
-        setOutcome({ kind: 'joined', name: organisation.name })
-        await switchWorkspace(organisation.id).catch(() => undefined)
-      } catch (reason) {
-        const code = reason instanceof BackendError ? reason.code : ''
-        setOutcome({ kind: 'failed', message: failureCopy[code] ?? (reason instanceof Error ? reason.message : 'The invitation could not be accepted.') })
-      }
-    })()
-  }, [account, orgId, token, refreshAccount, switchWorkspace])
+    void acceptInvitation({
+      principal: () => current.current,
+      accept: () => currentBackend().acceptInvitation(orgId, token),
+      refresh: refreshAccount,
+      select: switchWorkspace,
+      report: (result) => {
+        if (result.kind === 'joined') { setOutcome(result); return }
+        const code = result.reason instanceof BackendError ? result.reason.code : ''
+        setOutcome({ kind: 'failed', message: failureCopy[code] ?? (result.reason instanceof Error ? result.reason.message : 'The invitation could not be accepted.') })
+      },
+    })
+  }, [principal, orgId, token, refreshAccount, switchWorkspace])
 
   if (outcome.kind === 'pending') return <LogoLoader label="Checking your invitation…" />
   return (
