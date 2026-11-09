@@ -8,7 +8,7 @@ import { can } from '@/lib/settings/organisations'
 import { CreateOrganisationDialog } from './organisation/create-organisation-dialog'
 import { InviteMemberDialog } from './organisation/invite-member-dialog'
 import { TypedConfirmationDialog } from './typed-confirmation-dialog'
-import { createOrganisationIntent, intentStore, seatsIntent, subscriptionIntent, type IntentStore } from '@/lib/backend/intent-key'
+import { createOrganisationIntent, intentStore, organisationName, seatsIntent, subscriptionIntent, type IntentStore } from '@/lib/backend/intent-key'
 import { pendingCommandStorage } from '@/lib/backend/pending-storage'
 import { describeSubscriptionOutcome, longDate } from '@/lib/settings/plans'
 import { principalFence } from '@/lib/settings/principal-fence'
@@ -174,7 +174,7 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
           verification={account && !account.emailVerified ? (
             <EmailCodeVerification email={user?.email ?? account.email} autoSend={false} onVerified={() => setMessage('Email verified.')} />
           ) : undefined}
-          onRefresh={() => void perform(() => refreshAccount())}
+          onRefresh={() => void perform(async () => { await refreshAccount() })}
           plan={{
             plans,
             subscription,
@@ -235,12 +235,12 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
         />
         <CreateOrganisationDialog open={creatingOrganisation} busy={busy} onClose={() => setCreatingOrganisation(false)}
           onCreate={(name) => void perform(async (live) => {
-            const created = await intend(createOrganisationIntent(name), (key) => currentBackend().createOrganisation(name, key))
+            const created = await intend(createOrganisationIntent(name), (key) => currentBackend().createOrganisation(organisationName(name), key))
             if (!live()) return
             setCreatingOrganisation(false)
-            await refreshAccount()
+            const fresh = await refreshAccount()
             if (!live()) return
-            await switchWorkspace(created.id)
+            await switchWorkspace(created.id, fresh?.workspaces)
             if (!live()) return
             setPage('org-members')
             setMessage(`${created.name} is ready. Invite your team, then choose the Teams plan.`)

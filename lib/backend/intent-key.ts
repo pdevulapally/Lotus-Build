@@ -92,5 +92,10 @@ export type IntentStore = ReturnType<typeof intentStore>
 
 export const subscriptionIntent = (action: string): Intent => ({ surface: 'billing/subscription', action })
 export const seatsIntent = (orgId: string, seats: number): Intent => ({ surface: `organisation/${orgId}/seats`, action: `seats:${seats}` })
-/** Creating an organisation of this name is one intended action, however many times the confirmation is retried. */
-export const createOrganisationIntent = (name: string): Intent => ({ surface: 'organisation/create', action: `name:${name.trim().toLowerCase()}` })
+/**
+ * Creating an organisation of this exact name is one operation, however many times its confirmation is
+ * retried — and a different name is a different operation on its own surface, so one creation's success
+ * never settles another's unknown outcome. The name sent is the trimmed one, so a retry is byte-identical.
+ */
+export const organisationName = (name: string): string => name.trim()
+export const createOrganisationIntent = (name: string): Intent => ({ surface: `organisation/create/${organisationName(name)}`, action: 'create' })

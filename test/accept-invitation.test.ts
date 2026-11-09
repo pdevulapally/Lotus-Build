@@ -1,0 +1,64 @@
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import { acceptInvitation, type AcceptOutcome } from '../lib/organisations/accept-invitation'
+
+const gate = () => { let open!: () => void; const opened = new Promise<void>((resolve) => { open = resolve }); return { open, opened } }
+
+function harness(principal: { current: string }) {
+  const accepted = gate(), refreshed = gate()
+  const reports: AcceptOutcome[] = []
+  const selected: { id: string; available?: readonly { id: string }[] }[] = []
+  let refreshes = 0
+  const run = acceptInvitation({
+    principal: () => principal.current,
+    accept: async () => { await accepted.opened; return { id: 'org-1', name: 'Acme' } },
+    refresh: async () => { refreshes++; await refreshed.opened; return { workspaces: [{ id: 'alice' }, { id: 'org-1' }] } },
+    select: async (id, available) => { selected.push({ id, available }) },
+    report: (outcome) => reports.push(outcome),
+  })
+  return { run, accepted, refreshed, reports, selected, refreshes: () => refreshes }
+}
+
+test('a normal acceptance reports joined after the refresh and selects the organisation from the refreshed workspaces', async () => {
+  const principal = { current: 'alice#1' }
+  const h = harness(principal)
+  h.accepted.open(); h.refreshed.open()
+  await h.run
+  assert.deepEqual(h.reports, [{ kind: 'joined', name: 'Acme' }])
+  assert.deepEqual(h.selected, [{ id: 'org-1', available: [{ id: 'alice' }, { id: 'org-1' }] }])
+})
+
+test('the account switches to Bob while Alice\'s acceptance is in flight: nothing is refreshed, reported or selected for Bob', async () => {
+  const principal = { current: 'alice#1' }
+  const h = harness(principal)
+  principal.current = 'bob#2'
+  h.accepted.open(); h.refreshed.open()
+  await h.run
+  assert.deepEqual(h.reports, []); assert.deepEqual(h.selected, []); assert.equal(h.refreshes(), 0)
+})
+
+test('Alice signs out and back in during the refresh: the same uid under a new epoch is not the principal that started, so the late completion selects nothing', async () => {
+  const principal = { current: 'alice#1' }
+  const h = harness(principal)
+  h.accepted.open()
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  assert.equal(h.refreshes(), 1, 'the refresh began under the original principal')
+  principal.current = 'alice#2'
+  h.refreshed.open()
+  await h.run
+  assert.deepEqual(h.reports, []); assert.deepEqual(h.selected, [])
+})
+
+test('a failure that arrives after the principal changed is not reported to the new one; one that arrives for the same principal is', async () => {
+  const principal = { current: 'alice#1' }
+  const reports: AcceptOutcome[] = []
+  const deps = { principal: () => principal.current, refresh: async () => undefined, select: async () => undefined, report: (outcome: AcceptOutcome) => reports.push(outcome) }
+  const stale = gate()
+  const late = acceptInvitation({ ...deps, accept: async () => { await stale.opened; throw new Error('invitation expired') } })
+  principal.current = 'bob#2'
+  stale.open(); await late
+  assert.equal(reports.length, 0)
+  principal.current = 'alice#1'
+  await acceptInvitation({ ...deps, accept: async () => { throw new Error('invitation expired') } })
+  assert.deepEqual(reports.map((outcome) => outcome.kind), ['failed'])
+})
