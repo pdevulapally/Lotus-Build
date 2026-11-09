@@ -267,8 +267,8 @@ export class BackendClient {
   subscription(signal?: AbortSignal) { return this.json(z.object({ subscription: subscriptionSchema.nullable() }), '/billing/subscription', { signal }) }
   previewPlanChange(key: string) { return this.json(z.object({ planKey: z.string(), amountDueMinor: z.number().int(), currency: z.string().regex(/^[a-z]{3}$/), appliesNow: z.boolean() }),
     '/billing/subscription/preview', { method: 'POST', body: { planKey: planKey.parse(key) } }) }
-  changePlan(key: string) { return this.json(z.object({ subscription: subscriptionSchema }), '/billing/subscription', { method: 'POST', body: { planKey: planKey.parse(key) } }) }
-  setCancellation(cancelAtPeriodEnd: boolean) { return this.json(z.object({ subscription: subscriptionSchema }), '/billing/subscription/cancellation', { method: 'POST', body: { cancelAtPeriodEnd } }) }
+  changePlan(key: string, operationKey: string) { return this.json(z.object({ subscription: subscriptionSchema }), '/billing/subscription', { method: 'POST', body: { planKey: planKey.parse(key) }, key: keySchema.parse(operationKey) }) }
+  setCancellation(cancelAtPeriodEnd: boolean, operationKey: string) { return this.json(z.object({ subscription: subscriptionSchema }), '/billing/subscription/cancellation', { method: 'POST', body: { cancelAtPeriodEnd }, key: keySchema.parse(operationKey) }) }
   createOrganisation(name: string, key: string) { return this.json(organisationSchema, '/organisations', { method: 'POST', body: { name: organisationName.parse(name) }, key }) }
   organisation(orgId: string, signal?: AbortSignal) { return this.json(organisationSchema, `/organisations/${id.parse(orgId)}`, { signal }) }
   renameOrganisation(orgId: string, name: string) { return this.json(organisationSchema, `/organisations/${id.parse(orgId)}`, { method: 'PATCH', body: { name: organisationName.parse(name) } }) }
@@ -284,7 +284,7 @@ export class BackendClient {
   acceptInvitation(orgId: string, token: string) { return this.json(organisationSchema, `/organisations/${id.parse(orgId)}/invitations/accept`, { method: 'POST', body: { token: invitationToken.parse(token) } }) }
   organisationBilling(orgId: string, signal?: AbortSignal) { return this.json(organisationBillingSchema, `/organisations/${id.parse(orgId)}/billing`, { signal }) }
   organisationCheckout(orgId: string, key: string, seats: number) { return this.json(z.object({ url: z.url().startsWith('https://') }), `/organisations/${id.parse(orgId)}/billing/checkout`, { method: 'POST', body: { planKey: planKey.parse(key), seats: z.number().int().min(1).max(500).parse(seats) } }) }
-  changeSeats(orgId: string, seats: number) { return this.json(z.object({ subscription: organisationSubscriptionSchema }), `/organisations/${id.parse(orgId)}/billing/seats`, { method: 'POST', body: { seats: z.number().int().min(1).max(500).parse(seats) } }) }
+  changeSeats(orgId: string, seats: number, operationKey: string) { return this.json(z.object({ subscription: organisationSubscriptionSchema }), `/organisations/${id.parse(orgId)}/billing/seats`, { method: 'POST', body: { seats: z.number().int().min(1).max(500).parse(seats) }, key: keySchema.parse(operationKey) }) }
   organisationPortal(orgId: string) { return this.json(z.object({ url: z.url().startsWith('https://') }), `/organisations/${id.parse(orgId)}/billing/portal`, { method: 'POST' }) }
   closeAccount(confirmation: string) { return this.json(z.object({ closure: closureSchema }), '/me/close', { method: 'POST', body: { confirmation: z.string().min(3).max(320).parse(confirmation) } }) }
   async keepAccount(): Promise<void> { await this.response('/me/close', { method: 'DELETE' }) }
