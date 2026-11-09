@@ -10,7 +10,11 @@ import { z } from 'zod'
  * server from the same key: a seat change pins the organisation under its key, and only a retry
  * carrying that key may follow the pinned operation. A retry with another key is refused while
  * the pin stands unless the provider already holds the pinned quantity, so a key lost to a
- * reload could strand the action — hence the key lives in storage scoped to the account.
+ * reload could strand the action — hence the key lives in storage scoped to the account, and it
+ * stays there through sign-out: the record holds opaque operation ids and nothing else, only a
+ * store for that same account reads it, and signing back in resumes the operation. Recovery is
+ * therefore bound to this browser; another browser has no key, and the server has no key-less
+ * reconciliation for an operation that never reached the provider.
  *
  * Intents are grouped by the surface they change (one subscription, one organisation's seats),
  * and each key remembers the generation it was minted in. A confirmed success settles every
@@ -30,9 +34,12 @@ type IntentRecord = z.infer<typeof recordSchema>
 
 const storageKey = (uid: string) => `lotus-intents:${uid}`
 
+// A record that cannot be read as one is ignored; storage refusing to answer (two records that
+// disagree) is not: no key is minted over operations whose identities are in doubt.
 const read = ({ uid, storage }: IntentScope): IntentRecord => {
+  const raw = storage.getItem(storageKey(uid))
   try {
-    const parsed = recordSchema.safeParse(JSON.parse(storage.getItem(storageKey(uid)) ?? ''))
+    const parsed = recordSchema.safeParse(JSON.parse(raw ?? ''))
     if (parsed.success && parsed.data.uid === uid) return parsed.data
   } catch {}
   return { uid, next: 0, surfaces: {} }
@@ -41,8 +48,6 @@ const read = ({ uid, storage }: IntentScope): IntentRecord => {
 // The record stays once written, even with nothing unresolved: the generation counter must never
 // restart, or a completion arriving late could settle an operation minted after it.
 const write = ({ uid, storage }: IntentScope, record: IntentRecord): void => { storage.setItem(storageKey(uid), JSON.stringify(record)) }
-
-export const clearIntents = (storage: Storage, uid: string): void => { storage.removeItem(storageKey(uid)) }
 
 export const intentStore = (scope: IntentScope) => {
   if (scope.uid.length === 0) throw new Error('Intents belong to a signed-in account.')

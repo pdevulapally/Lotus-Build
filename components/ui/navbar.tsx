@@ -1,7 +1,5 @@
 "use client"
 
-import { clearIntents } from "@/lib/backend/intent-key"
-import { pendingCommandStorage } from "@/lib/backend/pending-storage"
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -47,7 +45,7 @@ export function Navbar() {
   const active = (href: string) => !href.includes('#') && pathname === href
   const exit = async () => {
     setSigningOut(true); setError(null)
-    try { if (user) clearIntents(pendingCommandStorage(), user.uid); await signOut() }
+    try { await signOut() }
     catch { setError("Could not sign out. Try again.") }
     finally { setSigningOut(false) }
   }

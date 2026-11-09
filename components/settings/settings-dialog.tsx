@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode, useRef } from 'react'
 import { useAuth } from '@/contexts/auth-context'
 import { currentBackend } from '@/lib/backend/browser'
 import type { BackendInvitation, BackendMember, BackendOrganisation, BackendOrganisationBilling, BackendPlan, BackendSubscription, BackendUsage, BackendWorkspace } from '@/lib/backend/client'
@@ -11,6 +11,7 @@ import { TypedConfirmationDialog } from './typed-confirmation-dialog'
 import { intentStore, seatsIntent, subscriptionIntent, type IntentStore } from '@/lib/backend/intent-key'
 import { pendingCommandStorage } from '@/lib/backend/pending-storage'
 import { describeSubscriptionOutcome, longDate } from '@/lib/settings/plans'
+import { principalFence } from '@/lib/settings/principal-fence'
 import { EmailCodeVerification } from '@/components/auth/email-code-verification'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { SettingsPanel, isOrganisationPage, navFor, type OrganisationSettings, type SettingsPage } from './settings-panel'
@@ -147,18 +148,13 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
   }
   const reloadBilling = async () => { await refreshAccount(); setBillingRevision((value) => value + 1) }
 
-  const perform = async (work: () => Promise<void>) => {
+  const uidRef = useRef(uid); uidRef.current = uid
+  const fenced = useMemo(() => principalFence(() => uidRef.current), [])
+  // A different account signed in: nothing the previous one was looking at or waiting for carries over.
+  useEffect(() => { setPlanChange(null); setClosingAccount(false); setCreatingOrganisation(false); setInviting(false); setDeletingOrganisation(false); setRemoving(null); setMessage(null); setError(null); setBusy(false) }, [uid])
+  const perform = async (work: (live: () => boolean) => Promise<void>) => {
     if (busy) return
-    setBusy(true)
-    setError(null)
-    setMessage(null)
-    try {
-      await work()
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'The operation failed.')
-    } finally {
-      setBusy(false)
-    }
+    await fenced(work, { busy: setBusy, error: setError, message: setMessage })
   }
   const changePage = (next: SettingsPage) => { setPage(next); setMessage(null); setError(null) }
   const previewPlanChange = useCallback((planKey: string) => currentBackend().previewPlanChange(planKey), [])
@@ -179,48 +175,50 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
           verification={account && !account.emailVerified ? (
             <EmailCodeVerification email={user?.email ?? account.email} autoSend={false} onVerified={() => setMessage('Email verified.')} />
           ) : undefined}
-          onRefresh={() => void perform(async () => { await refreshAccount(); if (orgId !== null) setOrgRevision((value) => value + 1) })}
+          onRefresh={() => void perform(async (live) => { await refreshAccount(); if (live() && orgId !== null) setOrgRevision((value) => value + 1) })}
           plan={{
             plans,
             subscription,
-            onManageBilling: () => void perform(async () => {
+            onManageBilling: () => void perform(async (live) => {
               const result = await currentBackend().billingPortal()
-              window.location.assign(result.url)
+              if (live()) window.location.assign(result.url)
             }),
-            onSubscribe: (plan) => void perform(async () => {
+            onSubscribe: (plan) => void perform(async (live) => {
               const result = await currentBackend().checkout(plan.key)
-              window.location.assign(result.url)
+              if (live()) window.location.assign(result.url)
             }),
             onChangePlan: (plan, relation) => { setError(null); setMessage(null); setPlanChange({ plan, relation }) },
-            onSetCancellation: (cancelAtPeriodEnd) => void perform(async () => {
+            onSetCancellation: (cancelAtPeriodEnd) => void perform(async (live) => {
               const result = await intend(subscriptionIntent(`cancellation:${cancelAtPeriodEnd}`), (key) => currentBackend().setCancellation(cancelAtPeriodEnd, key))
+              if (!live()) return
               await reloadBilling()
-              setMessage(describeSubscriptionOutcome(result.subscription, plans))
+              if (live()) setMessage(describeSubscriptionOutcome(result.subscription, plans))
             }),
           }}
           workspaces={workspaces}
           workspace={currentWorkspace}
-          onSelectWorkspace={(workspace: BackendWorkspace) => void perform(async () => { await switchWorkspace(workspace.id) })}
+          onSelectWorkspace={(workspace: BackendWorkspace) => void perform(() => switchWorkspace(workspace.id))}
           onCreateOrganisation={() => { setError(null); setMessage(null); setCreatingOrganisation(true) }}
           organisation={organisationSettings({
             organisation, members, invitations, billing: orgBilling, usage: orgUsage, currentUid: account?.uid ?? '',
-            onRename: (name) => void perform(async () => { if (orgId) { await currentBackend().renameOrganisation(orgId, name); await reloadOrganisation(); setMessage('Organisation renamed.') } }),
-            onTransfer: (uid) => void perform(async () => { if (orgId) { await currentBackend().transferOwnership(orgId, uid); await reloadOrganisation(); setMessage('Ownership transferred. You are now an admin.') } }),
-            onLeave: () => void perform(async () => { if (orgId) { await currentBackend().leaveOrganisation(orgId); const personal = workspaces.find((w) => w.kind === 'personal'); if (personal) await switchWorkspace(personal.id); await refreshAccount(); setMessage('You left the organisation.') } }),
+            onRename: (name) => void perform(async (live) => { if (orgId) { await currentBackend().renameOrganisation(orgId, name); if (!live()) return; await reloadOrganisation(); setMessage('Organisation renamed.') } }),
+            onTransfer: (uid) => void perform(async (live) => { if (orgId) { await currentBackend().transferOwnership(orgId, uid); if (!live()) return; await reloadOrganisation(); setMessage('Ownership transferred. You are now an admin.') } }),
+            onLeave: () => void perform(async (live) => { if (orgId) { await currentBackend().leaveOrganisation(orgId); if (!live()) return; const personal = workspaces.find((w) => w.kind === 'personal'); if (personal) await switchWorkspace(personal.id); await refreshAccount(); setMessage('You left the organisation.') } }),
             onDelete: () => { setError(null); setMessage(null); setDeletingOrganisation(true) },
             onInvite: () => { setError(null); setMessage(null); setInviting(true) },
-            onChangeRole: (uid, role) => void perform(async () => { if (orgId) { await currentBackend().changeMemberRole(orgId, uid, role); await reloadOrganisation() } }),
+            onChangeRole: (uid, role) => void perform(async (live) => { if (orgId) { await currentBackend().changeMemberRole(orgId, uid, role); if (!live()) return; await reloadOrganisation() } }),
             onRemove: (member) => { setError(null); setMessage(null); setRemoving(member) },
-            onRevoke: (invitation) => void perform(async () => { if (orgId) { await currentBackend().revokeInvitation(orgId, invitation.id); await reloadOrganisation(); setMessage('Invitation revoked.') } }),
-            onCheckout: (planKey, seats) => void perform(async () => { if (orgId) { const result = await currentBackend().organisationCheckout(orgId, planKey, seats); window.location.assign(result.url) } }),
-            onChangeSeats: (seats) => void perform(async () => { if (orgId) { const result = await intend(seatsIntent(orgId, seats), (key) => currentBackend().changeSeats(orgId, seats, key)); await reloadOrganisation(); setMessage(`${result.subscription.seats} seats from now on.`) } }),
-            onManageBilling: () => void perform(async () => { if (orgId) { const result = await currentBackend().organisationPortal(orgId); window.location.assign(result.url) } }),
+            onRevoke: (invitation) => void perform(async (live) => { if (orgId) { await currentBackend().revokeInvitation(orgId, invitation.id); if (!live()) return; await reloadOrganisation(); setMessage('Invitation revoked.') } }),
+            onCheckout: (planKey, seats) => void perform(async (live) => { if (orgId) { const result = await currentBackend().organisationCheckout(orgId, planKey, seats); if (!live()) return; window.location.assign(result.url) } }),
+            onChangeSeats: (seats) => void perform(async (live) => { if (orgId) { const result = await intend(seatsIntent(orgId, seats), (key) => currentBackend().changeSeats(orgId, seats, key)); if (!live()) return; await reloadOrganisation(); setMessage(`${result.subscription.seats} seats from now on.`) } }),
+            onManageBilling: () => void perform(async (live) => { if (orgId) { const result = await currentBackend().organisationPortal(orgId); if (!live()) return; window.location.assign(result.url) } }),
           })}
           onCloseAccount={() => { setError(null); setMessage(null); setClosingAccount(true) }}
-          onKeepAccount={() => void perform(async () => {
+          onKeepAccount={() => void perform(async (live) => {
             await currentBackend().keepAccount()
+            if (!live()) return
             await refreshAccount()
-            setMessage('Your account stays open. Nothing was deleted.')
+            if (live()) setMessage('Your account stays open. Nothing was deleted.')
           })}
         />
         <PlanChangeDialog
@@ -228,16 +226,18 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
           busy={busy}
           preview={previewPlanChange}
           onClose={() => setPlanChange(null)}
-          onConfirm={(plan) => void perform(async () => {
+          onConfirm={(plan) => void perform(async (live) => {
             const result = await intend(subscriptionIntent(`plan:${plan.key}`), (key) => currentBackend().changePlan(plan.key, key))
+            if (!live()) return
             setPlanChange(null)
             await reloadBilling()
-            setMessage(describeSubscriptionOutcome(result.subscription, plans))
+            if (live()) setMessage(describeSubscriptionOutcome(result.subscription, plans))
           })}
         />
         <CreateOrganisationDialog open={creatingOrganisation} busy={busy} onClose={() => setCreatingOrganisation(false)}
-          onCreate={(name) => void perform(async () => {
+          onCreate={(name) => void perform(async (live) => {
             const created = await currentBackend().createOrganisation(name, `create-organisation-${crypto.randomUUID()}`)
+            if (!live()) return
             setCreatingOrganisation(false)
             await refreshAccount()
             await switchWorkspace(created.id)
@@ -246,8 +246,9 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
           })} />
         {organisation && (
           <InviteMemberDialog open={inviting} busy={busy} organisationName={organisation.name} onClose={() => setInviting(false)}
-            onInvite={(email, role) => void perform(async () => {
+            onInvite={(email, role) => void perform(async (live) => {
               const invitation = await currentBackend().inviteMember(organisation.id, email, role)
+              if (!live()) return
               setInviting(false)
               await reloadOrganisation()
               setMessage(`Invitation sent to ${invitation.email}.`)
@@ -256,8 +257,9 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
         {organisation && (
           <TypedConfirmationDialog open={deletingOrganisation} title={`Delete ${organisation.name}`} phrase={organisation.name} phraseLabel="Organisation name" action="Delete organisation"
             busy={busy} caseSensitive onClose={() => setDeletingOrganisation(false)}
-            onConfirm={(typed) => void perform(async () => {
+            onConfirm={(typed) => void perform(async (live) => {
               await currentBackend().deleteOrganisation(organisation.id, typed)
+              if (!live()) return
               setDeletingOrganisation(false)
               const personal = workspaces.find((w) => w.kind === 'personal')
               if (personal) await switchWorkspace(personal.id)
@@ -270,8 +272,9 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
         {organisation && removing && (
           <TypedConfirmationDialog open title={`Remove ${removing.displayName ?? removing.email}`} phrase={removing.email} phraseLabel="Their email address" action="Remove member"
             busy={busy} inputMode="email" onClose={() => setRemoving(null)}
-            onConfirm={() => void perform(async () => {
+            onConfirm={() => void perform(async (live) => {
               await currentBackend().removeMember(organisation.id, removing.uid)
+              if (!live()) return
               setRemoving(null)
               await reloadOrganisation()
               setMessage('Member removed.')
@@ -286,11 +289,12 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
             busy={busy}
             graceDays={30}
             onClose={() => setClosingAccount(false)}
-            onConfirm={(confirmation) => void perform(async () => {
+            onConfirm={(confirmation) => void perform(async (live) => {
               const result = await currentBackend().closeAccount(confirmation)
+              if (!live()) return
               setClosingAccount(false)
               await refreshAccount()
-              setMessage(`Your account closes on ${longDate(result.closure.closesAt)}. Until then you can keep it from this page.`)
+              if (live()) setMessage(`Your account closes on ${longDate(result.closure.closesAt)}. Until then you can keep it from this page.`)
             })}
           />
         )}
