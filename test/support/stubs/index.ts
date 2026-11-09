@@ -4,5 +4,4 @@ export const stubs: Readonly<Record<string, string>> = {
   'firebase/auth': 'stubs/firebase-auth.ts',
   'next/navigation': 'stubs/next-navigation.ts',
   '@/lib/backend/browser': 'stubs/backend-browser.ts',
-  '@/components/settings/settings-dialog': 'stubs/settings-dialog.ts',
 }

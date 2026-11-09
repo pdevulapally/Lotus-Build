@@ -49,15 +49,25 @@ export function attachAcceptance<Workspace extends { id: string }>(
   listener: (outcome: AcceptOutcome) => void,
 ): () => void {
   let operation = operations.get(key)
-  if (operation === undefined) {
-    const created: Operation = { listeners: new Set() }
-    operations.set(key, created)
-    operation = created
-    void acceptInvitation({ ...start, report: (outcome) => { created.outcome = outcome; for (const listen of [...created.listeners]) listen(outcome) } })
-  }
+  const fresh = operation === undefined
+  if (operation === undefined) { operation = { listeners: new Set() }; operations.set(key, operation) }
+  // Attach before starting: the operation reads its liveness through its listeners from the first instruction.
   operation.listeners.add(listener)
   if (operation.outcome !== undefined) listener(operation.outcome)
-  return () => { operation.listeners.delete(listener) }
+  if (fresh) {
+    const created = operation
+    void acceptInvitation({
+      ...start,
+      // Every continuation — refresh, selection, reporting — runs only while this operation is still the one
+      // some page is attached to. A page that moved to another invitation (query change) detaches, and this
+      // operation's late completion then changes nothing, however the server answered. A StrictMode replay
+      // detaches and re-attaches within one commit, before any continuation can observe the gap.
+      principal: () => (created.listeners.size > 0 ? start.principal() : ''),
+      report: (outcome) => { created.outcome = outcome; for (const listen of [...created.listeners]) listen(outcome) },
+    })
+  }
+  const attached = operation
+  return () => { attached.listeners.delete(listener) }
 }
 
 /** Test seam: forget every operation (a fresh page load has none). */
