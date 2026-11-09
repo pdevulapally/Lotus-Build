@@ -92,3 +92,5 @@ export type IntentStore = ReturnType<typeof intentStore>
 
 export const subscriptionIntent = (action: string): Intent => ({ surface: 'billing/subscription', action })
 export const seatsIntent = (orgId: string, seats: number): Intent => ({ surface: `organisation/${orgId}/seats`, action: `seats:${seats}` })
+/** Creating an organisation of this name is one intended action, however many times the confirmation is retried. */
+export const createOrganisationIntent = (name: string): Intent => ({ surface: 'organisation/create', action: `name:${name.trim().toLowerCase()}` })
