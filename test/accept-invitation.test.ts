@@ -62,3 +62,23 @@ test('a failure that arrives after the principal changed is not reported to the 
   await acceptInvitation({ ...deps, accept: async () => { throw new Error('invitation expired') } })
   assert.deepEqual(reports.map((outcome) => outcome.kind), ['failed'])
 })
+
+test('the page unmounts (sign-out → ProtectedRoute) while Alice\'s acceptance is in flight, then Bob signs in: the provider-level principal is stale and the cleanup is tripped, so the late completion refreshes, reports and selects nothing', async () => {
+  // The provider outlives the page: its principal is what the flow reads, through the page's own cleanup flag.
+  const provider = { current: 'alice#1' }
+  let mounted = true
+  const accepted = gate()
+  const reports: AcceptOutcome[] = []; const selected: string[] = []; let refreshes = 0
+  const run = acceptInvitation({
+    principal: () => (mounted ? provider.current : ''),
+    accept: async () => { await accepted.opened; return { id: 'org-1', name: 'Acme' } },
+    refresh: async () => { refreshes++; return { workspaces: [{ id: 'org-1' }] } },
+    select: async (id) => { selected.push(id) },
+    report: (outcome) => reports.push(outcome),
+  })
+  mounted = false                 // ProtectedRoute unmounted the page during sign-out
+  provider.current = ''           // signed out…
+  provider.current = 'bob#2'      // …and Bob signed in; a fresh page would mount with its own attempt
+  accepted.open(); await run
+  assert.equal(refreshes, 0); assert.deepEqual(reports, []); assert.deepEqual(selected, [])
+})
