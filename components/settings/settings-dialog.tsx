@@ -85,7 +85,7 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
   const uidRef = useRef(uid); uidRef.current = uid
   const fenced = useMemo(() => principalFence(() => uidRef.current), [])
   // A different account signed in: nothing the previous one was looking at or waiting for carries over.
-  useEffect(() => { setPlanChange(null); setMessage(null); setError(null); setBusy(false) }, [uid])
+  useEffect(() => { setPlanChange(null); setClosingAccount(false); setMessage(null); setError(null); setBusy(false) }, [uid])
   const perform = async (work: (live: () => boolean) => Promise<void>) => {
     if (busy) return
     await fenced(work, { busy: setBusy, error: setError, message: setMessage })
@@ -113,13 +113,13 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
           plan={{
             plans,
             subscription,
-            onManageBilling: () => void perform(async () => {
+            onManageBilling: () => void perform(async (live) => {
               const result = await currentBackend().billingPortal()
-              window.location.assign(result.url)
+              if (live()) window.location.assign(result.url)
             }),
-            onSubscribe: (plan) => void perform(async () => {
+            onSubscribe: (plan) => void perform(async (live) => {
               const result = await currentBackend().checkout(plan.key)
-              window.location.assign(result.url)
+              if (live()) window.location.assign(result.url)
             }),
             onChangePlan: (plan, relation) => { setError(null); setMessage(null); setPlanChange({ plan, relation }) },
             onSetCancellation: (cancelAtPeriodEnd) => void perform(async (live) => {
@@ -157,11 +157,12 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
             busy={busy}
             graceDays={30}
             onClose={() => setClosingAccount(false)}
-            onConfirm={(confirmation) => void perform(async () => {
+            onConfirm={(confirmation) => void perform(async (live) => {
               const result = await currentBackend().closeAccount(confirmation)
+              if (!live()) return
               setClosingAccount(false)
               await refreshAccount()
-              setMessage(`Your account closes on ${longDate(result.closure.closesAt)}. Until then you can keep it from this page.`)
+              if (live()) setMessage(`Your account closes on ${longDate(result.closure.closesAt)}. Until then you can keep it from this page.`)
             })}
           />
         )}
