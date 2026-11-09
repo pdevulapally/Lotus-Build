@@ -58,11 +58,13 @@ export function attachAcceptance<Workspace extends { id: string }>(
     const created = operation
     void acceptInvitation({
       ...start,
-      // Every continuation — refresh, selection, reporting — runs only while this operation is still the one
-      // some page is attached to. A page that moved to another invitation (query change) detaches, and this
-      // operation's late completion then changes nothing, however the server answered. A StrictMode replay
-      // detaches and re-attaches within one commit, before any continuation can observe the gap.
-      principal: () => (created.listeners.size > 0 ? start.principal() : ''),
+      // The server's answer is this operation's to keep: it is recorded whether or not a page is attached, so a
+      // page that left and comes back observes it without submitting the invitation again. Side effects (the
+      // account refresh, the workspace switch) run only while some page is attached to this operation — a page
+      // that moved to another invitation detached, and the late completion then changes nothing — and, as
+      // before, only under the principal that started it.
+      refresh: () => (created.listeners.size > 0 ? start.refresh() : Promise.resolve(undefined)),
+      select: (id, available) => (created.listeners.size > 0 ? start.select(id, available) : Promise.resolve()),
       report: (outcome) => { created.outcome = outcome; for (const listen of [...created.listeners]) listen(outcome) },
     })
   }

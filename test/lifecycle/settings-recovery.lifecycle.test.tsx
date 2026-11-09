@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { AuthProvider, workspaceStorageKey } from '../../contexts/auth-context'
+import { AuthProvider, useAuth, workspaceStorageKey } from '../../contexts/auth-context'
 import { SettingsDialog, SettingsDialogProvider } from '../../components/settings/settings-dialog'
 import { auth } from '../support/stubs/firebase'
 import { backend, gate } from '../support/stubs/backend-browser'
@@ -20,10 +20,13 @@ const openCheckout = { subscription: { planKey: 'teams', planName: 'Teams', stat
 
 /** React's `act` wraps render errors in an AggregateError whose message is empty; name the causes. */
 const unwrap = (reason: unknown): never => { throw new Error(reason instanceof AggregateError ? reason.errors.map((e) => (e instanceof Error ? `${e.message}\n${(e.stack ?? '').split('\n').slice(1, 4).join('\n')}` : String(e))).join('\n---\n') : String(reason)) }
+/** Reaches the provider's workspace switch, as the Settings switcher would. */
+const controls: { switchWorkspace?: (id: string) => Promise<void> } = {}
+function Probe() { const { switchWorkspace } = useAuth(); controls.switchWorkspace = switchWorkspace; return null }
 const mount = async () => {
   const container = document.body.appendChild(document.createElement('div'))
   let root!: Root
-  try { await act(async () => { root = createRoot(container); root.render(createElement(AuthProvider, null, createElement(SettingsDialogProvider, null, createElement(SettingsDialog, { open: true, onOpenChange: () => undefined, initialPage: 'org-plan' })))) }) } catch (reason) { unwrap(reason) }
+  try { await act(async () => { root = createRoot(container); root.render(createElement(AuthProvider, null, createElement(SettingsDialogProvider, null, createElement(Probe), createElement(SettingsDialog, { open: true, onOpenChange: () => undefined, initialPage: 'org-plan' })))) }) } catch (reason) { unwrap(reason) }
   await flush(); await flush()
   // The organisation pages exist once the organisation has loaded; open Plan & billing the way a person does.
   if (!text().includes('Finish pending change')) await click('Plan & billing')
@@ -66,5 +69,34 @@ test('resolved and review answers show the message with the check action and no 
   await click('Finish pending change'); backend.reconcileGate.open(); await flush(); await flush(); await flush()
   assert.ok(continueLink()); assert.deepEqual(opened, [], 'no window.open: the link is the action')
   window.open = original
+  await page.unmount()
+})
+
+test('switching organisation A → B: nothing of A is shown while B loads; B\'s late failure shows no seats; B\'s success shows B; a late A answer never lands under B', async () => {
+  reset(); auth.signIn('alice')
+  backend.billingGates.set('org1', gate()); backend.billingGates.set('org2', gate())
+  const page = await mount(); await flush()
+  backend.billingGates.get('org1')!.open(); await flush(); await flush()
+  assert.match(text(), /3 paid seats|3 seats/, 'A (Acme) billing shown')
+  backend.billingGates.set('org1', gate())                                    // A's next answer will be late
+  await act(async () => { await controls.switchWorkspace!('org2') }); await flush()
+  assert.doesNotMatch(text(), /3 paid seats|3 seats/, 'A\'s seats are not shown while B loads')
+  assert.doesNotMatch(text(), /Finish pending change/, 'A\'s billing actions are not offered under B')
+  backend.billingGates.get('org1')!.open(); await flush(); await flush()     // late A answer
+  assert.doesNotMatch(text(), /3 paid seats|3 seats/, 'the late A answer does not land under B')
+  backend.billingFailures.add('org2'); backend.billingGates.get('org2')!.open(); await flush(); await flush()
+  assert.doesNotMatch(text(), /5 paid seats|5 seats|3 paid seats/, 'a failed B fetch shows no seats at all')
+  await page.unmount()
+})
+
+test('switching A → B then B\'s billing succeeds: B\'s seats and actions appear, none of A\'s', async () => {
+  reset(); auth.signIn('alice')
+  backend.billingGates.set('org2', gate())
+  const page = await mount(); await flush(); await flush()
+  await act(async () => { await controls.switchWorkspace!('org2') }); await flush()
+  assert.doesNotMatch(text(), /3 paid seats|3 seats/)
+  backend.billingGates.get('org2')!.open(); await flush(); await flush()
+  assert.match(text(), /5 paid seats|5 seats/); assert.doesNotMatch(text(), /3 paid seats/)
+  assert.match(text(), /Finish pending change/)
   await page.unmount()
 })

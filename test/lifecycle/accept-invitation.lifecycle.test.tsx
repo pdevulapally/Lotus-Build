@@ -116,3 +116,28 @@ test('the page moves from invitation A (Acme) to invitation B (Beta); B complete
   assert.ok(backend.calls.slice(callsBefore, afterB).some((c) => c.startsWith('me:')), 'B\'s own completion did refresh')
   await page.unmount()
 })
+
+test('A completes while the page is on B (detached); returning to A shows A\'s result without submitting again — success', async () => {
+  reset(); auth.signIn('alice')
+  const page = await mount(); await flush()
+  setInvitationQuery('org2', 'b'.repeat(43)); await page.rerender(); await flush()
+  assert.equal(backend.acceptGates.length, 2)
+  backend.acceptGates[0]!.open(); await flush(); await flush()            // A settles while detached
+  assert.equal(storedWorkspace('alice'), null, 'no side effect while detached')
+  setInvitationQuery('org1', 'a'.repeat(43)); await page.rerender(); await flush()
+  assert.equal(backend.acceptGates.length, 2, 'returning to A does not submit the invitation again')
+  assert.match(text(), /Acme/, 'A\'s recorded outcome is shown')
+  await page.unmount()
+})
+
+test('A fails while detached; returning to A shows the failure, not a spinner, and does not resubmit', async () => {
+  reset(); auth.signIn('alice'); backend.acceptFailures.add('a'.repeat(43))
+  const page = await mount(); await flush()
+  setInvitationQuery('org2', 'b'.repeat(43)); await page.rerender(); await flush()
+  backend.acceptGates[0]!.open(); await flush(); await flush()
+  setInvitationQuery('org1', 'a'.repeat(43)); await page.rerender(); await flush()
+  assert.equal(backend.acceptGates.length, 2)
+  assert.match(text(), /expired or been withdrawn/)
+  assert.doesNotMatch(text(), /Checking your invitation/)
+  await page.unmount()
+})
