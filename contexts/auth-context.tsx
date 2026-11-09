@@ -15,7 +15,7 @@ type UserData = {
 }
 /** A workspace the account can work in: the personal one (id = uid) or an organisation, as the server lists them in /me. */
 export type Workspace = BackendWorkspace
-const workspaceStorageKey = (uid: string) => `lotusbuild.workspace.${uid}`
+export const workspaceStorageKey = (uid: string) => `lotusbuild.workspace.${uid}`
 type AuthState = {
   user: User | null; userData: UserData | null; account: BackendAccount | null; usage: BackendUsage | null
   loading: boolean; accountError: string | null; refreshAccount: () => Promise<BackendAccount | undefined>
