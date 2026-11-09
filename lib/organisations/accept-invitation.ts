@@ -61,20 +61,18 @@ export async function acceptInvitation<Workspace extends { id: string }>(deps: A
  * submitted once — while a different invitation, or the same one under a new principal, is its own operation.
  *
  * The server's answer belongs to the operation: it is recorded whether or not a page is attached, so a page that
- * left and comes back observes it without submitting the single-use token again. Making the workspace ready —
- * the account refresh and selecting the organisation — belongs to whichever page is attached: it runs when the
- * join settles while a page is attached, and otherwise is *owed* and runs when a page attaches again (that page's
- * own continuation, under its own refresh and selection, fenced by the principal that started and by its staying
- * attached across each await). A page that moved to another invitation therefore gets nothing from the late
- * completion of the one it left; a page returning to a settled join is refreshed and switched exactly once; and
- * a failed readiness is kept as the outcome, to be retried on request, never re-run behind the person's back.
+ * left and comes back observes it without submitting the single-use token again. Readiness does not belong to the
+ * operation: it is a fact about *now* — is this organisation the selected workspace of the signed-in account — so
+ * every page that attaches to an accepted invitation confirms it afresh (account refresh, then selection), under
+ * its own refresh and selection, fenced by the principal that started and by its staying attached across each
+ * await. A readiness confirmed earlier, before the person went to another organisation and back, is history and is
+ * never shown as current. A confirmation in flight is shared by a StrictMode re-attach; one that fails is kept as
+ * the outcome to retry on request, never re-run behind the person's back.
  */
 type Listener = (outcome: AcceptOutcome) => void
 interface Operation {
   readonly startedBy: string
   outcome?: AcceptOutcome
-  /** A join settled with no page attached: making the workspace ready has not run for anyone yet. */
-  owed: boolean
   continuing?: Promise<void>
   readonly listeners: Set<Listener>
 }
@@ -89,19 +87,15 @@ const reportTo = (operation: Operation): Listener => (outcome) => {
   for (const listen of [...operation.listeners]) listen(outcome)
 }
 
-function continueJoin<Workspace extends { id: string }>(operation: Operation, page: Continuations<Workspace>): void {
-  if (operation.continuing !== undefined || operation.outcome?.kind !== 'joined' || operation.outcome.workspace === 'ready') return
+/** Confirms, for the pages attached now, that the organisation is the selected workspace: pending, then ready or the failure. */
+function confirmReady<Workspace extends { id: string }>(operation: Operation, page: Continuations<Workspace>): void {
+  if (operation.continuing !== undefined || operation.outcome?.kind !== 'joined') return
   const joined = { id: operation.outcome.id, name: operation.outcome.name }
   const live = () => page.principal() === operation.startedBy && operation.listeners.size > 0
-  operation.owed = false
   reportTo(operation)({ kind: 'joined', ...joined, workspace: 'pending' })
   operation.continuing = makeReady(joined, { ...page, report: reportTo(operation) }, live)
     .catch(() => undefined)
-    .finally(() => {
-      operation.continuing = undefined
-      // Neither ready nor failed: the page left mid-way, so readiness is owed to the next one.
-      if (operation.outcome?.kind === 'joined' && operation.outcome.workspace === 'pending') operation.owed = true
-    })
+    .finally(() => { operation.continuing = undefined })
 }
 
 export function attachAcceptance<Workspace extends { id: string }>(
@@ -111,32 +105,36 @@ export function attachAcceptance<Workspace extends { id: string }>(
 ): () => void {
   let operation = operations.get(key)
   const fresh = operation === undefined
-  if (operation === undefined) { operation = { startedBy: start.principal(), owed: false, listeners: new Set() }; operations.set(key, operation) }
+  if (operation === undefined) { operation = { startedBy: start.principal(), listeners: new Set() }; operations.set(key, operation) }
   // Attach before starting: the operation reads its liveness through its listeners from the first instruction.
   operation.listeners.add(listener)
-  if (operation.outcome !== undefined) listener(operation.outcome)
+  // Returning to an accepted invitation confirms the selection afresh (shared with a confirmation already in
+  // flight): the listener hears pending, then ready or the failure — never a readiness recorded earlier as current.
+  const returning = !fresh && operation.outcome?.kind === 'joined' && operation.continuing === undefined
+  if (operation.outcome !== undefined && !returning) listener(operation.outcome)
   if (fresh) {
     const created = operation
     const attached = () => created.listeners.size > 0
+    let skipped = false
     const report = reportTo(created)
     void acceptInvitation({
       ...start,
-      refresh: () => { if (attached()) return start.refresh(); created.owed = true; return Promise.resolve(undefined) },
-      select: (id, available) => { if (attached()) return start.select(id, available); created.owed = true; return Promise.resolve() },
-      // A readiness reached with nobody attached is not readiness: the refresh and selection were skipped and are owed.
-      report: (outcome) => report(outcome.kind === 'joined' && outcome.workspace === 'ready' && created.owed ? { ...outcome, workspace: 'pending' } : outcome),
+      refresh: () => { if (attached()) return start.refresh(); skipped = true; return Promise.resolve(undefined) },
+      select: (id, available) => { if (attached()) return start.select(id, available); skipped = true; return Promise.resolve() },
+      // A readiness reached with nobody attached is not readiness: the refresh and selection were skipped.
+      report: (outcome) => report(outcome.kind === 'joined' && outcome.workspace === 'ready' && skipped ? { ...outcome, workspace: 'pending' } : outcome),
     }).catch(() => undefined)
-  } else if (operation.owed) {
-    continueJoin(operation, start)
+  } else if (returning) {
+    confirmReady(operation, start)
   }
   const attached = operation
   return () => { attached.listeners.delete(listener) }
 }
 
-/** Runs the owed or failed readiness again for an accepted invitation — the token is never re-sent. */
+/** Confirms readiness again for an accepted invitation — the token is never re-sent. */
 export function retryJoin<Workspace extends { id: string }>(key: string, page: Continuations<Workspace>): void {
   const operation = operations.get(key)
-  if (operation !== undefined) continueJoin(operation, page)
+  if (operation !== undefined) confirmReady(operation, page)
 }
 
 /** Test seam: forget every operation (a fresh page load has none). */

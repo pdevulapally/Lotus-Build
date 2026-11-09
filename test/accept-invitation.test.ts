@@ -98,8 +98,8 @@ test('attaching twice to the same (principal, organisation, token) runs one acce
   accepted.open(); await new Promise((r) => setTimeout(r, 0)); await new Promise((r) => setTimeout(r, 0))
   assert.deepEqual(first, [], 'the detached listener hears nothing')
   assert.deepEqual(replay, [{ kind: 'joined', id: 'org-1', name: 'Acme', workspace: 'pending' }, { kind: 'joined', id: 'org-1', name: 'Acme', workspace: 'ready' }])
-  const late: AcceptOutcome[] = []; attachAcceptance(key, start, (o) => late.push(o))
-  assert.deepEqual(late, [{ kind: 'joined', id: 'org-1', name: 'Acme', workspace: 'ready' }], 'a listener attaching after completion gets the settled outcome')
+  const late: AcceptOutcome[] = []; attachAcceptance(key, start, (o) => late.push(o)); await settle(); await settle()
+  assert.deepEqual(late, [{ kind: 'joined', id: 'org-1', name: 'Acme', workspace: 'pending' }, { kind: 'joined', id: 'org-1', name: 'Acme', workspace: 'ready' }], 'a listener attaching after completion gets the accepted answer and a fresh confirmation, not the earlier readiness')
   detachReplay()
 })
 
@@ -132,9 +132,9 @@ test('a join that settled with no page attached owes its refresh and selection: 
   assert.deepEqual(back.at(-1), { kind: 'joined', id: 'org-1', name: 'Acme', workspace: 'ready' }, 'and the last word is ready')
   assert.equal(refreshes, 1, 'the owed refresh ran once'); assert.deepEqual(selected, ['org-1'], 'the owed selection ran once')
   second()
-  // Attaching once more owes nothing: the join was already delivered.
-  const third = attachAcceptance(key, again, () => undefined); await settle(); third()
-  assert.equal(refreshes, 1); assert.deepEqual(selected, ['org-1'])
+  // Attaching again later is a return: readiness is confirmed afresh (the selection may have moved meanwhile), still without a resubmission.
+  const third = attachAcceptance(key, again, () => undefined); await settle(); await settle(); third()
+  assert.equal(refreshes, 2); assert.deepEqual(selected, ['org-1', 'org-1'])
 })
 
 test('the owed continuation is fenced like every other: a page that detaches while the refresh is in flight gets no selection, and the next page runs the refresh again', async () => {

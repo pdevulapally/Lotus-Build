@@ -33,7 +33,7 @@ const failureCopy: Readonly<Record<string, string>> = {
 function AcceptInvitation() {
   const params = useSearchParams()
   const router = useRouter()
-  const { user, authEpoch, principal: livePrincipal, refreshAccount, switchWorkspace } = useAuth()
+  const { user, authEpoch, principal: livePrincipal, refreshAccount, switchWorkspace, currentWorkspace } = useAuth()
   const { openSettings } = useSettingsDialog()
   const [outcome, setOutcome] = useState<Outcome>({ kind: 'pending' })
   // The principal is the signed-in user and session, not the loaded account: a failed account refresh clears the
@@ -67,8 +67,10 @@ function AcceptInvitation() {
   // selected workspace only once the account refresh and the switch have both happened for this account.
   const readiness = outcome.kind === 'joined' ? outcome.workspace : null
   const failed = readiness !== null && typeof readiness === 'object' ? readiness.failed : null
+  // Ready means confirmed for this page and still true now: the organisation is the account's selected workspace.
+  const ready = outcome.kind === 'joined' && readiness === 'ready' && currentWorkspace?.id === outcome.id
   const description = outcome.kind !== 'joined' ? outcome.message
-    : readiness === 'ready' ? 'The organisation is now your selected workspace. Switch back from Settings whenever you like.'
+    : ready ? 'The organisation is now your selected workspace. Switch back from Settings whenever you like.'
     : failed !== null ? `You have joined, but the organisation could not be opened as your workspace: ${failed}`
     : 'Setting up the organisation as your workspace…'
   return (
@@ -78,7 +80,7 @@ function AcceptInvitation() {
         <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
         <div className="flex justify-center gap-3">
           {outcome.kind === 'joined' && failed === null && (
-            <Button type="button" disabled={readiness !== 'ready'} onClick={() => { if (readiness === 'ready') { openSettings('org-members'); router.replace('/') } }}>
+            <Button type="button" disabled={!ready} onClick={() => { if (ready) { openSettings('org-members'); router.replace('/') } }}>
               Open the organisation
             </Button>
           )}
