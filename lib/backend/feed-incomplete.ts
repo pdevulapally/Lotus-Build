@@ -14,9 +14,8 @@ export const terminalEventTypes: ReadonlySet<string> = new Set(['session.idle', 
 
 export const feedIncompleteCopy = {
   title: 'Some of this activity could not be recorded',
-  description: 'This timeline is missing at least one step of that run, so it is not the complete record. The work itself was not affected.',
   unrecordedEnd: 'The end of this run was not recorded',
-  unrecordedEndDescription: 'The run finished, but its last steps did not reach the record, so this timeline may be incomplete.',
+  unrecordedEndDescription: 'The session has finished, but no end is on record for this run: its last steps, and whatever they changed, are not known from this timeline.',
 } as const
 
 /** The run a terminal event declares incomplete, when it does. */
@@ -43,17 +42,30 @@ export function incompleteRunsShown(
   return [...byRun.values()].sort((a, b) => a.execution - b.execution)
 }
 
-/** Events only a run in progress publishes: the model's steps and the commands it runs. Notices such as voice history,
- * messages, preview or desktop state can legitimately follow a run's end and prove nothing about it. */
-const runWorkEvent = (type: string): boolean => type.startsWith('agent.') || type.startsWith('command.') || type === 'session.running' || type === 'session.cancel_requested'
+export interface RunEnd { readonly execution: number; readonly type: string; readonly sequence: number; readonly incomplete: boolean }
 
 /**
- * True when the session has finished but its current run's end never reached the record: the last journaled event is
- * work of a run (not a notice that may trail an end), or the only end on record belongs to an earlier run.
+ * True when the session has finished but no end is on record for its current run. The end is a durable fact the
+ * server writes with the terminal event (and the stream carries live), never an inference from whatever event was
+ * journaled last: a plan edit after a clean end changes nothing, and a notice after a lost end hides nothing.
  */
-export function runEndUnrecorded(status: string, execution: number | undefined, lastEvent: LastJournaledEvent | undefined): boolean {
-  if (!['IDLE', 'STOPPED', 'FAILED'].includes(status) || lastEvent === undefined) return false
-  if (runWorkEvent(lastEvent.type)) return lastEvent.execution === undefined || execution === undefined || lastEvent.execution === execution
-  if (terminalEventTypes.has(lastEvent.type)) return execution !== undefined && lastEvent.execution !== undefined && lastEvent.execution < execution
-  return false
+export function runEndUnrecorded(status: string, execution: number | undefined, runEnd: RunEnd | undefined): boolean {
+  if (!['IDLE', 'STOPPED', 'FAILED'].includes(status) || execution === undefined) return false
+  return runEnd === undefined || runEnd.execution !== execution
+}
+
+/** The end a terminal event records for its run, as the server will have written it. */
+export function runEndFromEvent(event: SessionEvent): RunEnd | undefined {
+  if (!terminalEventTypes.has(event.type) || typeof event.data.execution !== 'number') return undefined
+  const sequence = Number((event.id ?? '').split('-')[1])
+  return { execution: event.data.execution, type: event.type, sequence: Number.isSafeInteger(sequence) ? sequence : 0, incomplete: event.data.incomplete === true }
+}
+
+/** What could not be recorded, by the kind of the last lost event — and that what happened in the gap is unknown. */
+export function incompleteDescription(run: FeedIncompleteRun): string {
+  const what = run.lastType === 'worker.interrupted' ? 'The worker running this stopped before it could record what it did last;'
+    : run.lastType.startsWith('session.') ? 'The end of this run did not reach the record;'
+    : run.lastType === 'terminal' ? 'At least one step of this run did not reach the record;'
+    : 'At least one command or result of this run did not reach the record;'
+  return `${what} what happened in that gap — including anything it may have changed — is not known from this timeline.`
 }

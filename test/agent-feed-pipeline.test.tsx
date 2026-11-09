@@ -158,7 +158,7 @@ test('no_progress: the server appends its limitation sentence to the reply and t
 })
 
 // ── Incomplete feed: the server's durable facts and the stream's own declaration, rendered ──
-import { incompleteRunFromEvent, incompleteRunsShown, runEndUnrecorded } from '../lib/backend/feed-incomplete'
+import { incompleteRunFromEvent, incompleteRunsShown, runEndFromEvent, runEndUnrecorded } from '../lib/backend/feed-incomplete'
 const notices = (html: string, id: string) => html.split(`data-testid="${id}"`).length - 1
 const record = (execution: number) => ({ execution, lost: 1, lastType: 'agent.tool_result', since: '2026-11-06T18:00:00.000Z' })
 
@@ -195,16 +195,15 @@ test('the stream\'s own declaration: a terminal event with incomplete:true names
   assert.equal(notices(renderAgentFeed({ status: 'idle', events: [], incompleteRuns: runs }), 'feed-incomplete'), 1)
 })
 
-test('unrecorded end: a finished session whose last journaled event is not its run\'s terminal event is warned about; a recorded end, a running session, and an older run\'s end are read correctly', () => {
-  assert.equal(runEndUnrecorded('IDLE', 1, { type: 'agent.tool_call', sequence: 3, execution: 1 }), true)
-  assert.equal(runEndUnrecorded('FAILED', 1, { type: 'agent.text', sequence: 9, execution: 1 }), true)
-  assert.equal(runEndUnrecorded('IDLE', 1, { type: 'session.idle', sequence: 4, execution: 1 }), false)
-  assert.equal(runEndUnrecorded('IDLE', 2, { type: 'session.idle', sequence: 4, execution: 1 }), true, 'the end on record belongs to the previous run')
-  assert.equal(runEndUnrecorded('RUNNING', 1, { type: 'agent.tool_call', sequence: 3, execution: 1 }), false, 'a running session has no end yet')
-  assert.equal(runEndUnrecorded('IDLE', 1, undefined), false, 'nothing journaled yet is not an unrecorded end')
+test('unrecorded end is a durable fact, not an inference: a finished session with no end on record for its current run is warned about; a recorded end — even followed by a plan edit — is not; an older run\'s end does not count for the current run', () => {
+  const idle1 = { execution: 1, type: 'session.idle', sequence: 4, incomplete: false }
+  assert.equal(runEndUnrecorded('IDLE', 1, idle1), false, 'the end is on record; whatever was journaled after it (plan edit, voice history, save) changes nothing')
+  assert.equal(runEndUnrecorded('IDLE', 1, undefined), true, 'finished, nothing on record: the end was lost (a project.saved or any notice journaled last would not hide it)')
+  assert.equal(runEndUnrecorded('IDLE', 2, idle1), true, 'the only end on record belongs to run 1')
+  assert.equal(runEndUnrecorded('FAILED', 2, { ...idle1, execution: 2, type: 'session.failed', incomplete: true }), false, 'a stamped failed end is still an end on record')
+  assert.equal(runEndUnrecorded('RUNNING', 1, undefined), false, 'a running session has no end yet')
   const html = renderAgentFeed({ status: 'idle', events: [], endUnrecorded: true })
-  assert.equal(notices(html, 'feed-end-unrecorded'), 1); assert.match(html, /The end of this run was not recorded/)
-  assert.equal(notices(renderAgentFeed({ status: 'idle', events: [], endUnrecorded: false }), 'feed-end-unrecorded'), 0)
+  assert.equal(notices(html, 'feed-end-unrecorded'), 1); assert.match(html, /The end of this run was not recorded/); assert.doesNotMatch(html, /not affected/)
 })
 
 test('mixed thinking and activity rows carry their run: later thinking is not read as legacy first-run history, so an older gap is not kept alive by it', () => {
@@ -217,13 +216,21 @@ test('mixed thinking and activity rows carry their run: later thinking is not re
   assert.deepEqual(incompleteRunsShown([record(2)], state.events, 2).map((r) => r.execution), [2])
 })
 
-test('legitimate events after a run\'s end are not an unrecorded end: voice history, messages, preview and desktop notices may trail session.idle; only run work as the last record means the end was lost', () => {
-  for (const type of ['voice.history_changed', 'message.appended', 'preview.ready', 'desktop.ended', 'session.awaiting_input'])
-    assert.equal(runEndUnrecorded('IDLE', 1, { type, sequence: 9, execution: 1 }), false, `${type} after the end is fine`)
-  for (const type of ['agent.tool_call', 'agent.text', 'agent.thinking', 'command.output', 'session.running'])
-    assert.equal(runEndUnrecorded('IDLE', 1, { type, sequence: 9, execution: 1 }), true, `${type} as the last record means the end never arrived`)
-  assert.equal(runEndUnrecorded('IDLE', 2, { type: 'agent.text', sequence: 9, execution: 1 }), false, 'run 1 work as the last record says nothing about run 2\'s end (run 2 has no record at all)')
-  assert.equal(runEndUnrecorded('IDLE', 1, { type: 'agent.text', sequence: 9 }), true, 'legacy work without a run number counts')
+test('live terminal fact: the stream\'s terminal event yields the run end the server wrote, so a clean end is known at once (no stale inference until reload); non-terminal events yield none', () => {
+  resetClock()
+  const idle = ev('session.idle', { execution: 3, steps: 2, stopReason: 'end_turn' })
+  assert.deepEqual(runEndFromEvent(idle), { execution: 3, type: 'session.idle', sequence: 1, incomplete: false })
+  assert.equal(runEndFromEvent(ev('session.failed', { execution: 3, error: 'x', incomplete: true }))?.incomplete, true)
+  assert.equal(runEndFromEvent(ev('agent.text', { execution: 3, delta: 'x' })), undefined); assert.equal(runEndFromEvent(ev('session.idle', { steps: 1 })), undefined, 'no run number, no fact')
+  assert.equal(runEndUnrecorded('IDLE', 3, runEndFromEvent(idle)), false)
+})
+
+test('the warning says what could not be recorded and that the gap is unknown — never that the work was unaffected', () => {
+  const runs = [{ ...record(1), lastType: 'agent.tool_result' }, { ...record(2), lastType: 'worker.interrupted' }, { ...record(3), lastType: 'session.idle' }, { ...record(4), lastType: 'terminal' }]
+  const html = renderAgentFeed({ status: 'idle', events: [], incompleteRuns: runs })
+  assert.equal(notices(html, 'feed-incomplete'), 4); assert.doesNotMatch(html, /not affected/)
+  assert.match(html, /command or result of this run did not reach the record/); assert.match(html, /worker running this stopped before it could record/); assert.match(html, /end of this run did not reach the record/); assert.match(html, /At least one step of this run did not reach the record/)
+  assert.ok((html.match(/is not known from this timeline/g) ?? []).length >= 4)
 })
 
 test('warnings are per session and account: the same run number elsewhere means nothing here — the scoped state (records, declared runs) is what is shown, and nothing is carried by number alone', () => {

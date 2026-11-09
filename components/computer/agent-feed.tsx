@@ -1,6 +1,6 @@
 "use client"
 
-import { feedIncompleteCopy, type FeedIncompleteRun } from '@/lib/backend/feed-incomplete'
+import { feedIncompleteCopy, incompleteDescription, type FeedIncompleteRun } from '@/lib/backend/feed-incomplete'
 import { Fragment, memo, useEffect, useMemo, useRef, useState } from "react"
 import { MessageAttachments } from "@/components/computer/message-attachments"
 import type { AttachmentRef } from "@/lib/backend/attachments"
@@ -804,7 +804,7 @@ export function AgentFeed({
       {incompleteRuns.map((run) => (
         <div key={run.execution} role="status" className="my-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-left" data-testid="feed-incomplete">
           <p className="text-[13px] font-medium text-foreground">{feedIncompleteCopy.title}</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">{feedIncompleteCopy.description}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{incompleteDescription(run)}</p>
         </div>
       ))}
       {endUnrecorded && (

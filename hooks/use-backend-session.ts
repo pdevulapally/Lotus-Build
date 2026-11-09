@@ -14,7 +14,7 @@ import {
   reduceTerminal,
   type TerminalEntry,
 } from '@/lib/backend/terminal'
-import { incompleteRunFromEvent } from '@/lib/backend/feed-incomplete'
+import { incompleteRunFromEvent, runEndFromEvent } from '@/lib/backend/feed-incomplete'
 import { executionLabel, genericToolStepLabel, isHiddenToolStep, lifecycleFeedLabels, toolFailureLabel, toolStepLabel } from '@/lib/backend/feed-labels'
 import { loadSessionSnapshot, sessionEventStatus } from '@/lib/backend/session-snapshot'
 import { applyPlanEvent } from '@/lib/backend/session-plan'
@@ -335,7 +335,7 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
             }
           },
           onReconnecting: () => { if (!signal.aborted) setConnection(navigator.onLine ? 'reconnecting' : 'offline') },
-          onReset: () => { textVersion++; streamText = ''; setText(''); setLiveLabel(null); setEvents([]); setIncompleteRuns([]); setTerminal([]); setDesktop({ status: 'none' }); setPreview(null); scheduleRefresh() },
+          onReset: () => { textVersion++; streamText = ''; latestExecution = 0; setText(''); setLiveLabel(null); setEvents([]); setIncompleteRuns([]); setTerminal([]); setDesktop({ status: 'none' }); setPreview(null); scheduleRefresh() },
           onState: (state) => {
             if (signal.aborted) return
             applyServerState(sessionSchema.parse(state))
@@ -350,6 +350,8 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
               if (execution < latestExecution) return
               latestExecution = execution
             }
+            const ended = runEndFromEvent(event)
+            if (ended !== undefined) setSession((current) => current ? { ...current, runEnd: ended } : current)
             const declared = incompleteRunFromEvent(event)
             if (declared !== undefined) setIncompleteRuns((current) => current.includes(declared) ? current : [...current, declared])
             const status = sessionEventStatus[event.type]
