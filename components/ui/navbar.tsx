@@ -47,7 +47,7 @@ export function Navbar() {
   const active = (href: string) => !href.includes('#') && pathname === href
   const exit = async () => {
     setSigningOut(true); setError(null)
-    try { if (user) clearIntents(pendingCommandStorage(), user.uid); await signOut() }
+    try { const uid = user?.uid; await signOut(); if (uid) clearIntents(pendingCommandStorage(), uid) }
     catch { setError("Could not sign out. Try again.") }
     finally { setSigningOut(false) }
   }

@@ -595,12 +595,23 @@ test('an operation key lives until its surface is confirmed: kept across network
   assert.equal(fresh.key(subscriptionIntent('plan:new')), minted, 'a late duplicate of the old completion cannot settle the newer operation')
   assert.equal(fresh.generations(), 2)
   // Two tabs over one account's storage: the second sees the first's key. Two tabs minting the same intent at
-  // the same instant can still diverge (storage has no lock); the server's pin then refuses the second key with
-  // 409 seat-change-in-progress rather than running a second mutation, and the first tab's key recovers it.
+  // the same instant can still diverge (storage has no lock) and the server then sees two keys for one target;
+  // the seat pin refuses the second with 409 seat-change-in-progress, but whether every owner/follower and
+  // mirror interleaving is closed is a server question still under review on lotusbuild-server #97.
   const tabA = intentStore({ uid: 'alice', storage: empty }); const tabB = intentStore({ uid: 'alice', storage: empty })
   assert.equal(tabB.key(seatsIntent('org1', 7)), tabA.key(seatsIntent('org1', 7)))
   await tabA.run(seatsIntent('org1', 7), async () => undefined)
   assert.equal(tabB.key(seatsIntent('org1', 7)), tabA.key(seatsIntent('org1', 7)), 'the other tab sees the settlement and the new key alike')
+  // Durable storage refusing to answer (local and session records disagree) fails closed: no third key is
+  // minted over either record, and nothing is overwritten.
+  const { durablePendingStorage } = await import('../lib/backend/pending-storage')
+  const local = memoryStorage(); const session = memoryStorage()
+  local.setItem('lotus-intents:alice', JSON.stringify({ uid: 'alice', next: 1, surfaces: { s: { a: { key: 'k'.repeat(20), generation: 0 } } } }))
+  session.setItem('lotus-intents:alice', JSON.stringify({ uid: 'alice', next: 1, surfaces: { s: { a: { key: 'j'.repeat(20), generation: 0 } } } }))
+  const conflicted = intentStore({ uid: 'alice', storage: durablePendingStorage(local, session) })
+  assert.throws(() => conflicted.key({ surface: 's', action: 'a' }), /Two pending commands need review/)
+  await assert.rejects(conflicted.run({ surface: 's', action: 'b' }, async () => assert.fail('never asked')), /Two pending commands need review/)
+  assert.match(local.getItem('lotus-intents:alice')!, /kkkk/); assert.match(session.getItem('lotus-intents:alice')!, /jjjj/)
   const seats5 = alice.key(seatsIntent('org1', 5))
   await alice.run(subscriptionIntent('cancellation:true'), async () => undefined)
   assert.equal(alice.key(seatsIntent('org1', 5)), seats5, 'a subscription success does not settle an organisation\'s seat intent')
@@ -632,3 +643,26 @@ test('an operation key lives until its surface is confirmed: kept across network
   clearIntents(storage, 'alice')
 })
 
+
+test('a Settings action belongs to the account signed in when it started: after a switch, its outcome shows nothing under the new account', async () => {
+  const { principalFence } = await import('../lib/settings/principal-fence')
+  let uid = 'alice'
+  const seen: string[] = []
+  const actions = { busy: (v: boolean) => { seen.push(`busy:${v}`) }, error: (m: string | null) => { seen.push(`error:${m}`) }, message: (t: string | null) => { seen.push(`message:${t}`) } }
+  const perform = principalFence(() => uid)
+  let release!: () => void
+  const held = perform(async (live) => { await new Promise<void>((resolve) => { release = resolve }); if (live()) actions.message('A quote confirmed') }, actions)
+  assert.deepEqual(seen, ['busy:true', 'error:null', 'message:null'])
+  uid = 'bob'; release(); await held
+  assert.deepEqual(seen, ['busy:true', 'error:null', 'message:null'], 'nothing from A\'s action reaches B: no message, no busy reset')
+  seen.length = 0
+  const failing = perform(async () => { await new Promise<void>((resolve) => { release = resolve }); throw new Error('declined') }, actions)
+  uid = 'carol'; release(); await failing
+  assert.deepEqual(seen, ['busy:true', 'error:null', 'message:null'], 'nor does A\'s failure')
+  seen.length = 0
+  await perform(async (live) => { if (live()) actions.message('done') }, actions)
+  assert.deepEqual(seen, ['busy:true', 'error:null', 'message:null', 'message:done', 'busy:false'], 'the same account sees its own outcome')
+  seen.length = 0
+  await perform(async () => { throw new Error('declined') }, actions)
+  assert.deepEqual(seen, ['busy:true', 'error:null', 'message:null', 'error:declined', 'busy:false'])
+})

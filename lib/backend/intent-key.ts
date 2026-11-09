@@ -30,9 +30,12 @@ type IntentRecord = z.infer<typeof recordSchema>
 
 const storageKey = (uid: string) => `lotus-intents:${uid}`
 
+// A record that cannot be read as one is ignored; storage refusing to answer (two records that
+// disagree) is not: no key is minted over operations whose identities are in doubt.
 const read = ({ uid, storage }: IntentScope): IntentRecord => {
+  const raw = storage.getItem(storageKey(uid))
   try {
-    const parsed = recordSchema.safeParse(JSON.parse(storage.getItem(storageKey(uid)) ?? ''))
+    const parsed = recordSchema.safeParse(JSON.parse(raw ?? ''))
     if (parsed.success && parsed.data.uid === uid) return parsed.data
   } catch {}
   return { uid, next: 0, surfaces: {} }
