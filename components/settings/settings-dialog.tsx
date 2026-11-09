@@ -97,7 +97,7 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
   const [deletingOrganisation, setDeletingOrganisation] = useState(false)
   const [removing, setRemoving] = useState<BackendMember | null>(null)
   useEffect(() => {
-    setOrganisation(null); setMembers(null); setInvitations(null); setOrgBilling(null); setRecovery(null)
+    setOrganisation(null); setMembers(null); setInvitations(null)
     if (!open || orgId === null) return
     const controller = new AbortController()
     void (async () => {
@@ -119,6 +119,9 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
     })()
     return () => controller.abort()
   }, [open, orgId, orgRevision])
+  // What "Finish pending change" found belongs to this owner and organisation: a reload of the organisation
+  // keeps it (the link must survive its own reload), a different organisation or principal clears it.
+  useEffect(() => { setRecovery(null) }, [orgId])
   const reloadOrganisation = async () => { await refreshAccount(); setOrgRevision((value) => value + 1) }
 
   // Plans and the live subscription are server state, read when the Plan page is shown and after every change.
