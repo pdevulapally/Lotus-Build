@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test:contracts": "node --import tsx --test test/*.test.ts test/*.test.tsx",
     "test:lifecycle": "node --import tsx --import ./test/support/dom.ts --import ./test/support/register-stubs.ts --test test/lifecycle/*.test.tsx",
-    "test:hook": "node --import tsx --import ./test/support/hook-stubs.ts --test test/hook/*.test.tsx"
+    "test:hook": "node --import tsx --import ./test/support/hook-stubs.ts --test test/hook/*.test.tsx",
+    "test:cross-app": "node --import tsx --test test/cross-app/*.test.ts"
   },
   "dependencies": {
     "@astryxdesign/core": "0.7.1",
