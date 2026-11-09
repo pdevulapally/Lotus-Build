@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { CreditCard } from 'lucide-react'
 import type { BackendOrganisation, BackendOrganisationBilling } from '@/lib/backend/client'
-import { can, formatSeatPrice, formatSeatsTotal, minimumSeats } from '@/lib/settings/organisations'
+import { can, formatSeatPrice, formatSeatsTotal, minimumSeats, type SeatRecoveryOutcome } from '@/lib/settings/organisations'
 import { longDate } from '@/lib/settings/plans'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,10 +17,12 @@ export interface OrganisationPlanPageProps {
   onChangeSeats: (seats: number) => void
   onManageBilling: () => void
   onReconcile: () => void
+  /** What the last "Finish pending change" found, for this owner and organisation only. */
+  recovery: SeatRecoveryOutcome | null
 }
 
 /** The Teams plan for this organisation: buy it with a seat count, resize it, or open invoices. Owner only for changes. */
-export function OrganisationPlanPage({ organisation, billing, busy, onCheckout, onChangeSeats, onManageBilling, onReconcile }: OrganisationPlanPageProps) {
+export function OrganisationPlanPage({ organisation, billing, busy, onCheckout, onChangeSeats, onManageBilling, onReconcile, recovery }: OrganisationPlanPageProps) {
   const manage = can(organisation.role, 'manageBilling')
   const plan = billing?.plans[0] ?? null
   const minimum = plan ? minimumSeats(plan.minSeats, billing?.memberCount ?? organisation.memberCount) : 1
@@ -43,8 +45,10 @@ export function OrganisationPlanPage({ organisation, billing, busy, onCheckout, 
           </SettingsRow>
         )}
         {manage && (
-          <SettingsRow label="Pending change" description="If a seat change or payment was started elsewhere and never finished, check and finish it here.">
-            <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={onReconcile}>Finish pending change</Button>
+          <SettingsRow label="Pending change" description={recovery?.message ?? 'If a seat change or payment was started elsewhere and never finished, check and finish it here.'}>
+            {recovery?.kind === 'checkout' && recovery.url !== null
+              ? <Button asChild size="sm"><a href={recovery.url} target="_blank" rel="noopener noreferrer">Continue payment</a></Button>
+              : <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={onReconcile}>Finish pending change</Button>}
           </SettingsRow>
         )}
       </SettingsSection>

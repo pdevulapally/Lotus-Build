@@ -62,3 +62,30 @@ export function describeSeatRecovery(result: BackendSeatRecovery): SeatRecoveryO
   if (pending.kind === 'checkout') return { kind: 'checkout', message: `A payment for ${pending.seats} ${pending.seats === 1 ? 'seat' : 'seats'} is still open.`, url: pending.url ?? null }
   return { kind: 'review', message: `A change to ${pending.seats} seats is still being applied. Try again in a moment.` }
 }
+
+/** What the owner was told, remembered with who asked and for which organisation, so it is never shown to anyone else. */
+export interface StoredSeatRecovery { readonly principal: string; readonly organisationId: string; readonly outcome: SeatRecoveryOutcome }
+
+/** The stored outcome is visible only to the principal who asked, on the organisation they asked about. */
+export const visibleRecovery = (stored: StoredSeatRecovery | null, principal: string, organisationId: string | null): SeatRecoveryOutcome | null =>
+  stored !== null && stored.principal === principal && stored.organisationId === organisationId ? stored.outcome : null
+
+/**
+ * The owner's "Finish pending change": ask the organisation to reconcile, reload the *organisation's* state (its
+ * billing is loaded with the organisation, not with the personal account), then present what the server found.
+ * An open payment is presented as an explicit link the owner clicks — never an automatic `window.open` after
+ * awaits, which browsers may block, leaving "payment still open" with nothing to click. Every step after an
+ * await is fenced by `live`.
+ */
+export async function finishPendingSeatChange(deps: {
+  readonly reconcile: () => Promise<BackendSeatRecovery>
+  readonly reloadOrganisation: () => Promise<void>
+  readonly live: () => boolean
+  readonly present: (outcome: SeatRecoveryOutcome) => void
+}): Promise<void> {
+  const outcome = describeSeatRecovery(await deps.reconcile())
+  if (!deps.live()) return
+  await deps.reloadOrganisation()
+  if (!deps.live()) return
+  deps.present(outcome)
+}

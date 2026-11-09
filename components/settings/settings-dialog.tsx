@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { useAuth } from '@/contexts/auth-context'
 import { currentBackend } from '@/lib/backend/browser'
 import type { BackendInvitation, BackendMember, BackendOrganisation, BackendOrganisationBilling, BackendPlan, BackendSubscription, BackendWorkspace } from '@/lib/backend/client'
-import { can, describeSeatRecovery } from '@/lib/settings/organisations'
+import { can, finishPendingSeatChange, visibleRecovery, type SeatRecoveryOutcome, type StoredSeatRecovery } from '@/lib/settings/organisations'
 import { CreateOrganisationDialog } from './organisation/create-organisation-dialog'
 import { InviteMemberDialog } from './organisation/invite-member-dialog'
 import { TypedConfirmationDialog } from './typed-confirmation-dialog'
@@ -48,7 +48,7 @@ type OrganisationHandlers = {
   billing: BackendOrganisationBilling | null; currentUid: string
   onRename: (name: string) => void; onTransfer: (uid: string) => void; onLeave: () => void; onDelete: () => void
   onInvite: () => void; onChangeRole: (uid: string, role: 'admin' | 'member') => void; onRemove: (member: BackendMember) => void; onRevoke: (invitation: BackendInvitation) => void
-  onCheckout: (planKey: string, seats: number) => void; onChangeSeats: (seats: number) => void; onManageBilling: () => void; onReconcile: () => void
+  onCheckout: (planKey: string, seats: number) => void; onChangeSeats: (seats: number) => void; onManageBilling: () => void; onReconcile: () => void; recovery: SeatRecoveryOutcome | null
 }
 /** Page props for the selected organisation; null pages until it has loaded. */
 function organisationSettings(h: OrganisationHandlers): OrganisationSettings {
@@ -56,7 +56,7 @@ function organisationSettings(h: OrganisationHandlers): OrganisationSettings {
   return {
     general: { organisation: h.organisation, members: h.members, currentUid: h.currentUid, onRename: h.onRename, onTransfer: h.onTransfer, onLeave: h.onLeave, onDelete: h.onDelete },
     members: { organisation: h.organisation, members: h.members, invitations: h.invitations, currentUid: h.currentUid, onInvite: h.onInvite, onChangeRole: h.onChangeRole, onRemove: h.onRemove, onRevoke: h.onRevoke },
-    plan: { organisation: h.organisation, billing: h.billing, onCheckout: h.onCheckout, onChangeSeats: h.onChangeSeats, onManageBilling: h.onManageBilling, onReconcile: h.onReconcile },
+    plan: { organisation: h.organisation, billing: h.billing, onCheckout: h.onCheckout, onChangeSeats: h.onChangeSeats, onManageBilling: h.onManageBilling, onReconcile: h.onReconcile, recovery: h.recovery },
   }
 }
 
@@ -90,13 +90,14 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
   const [members, setMembers] = useState<readonly BackendMember[] | null>(null)
   const [invitations, setInvitations] = useState<readonly BackendInvitation[] | null>(null)
   const [orgBilling, setOrgBilling] = useState<BackendOrganisationBilling | null>(null)
+  const [recovery, setRecovery] = useState<StoredSeatRecovery | null>(null)
   const [orgRevision, setOrgRevision] = useState(0)
   const [creatingOrganisation, setCreatingOrganisation] = useState(false)
   const [inviting, setInviting] = useState(false)
   const [deletingOrganisation, setDeletingOrganisation] = useState(false)
   const [removing, setRemoving] = useState<BackendMember | null>(null)
   useEffect(() => {
-    setOrganisation(null); setMembers(null); setInvitations(null); setOrgBilling(null)
+    setOrganisation(null); setMembers(null); setInvitations(null); setOrgBilling(null); setRecovery(null)
     if (!open || orgId === null) return
     const controller = new AbortController()
     void (async () => {
@@ -150,7 +151,7 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
   const fenced = useMemo(() => principalFence(() => principalRef.current), [])
   // A different account signed in: nothing the previous one was looking at or waiting for carries over.
   // A new principal starts from a clean dialog: nothing the previous one saw, cached or was waiting for carries over.
-  useEffect(() => { setPlans(null); setSubscription(undefined); setOrganisation(null); setMembers(null); setInvitations(null); setOrgBilling(null); setPlanChange(null); setClosingAccount(false); setCreatingOrganisation(false); setInviting(false); setDeletingOrganisation(false); setRemoving(null); setMessage(null); setError(null); setBusy(false) }, [principal])
+  useEffect(() => { setPlans(null); setSubscription(undefined); setOrganisation(null); setMembers(null); setInvitations(null); setOrgBilling(null); setRecovery(null); setPlanChange(null); setClosingAccount(false); setCreatingOrganisation(false); setInviting(false); setDeletingOrganisation(false); setRemoving(null); setMessage(null); setError(null); setBusy(false) }, [principal])
   const perform = async (work: (live: () => boolean) => Promise<void>) => {
     if (busy) return
     await fenced(work, { busy: setBusy, error: setError, message: setMessage })
@@ -209,12 +210,8 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
             onRemove: (member) => { setError(null); setMessage(null); setRemoving(member) },
             onRevoke: (invitation) => void perform(async (live) => { if (orgId) { await currentBackend().revokeInvitation(orgId, invitation.id); if (!live()) return; await reloadOrganisation(); if (!live()) return; setMessage('Invitation revoked.') } }),
             onCheckout: (planKey, seats) => void perform(async (live) => { if (orgId) { const result = await currentBackend().organisationCheckout(orgId, planKey, seats); if (!live()) return; window.location.assign(result.url) } }),
-            onReconcile: () => void perform(async (live) => { if (orgId) {
-              const outcome = describeSeatRecovery(await currentBackend().reconcileSeats(orgId)); if (!live()) return
-              await reloadBilling(); if (!live()) return
-              if (outcome.kind === 'checkout' && outcome.url) window.open(outcome.url, '_blank', 'noopener')
-              if (outcome.kind === 'resolved') setMessage(outcome.message); else setError(outcome.message)
-            } }),
+            onReconcile: () => void perform((live) => orgId ? finishPendingSeatChange({ reconcile: () => currentBackend().reconcileSeats(orgId), reloadOrganisation, live, present: (outcome) => { setRecovery({ principal: principalRef.current, organisationId: orgId, outcome }); if (outcome.kind === 'resolved') setMessage(outcome.message); else setError(outcome.message) } }) : Promise.resolve()),
+            recovery: visibleRecovery(recovery, principalRef.current, orgId),
             onChangeSeats: (seats) => void perform(async (live) => { if (orgId) { const result = await intend(seatsIntent(orgId, seats), (key) => currentBackend().changeSeats(orgId, seats, key)); if (!live()) return; await reloadOrganisation(); if (!live()) return; setMessage(`${result.subscription.seats} seats from now on.`) } }),
             onManageBilling: () => void perform(async (live) => { if (orgId) { const result = await currentBackend().organisationPortal(orgId); if (!live()) return; window.location.assign(result.url) } }),
           })}
