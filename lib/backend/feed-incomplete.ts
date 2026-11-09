@@ -43,9 +43,17 @@ export function incompleteRunsShown(
   return [...byRun.values()].sort((a, b) => a.execution - b.execution)
 }
 
-/** True when the session has finished but the last journaled event is not the end of its current run. */
+/** Events only a run in progress publishes: the model's steps and the commands it runs. Notices such as voice history,
+ * messages, preview or desktop state can legitimately follow a run's end and prove nothing about it. */
+const runWorkEvent = (type: string): boolean => type.startsWith('agent.') || type.startsWith('command.') || type === 'session.running' || type === 'session.cancel_requested'
+
+/**
+ * True when the session has finished but its current run's end never reached the record: the last journaled event is
+ * work of a run (not a notice that may trail an end), or the only end on record belongs to an earlier run.
+ */
 export function runEndUnrecorded(status: string, execution: number | undefined, lastEvent: LastJournaledEvent | undefined): boolean {
   if (!['IDLE', 'STOPPED', 'FAILED'].includes(status) || lastEvent === undefined) return false
-  if (!terminalEventTypes.has(lastEvent.type)) return true
-  return execution !== undefined && lastEvent.execution !== undefined && lastEvent.execution !== execution
+  if (runWorkEvent(lastEvent.type)) return lastEvent.execution === undefined || execution === undefined || lastEvent.execution === execution
+  if (terminalEventTypes.has(lastEvent.type)) return execution !== undefined && lastEvent.execution !== undefined && lastEvent.execution < execution
+  return false
 }

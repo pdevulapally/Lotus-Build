@@ -56,7 +56,7 @@ export function reduceThinking(events: ComputerTimelineEvent[], event: SessionEv
     if (typeof event.data.delta !== 'string') throw new Error('The server returned an invalid thinking event.')
     if (!event.id || event.data.delta.length === 0) return events
     if (open === -1) {
-      return [...events, { id: event.id, title: 'Thinking', kind: 'thinking', status: 'running', index,
+      return [...events, { id: event.id, title: 'Thinking', kind: 'thinking', status: 'running', index, ...(eventExecution(event) === undefined ? {} : { execution: eventExecution(event) }),
         createdAt: new Date(Number(event.id.split('-')[0])).toISOString(), description: event.data.delta }]
     }
     const current = events[open]!
@@ -252,7 +252,7 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
     const sameScope = scopeRef.current === scope
     scopeRef.current = scope
     if (!sameScope) {
-    setSession(null); setProject(null); setMessages([]); setQueued([]); setEvents([]); setTerminal([]); setText(''); setPreview(null)
+    setSession(null); setProject(null); setMessages([]); setQueued([]); setEvents([]); setIncompleteRuns([]); setTerminal([]); setText(''); setPreview(null)
     setDesktop({ status: 'none' })
     setLiveLabel(null)
     setError(null); setStreamError(null); setLoading(true)

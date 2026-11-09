@@ -206,3 +206,28 @@ test('unrecorded end: a finished session whose last journaled event is not its r
   assert.equal(notices(html, 'feed-end-unrecorded'), 1); assert.match(html, /The end of this run was not recorded/)
   assert.equal(notices(renderAgentFeed({ status: 'idle', events: [], endUnrecorded: false }), 'feed-end-unrecorded'), 0)
 })
+
+test('mixed thinking and activity rows carry their run: later thinking is not read as legacy first-run history, so an older gap is not kept alive by it', () => {
+  resetClock()
+  const state = play([ev('session.running', { execution: 2 }), ev('agent.step', { execution: 2, step: 1 }), ev('agent.thinking', { execution: 2, delta: 'Looking at the failing test…' }),
+    ev('agent.tool_call', { execution: 2, name: 'run_command', input: { command: 'npm test' }, callId: 'r2' }), ev('agent.tool_result', { execution: 2, callId: 'r2', name: 'run_command', isError: false, text: 'ok' }),
+    ev('session.idle', { execution: 2, steps: 1, stopReason: 'end_turn' })])
+  assert.ok(state.events.length >= 2); for (const row of state.events) assert.equal(row.execution, 2, `${row.title} belongs to run 2`)
+  assert.deepEqual(incompleteRunsShown([record(1)], state.events, 2), [], 'run 1 is not on screen: no warning for it')
+  assert.deepEqual(incompleteRunsShown([record(2)], state.events, 2).map((r) => r.execution), [2])
+})
+
+test('legitimate events after a run\'s end are not an unrecorded end: voice history, messages, preview and desktop notices may trail session.idle; only run work as the last record means the end was lost', () => {
+  for (const type of ['voice.history_changed', 'message.appended', 'preview.ready', 'desktop.ended', 'session.awaiting_input'])
+    assert.equal(runEndUnrecorded('IDLE', 1, { type, sequence: 9, execution: 1 }), false, `${type} after the end is fine`)
+  for (const type of ['agent.tool_call', 'agent.text', 'agent.thinking', 'command.output', 'session.running'])
+    assert.equal(runEndUnrecorded('IDLE', 1, { type, sequence: 9, execution: 1 }), true, `${type} as the last record means the end never arrived`)
+  assert.equal(runEndUnrecorded('IDLE', 2, { type: 'agent.text', sequence: 9, execution: 1 }), false, 'run 1 work as the last record says nothing about run 2\'s end (run 2 has no record at all)')
+  assert.equal(runEndUnrecorded('IDLE', 1, { type: 'agent.text', sequence: 9 }), true, 'legacy work without a run number counts')
+})
+
+test('warnings are per session and account: the same run number elsewhere means nothing here — the scoped state (records, declared runs) is what is shown, and nothing is carried by number alone', () => {
+  // The hook clears `incompleteRuns` with the rest of its scoped state on a session/user change and on a stream reset; what remains is what this session\'s own records and events declare.
+  assert.deepEqual(incompleteRunsShown(undefined, [{ execution: 1 }], 1, []), [], 'a clean session with run 1 shows no warning even though another session\'s run 1 had one')
+  assert.deepEqual(incompleteRunsShown([record(1)], [{ execution: 1 }], 1, []).map((r) => r.execution), [1], 'this session\'s own record does')
+})
