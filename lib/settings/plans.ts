@@ -35,11 +35,28 @@ export const relationLabels: Readonly<Record<Exclude<PlanRelation, 'current'>, s
   subscribe: 'Choose', upgrade: 'Upgrade', downgrade: 'Downgrade', cancel: 'Switch at renewal',
 }
 
-/** Stripe's preview amount as the customer reads it: a charge today, or nothing to pay now. */
+/**
+ * Stripe's preview as the customer reads it. The change is prorated (`create_prorations`): the
+ * difference for the rest of the period becomes a line on the next invoice, not a charge taken
+ * now, and the preview total is that invoice as it stands — renewal included.
+ */
 export function describeChangeCharge(preview: { amountDueMinor: number; currency: string }): string {
-  if (preview.amountDueMinor <= 0) return 'Nothing to pay today. Unused time on your current plan is credited to your next invoice.'
+  if (preview.amountDueMinor <= 0) return 'Nothing more to pay. Unused time on your current plan is credited to your next invoice.'
   const { amount } = formatPlanPrice({ amountMinor: preview.amountDueMinor, currency: preview.currency, interval: 'month' })
-  return `${amount} is charged today for the rest of this billing period. Your next invoice is at the new plan's price.`
+  return `Your next invoice comes to ${amount}: the prorated difference for the rest of this billing period, then the new plan's price.`
+}
+
+/** What the server says the subscription now is, after a change — never what was asked for. */
+export function describeSubscriptionOutcome(
+  subscription: { planKey: string; cancelAtPeriodEnd: boolean; currentPeriodEnd: string } | null,
+  plans: readonly { key: string; name: string }[] | null,
+): string {
+  if (subscription === null) return 'You no longer have a paid plan.'
+  const name = plans?.find((plan) => plan.key === subscription.planKey)?.name ?? subscription.planKey
+  const end = longDate(subscription.currentPeriodEnd)
+  return subscription.cancelAtPeriodEnd
+    ? `You are on ${name} until ${end}, when it ends. You keep everything it includes until then.`
+    : `You are on ${name}. It renews on ${end}.`
 }
 
 export function longDate(iso: string): string {
