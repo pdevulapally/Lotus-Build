@@ -21,6 +21,8 @@ type AuthState = {
   loading: boolean; accountError: string | null; refreshAccount: () => Promise<BackendAccount | undefined>
   /** Counts sign-in/sign-out transitions: work started under one signed-in session must not land in the next, even for the same account. */
   authEpoch: number
+  /** The signed-in principal (`uid#authEpoch`) as it is *now* — read through a ref, so a continuation started before an unmount or a sign-in still sees the live value. */
+  principal: () => string
   workspaces: readonly Workspace[]; currentWorkspace: Workspace | null; switchWorkspace: (id: string, available?: readonly Workspace[]) => Promise<void>
   getOptionalAuthHeader: () => Promise<Record<string, string>>
   signInWithGoogle: () => Promise<void>; signInWithGithub: () => Promise<void>
@@ -37,6 +39,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [usage, setUsage] = useState<BackendUsage | null>(null)
   const [loading, setLoading] = useState(true)
   const [authEpoch, setAuthEpoch] = useState(0)
+  const principalRef = useRef('')
+  principalRef.current = user ? `${user.uid}#${authEpoch}` : ''
+  const principal = useCallback(() => principalRef.current, [])
   const [accountError, setAccountError] = useState<string | null>(null)
   const accountRequest = useRef(0)
   const refreshAccount = useCallback(async () => {
@@ -102,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const identity = auth.currentUser
     return identity ? { Authorization: `Bearer ${await identity.getIdToken()}` } : {}
   }, [])
-  return <AuthContext.Provider value={{ user, userData, account, usage, loading, accountError, refreshAccount, authEpoch,
+  return <AuthContext.Provider value={{ user, userData, account, usage, loading, accountError, refreshAccount, authEpoch, principal,
     workspaces, currentWorkspace, switchWorkspace,
     getOptionalAuthHeader,
     signInWithGoogle: async () => { await signInWithPopup(auth, googleProvider) },

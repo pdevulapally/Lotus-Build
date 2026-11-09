@@ -33,11 +33,10 @@ const failureCopy: Readonly<Record<string, string>> = {
 function AcceptInvitation() {
   const params = useSearchParams()
   const router = useRouter()
-  const { account, authEpoch, refreshAccount, switchWorkspace } = useAuth()
+  const { account, authEpoch, principal: livePrincipal, refreshAccount, switchWorkspace } = useAuth()
   const { openSettings } = useSettingsDialog()
   const [outcome, setOutcome] = useState<Outcome>({ kind: 'pending' })
   const principal = account ? `${account.uid}#${authEpoch}` : ''
-  const current = useRef(principal); current.current = principal
   const attempted = useRef('')
   const orgId = params.get('organisation')
   const token = params.get('token')
@@ -47,8 +46,12 @@ function AcceptInvitation() {
     if (principal === '' || attempted.current === principal) return
     attempted.current = principal
     if (!orgId || !token) { setOutcome({ kind: 'failed', message: failureCopy['organisation/invitation-invalid']! }); return }
+    // Two fences: the provider's live principal (it outlives this component, so a sign-out that unmounts
+    // the page still turns the old principal stale), and this effect's own cleanup (nothing reports into
+    // an unmounted page).
+    let mounted = true
     void acceptInvitation({
-      principal: () => current.current,
+      principal: () => (mounted ? livePrincipal() : ''),
       accept: () => currentBackend().acceptInvitation(orgId, token),
       refresh: refreshAccount,
       select: switchWorkspace,
@@ -58,7 +61,8 @@ function AcceptInvitation() {
         setOutcome({ kind: 'failed', message: failureCopy[code] ?? (result.reason instanceof Error ? result.reason.message : 'The invitation could not be accepted.') })
       },
     })
-  }, [principal, orgId, token, refreshAccount, switchWorkspace])
+    return () => { mounted = false }
+  }, [principal, livePrincipal, orgId, token, refreshAccount, switchWorkspace])
 
   if (outcome.kind === 'pending') return <LogoLoader label="Checking your invitation…" />
   return (
