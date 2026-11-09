@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { StrictMode, act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { AuthProvider } from '../../contexts/auth-context'
+import { AuthProvider, useAuth } from '../../contexts/auth-context'
 import AcceptInvitationPage from '../../app/invitations/accept/page'
 import { SettingsDialogProvider } from '../../components/settings/settings-dialog'
 import { auth } from '../support/stubs/firebase'
@@ -17,7 +17,10 @@ import { workspaceStorageKey } from '../../contexts/auth-context'
  */
 const flush = async () => { await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) }) }
 const text = () => document.body.textContent ?? ''
-const tree = () => createElement(AuthProvider, null, createElement(SettingsDialogProvider, null, createElement(AcceptInvitationPage)))
+/** Reaches the provider's workspace switch, as Settings or another tab would. */
+const controls: { switchWorkspace?: (id: string) => Promise<void> } = {}
+function Probe() { const { switchWorkspace } = useAuth(); controls.switchWorkspace = switchWorkspace; return null }
+const tree = () => createElement(AuthProvider, null, createElement(SettingsDialogProvider, null, createElement(Probe), createElement(AcceptInvitationPage)))
 /** A test that failed mid-way leaves its tree mounted; the next mount removes it so trees never share a document. */
 const mounted: (() => Promise<void>)[] = []
 const mount = async (strict = false) => {
@@ -238,5 +241,45 @@ test('A becomes ready, B becomes ready, back to A: readiness is confirmed again 
   await act(async () => { openButton()!.click() }); await flush()
   assert.deepEqual(navigation.pushes, ['/']); assert.equal(storedWorkspace('alice'), 'org1', 'Open leads to Acme, not Beta')
   assert.deepEqual(unhandled, [])
+  await page.unmount()
+})
+
+test('A is ready, the same page moves to a pending B: B shows pending at once — nothing of A is shown or clickable under B\'s URL — and B\'s own answer then takes over', async () => {
+  reset(); auth.signIn('alice')
+  const page = await mount(); await flush()
+  backend.acceptGates[0]!.open(); await flush(); await flush(); await flush()
+  assert.match(text(), /You’re in Acme/); assert.equal(openButton()!.disabled, false)
+  setInvitationQuery('org2', 'b'.repeat(43)); await page.rerender()
+  assert.match(text(), /Checking your invitation/, 'B is pending from the first render under its URL')
+  assert.doesNotMatch(text(), /Acme|Open the organisation/, 'A\'s result and action are not shown for B')
+  assert.equal(openButton(), undefined, 'nothing to click early')
+  await flush(); assert.equal(backend.acceptGates.length, 2, 'B is submitted once, A never again')
+  backend.acceptGates[1]!.open(); await flush(); await flush(); await flush()
+  assert.match(text(), /You’re in Beta/); assert.equal(storedWorkspace('alice'), 'org2'); assert.deepEqual(navigation.pushes, [])
+  await page.unmount()
+})
+
+test('A failed, the same page moves to a pending B: the stale failure is not shown under B', async () => {
+  reset(); auth.signIn('alice'); backend.acceptFailures.add('a'.repeat(43))
+  const page = await mount(); await flush()
+  backend.acceptGates[0]!.open(); await flush(); await flush()
+  assert.match(text(), /expired or been withdrawn/)
+  setInvitationQuery('org2', 'b'.repeat(43)); await page.rerender()
+  assert.match(text(), /Checking your invitation/); assert.doesNotMatch(text(), /expired or been withdrawn/)
+  await page.unmount()
+})
+
+test('the selection moves elsewhere while the page stays open (Settings, another tab): the page says so truthfully, offers Switch to Acme, and switching back needs no resubmission', async () => {
+  reset(); auth.signIn('alice')
+  const page = await mount(); await flush()
+  backend.acceptGates[0]!.open(); await flush(); await flush(); await flush()
+  assert.equal(storedWorkspace('alice'), 'org1'); assert.equal(openButton()!.disabled, false)
+  await act(async () => { await controls.switchWorkspace!('org2') }); await flush()
+  assert.match(text(), /your selected workspace is Beta now/); assert.equal(openButton(), undefined, 'Open is not offered for a workspace that is not selected')
+  assert.doesNotMatch(text(), /Setting up the organisation/, 'not a stuck pending state')
+  const back = [...document.querySelectorAll('button')].find((b) => b.textContent?.includes('Switch to Acme')); assert.ok(back, 'an explicit way back is offered')
+  await act(async () => { back.click() }); await flush(); await flush(); await flush()
+  assert.equal(storedWorkspace('alice'), 'org1', 'switched back'); assert.equal(openButton()!.disabled, false); assert.match(text(), /now your selected workspace/)
+  assert.equal(backend.acceptGates.length, 1, 'the token was never sent again'); assert.deepEqual(navigation.pushes, []); assert.deepEqual(unhandled, [])
   await page.unmount()
 })
