@@ -611,7 +611,7 @@ export default function ComputerPage() {
 
                   onClarificationAnswer={handleClarificationAnswer}
                   incompleteRuns={incompleteRunsShown(raw?.feedIncomplete, session.timeline, raw?.execution, backend.incompleteRuns)}
-                  endUnrecorded={raw !== null && runEndUnrecorded(raw.status, raw.execution, raw.runEnd)}
+                  endUnrecorded={raw !== null && runEndUnrecorded(raw.status, raw.execution, raw.runStart, raw.runEnds)}
                   plan={raw?.plan ?? null} planActions={planActions}
                   delivery={raw?.delivery ?? null}
 

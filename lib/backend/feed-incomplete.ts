@@ -10,7 +10,8 @@ import type { SessionEvent } from './client'
 export interface FeedIncompleteRun { readonly execution: number; readonly lost: number; readonly lastType: string; readonly since: string }
 export interface LastJournaledEvent { readonly type: string; readonly sequence: number; readonly execution?: number }
 
-export const terminalEventTypes: ReadonlySet<string> = new Set(['session.idle', 'session.queued', 'session.stopped', 'session.failed'])
+/** Events that end a run: the session's terminal states, and agent.finished, which closes every turn — hot-chained ones included. */
+export const terminalEventTypes: ReadonlySet<string> = new Set(['session.idle', 'session.queued', 'session.stopped', 'session.failed', 'agent.finished'])
 
 export const feedIncompleteCopy = {
   title: 'Some of this activity could not be recorded',
@@ -44,14 +45,31 @@ export function incompleteRunsShown(
 
 export interface RunEnd { readonly execution: number; readonly type: string; readonly sequence: number; readonly incomplete: boolean }
 
+export interface RunStart { readonly execution: number; readonly sequence: number }
+export type RunEnds = Readonly<Record<string, RunEnd>>
+
 /**
- * True when the session has finished but no end is on record for its current run. The end is a durable fact the
- * server writes with the terminal event (and the stream carries live), never an inference from whatever event was
- * journaled last: a plan edit after a clean end changes nothing, and a notice after a lost end hides nothing.
+ * True only when a run is known to have started and no end is on record for it while the session has finished. A
+ * session with no start on record (history from before this was recorded, a fresh voice session whose first idle
+ * names no run) is unknown, not lost — nothing is warned about. Judged from durable per-run facts, never inferred.
  */
-export function runEndUnrecorded(status: string, execution: number | undefined, runEnd: RunEnd | undefined): boolean {
+export function runEndUnrecorded(status: string, execution: number | undefined, runStart: RunStart | undefined, runEnds: RunEnds | undefined): boolean {
   if (!['IDLE', 'STOPPED', 'FAILED'].includes(status) || execution === undefined) return false
-  return runEnd === undefined || runEnd.execution !== execution
+  if (runStart === undefined || runStart.execution !== execution) return false
+  return runEnds?.[String(execution)] === undefined
+}
+
+/** Server facts observed on the stream are evidence a later snapshot cannot take back: a snapshot read before catch-up
+ * and delivered after a terminal event must not revive a warning the terminal event already answered. Facts merge by sequence. */
+export function mergeSessionEvidence<T extends { runStart?: RunStart; runEnd?: RunEnd; runEnds?: RunEnds }>(current: T | null, next: T): T {
+  if (current === null) return next
+  const runStart = [current.runStart, next.runStart].filter((x): x is RunStart => x !== undefined).sort((x, y) => y.sequence - x.sequence)[0]
+  const ends: Record<string, RunEnd> = { ...(current.runEnds ?? {}), ...(current.runEnd ? { [String(current.runEnd.execution)]: current.runEnd } : {}) }
+  for (const end of [...Object.values(next.runEnds ?? {}), ...(next.runEnd ? [next.runEnd] : [])]) {
+    const known = ends[String(end.execution)]; if (known === undefined || end.sequence >= known.sequence) ends[String(end.execution)] = end
+  }
+  const runEnd = Object.values(ends).sort((x, y) => y.sequence - x.sequence)[0]
+  return { ...next, ...(runStart ? { runStart } : {}), ...(runEnd ? { runEnd } : {}), ...(Object.keys(ends).length > 0 ? { runEnds: ends } : {}) }
 }
 
 /** The end a terminal event records for its run, as the server will have written it. */

@@ -39,7 +39,7 @@ test('incomplete terminal on the stream: the run is declared incomplete and the 
   await send(h, 'session.running', { execution: 1 }); await send(h, 'agent.tool_call', { execution: 1, name: 'run_command', input: { command: 'npm test' }, callId: 'c1' })
   await send(h, 'session.idle', { execution: 1, steps: 1, stopReason: 'end_turn', incomplete: true })
   assert.deepEqual(seen.current!.incompleteRuns, [1]); assert.equal(seen.current!.session?.runEnd?.incomplete, true)
-  assert.equal(runEndUnrecorded(seen.current!.session!.status, seen.current!.session!.execution, seen.current!.session!.runEnd), false, 'the end is on record the moment the terminal event arrives')
+  assert.equal(runEndUnrecorded(seen.current!.session!.status, seen.current!.session!.execution, seen.current!.session!.runStart, seen.current!.session!.runEnds), false, 'the end is on record the moment the terminal event arrives')
 })
 
 test('scope change: another session (or account) with the same run number shows none of the previous session\'s warnings', async () => {
@@ -55,13 +55,25 @@ test('scope change: another session (or account) with the same run number shows 
 })
 
 test('live clean terminal: a clean end on the stream is known at once, and a stream reset at a later run keeps a replayed older incomplete declaration', async () => {
-  harness.snapshot = (id) => snapshot(id, 2)
+  harness.snapshot = (id) => ({ ...snapshot(id, 2), session: { ...snapshot(id, 2).session, runStart: { execution: 2, sequence: 1 } } })
   const h = await mount('s4', user('alice'))
   await send(h, 'session.running', { execution: 2 }); await send(h, 'session.idle', { execution: 2, steps: 1, stopReason: 'end_turn' })
-  assert.equal(runEndUnrecorded('IDLE', 2, seen.current!.session!.runEnd), false, 'clean end recorded live, no temporary false warning')
+  assert.equal(runEndUnrecorded('IDLE', 2, seen.current!.session!.runStart, seen.current!.session!.runEnds), false, 'clean end recorded live, no temporary false warning')
+  // A heartbeat snapshot read before catch-up arrives now, without the end: the observed end must survive it.
+  await act(async () => { await h.onState?.({ ...snapshot('s4', 2).session, status: 'IDLE', runStart: { execution: 2, sequence: 1 } }) }); await flush()
+  assert.equal(seen.current!.session!.runEnds?.['2']?.type, 'session.idle', 'the stale snapshot did not erase the observed end')
+  assert.equal(runEndUnrecorded('IDLE', 2, seen.current!.session!.runStart, seen.current!.session!.runEnds), false, 'no revived false warning')
   await act(async () => { await h.onReset?.() }); await flush()
   await send(h, 'session.idle', { execution: 1, steps: 1, stopReason: 'end_turn', incomplete: true })   // replayed older history after the reset
   assert.deepEqual(seen.current!.incompleteRuns, [1], 'the replayed run-1 declaration is not dropped by the run gate after a reset')
+})
+
+test('a fresh voice session: created IDLE at execution 1, its first session.idle names no run — no run started, nothing is warned about', async () => {
+  harness.snapshot = (id) => ({ ...snapshot(id, 1), session: { ...snapshot(id, 1).session, status: 'IDLE' } })
+  const h = await mount('s5', user('alice'))
+  await send(h, 'session.idle', { steps: 0 })
+  const s = seen.current!.session!
+  assert.equal(s.runStart, undefined); assert.equal(runEndUnrecorded(s.status, s.execution, s.runStart, s.runEnds), false); assert.deepEqual(seen.current!.incompleteRuns, [])
 })
 
 test.after(async () => { if (root) await act(async () => { root!.unmount() }) })

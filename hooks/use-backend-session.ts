@@ -14,7 +14,7 @@ import {
   reduceTerminal,
   type TerminalEntry,
 } from '@/lib/backend/terminal'
-import { incompleteRunFromEvent, runEndFromEvent } from '@/lib/backend/feed-incomplete'
+import { incompleteRunFromEvent, mergeSessionEvidence, runEndFromEvent } from '@/lib/backend/feed-incomplete'
 import { executionLabel, genericToolStepLabel, isHiddenToolStep, lifecycleFeedLabels, toolFailureLabel, toolStepLabel } from '@/lib/backend/feed-labels'
 import { loadSessionSnapshot, sessionEventStatus } from '@/lib/backend/session-snapshot'
 import { applyPlanEvent } from '@/lib/backend/session-plan'
@@ -282,11 +282,11 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
       const client = currentBackend()
       const { session: next, project: parent, messages: history, queued: waiting } = await loadSessionSnapshot(client, id, signal, (owned, parent) => {
         if (signal.aborted || version !== loadVersion) return
-        setSession((current) => stateAtStart === stateVersion ? owned : current ?? { ...owned, status: latestStatus ?? owned.status })
+        setSession((current) => stateAtStart === stateVersion ? mergeSessionEvidence(current, owned) : current ?? { ...owned, status: latestStatus ?? owned.status })
         setProject(parent); setLoading(false)
       })
       if (signal.aborted || version !== loadVersion) return
-      if (stateAtStart === stateVersion) { setSession(next); turnEnded = isTerminalStatus(next.status) }
+      if (stateAtStart === stateVersion) { setSession((current) => mergeSessionEvidence(current, next)); turnEnded = isTerminalStatus(next.status) }
       setProject(parent); setMessages(history); setQueued(waiting)
       setLoading(false); setError(null)
       const loadedFingerprint = fingerprint(next)
@@ -315,7 +315,7 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
       // Running rows end only when the server says the run has ended, never on
       // the Stop request alone: the command may still be running until then.
       if (ended) { setLiveLabel(null); setEvents((current) => interruptRunningToolEvents(current)) }
-      setSession(next)
+      setSession((current) => mergeSessionEvidence(current, next))
     }
     applyStateRef.current = applyServerState
     const scheduleRefresh = () => {
@@ -351,7 +351,7 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
               latestExecution = execution
             }
             const ended = runEndFromEvent(event)
-            if (ended !== undefined) setSession((current) => current ? { ...current, runEnd: ended } : current)
+            if (ended !== undefined) setSession((current) => current ? mergeSessionEvidence(current, { ...current, runEnd: ended, runEnds: { ...(current.runEnds ?? {}), [String(ended.execution)]: ended } }) : current)
             const declared = incompleteRunFromEvent(event)
             if (declared !== undefined) setIncompleteRuns((current) => current.includes(declared) ? current : [...current, declared])
             const status = sessionEventStatus[event.type]
