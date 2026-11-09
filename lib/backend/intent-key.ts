@@ -38,10 +38,9 @@ const read = ({ uid, storage }: IntentScope): IntentRecord => {
   return { uid, next: 0, surfaces: {} }
 }
 
-const write = ({ uid, storage }: IntentScope, record: IntentRecord): void => {
-  if (Object.keys(record.surfaces).length === 0) storage.removeItem(storageKey(uid))
-  else storage.setItem(storageKey(uid), JSON.stringify(record))
-}
+// The record stays once written, even with nothing unresolved: the generation counter must never
+// restart, or a completion arriving late could settle an operation minted after it.
+const write = ({ uid, storage }: IntentScope, record: IntentRecord): void => { storage.setItem(storageKey(uid), JSON.stringify(record)) }
 
 export const clearIntents = (storage: Storage, uid: string): void => { storage.removeItem(storageKey(uid)) }
 
@@ -63,6 +62,8 @@ export const intentStore = (scope: IntentScope) => {
     const { [surface]: _settled, ...surfaces } = record.surfaces
     write(scope, { ...record, surfaces: remaining.length === 0 ? surfaces : { ...surfaces, [surface]: Object.fromEntries(remaining) } })
   }
+  /** Generations minted so far — exposed for the one test that pins the counter never restarting. */
+  const generations = (): number => read(scope).next
   /** Runs one intended action under its key; only the server confirming the action settles the surface up to it. */
   const run = async <T>(intent: Intent, work: (key: string) => Promise<T>): Promise<T> => {
     const own = entry(intent)
@@ -70,7 +71,7 @@ export const intentStore = (scope: IntentScope) => {
     settle(intent.surface, own.generation)
     return result
   }
-  return { key, settle, run }
+  return { key, settle, run, generations }
 }
 export type IntentStore = ReturnType<typeof intentStore>
 

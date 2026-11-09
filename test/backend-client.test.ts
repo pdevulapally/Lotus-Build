@@ -585,6 +585,22 @@ test('an operation key lives until its surface is confirmed: kept across network
   assert.equal(alice.key(subscriptionIntent('plan:b')), b)
   await alice.run(subscriptionIntent('plan:b'), async (key) => { assert.equal(key, b) })
   assert.notEqual(alice.key(subscriptionIntent('plan:b')), b, 'its own success settles it')
+  // Empty store, then a new operation, then a late duplicate of an old completion: the generation counter
+  // never restarts, so generation 0 settles nothing minted since.
+  const empty = memoryStorage(); const fresh = intentStore({ uid: 'alice', storage: empty })
+  await fresh.run(subscriptionIntent('plan:old'), async () => undefined)
+  assert.deepEqual(JSON.parse(empty.getItem('lotus-intents:alice')!).surfaces, {}, 'nothing unresolved remains')
+  const minted = fresh.key(subscriptionIntent('plan:new'))
+  fresh.settle('billing/subscription', 0)
+  assert.equal(fresh.key(subscriptionIntent('plan:new')), minted, 'a late duplicate of the old completion cannot settle the newer operation')
+  assert.equal(fresh.generations(), 2)
+  // Two tabs over one account's storage: the second sees the first's key. Two tabs minting the same intent at
+  // the same instant can still diverge (storage has no lock); the server's pin then refuses the second key with
+  // 409 seat-change-in-progress rather than running a second mutation, and the first tab's key recovers it.
+  const tabA = intentStore({ uid: 'alice', storage: empty }); const tabB = intentStore({ uid: 'alice', storage: empty })
+  assert.equal(tabB.key(seatsIntent('org1', 7)), tabA.key(seatsIntent('org1', 7)))
+  await tabA.run(seatsIntent('org1', 7), async () => undefined)
+  assert.equal(tabB.key(seatsIntent('org1', 7)), tabA.key(seatsIntent('org1', 7)), 'the other tab sees the settlement and the new key alike')
   const seats5 = alice.key(seatsIntent('org1', 5))
   await alice.run(subscriptionIntent('cancellation:true'), async () => undefined)
   assert.equal(alice.key(seatsIntent('org1', 5)), seats5, 'a subscription success does not settle an organisation\'s seat intent')
