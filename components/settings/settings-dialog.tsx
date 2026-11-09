@@ -97,7 +97,9 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
   const [deletingOrganisation, setDeletingOrganisation] = useState(false)
   const [removing, setRemoving] = useState<BackendMember | null>(null)
   useEffect(() => {
-    setOrganisation(null); setMembers(null); setInvitations(null)
+    // Nothing of the previous organisation is shown or actionable while this one loads; a late answer for the
+    // previous one is discarded by the controller below.
+    setOrganisation(null); setMembers(null); setInvitations(null); setOrgBilling(null)
     if (!open || orgId === null) return
     const controller = new AbortController()
     void (async () => {
