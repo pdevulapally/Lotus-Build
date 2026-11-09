@@ -534,7 +534,7 @@ test('asking for the desktop posts to the session and accepts only the run-stamp
 const memoryStorage = () => { const items = new Map<string, string>(); return { getItem: (k: string) => items.get(k) ?? null, setItem: (k: string, v: string) => { items.set(k, v) }, removeItem: (k: string) => { items.delete(k) } } }
 
 test('an operation key lives until its surface is confirmed: kept across network, 5xx, in-progress and refused answers and across a reload; a success settles the intents asked before it on that surface, never a newer one; another target, surface or account is another key', async () => {
-  const { clearIntents, intentStore, seatsIntent, subscriptionIntent } = await import('../lib/backend/intent-key')
+  const { intentStore, seatsIntent, subscriptionIntent } = await import('../lib/backend/intent-key')
   const storage = memoryStorage()
   const alice = intentStore({ uid: 'alice', storage })
   const business = subscriptionIntent('plan:business'); const pro = subscriptionIntent('plan:pro')
@@ -619,10 +619,16 @@ test('an operation key lives until its surface is confirmed: kept across network
   const keys: string[] = []
   await Promise.all([alice.run(seatsIntent('org1', 5), async (key) => { keys.push(key) }), alice.run(seatsIntent('org1', 5), async (key) => { keys.push(key) })])
   assert.deepEqual(keys, [seats5, seats5])
-  // Signing out leaves nothing of this account behind; the other account's record stays.
-  const bobSeats = bob.key(seatsIntent('org1', 5))
-  clearIntents(storage, 'alice')
-  assert.equal(storage.getItem('lotus-intents:alice'), null); assert.equal(intentStore({ uid: 'bob', storage }).key(seatsIntent('org1', 5)), bobSeats)
+  // An unknown seat outcome, then sign-out and sign-in as the same account: the operation resumes under its
+  // key (in-memory dialog state is React state and resets on its own). Another account signing in on this
+  // browser mints its own keys and reads nothing of it.
+  await assert.rejects(alice.run(seatsIntent('org1', 9), async () => { throw new TypeError('Failed to fetch') }))
+  const pending = alice.key(seatsIntent('org1', 9))
+  const bobSeats = intentStore({ uid: 'bob', storage }).key(seatsIntent('org1', 9))
+  assert.notEqual(bobSeats, pending)
+  assert.equal(intentStore({ uid: 'alice', storage }).key(seatsIntent('org1', 9)), pending, 'the same account resumes the same operation after signing back in')
+  assert.equal(intentStore({ uid: 'bob', storage }).key(seatsIntent('org1', 9)), bobSeats)
+  storage.removeItem('lotus-intents:alice'); storage.removeItem('lotus-intents:bob')
   // Through the client: same intent → same key and byte-identical payload, including after a reload with
   // the answer lost; the key is validated before any request; a change may leave no subscription.
   const calls: { url: string; init?: RequestInit }[] = []
@@ -643,7 +649,7 @@ test('an operation key lives until its surface is confirmed: kept across network
   assert.equal(calls[3]!.init?.body, JSON.stringify({ seats: 5 }))
   assert.throws(() => client.changePlan('business', 'short'), 'an invalid key is a definite client error, sent nowhere')
   assert.equal(calls.length, 4)
-  clearIntents(storage, 'alice')
+  storage.removeItem('lotus-intents:alice')
 })
 
 
