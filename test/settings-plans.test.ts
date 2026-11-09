@@ -15,6 +15,12 @@ test('plans are ordered by rank and a free account is offered checkout, never an
   assert.equal(choices[1]?.price?.amount, '£24')
 })
 
+test('a per-seat plan is not offered to an account, whatever its rank', () => {
+  const teams: BackendPlan = { ...plan('teams', 4, 4000), billing: { perSeat: true, minSeats: 2 } }
+  assert.deepEqual(planChoices([...plans, teams], account('free'), null).map((choice) => choice.plan.key), ['free', 'pro', 'business'])
+  assert.deepEqual(planChoices([...plans, teams], account('pro'), subscription('pro')).map((choice) => choice.relation), ['cancel', 'current', 'upgrade'])
+})
+
 test('a subscriber sees upgrade and downgrade by rank, and the free plan as letting the paid plan end', () => {
   assert.deepEqual(planChoices(plans, account('pro'), subscription('pro')).map((choice) => choice.relation), ['cancel', 'current', 'upgrade'])
   assert.deepEqual(planChoices(plans, account('business'), subscription('business')).map((choice) => choice.relation), ['cancel', 'downgrade', 'current'])

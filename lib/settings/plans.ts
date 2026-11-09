@@ -19,7 +19,8 @@ export interface PlanChoice {
 }
 
 export function planChoices(plans: readonly BackendPlan[], account: BackendAccount, subscription: BackendSubscription | null): readonly PlanChoice[] {
-  const ordered = [...plans].sort((a, b) => a.rank - b.rank)
+  // Per-seat plans are bought by an organisation, never by an account; the server refuses them here.
+  const ordered = plans.filter((plan) => !plan.billing.perSeat).sort((a, b) => a.rank - b.rank)
   const current = ordered.find((plan) => plan.key === account.plan.key)
   return ordered.map((plan) => ({
     plan,
