@@ -1,5 +1,6 @@
 "use client"
 
+import { feedIncompleteCopy, type FeedIncompleteRun } from '@/lib/backend/feed-incomplete'
 import { Fragment, memo, useEffect, useMemo, useRef, useState } from "react"
 import { MessageAttachments } from "@/components/computer/message-attachments"
 import type { AttachmentRef } from "@/lib/backend/attachments"
@@ -664,8 +665,12 @@ export function AgentFeed({
   editingIndex, editText, onEditStart, onEditChange, onEditSubmit, onEditCancel,
   onSupabaseSetup, onSupabaseDecline, onClarificationAnswer, plan, planActions, delivery,
   onRestoreCheckpoint,
-  canonicalMessages, queuedMessages, streamText, liveLabel, stopping = false, stoppingSince = null,
+  canonicalMessages, queuedMessages, streamText, liveLabel, stopping = false, stoppingSince = null, incompleteRuns = [], endUnrecorded = false,
 }: {
+  /** Runs shown here whose events the server could not all record (one notice each, never a claim of completeness). */
+  incompleteRuns?: readonly FeedIncompleteRun[]
+  /** The session finished but its run's end never reached the record. */
+  endUnrecorded?: boolean
   canonicalMessages?: { seq: number; role: 'user' | 'assistant'; voiceSpeaker?: 'user' | 'assistant'; content: string; createdAt: string; attachments?: AttachmentRef[] }[]
   queuedMessages?: { id: string; prompt: string; attachments?: AttachmentRef[] }[]
   streamText?: string
@@ -796,6 +801,18 @@ export function AgentFeed({
       {isRunning && !stopping && !hasActiveFeedStep && !streamText && <div role="status" className="py-2">
         <Shimmer className="text-[13px] font-medium">{liveLabel ?? (status === "queued" ? "Starting your request…" : "Working…")}</Shimmer>
       </div>}
+      {incompleteRuns.map((run) => (
+        <div key={run.execution} role="status" className="my-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-left" data-testid="feed-incomplete">
+          <p className="text-[13px] font-medium text-foreground">{feedIncompleteCopy.title}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{feedIncompleteCopy.description}</p>
+        </div>
+      ))}
+      {endUnrecorded && (
+        <div role="status" className="my-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-left" data-testid="feed-end-unrecorded">
+          <p className="text-[13px] font-medium text-foreground">{feedIncompleteCopy.unrecordedEnd}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{feedIncompleteCopy.unrecordedEndDescription}</p>
+        </div>
+      )}
       {plan && <PlanCard plan={plan} actions={planActions} />}
       {delivery && <DeliveryCard delivery={delivery} />}
     </div>

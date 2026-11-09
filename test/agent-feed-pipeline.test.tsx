@@ -156,3 +156,53 @@ test('no_progress: the server appends its limitation sentence to the reply and t
   const html = strip(renderAgentFeed({ status: 'idle', canonicalMessages: [{ seq: 1, role: 'assistant', content: reply, createdAt: new Date(at).toISOString() }] }))
   assert.match(html, /The goal is not verified as complete\. Work stopped because repeated attempts made no safe progress or the evidence limit was reached\./)
 })
+
+// ── Incomplete feed: the server's durable facts and the stream's own declaration, rendered ──
+import { incompleteRunFromEvent, incompleteRunsShown, runEndUnrecorded } from '../lib/backend/feed-incomplete'
+const notices = (html: string, id: string) => html.split(`data-testid="${id}"`).length - 1
+const record = (execution: number) => ({ execution, lost: 1, lastType: 'agent.tool_result', since: '2026-11-06T18:00:00.000Z' })
+
+test('lost event with the server\'s record: the same timeline as the lost-event case now carries one warning for that run — the feed is not presented as complete', () => {
+  resetClock()
+  const state = play([ev('session.running', { execution: 1 }), ev('agent.step', { execution: 1, step: 1 }),
+    ev('agent.tool_call', { execution: 1, name: 'run_command', input: { command: 'npm test' }, callId: 'r1' }),
+    ev('agent.step', { execution: 1, step: 2 }), ev('agent.text', { execution: 1, delta: 'Fixing the assertion next.' }),
+    ev('session.idle', { execution: 1, steps: 2, stopReason: 'end_turn', incomplete: true })])
+  const runs = incompleteRunsShown([record(1)], state.events, 1)
+  const html = renderAgentFeed({ status: feedStatus(state.status), events: state.events, incompleteRuns: runs })
+  assert.equal(notices(html, 'feed-incomplete'), 1); assert.match(html, /Some of this activity could not be recorded/); assert.match(html, /Interrupted before a result was received/)
+})
+
+test('scope: an older run\'s record is shown only while that run\'s events are shown; a complete new run is not blamed; two shown runs with records give two warnings, never duplicates', () => {
+  const run1 = [{ execution: 1 }], run2 = [{ execution: 2 }]
+  assert.deepEqual(incompleteRunsShown([record(1)], run2, 2).map((r) => r.execution), [], 'run 1 is no longer on screen')
+  assert.deepEqual(incompleteRunsShown([record(1)], [...run1, ...run2], 2).map((r) => r.execution), [1], 'run 1\'s events are still shown: its gap is still evidence')
+  assert.deepEqual(incompleteRunsShown([record(2), record(1)], [...run1, ...run2], 2).map((r) => r.execution), [1, 2])
+  assert.deepEqual(incompleteRunsShown([record(1)], [{}], undefined).map((r) => r.execution), [1], 'history without run numbers is the first run')
+  const html = renderAgentFeed({ status: 'idle', events: [], incompleteRuns: incompleteRunsShown([record(2), record(1)], [...run1, ...run2], 2) })
+  assert.equal(notices(html, 'feed-incomplete'), 2)
+})
+
+test('the stream\'s own declaration: a terminal event with incomplete:true names its run even when the durable record could not be written; a clean terminal declares nothing; the same run is not warned twice', () => {
+  resetClock()
+  assert.equal(incompleteRunFromEvent(ev('session.idle', { execution: 1, steps: 1, incomplete: true })), 1)
+  assert.equal(incompleteRunFromEvent(ev('session.failed', { execution: 3, error: 'x', incomplete: true })), 3)
+  assert.equal(incompleteRunFromEvent(ev('session.idle', { execution: 1, steps: 1 })), undefined)
+  assert.equal(incompleteRunFromEvent(ev('agent.step', { execution: 1, incomplete: true })), undefined, 'only terminal events declare')
+  const runs = incompleteRunsShown(undefined, [{ execution: 1 }], 1, [1])
+  assert.equal(runs.length, 1); assert.equal(runs[0]!.execution, 1)
+  assert.equal(incompleteRunsShown([record(1)], [{ execution: 1 }], 1, [1]).length, 1, 'record and declaration for one run are one warning')
+  assert.equal(notices(renderAgentFeed({ status: 'idle', events: [], incompleteRuns: runs }), 'feed-incomplete'), 1)
+})
+
+test('unrecorded end: a finished session whose last journaled event is not its run\'s terminal event is warned about; a recorded end, a running session, and an older run\'s end are read correctly', () => {
+  assert.equal(runEndUnrecorded('IDLE', 1, { type: 'agent.tool_call', sequence: 3, execution: 1 }), true)
+  assert.equal(runEndUnrecorded('FAILED', 1, { type: 'agent.text', sequence: 9, execution: 1 }), true)
+  assert.equal(runEndUnrecorded('IDLE', 1, { type: 'session.idle', sequence: 4, execution: 1 }), false)
+  assert.equal(runEndUnrecorded('IDLE', 2, { type: 'session.idle', sequence: 4, execution: 1 }), true, 'the end on record belongs to the previous run')
+  assert.equal(runEndUnrecorded('RUNNING', 1, { type: 'agent.tool_call', sequence: 3, execution: 1 }), false, 'a running session has no end yet')
+  assert.equal(runEndUnrecorded('IDLE', 1, undefined), false, 'nothing journaled yet is not an unrecorded end')
+  const html = renderAgentFeed({ status: 'idle', events: [], endUnrecorded: true })
+  assert.equal(notices(html, 'feed-end-unrecorded'), 1); assert.match(html, /The end of this run was not recorded/)
+  assert.equal(notices(renderAgentFeed({ status: 'idle', events: [], endUnrecorded: false }), 'feed-end-unrecorded'), 0)
+})

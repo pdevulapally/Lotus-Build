@@ -14,6 +14,7 @@ import {
   reduceTerminal,
   type TerminalEntry,
 } from '@/lib/backend/terminal'
+import { incompleteRunFromEvent } from '@/lib/backend/feed-incomplete'
 import { executionLabel, genericToolStepLabel, isHiddenToolStep, lifecycleFeedLabels, toolFailureLabel, toolStepLabel } from '@/lib/backend/feed-labels'
 import { loadSessionSnapshot, sessionEventStatus } from '@/lib/backend/session-snapshot'
 import { applyPlanEvent } from '@/lib/backend/session-plan'
@@ -89,6 +90,13 @@ function isRunningToolItem(item: ComputerTimelineEvent): boolean {
 }
 
 export function activity(event: SessionEvent, index: number): ComputerTimelineEvent | null {
+  const row = activityRow(event, index)
+  if (row === null) return null
+  const execution = eventExecution(event)
+  return execution === undefined ? row : { ...row, execution }
+}
+
+function activityRow(event: SessionEvent, index: number): ComputerTimelineEvent | null {
   if (!event.id) return null
   if (event.type === 'agent.tool_call' && event.data.name === 'run_command') {
     const command = getRunCommandInput(event.data.input)
@@ -212,6 +220,7 @@ export function interruptRunningToolEvents(events: ComputerTimelineEvent[]): Com
 
 export function useBackendSession(id: string, user: User | null, authLoading: boolean) {
   const [session, setSession] = useState<BackendSession | null>(null)
+  const [incompleteRuns, setIncompleteRuns] = useState<number[]>([])
   const [project, setProject] = useState<BackendProject | null>(null)
   const [messages, setMessages] = useState<BackendMessage[]>([])
   const [queued, setQueued] = useState<{ id: string; prompt: string }[]>([])
@@ -326,7 +335,7 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
             }
           },
           onReconnecting: () => { if (!signal.aborted) setConnection(navigator.onLine ? 'reconnecting' : 'offline') },
-          onReset: () => { textVersion++; streamText = ''; setText(''); setLiveLabel(null); setEvents([]); setTerminal([]); setDesktop({ status: 'none' }); setPreview(null); scheduleRefresh() },
+          onReset: () => { textVersion++; streamText = ''; setText(''); setLiveLabel(null); setEvents([]); setIncompleteRuns([]); setTerminal([]); setDesktop({ status: 'none' }); setPreview(null); scheduleRefresh() },
           onState: (state) => {
             if (signal.aborted) return
             applyServerState(sessionSchema.parse(state))
@@ -341,6 +350,8 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
               if (execution < latestExecution) return
               latestExecution = execution
             }
+            const declared = incompleteRunFromEvent(event)
+            if (declared !== undefined) setIncompleteRuns((current) => current.includes(declared) ? current : [...current, declared])
             const status = sessionEventStatus[event.type]
             if (status) {
               latestStatus = status; stateVersion++
@@ -388,7 +399,7 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
   }, [id, user, authLoading, revision])
   // Effects clear the old scope after commit; do not expose it for that render.
   const currentScope = !authLoading && scopeRef.current === `${user?.uid ?? ''}:${id}`
-  return { session: currentScope ? session : null, project: currentScope ? project : null, setProject,
+  return { session: currentScope ? session : null, project: currentScope ? project : null, setProject, incompleteRuns: currentScope ? incompleteRuns : [],
     messages: currentScope ? messages : [], queued: currentScope ? queued : [], events: currentScope ? events : [],
     terminal: currentScope ? terminal : [], desktop: currentScope ? desktop : { status: 'none' as const }, text: currentScope ? text : '',
     liveLabel: currentScope ? liveLabel : null, stopping: currentScope && isStopping(session), applyState,

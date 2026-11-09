@@ -32,6 +32,10 @@ export const sessionSchema = z.object({
   sandboxId: z.string().optional(), error: z.string().optional(), messageCount: z.number().int().nonnegative(),
   heartbeatAt: timestamp.optional(), createdAt: timestamp,
   cancelRequested: z.boolean().optional(),
+  /** Runs whose events the server could not all record; the feed for those runs is incomplete. */
+  feedIncomplete: z.array(z.object({ execution: z.number().int().positive(), lost: z.number().int().positive(), lastType: z.string(), since: timestamp })).optional(),
+  /** The last event the server journaled: whether a finished run's end was recorded is read from here. */
+  lastEvent: z.object({ type: z.string(), sequence: z.number().int().positive(), execution: z.number().int().positive().optional() }).optional(),
   /** Which run of this session the state describes; absent until the server starts numbering runs. */
   execution: z.number().int().positive().optional(),
   cancelRequestedAt: timestamp.optional(),
