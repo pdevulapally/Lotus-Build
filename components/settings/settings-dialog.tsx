@@ -154,7 +154,7 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
   const fenced = useMemo(() => principalFence(() => principalRef.current), [])
   // A different account signed in: nothing the previous one was looking at or waiting for carries over.
   // A new principal starts from a clean dialog: nothing the previous one saw, cached or was waiting for carries over.
-  useEffect(() => { setPlans(null); setSubscription(undefined); setOrganisation(null); setMembers(null); setInvitations(null); setOrgBilling(null); setPlanChange(null); setClosingAccount(false); setCreatingOrganisation(false); setInviting(false); setDeletingOrganisation(false); setRemoving(null); setMessage(null); setError(null); setBusy(false) }, [principal])
+  useEffect(() => { setPlans(null); setSubscription(undefined); setOrganisation(null); setMembers(null); setInvitations(null); setOrgBilling(null); setOrgUsage(null); setPlanChange(null); setClosingAccount(false); setCreatingOrganisation(false); setInviting(false); setDeletingOrganisation(false); setRemoving(null); setMessage(null); setError(null); setBusy(false) }, [principal])
   const perform = async (work: (live: () => boolean) => Promise<void>) => {
     if (busy) return
     await fenced(work, { busy: setBusy, error: setError, message: setMessage })
