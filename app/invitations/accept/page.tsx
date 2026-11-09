@@ -14,11 +14,11 @@ import { currentBackend } from '@/lib/backend/browser'
 import { BackendError } from '@/lib/backend/client'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { useSettingsDialog } from '@/components/settings/settings-dialog'
-import { acceptanceKey, attachAcceptance } from '@/lib/organisations/accept-invitation'
+import { acceptanceKey, attachAcceptance, retryJoin, type AcceptOutcome } from '@/lib/organisations/accept-invitation'
 import { LogoLoader } from '@/components/ui/logo-loader'
 import { Button } from '@/components/ui/button'
 
-type Outcome = { kind: 'pending' } | { kind: 'joined'; id: string; name: string } | { kind: 'failed'; message: string }
+type Outcome = { kind: 'pending' } | Extract<AcceptOutcome, { kind: 'joined' }> | { kind: 'failed'; message: string }
 
 const failureCopy: Readonly<Record<string, string>> = {
   'organisation/invitation-invalid': 'This invitation link is not valid, or it was sent to a different email address. Sign in with the address that received it, or ask for a new invitation.',
@@ -33,12 +33,15 @@ const failureCopy: Readonly<Record<string, string>> = {
 function AcceptInvitation() {
   const params = useSearchParams()
   const router = useRouter()
-  const { account, authEpoch, principal: livePrincipal, refreshAccount, switchWorkspace } = useAuth()
+  const { user, authEpoch, principal: livePrincipal, refreshAccount, switchWorkspace } = useAuth()
   const { openSettings } = useSettingsDialog()
   const [outcome, setOutcome] = useState<Outcome>({ kind: 'pending' })
-  const principal = account ? `${account.uid}#${authEpoch}` : ''
+  // The principal is the signed-in user and session, not the loaded account: a failed account refresh clears the
+  // account but not the sign-in, and must not detach this page from an acceptance it is waiting on.
+  const principal = user ? `${user.uid}#${authEpoch}` : ''
   const orgId = params.get('organisation')
   const token = params.get('token')
+  const key = principal !== '' && orgId && token ? acceptanceKey(principal, orgId, token) : null
 
   useEffect(() => {
     if (principal === '') return
@@ -47,7 +50,7 @@ function AcceptInvitation() {
     // remount re-attaches to it (one submission); a different invitation, or the same account signed in again,
     // starts its own. Cleanup detaches only this component's reporting. The operation's own continuations
     // (refresh, selection) are fenced by the provider's live principal, which outlives the page.
-    return attachAcceptance(acceptanceKey(principal, orgId, token), {
+    return attachAcceptance(key!, {
       principal: livePrincipal,
       accept: () => currentBackend().acceptInvitation(orgId, token),
       refresh: refreshAccount,
@@ -57,21 +60,30 @@ function AcceptInvitation() {
       const code = result.reason instanceof BackendError ? result.reason.code : ''
       setOutcome({ kind: 'failed', message: failureCopy[code] ?? (result.reason instanceof Error ? result.reason.message : 'The invitation could not be accepted.') })
     })
-  }, [principal, livePrincipal, orgId, token, refreshAccount, switchWorkspace])
+  }, [principal, livePrincipal, orgId, token, key, refreshAccount, switchWorkspace])
 
   if (outcome.kind === 'pending') return <LogoLoader label="Checking your invitation…" />
+  // Accepted and ready are different facts: the server has used the invitation; the organisation is the
+  // selected workspace only once the account refresh and the switch have both happened for this account.
+  const readiness = outcome.kind === 'joined' ? outcome.workspace : null
+  const failed = readiness !== null && typeof readiness === 'object' ? readiness.failed : null
+  const description = outcome.kind !== 'joined' ? outcome.message
+    : readiness === 'ready' ? 'The organisation is now your selected workspace. Switch back from Settings whenever you like.'
+    : failed !== null ? `You have joined, but the organisation could not be opened as your workspace: ${failed}`
+    : 'Setting up the organisation as your workspace…'
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-6 text-foreground">
       <section className="w-full max-w-md space-y-5 text-center" aria-live="polite">
         <h1 className="text-xl font-semibold tracking-tight">{outcome.kind === 'joined' ? `You’re in ${outcome.name}` : 'This invitation can’t be used'}</h1>
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          {outcome.kind === 'joined' ? 'The organisation is now one of your workspaces. Switch to it from Settings whenever you like.' : outcome.message}
-        </p>
+        <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
         <div className="flex justify-center gap-3">
-          {outcome.kind === 'joined' && (
-            <Button type="button" onClick={() => { void switchWorkspace(outcome.id).catch(() => undefined).then(() => { openSettings('org-members'); router.replace('/') }) }}>
+          {outcome.kind === 'joined' && failed === null && (
+            <Button type="button" disabled={readiness !== 'ready'} onClick={() => { if (readiness === 'ready') { openSettings('org-members'); router.replace('/') } }}>
               Open the organisation
             </Button>
+          )}
+          {outcome.kind === 'joined' && failed !== null && key && (
+            <Button type="button" onClick={() => retryJoin(key, { principal: livePrincipal, refresh: refreshAccount, select: switchWorkspace })}>Try again</Button>
           )}
           <Button asChild variant={outcome.kind === 'joined' ? 'outline' : 'default'}><Link href="/">Go to my workspace</Link></Button>
         </div>

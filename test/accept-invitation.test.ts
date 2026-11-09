@@ -25,7 +25,7 @@ test('a normal acceptance reports joined after the refresh and selects the organ
   const h = harness(principal)
   h.accepted.open(); h.refreshed.open()
   await h.run
-  assert.deepEqual(h.reports, [{ kind: 'joined', id: 'org-1', name: 'Acme' }])
+  assert.deepEqual(h.reports, [{ kind: 'joined', id: 'org-1', name: 'Acme', workspace: 'pending' }, { kind: 'joined', id: 'org-1', name: 'Acme', workspace: 'ready' }], 'accepted is reported first, ready only after the refresh and the selection')
   assert.deepEqual(h.selected, [{ id: 'org-1', available: [{ id: 'alice' }, { id: 'org-1' }] }])
 })
 
@@ -47,7 +47,7 @@ test('Alice signs out and back in during the refresh: the same uid under a new e
   principal.current = 'alice#2'
   h.refreshed.open()
   await h.run
-  assert.deepEqual(h.reports, []); assert.deepEqual(h.selected, [])
+  assert.deepEqual(h.reports, [{ kind: 'joined', id: 'org-1', name: 'Acme', workspace: 'pending' }], 'the acceptance was reported while Alice was still the principal; readiness never is'); assert.deepEqual(h.selected, [])
 })
 
 test('a failure that arrives after the principal changed is not reported to the new one; one that arrives for the same principal is', async () => {
@@ -97,9 +97,9 @@ test('attaching twice to the same (principal, organisation, token) runs one acce
   assert.equal(accepts, 1, 'the invitation is submitted once')
   accepted.open(); await new Promise((r) => setTimeout(r, 0)); await new Promise((r) => setTimeout(r, 0))
   assert.deepEqual(first, [], 'the detached listener hears nothing')
-  assert.deepEqual(replay, [{ kind: 'joined', id: 'org-1', name: 'Acme' }])
+  assert.deepEqual(replay, [{ kind: 'joined', id: 'org-1', name: 'Acme', workspace: 'pending' }, { kind: 'joined', id: 'org-1', name: 'Acme', workspace: 'ready' }])
   const late: AcceptOutcome[] = []; attachAcceptance(key, start, (o) => late.push(o))
-  assert.deepEqual(late, [{ kind: 'joined', id: 'org-1', name: 'Acme' }], 'a listener attaching after completion still gets the outcome')
+  assert.deepEqual(late, [{ kind: 'joined', id: 'org-1', name: 'Acme', workspace: 'ready' }], 'a listener attaching after completion gets the settled outcome')
   detachReplay()
 })
 
@@ -128,7 +128,8 @@ test('a join that settled with no page attached owes its refresh and selection: 
   const first = attachAcceptance(key, again, (o) => back.push(o)); first()
   const second = attachAcceptance(key, again, (o) => back.push(o))
   await settle(); await settle()
-  assert.deepEqual(back, [{ kind: 'joined', id: 'org-1', name: 'Acme' }, { kind: 'joined', id: 'org-1', name: 'Acme' }], 'both attachments observe the retained outcome without a resubmission')
+  assert.ok(back.length >= 2 && back.every((o) => o.kind === 'joined' && o.id === 'org-1'), 'both attachments observe the retained outcome without a resubmission')
+  assert.deepEqual(back.at(-1), { kind: 'joined', id: 'org-1', name: 'Acme', workspace: 'ready' }, 'and the last word is ready')
   assert.equal(refreshes, 1, 'the owed refresh ran once'); assert.deepEqual(selected, ['org-1'], 'the owed selection ran once')
   second()
   // Attaching once more owes nothing: the join was already delivered.

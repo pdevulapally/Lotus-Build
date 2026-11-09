@@ -96,8 +96,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // must see the refreshed memberships, not the ones its closure captured.
   const current = useRef({ account, workspaces }); current.current = { account, workspaces }
   const switchWorkspace = useCallback(async (id: string, fresh?: readonly Workspace[]) => {
-    const { account: signedIn, workspaces: rendered } = current.current
+    const { workspaces: rendered } = current.current
     const available = fresh ?? rendered
+    // The sign-in, not the loaded account: a refresh that failed a moment ago leaves the account unset while the
+    // person is still signed in, and a selection from the refreshed list must still be theirs to make.
+    const signedIn = auth.currentUser
     if (!signedIn) throw new Error('Sign in to switch workspaces.')
     if (!available.some((workspace) => workspace.id === id)) throw new Error('That workspace is not available to this account.')
     setSelectedWorkspaceId(id)
