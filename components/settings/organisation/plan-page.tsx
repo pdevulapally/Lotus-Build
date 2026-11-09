@@ -16,10 +16,11 @@ export interface OrganisationPlanPageProps {
   onCheckout: (planKey: string, seats: number) => void
   onChangeSeats: (seats: number) => void
   onManageBilling: () => void
+  onReconcile: () => void
 }
 
 /** The Teams plan for this organisation: buy it with a seat count, resize it, or open invoices. Owner only for changes. */
-export function OrganisationPlanPage({ organisation, billing, busy, onCheckout, onChangeSeats, onManageBilling }: OrganisationPlanPageProps) {
+export function OrganisationPlanPage({ organisation, billing, busy, onCheckout, onChangeSeats, onManageBilling, onReconcile }: OrganisationPlanPageProps) {
   const manage = can(organisation.role, 'manageBilling')
   const plan = billing?.plans[0] ?? null
   const minimum = plan ? minimumSeats(plan.minSeats, billing?.memberCount ?? organisation.memberCount) : 1
@@ -39,6 +40,11 @@ export function OrganisationPlanPage({ organisation, billing, busy, onCheckout, 
           <SettingsRow label={live.planName} description={live.cancelAtPeriodEnd ? `Ends on ${longDate(live.currentPeriodEnd)}.` : `${live.seats} ${live.seats === 1 ? 'seat' : 'seats'} · renews on ${longDate(live.currentPeriodEnd)}.`}>
             <SettingsBadge>{live.status.toLowerCase().replace(/_/g, ' ')}</SettingsBadge>
             {manage && <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={onManageBilling}><CreditCard aria-hidden="true" />Invoices &amp; payment</Button>}
+          </SettingsRow>
+        )}
+        {manage && (
+          <SettingsRow label="Pending change" description="If a seat change or payment was started elsewhere and never finished, check and finish it here.">
+            <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={onReconcile}>Finish pending change</Button>
           </SettingsRow>
         )}
       </SettingsSection>

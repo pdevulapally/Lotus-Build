@@ -82,6 +82,15 @@ const organisationSubscriptionSchema = z.object({ planKey: z.string(), planName:
 const organisationBillingSchema = z.object({ subscription: organisationSubscriptionSchema.nullable(), memberCount: z.number().int().nonnegative(),
   plans: z.array(z.object({ key: z.string(), name: z.string(), price: z.object({ amountMinor: z.number(), currency: z.string(), interval: z.string() }).nullable().optional(), minSeats: z.number().int().positive() })) })
 export type BackendOrganisationBilling = z.infer<typeof organisationBillingSchema>
+export const seatReviewReasons = ['subscription-replaced', 'key-expired', 'request-unknown', 'session-not-found', 'no-subscription'] as const
+const seatRecoverySchema = z.object({
+  subscription: organisationSubscriptionSchema.nullable(),
+  pending: z.object({
+    kind: z.enum(['seats', 'checkout']), seats: z.number().int().positive(), url: z.string().url().nullable().optional(), review: z.enum(seatReviewReasons).optional(),
+    operation: z.object({ intent: z.string(), stripeKey: z.string(), generation: z.number().int().nonnegative(), placedAt: z.string().nullable() }),
+  }).nullable(),
+})
+export type BackendSeatRecovery = z.infer<typeof seatRecoverySchema>
 const organisationName = z.string().trim().min(2).max(80)
 const assignableRole = z.enum(['admin', 'member'])
 const invitationToken = z.string().regex(/^[A-Za-z0-9_-]{43}$/)
@@ -284,6 +293,8 @@ export class BackendClient {
   acceptInvitation(orgId: string, token: string) { return this.json(organisationSchema, `/organisations/${id.parse(orgId)}/invitations/accept`, { method: 'POST', body: { token: invitationToken.parse(token) } }) }
   organisationBilling(orgId: string, signal?: AbortSignal) { return this.json(organisationBillingSchema, `/organisations/${id.parse(orgId)}/billing`, { signal }) }
   organisationCheckout(orgId: string, key: string, seats: number) { return this.json(z.object({ url: z.url().startsWith('https://') }), `/organisations/${id.parse(orgId)}/billing/checkout`, { method: 'POST', body: { planKey: planKey.parse(key), seats: z.number().int().min(1).max(500).parse(seats) } }) }
+  /** The owner asks the organisation to reconcile a pending seat operation (a change or checkout whose client lost its key). */
+  reconcileSeats(orgId: string) { return this.json(seatRecoverySchema, `/organisations/${id.parse(orgId)}/billing/seats/reconcile`, { method: 'POST', body: {} }) }
   changeSeats(orgId: string, seats: number, operationKey: string) { return this.json(z.object({ subscription: organisationSubscriptionSchema }), `/organisations/${id.parse(orgId)}/billing/seats`, { method: 'POST', body: { seats: z.number().int().min(1).max(500).parse(seats) }, key: keySchema.parse(operationKey) }) }
   organisationPortal(orgId: string) { return this.json(z.object({ url: z.url().startsWith('https://') }), `/organisations/${id.parse(orgId)}/billing/portal`, { method: 'POST' }) }
   closeAccount(confirmation: string) { return this.json(z.object({ closure: closureSchema }), '/me/close', { method: 'POST', body: { confirmation: z.string().min(3).max(320).parse(confirmation) } }) }

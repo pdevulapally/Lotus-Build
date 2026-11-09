@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { useAuth } from '@/contexts/auth-context'
 import { currentBackend } from '@/lib/backend/browser'
 import type { BackendInvitation, BackendMember, BackendOrganisation, BackendOrganisationBilling, BackendPlan, BackendSubscription, BackendWorkspace } from '@/lib/backend/client'
-import { can } from '@/lib/settings/organisations'
+import { can, describeSeatRecovery } from '@/lib/settings/organisations'
 import { CreateOrganisationDialog } from './organisation/create-organisation-dialog'
 import { InviteMemberDialog } from './organisation/invite-member-dialog'
 import { TypedConfirmationDialog } from './typed-confirmation-dialog'
@@ -48,7 +48,7 @@ type OrganisationHandlers = {
   billing: BackendOrganisationBilling | null; currentUid: string
   onRename: (name: string) => void; onTransfer: (uid: string) => void; onLeave: () => void; onDelete: () => void
   onInvite: () => void; onChangeRole: (uid: string, role: 'admin' | 'member') => void; onRemove: (member: BackendMember) => void; onRevoke: (invitation: BackendInvitation) => void
-  onCheckout: (planKey: string, seats: number) => void; onChangeSeats: (seats: number) => void; onManageBilling: () => void
+  onCheckout: (planKey: string, seats: number) => void; onChangeSeats: (seats: number) => void; onManageBilling: () => void; onReconcile: () => void
 }
 /** Page props for the selected organisation; null pages until it has loaded. */
 function organisationSettings(h: OrganisationHandlers): OrganisationSettings {
@@ -56,7 +56,7 @@ function organisationSettings(h: OrganisationHandlers): OrganisationSettings {
   return {
     general: { organisation: h.organisation, members: h.members, currentUid: h.currentUid, onRename: h.onRename, onTransfer: h.onTransfer, onLeave: h.onLeave, onDelete: h.onDelete },
     members: { organisation: h.organisation, members: h.members, invitations: h.invitations, currentUid: h.currentUid, onInvite: h.onInvite, onChangeRole: h.onChangeRole, onRemove: h.onRemove, onRevoke: h.onRevoke },
-    plan: { organisation: h.organisation, billing: h.billing, onCheckout: h.onCheckout, onChangeSeats: h.onChangeSeats, onManageBilling: h.onManageBilling },
+    plan: { organisation: h.organisation, billing: h.billing, onCheckout: h.onCheckout, onChangeSeats: h.onChangeSeats, onManageBilling: h.onManageBilling, onReconcile: h.onReconcile },
   }
 }
 
@@ -209,6 +209,12 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
             onRemove: (member) => { setError(null); setMessage(null); setRemoving(member) },
             onRevoke: (invitation) => void perform(async (live) => { if (orgId) { await currentBackend().revokeInvitation(orgId, invitation.id); if (!live()) return; await reloadOrganisation(); if (!live()) return; setMessage('Invitation revoked.') } }),
             onCheckout: (planKey, seats) => void perform(async (live) => { if (orgId) { const result = await currentBackend().organisationCheckout(orgId, planKey, seats); if (!live()) return; window.location.assign(result.url) } }),
+            onReconcile: () => void perform(async (live) => { if (orgId) {
+              const outcome = describeSeatRecovery(await currentBackend().reconcileSeats(orgId)); if (!live()) return
+              await reloadBilling(); if (!live()) return
+              if (outcome.kind === 'checkout' && outcome.url) window.open(outcome.url, '_blank', 'noopener')
+              if (outcome.kind === 'resolved') setMessage(outcome.message); else setError(outcome.message)
+            } }),
             onChangeSeats: (seats) => void perform(async (live) => { if (orgId) { const result = await intend(seatsIntent(orgId, seats), (key) => currentBackend().changeSeats(orgId, seats, key)); if (!live()) return; await reloadOrganisation(); if (!live()) return; setMessage(`${result.subscription.seats} seats from now on.`) } }),
             onManageBilling: () => void perform(async (live) => { if (orgId) { const result = await currentBackend().organisationPortal(orgId); if (!live()) return; window.location.assign(result.url) } }),
           })}
