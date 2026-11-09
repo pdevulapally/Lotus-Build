@@ -6,7 +6,7 @@
  * page just requires sign-in, hands the token over once, and reports what the server said.
  */
 
-import { Suspense, useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/auth-context'
@@ -14,7 +14,7 @@ import { currentBackend } from '@/lib/backend/browser'
 import { BackendError } from '@/lib/backend/client'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { useSettingsDialog } from '@/components/settings/settings-dialog'
-import { acceptInvitation } from '@/lib/organisations/accept-invitation'
+import { acceptanceKey, attachAcceptance } from '@/lib/organisations/accept-invitation'
 import { LogoLoader } from '@/components/ui/logo-loader'
 import { Button } from '@/components/ui/button'
 
@@ -37,31 +37,26 @@ function AcceptInvitation() {
   const { openSettings } = useSettingsDialog()
   const [outcome, setOutcome] = useState<Outcome>({ kind: 'pending' })
   const principal = account ? `${account.uid}#${authEpoch}` : ''
-  const attempted = useRef('')
   const orgId = params.get('organisation')
   const token = params.get('token')
 
   useEffect(() => {
-    // One attempt per signed-in principal: the same account signed in again is a new one.
-    if (principal === '' || attempted.current === principal) return
-    attempted.current = principal
+    if (principal === '') return
     if (!orgId || !token) { setOutcome({ kind: 'failed', message: failureCopy['organisation/invitation-invalid']! }); return }
-    // Two fences: the provider's live principal (it outlives this component, so a sign-out that unmounts
-    // the page still turns the old principal stale), and this effect's own cleanup (nothing reports into
-    // an unmounted page).
-    let mounted = true
-    void acceptInvitation({
-      principal: () => (mounted ? livePrincipal() : ''),
+    // The operation is keyed by principal + invitation and lives outside this effect: a StrictMode replay or a
+    // remount re-attaches to it (one submission); a different invitation, or the same account signed in again,
+    // starts its own. Cleanup detaches only this component's reporting. The operation's own continuations
+    // (refresh, selection) are fenced by the provider's live principal, which outlives the page.
+    return attachAcceptance(acceptanceKey(principal, orgId, token), {
+      principal: livePrincipal,
       accept: () => currentBackend().acceptInvitation(orgId, token),
       refresh: refreshAccount,
       select: switchWorkspace,
-      report: (result) => {
-        if (result.kind === 'joined') { setOutcome(result); return }
-        const code = result.reason instanceof BackendError ? result.reason.code : ''
-        setOutcome({ kind: 'failed', message: failureCopy[code] ?? (result.reason instanceof Error ? result.reason.message : 'The invitation could not be accepted.') })
-      },
+    }, (result) => {
+      if (result.kind === 'joined') { setOutcome(result); return }
+      const code = result.reason instanceof BackendError ? result.reason.code : ''
+      setOutcome({ kind: 'failed', message: failureCopy[code] ?? (result.reason instanceof Error ? result.reason.message : 'The invitation could not be accepted.') })
     })
-    return () => { mounted = false }
   }, [principal, livePrincipal, orgId, token, refreshAccount, switchWorkspace])
 
   if (outcome.kind === 'pending') return <LogoLoader label="Checking your invitation…" />
