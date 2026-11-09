@@ -102,7 +102,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const key = `${principalRef.current}:${currentWorkspace.id}`
     setOrganisationModels(null)
     const controller = new AbortController()
-    currentBackend().models(controller.signal, currentWorkspace.id)
+    // Through a promise so a request that fails before it starts also leaves the models unknown, not the page broken.
+    Promise.resolve().then(() => currentBackend().models(controller.signal, currentWorkspace.id))
       .then((result) => { if (!controller.signal.aborted && key === `${principalRef.current}:${currentWorkspace.id}`) setOrganisationModels({ key, models: result.models }) })
       .catch(() => { /* unknown stays unknown: the composer offers nothing rather than another workspace's models */ })
     return () => controller.abort()
