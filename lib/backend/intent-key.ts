@@ -1,33 +1,44 @@
 import { z } from 'zod'
 
 /**
- * One operation key per intended action. A user who confirms "move to Business" and retries after an
- * uncertain failure is still asking for that one change, so the same key is sent and the server treats
- * it as one mutation; asking for something else (another plan, a different seat count, resume instead of
- * cancel) is a new intent and gets a fresh key. A key is forgotten once its action has a definite answer.
+ * One operation key per intended action, alive until the server confirms what the surface it
+ * acts on now holds.
+ *
+ * The server records a mutation under its key only once it has succeeded (2xx); a refused or
+ * failed request leaves no record, and an operation whose outcome is unknown (a timeout, a 5xx
+ * after the payment provider accepted, a seat change still in progress) is recovered by the
+ * server from the same key. So a retry of the same intended action — same plan, same seat
+ * count, same cancel flag — sends the same key whatever the previous attempt returned.
+ *
+ * Intents are grouped by the surface they change (one subscription, one organisation's seats).
+ * A confirmed success on a surface settles every unresolved intent on it: once Pro has been
+ * confirmed, an earlier Business attempt whose answer was lost is superseded, and choosing
+ * Business again is a new operation with a new key rather than a replay of the old one.
  */
-const keySchema = z.string().regex(/^[A-Za-z0-9_-]{16,128}$/)
-const keys = new Map<string, string>()
+export interface Intent { readonly surface: string; readonly action: string }
 
-export const intentKey = (intent: string): string => {
-  const existing = keys.get(intent)
+const keySchema = z.string().regex(/^[A-Za-z0-9_-]{16,128}$/)
+const surfaces = new Map<string, Map<string, string>>()
+
+export const intentKey = ({ surface, action }: Intent): string => {
+  const actions = surfaces.get(surface) ?? new Map<string, string>()
+  surfaces.set(surface, actions)
+  const existing = actions.get(action)
   if (existing !== undefined) return existing
   const key = keySchema.parse(crypto.randomUUID())
-  keys.set(intent, key)
+  actions.set(action, key)
   return key
 }
 
-export const settleIntent = (intent: string): void => { keys.delete(intent) }
+/** The surface's state is now known: no intent on it is still unresolved. */
+export const settleSurface = (surface: string): void => { surfaces.delete(surface) }
 
-/** Runs one intended action under its key: a definite answer (success, or a refusal) settles the intent; an uncertain failure keeps the key for the retry. */
-export const withIntent = async <T>(intent: string, work: (key: string) => Promise<T>, definite: (reason: unknown) => boolean): Promise<T> => {
-  const key = intentKey(intent)
-  try {
-    const result = await work(key)
-    settleIntent(intent)
-    return result
-  } catch (reason) {
-    if (definite(reason)) settleIntent(intent)
-    throw reason
-  }
+/** Runs one intended action under its key; only the server confirming the action settles the surface. */
+export const withIntent = async <T>(intent: Intent, work: (key: string) => Promise<T>): Promise<T> => {
+  const result = await work(intentKey(intent))
+  settleSurface(intent.surface)
+  return result
 }
+
+export const subscriptionIntent = (action: string): Intent => ({ surface: 'billing/subscription', action })
+export const seatsIntent = (orgId: string, seats: number): Intent => ({ surface: `organisation/${orgId}/seats`, action: `seats:${seats}` })

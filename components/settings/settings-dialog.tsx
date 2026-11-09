@@ -4,8 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { useAuth } from '@/contexts/auth-context'
 import { currentBackend } from '@/lib/backend/browser'
 import type { BackendInvitation, BackendMember, BackendOrganisation, BackendOrganisationBilling, BackendPlan, BackendSubscription, BackendWorkspace } from '@/lib/backend/client'
-import { withIntent } from '@/lib/backend/intent-key'
-import { BackendError } from '@/lib/backend/client'
+import { seatsIntent, subscriptionIntent, withIntent } from '@/lib/backend/intent-key'
 import { longDate } from '@/lib/settings/plans'
 import { can } from '@/lib/settings/organisations'
 import { CreateOrganisationDialog } from './organisation/create-organisation-dialog'
@@ -26,9 +25,6 @@ export function useSettingsDialog() {
   if (!context) throw new Error('useSettingsDialog must be used within SettingsDialogProvider')
   return context
 }
-
-/** The server answered — accepted or refused — so the intended action is settled; a failure to reach it is not. */
-const definiteAnswer = (reason: unknown): boolean => reason instanceof BackendError
 
 export function SettingsDialogProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false)
@@ -186,7 +182,7 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
             }),
             onChangePlan: (plan, relation) => { setError(null); setMessage(null); setPlanChange({ plan, relation }) },
             onSetCancellation: (cancelAtPeriodEnd) => void perform(async () => {
-              const result = await withIntent(`billing/cancellation:${cancelAtPeriodEnd}`, (key) => currentBackend().setCancellation(cancelAtPeriodEnd, key), definiteAnswer)
+              const result = await withIntent(subscriptionIntent(`cancellation:${cancelAtPeriodEnd}`), (key) => currentBackend().setCancellation(cancelAtPeriodEnd, key))
               await reloadBilling()
               setMessage(cancelAtPeriodEnd
                 ? `Your plan ends on ${longDate(result.subscription.currentPeriodEnd)}. You keep everything it includes until then.`
@@ -208,7 +204,7 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
             onRemove: (member) => { setError(null); setMessage(null); setRemoving(member) },
             onRevoke: (invitation) => void perform(async () => { if (orgId) { await currentBackend().revokeInvitation(orgId, invitation.id); await reloadOrganisation(); setMessage('Invitation revoked.') } }),
             onCheckout: (planKey, seats) => void perform(async () => { if (orgId) { const result = await currentBackend().organisationCheckout(orgId, planKey, seats); window.location.assign(result.url) } }),
-            onChangeSeats: (seats) => void perform(async () => { if (orgId) { const result = await withIntent(`organisation/${orgId}/seats:${seats}`, (key) => currentBackend().changeSeats(orgId, seats, key), definiteAnswer); await reloadOrganisation(); setMessage(`${result.subscription.seats} seats from now on.`) } }),
+            onChangeSeats: (seats) => void perform(async () => { if (orgId) { const result = await withIntent(seatsIntent(orgId, seats), (key) => currentBackend().changeSeats(orgId, seats, key)); await reloadOrganisation(); setMessage(`${result.subscription.seats} seats from now on.`) } }),
             onManageBilling: () => void perform(async () => { if (orgId) { const result = await currentBackend().organisationPortal(orgId); window.location.assign(result.url) } }),
           })}
           onCloseAccount={() => { setError(null); setMessage(null); setClosingAccount(true) }}
@@ -224,10 +220,10 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
           preview={previewPlanChange}
           onClose={() => setPlanChange(null)}
           onConfirm={(plan) => void perform(async () => {
-            const result = await withIntent(`billing/plan:${plan.key}`, (key) => currentBackend().changePlan(plan.key, key), definiteAnswer)
+            const result = await withIntent(subscriptionIntent(`plan:${plan.key}`), (key) => currentBackend().changePlan(plan.key, key))
             setPlanChange(null)
             await reloadBilling()
-            setMessage(`You are now on ${plan.name}. It renews on ${longDate(result.subscription.currentPeriodEnd)}.`)
+            setMessage(`You are now on ${plans?.find((each) => each.key === result.subscription.planKey)?.name ?? result.subscription.planKey}. It renews on ${longDate(result.subscription.currentPeriodEnd)}.`)
           })}
         />
         <CreateOrganisationDialog open={creatingOrganisation} busy={busy} onClose={() => setCreatingOrganisation(false)}

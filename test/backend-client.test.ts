@@ -531,30 +531,56 @@ test('asking for the desktop posts to the session and accepts only the run-stamp
   })
 })
 
-test('plan and cancellation changes carry one operation key per intended action: a retry of the same intent reuses it, a new intent gets a fresh one, and a definite answer settles it', async () => {
-  const { intentKey, settleIntent, withIntent } = await import('../lib/backend/intent-key')
-  const business = intentKey('billing/plan:business')
-  assert.equal(intentKey('billing/plan:business'), business, 'the same intended action keeps its key across retries')
-  assert.notEqual(intentKey('billing/plan:pro'), business, 'another plan is another intent')
-  assert.notEqual(intentKey('billing/cancellation:true'), intentKey('billing/cancellation:false'))
-  await assert.rejects(withIntent('billing/plan:business', async () => { throw new TypeError('Failed to fetch') }, () => false))
-  assert.equal(intentKey('billing/plan:business'), business, 'an uncertain failure keeps the key for the retry')
-  await assert.rejects(withIntent('billing/plan:business', async () => { throw new Error('refused') }, () => true))
-  assert.notEqual(intentKey('billing/plan:business'), business, 'a definite refusal settles the intent; asking again is a new action')
-  settleIntent('billing/plan:business'); settleIntent('billing/plan:pro'); settleIntent('billing/cancellation:true'); settleIntent('billing/cancellation:false')
+test('an operation key lives until its surface is confirmed: kept across network, 5xx, in-progress and refused answers; a success settles every unresolved intent on that surface; another target or surface is another key', async () => {
+  const { intentKey, seatsIntent, settleSurface, subscriptionIntent, withIntent } = await import('../lib/backend/intent-key')
+  const business = subscriptionIntent('plan:business'); const pro = subscriptionIntent('plan:pro')
+  const first = intentKey(business)
+  assert.equal(intentKey(business), first, 'the same intended action keeps its key across retries')
+  assert.notEqual(intentKey(pro), first, 'another plan is another intent')
+  assert.notEqual(intentKey(seatsIntent('org1', 5)), intentKey(seatsIntent('org1', 6)), 'another seat count is another intent')
+  assert.notEqual(intentKey(seatsIntent('org1', 5)), intentKey(seatsIntent('org2', 5)), 'another organisation is another surface')
+  assert.notEqual(intentKey(subscriptionIntent('cancellation:true')), intentKey(subscriptionIntent('cancellation:false')))
+  const outcomes: unknown[] = [
+    new TypeError('Failed to fetch'),
+    new BackendError(503, 'billing/processing', 'Still processing'),
+    new BackendError(500, 'internal', 'Synchronisation failed after the provider accepted'),
+    new BackendError(502, 'billing/checkout-unavailable', 'Provider unavailable'),
+    new BackendError(409, 'organisation/seat-change-in-progress', 'In progress'),
+    new BackendError(429, 'organisation/limit-reached', 'Slow down'),
+    new BackendError(409, 'billing/too-few-seats', 'Refused'),
+  ]
+  for (const outcome of outcomes) {
+    await assert.rejects(withIntent(business, async () => { throw outcome }))
+    assert.equal(intentKey(business), first, `${String((outcome as Error).message)}: the server recorded no success, so the retry is the same operation`)
+  }
+  // A unknown → B confirmed → a fresh A: the lost Business attempt is superseded, never replayed.
+  const seen: string[] = []
+  await withIntent(pro, async (key) => { seen.push(key) })
+  assert.notEqual(intentKey(business), first, 'confirming Pro settles the unresolved Business attempt; choosing Business again is a new operation')
+  const seats5 = intentKey(seatsIntent('org1', 5))
+  await withIntent(subscriptionIntent('cancellation:true'), async () => undefined)
+  assert.equal(intentKey(seatsIntent('org1', 5)), seats5, 'a subscription success does not settle an organisation\'s seat intent')
+  // Double-click: two concurrent attempts of one intent share one key.
+  const keys: string[] = []
+  await Promise.all([withIntent(seatsIntent('org1', 5), async (key) => { keys.push(key) }), withIntent(seatsIntent('org1', 5), async (key) => { keys.push(key) })])
+  assert.deepEqual(keys, [seats5, seats5])
+  settleSurface('billing/subscription'); settleSurface('organisation/org1/seats'); settleSurface('organisation/org2/seats')
+  // Through the client: same intent → same key and byte-identical payload; the key is validated before any request.
   const calls: { url: string; init?: RequestInit }[] = []
   const client = new BackendClient({ origin: 'https://api.example.test', token: async () => 'id-token', fetch: (async (url: RequestInfo | URL, init?: RequestInit) => {
     calls.push({ url: String(url), init })
     return new Response(JSON.stringify({ subscription: { planKey: 'business', planName: 'Business', status: 'active', cancelAtPeriodEnd: false, currentPeriodEnd: '2026-12-01T00:00:00.000Z' } }), { status: 200, headers: { 'content-type': 'application/json' } })
   }) as typeof fetch })
-  const key = intentKey('billing/plan:business')
-  await client.changePlan('business', key).catch(() => undefined)
-  await client.setCancellation(true, intentKey('billing/cancellation:true')).catch(() => undefined)
-  await client.changeSeats('org1', 5, intentKey('organisation/org1/seats:5')).catch(() => undefined)
+  const key = intentKey(business)
+  await client.changePlan('business', key); await client.changePlan('business', key)
+  await client.setCancellation(true, intentKey(subscriptionIntent('cancellation:true')))
   assert.equal(new Headers(calls[0]!.init?.headers).get('idempotency-key'), key)
-  assert.ok(new Headers(calls[1]!.init?.headers).get('idempotency-key'))
-  assert.equal(new Headers(calls[2]!.init?.headers).get('idempotency-key'), intentKey('organisation/org1/seats:5'), 'a seat change carries the key of its intended seat count')
-  assert.notEqual(intentKey('organisation/org1/seats:5'), intentKey('organisation/org1/seats:6'), 'a different seat count is a different intent')
-  settleIntent('organisation/org1/seats:5'); settleIntent('organisation/org1/seats:6')
-  assert.notEqual(new Headers(calls[1]!.init?.headers).get('idempotency-key'), key)
+  assert.deepEqual(calls[0], calls[1], 'a retry of the same intent is the same request')
+  assert.notEqual(new Headers(calls[2]!.init?.headers).get('idempotency-key'), key)
+  await client.changeSeats('org1', 5, intentKey(seatsIntent('org1', 5))).catch(() => undefined) // the stub answers with a personal subscription; the request itself is what is checked here
+  assert.equal(new Headers(calls[3]!.init?.headers).get('idempotency-key'), intentKey(seatsIntent('org1', 5)), 'a seat change carries the key of its intended seat count')
+  assert.equal(calls[3]!.init?.body, JSON.stringify({ seats: 5 }))
+  assert.throws(() => client.changePlan('business', 'short'), 'an invalid key is a definite client error, sent nowhere')
+  assert.equal(calls.length, 4)
+  settleSurface('billing/subscription'); settleSurface('organisation/org1/seats')
 })
