@@ -23,7 +23,7 @@ test('a subscriber sees upgrade and downgrade by rank, and the free plan as lett
 test('the change charge reads from Stripe\'s preview, never from a client computation', () => {
   assert.match(describeChangeCharge({ amountDueMinor: 4800, currency: 'gbp' }), /^Your next invoice is estimated at £48: the prorated difference/)
   assert.doesNotMatch(describeChangeCharge({ amountDueMinor: 4800, currency: 'gbp' }), /charged today/, 'create_prorations bills the difference on the next invoice; nothing is taken today')
-  assert.match(describeChangeCharge({ amountDueMinor: 0, currency: 'gbp' }), /^Nothing more to pay/)
+  assert.match(describeChangeCharge({ amountDueMinor: 0, currency: 'gbp' }), /^Estimated: nothing more to pay/)
   assert.equal(longDate('2026-12-08T12:00:00.000Z'), '8 December 2026')
 })
 

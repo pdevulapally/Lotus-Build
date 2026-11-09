@@ -34,19 +34,24 @@ type IntentRecord = z.infer<typeof recordSchema>
 
 const storageKey = (uid: string) => `lotus-intents:${uid}`
 
-// A record that cannot be read as one is ignored; storage refusing to answer (two records that
-// disagree) is not: no key is minted over operations whose identities are in doubt.
-const read = ({ uid, storage }: IntentScope): IntentRecord => {
-  const raw = storage.getItem(storageKey(uid))
-  try {
-    const parsed = recordSchema.safeParse(JSON.parse(raw ?? ''))
-    if (parsed.success && parsed.data.uid === uid) return parsed.data
-  } catch {}
-  return { uid, next: 0, surfaces: {} }
+/** An existing record that cannot be trusted: nothing is minted over it and nothing is overwritten. */
+export class IntentRecordError extends Error {
+  constructor(message: string) { super(message); this.name = 'IntentRecordError' }
 }
 
-// The record stays once written, even with nothing unresolved: the generation counter must never
-// restart, or a completion arriving late could settle an operation minted after it.
+// Absent storage is a fresh start. An existing record that is malformed, or names another account,
+// is neither read nor replaced: it may hold the only identity of an operation still unresolved, so
+// the caller is told to review it rather than minting over it. Storage refusing to answer (two
+// records that disagree) propagates for the same reason.
+const read = ({ uid, storage }: IntentScope): IntentRecord => {
+  const raw = storage.getItem(storageKey(uid))
+  if (raw === null) return { uid, next: 0, surfaces: {} }
+  let parsed: ReturnType<typeof recordSchema.safeParse> | undefined
+  try { parsed = recordSchema.safeParse(JSON.parse(raw)) } catch {}
+  if (parsed?.success && parsed.data.uid === uid) return parsed.data
+  throw new IntentRecordError('A stored billing operation record needs review before another change can be asked for. Sign out and back in, or contact support if this persists.')
+}
+
 const write = ({ uid, storage }: IntentScope, record: IntentRecord): void => { storage.setItem(storageKey(uid), JSON.stringify(record)) }
 
 export const intentStore = (scope: IntentScope) => {
@@ -57,7 +62,12 @@ export const intentStore = (scope: IntentScope) => {
     if (existing !== undefined) return existing
     const minted = { key: keySchema.parse(crypto.randomUUID()), generation: record.next }
     write(scope, { ...record, next: record.next + 1, surfaces: { ...record.surfaces, [surface]: { ...record.surfaces[surface], [action]: minted } } })
-    return minted
+    // Another tab may have minted the same intent between this read and write and won the write: the
+    // identity read back is the one used, so both tabs follow one operation. Two tabs can still each
+    // read back their own write before the other's lands (storage has no lock); the server's pin then
+    // sees two keys for one target and refuses the second — whether every such interleaving is closed
+    // is under review on lotusbuild-server #97.
+    return read(scope).surfaces[surface]?.[action] ?? minted
   }
   const key = (intent: Intent): string => entry(intent).key
   /** The surface's state as of `generation` is now known: nothing asked up to then is still unresolved. */

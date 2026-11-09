@@ -41,7 +41,7 @@ export const relationLabels: Readonly<Record<Exclude<PlanRelation, 'current'>, s
  * now, and the preview total is that invoice as it stands — renewal included — not a locked quote.
  */
 export function describeChangeCharge(preview: { amountDueMinor: number; currency: string }): string {
-  if (preview.amountDueMinor <= 0) return 'Nothing more to pay. Unused time on your current plan is credited to your next invoice.'
+  if (preview.amountDueMinor <= 0) return 'Estimated: nothing more to pay. Unused time on your current plan is credited to your next invoice, which is settled when it is issued.'
   const { amount } = formatPlanPrice({ amountMinor: preview.amountDueMinor, currency: preview.currency, interval: 'month' })
   return `Your next invoice is estimated at ${amount}: the prorated difference for the rest of this billing period, then the new plan's price. The final figure is set when the invoice is issued.`
 }
