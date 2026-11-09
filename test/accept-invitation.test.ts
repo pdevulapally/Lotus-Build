@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { acceptInvitation, type AcceptOutcome } from '../lib/organisations/accept-invitation'
+import { acceptanceKey, attachAcceptance, resetAcceptances, acceptInvitation, type AcceptOutcome } from '../lib/organisations/accept-invitation'
 
 const gate = () => { let open!: () => void; const opened = new Promise<void>((resolve) => { open = resolve }); return { open, opened } }
 
@@ -81,4 +81,33 @@ test('the page unmounts (sign-out → ProtectedRoute) while Alice\'s acceptance 
   provider.current = 'bob#2'      // …and Bob signed in; a fresh page would mount with its own attempt
   accepted.open(); await run
   assert.equal(refreshes, 0); assert.deepEqual(reports, []); assert.deepEqual(selected, [])
+})
+
+test('attaching twice to the same (principal, organisation, token) runs one acceptance; detaching suppresses only that listener; a late attachment receives the outcome', async () => {
+  resetAcceptances()
+  let accepts = 0
+  const accepted = gate()
+  const start = { principal: () => 'alice#1', accept: async () => { accepts++; await accepted.opened; return { id: 'org-1', name: 'Acme' } }, refresh: async () => ({ workspaces: [{ id: 'org-1' }] }), select: async () => undefined }
+  const first: AcceptOutcome[] = []; const replay: AcceptOutcome[] = []
+  const key = acceptanceKey('alice#1', 'org-1', 'tok')
+  const detachFirst = attachAcceptance(key, start, (o) => first.push(o))
+  detachFirst()                                            // StrictMode cleanup…
+  const detachReplay = attachAcceptance(key, start, (o) => replay.push(o))   // …and setup again
+  assert.equal(accepts, 1, 'the invitation is submitted once')
+  accepted.open(); await new Promise((r) => setTimeout(r, 0)); await new Promise((r) => setTimeout(r, 0))
+  assert.deepEqual(first, [], 'the detached listener hears nothing')
+  assert.deepEqual(replay, [{ kind: 'joined', name: 'Acme' }])
+  const late: AcceptOutcome[] = []; attachAcceptance(key, start, (o) => late.push(o))
+  assert.deepEqual(late, [{ kind: 'joined', name: 'Acme' }], 'a listener attaching after completion still gets the outcome')
+  detachReplay()
+})
+
+test('a different invitation, or the same one under a new principal, is its own operation', async () => {
+  resetAcceptances()
+  let accepts = 0
+  const start = { principal: () => 'alice#1', accept: async () => { accepts++; return { id: 'org-1', name: 'Acme' } }, refresh: async () => undefined, select: async () => undefined }
+  attachAcceptance(acceptanceKey('alice#1', 'org-1', 'tok-a'), start, () => undefined)
+  attachAcceptance(acceptanceKey('alice#1', 'org-1', 'tok-b'), start, () => undefined)
+  attachAcceptance(acceptanceKey('alice#2', 'org-1', 'tok-a'), start, () => undefined)
+  assert.equal(accepts, 3)
 })

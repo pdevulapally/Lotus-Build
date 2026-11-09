@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { act, createElement } from 'react'
+import { StrictMode, act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { AuthProvider } from '../../contexts/auth-context'
 import AcceptInvitationPage from '../../app/invitations/accept/page'
 import { auth } from '../support/stubs/firebase'
 import { backend } from '../support/stubs/backend-browser'
-import { navigation } from '../support/stubs/next-navigation'
+import { navigation, setInvitationQuery } from '../support/stubs/next-navigation'
+import { resetAcceptances } from '../../lib/organisations/accept-invitation'
 import { workspaceStorageKey } from '../../contexts/auth-context'
 
 /**
@@ -15,14 +16,16 @@ import { workspaceStorageKey } from '../../contexts/auth-context'
  */
 const flush = async () => { await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) }) }
 const text = () => document.body.textContent ?? ''
-const mount = async () => {
+const tree = () => createElement(AuthProvider, null, createElement(AcceptInvitationPage))
+const mount = async (strict = false) => {
   const container = document.body.appendChild(document.createElement('div'))
   let root!: Root
-  await act(async () => { root = createRoot(container); root.render(createElement(AuthProvider, null, createElement(AcceptInvitationPage))) })
-  return { root, container, unmount: async () => { await act(async () => root.unmount()); container.remove() } }
+  const render = async () => { await act(async () => { root.render(strict ? createElement(StrictMode, null, tree()) : tree()) }) }
+  await act(async () => { root = createRoot(container) }); await render()
+  return { root, container, rerender: render, unmount: async () => { await act(async () => root.unmount()); container.remove() } }
 }
 const storedWorkspace = (uid: string) => window.localStorage.getItem(workspaceStorageKey(uid))
-const reset = () => { backend.reset(); navigation.pushes.length = 0; window.localStorage.clear(); if (auth.currentUser) auth.signOut() }
+const reset = () => { backend.reset(); resetAcceptances(); navigation.pushes.length = 0; setInvitationQuery('org1', 'a'.repeat(43)); window.localStorage.clear(); if (auth.currentUser) auth.signOut() }
 
 test('normal acceptance: Alice signed in, the page accepts, refreshes her account and selects the organisation', async () => {
   reset(); auth.signIn('alice')
@@ -69,5 +72,28 @@ test('Alice signs out and back in during her acceptance: the same uid under a ne
   assert.doesNotMatch(text(), /Acme/)
   backend.acceptGates[1]!.open(); await flush(); await flush()
   assert.equal(storedWorkspace('alice'), 'org1', 'the new session\'s own acceptance completes')
+  await page.unmount()
+})
+
+test('StrictMode replays the effect (setup → cleanup → setup): the invitation is still submitted once and the outcome is shown', async () => {
+  reset(); auth.signIn('alice')
+  const page = await mount(true); await flush()
+  assert.equal(backend.calls.filter((c) => c.startsWith('accept:')).length, 1, backend.calls.join(','))
+  backend.acceptGates[0]!.open(); await flush(); await flush()
+  assert.match(text(), /Acme/)
+  assert.equal(storedWorkspace('alice'), 'org1')
+  await page.unmount()
+})
+
+test('a new invitation in the query while the first is in flight starts its own operation; the first one\'s completion no longer reports into the page, the second\'s does', async () => {
+  reset(); auth.signIn('alice')
+  const page = await mount(); await flush()
+  assert.deepEqual(backend.calls.filter((c) => c.startsWith('accept:')), ['accept:org1:43'])
+  setInvitationQuery('org1', 'b'.repeat(43)); await page.rerender(); await flush()
+  assert.equal(backend.acceptGates.length, 2, 'the changed invitation is submitted as its own operation')
+  backend.acceptGates[0]!.open(); await flush(); await flush()
+  assert.doesNotMatch(text(), /Acme/, 'the detached first operation does not report into the page')
+  backend.acceptGates[1]!.open(); await flush(); await flush()
+  assert.match(text(), /Acme/)
   await page.unmount()
 })
