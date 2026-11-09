@@ -30,6 +30,7 @@ export function incompleteRunsShown(
   events: readonly { execution?: number | undefined }[],
   currentExecution: number | undefined,
   declaredByStream: readonly number[] = [],
+  runEnds: RunEnds | undefined = undefined,
 ): FeedIncompleteRun[] {
   const shown = new Set<number>()
   for (const event of events) if (event.execution !== undefined) shown.add(event.execution)
@@ -39,7 +40,9 @@ export function incompleteRunsShown(
   const byRun = new Map<number, FeedIncompleteRun>()
   for (const record of records ?? []) if (shown.has(record.execution)) byRun.set(record.execution, record)
   // A terminal event's own declaration counts even when the durable record could not be written.
-  for (const execution of declaredByStream) if (shown.has(execution) && !byRun.has(execution)) byRun.set(execution, { execution, lost: 1, lastType: 'terminal', since: '' })
+  // A terminal event's declaration counts whether it arrived on the stream or only as the recorded end in the snapshot.
+  const declared = [...declaredByStream, ...Object.values(runEnds ?? {}).filter((end) => end.incomplete).map((end) => end.execution)]
+  for (const execution of declared) if (shown.has(execution) && !byRun.has(execution)) byRun.set(execution, { execution, lost: 1, lastType: 'terminal', since: '' })
   return [...byRun.values()].sort((a, b) => a.execution - b.execution)
 }
 
@@ -82,7 +85,8 @@ export function runEndFromEvent(event: SessionEvent): RunEnd | undefined {
 /** What could not be recorded, by the kind of the last lost event — and that what happened in the gap is unknown. */
 export function incompleteDescription(run: FeedIncompleteRun): string {
   const what = run.lastType === 'worker.interrupted' ? 'The worker running this stopped before it could record what it did last;'
-    : run.lastType.startsWith('session.') ? 'The end of this run did not reach the record;'
+    : run.lastType === 'session.running' ? 'The start of this run did not reach the record;'
+    : terminalEventTypes.has(run.lastType) ? 'The end of this run did not reach the record;'
     : run.lastType === 'terminal' ? 'At least one step of this run did not reach the record;'
     : 'At least one command or result of this run did not reach the record;'
   return `${what} what happened in that gap — including anything it may have changed — is not known from this timeline.`

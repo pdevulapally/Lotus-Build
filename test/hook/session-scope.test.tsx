@@ -5,7 +5,7 @@ import { createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { harness } from '../support/hook-stubs'
 import { useBackendSession } from '../../hooks/use-backend-session'
-import { runEndUnrecorded } from '../../lib/backend/feed-incomplete'
+import { incompleteRunsShown, runEndUnrecorded } from '../../lib/backend/feed-incomplete'
 
 type Seen = ReturnType<typeof useBackendSession>
 const seen: { current: Seen | null } = { current: null }
@@ -74,6 +74,16 @@ test('a fresh voice session: created IDLE at execution 1, its first session.idle
   await send(h, 'session.idle', { steps: 0 })
   const s = seen.current!.session!
   assert.equal(s.runStart, undefined); assert.equal(runEndUnrecorded(s.status, s.execution, s.runStart, s.runEnds), false); assert.deepEqual(seen.current!.incompleteRuns, [])
+})
+
+test('snapshot-only: the marker was never written and the stream replays nothing, but the snapshot\'s recorded end for run 1 says incomplete — the warning stands, and a later clean run on the stream keeps it', async () => {
+  harness.snapshot = (id) => ({ ...snapshot(id, 2), session: { ...snapshot(id, 2).session, status: 'IDLE', runStart: { execution: 2, sequence: 5 }, runEnds: { '1': { execution: 1, type: 'agent.finished', sequence: 4, incomplete: true }, '2': { execution: 2, type: 'session.idle', sequence: 8, incomplete: false } } } })
+  const h = await mount('s6', user('alice'))
+  const before = incompleteRunsShown(seen.current!.session!.feedIncomplete, [{ execution: 1 }, { execution: 2 }], seen.current!.session!.execution, seen.current!.incompleteRuns, seen.current!.session!.runEnds)
+  assert.deepEqual(before.map((run) => run.execution), [1]); assert.deepEqual(seen.current!.incompleteRuns, [], 'nothing came from the stream')
+  await send(h, 'session.running', { execution: 3 }); await send(h, 'session.idle', { execution: 3, steps: 1, stopReason: 'end_turn' })
+  const after = incompleteRunsShown(seen.current!.session!.feedIncomplete, [{ execution: 1 }, { execution: 2 }, { execution: 3 }], 3, seen.current!.incompleteRuns, seen.current!.session!.runEnds)
+  assert.deepEqual(after.map((run) => run.execution), [1], 'run 1 still warned beside clean runs 2 and 3'); assert.equal(seen.current!.session!.runEnds?.['3']?.incomplete, false)
 })
 
 test.after(async () => { if (root) await act(async () => { root!.unmount() }) })

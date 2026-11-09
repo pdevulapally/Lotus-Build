@@ -158,7 +158,7 @@ test('no_progress: the server appends its limitation sentence to the reply and t
 })
 
 // ── Incomplete feed: the server's durable facts and the stream's own declaration, rendered ──
-import { incompleteRunFromEvent, incompleteRunsShown, mergeSessionEvidence, runEndFromEvent, runEndUnrecorded, type RunEnd, type RunEnds, type RunStart } from '../lib/backend/feed-incomplete'
+import { incompleteDescription, incompleteRunFromEvent, incompleteRunsShown, mergeSessionEvidence, runEndFromEvent, runEndUnrecorded, type RunEnd, type RunEnds, type RunStart } from '../lib/backend/feed-incomplete'
 const notices = (html: string, id: string) => html.split(`data-testid="${id}"`).length - 1
 const record = (execution: number) => ({ execution, lost: 1, lastType: 'agent.tool_result', since: '2026-11-06T18:00:00.000Z' })
 
@@ -251,4 +251,17 @@ test('warnings are per session and account: the same run number elsewhere means 
   // The hook clears `incompleteRuns` with the rest of its scoped state on a session/user change and on a stream reset; what remains is what this session\'s own records and events declare.
   assert.deepEqual(incompleteRunsShown(undefined, [{ execution: 1 }], 1, []), [], 'a clean session with run 1 shows no warning even though another session\'s run 1 had one')
   assert.deepEqual(incompleteRunsShown([record(1)], [{ execution: 1 }], 1, []).map((r) => r.execution), [1], 'this session\'s own record does')
+})
+
+test('snapshot-only declaration: a run whose recorded end says incomplete raises the warning even when the marker was never written and the stream did not replay the terminal event; a lost start is named as a start, not as a missing end', () => {
+  const rows = [{ execution: 1 }, { execution: 2 }]
+  const ends = { '1': { execution: 1, type: 'agent.finished', sequence: 4, incomplete: true }, '2': { execution: 2, type: 'session.idle', sequence: 9, incomplete: false } }
+  assert.deepEqual(incompleteRunsShown(undefined, rows, 2, [], ends).map((run) => run.execution), [1])
+  assert.equal(incompleteRunsShown(undefined, rows, 2, [], undefined).length, 0)
+  assert.equal(incompleteRunsShown([{ execution: 1, lost: 2, lastType: 'agent.tool_result', since: 'x' }], rows, 2, [1], ends).length, 1, 'record, stream declaration and snapshot end for the same run: one warning')
+  assert.match(incompleteDescription({ execution: 1, lost: 1, lastType: 'session.running', since: '' }), /^The start of this run did not reach the record;/)
+  assert.match(incompleteDescription({ execution: 1, lost: 1, lastType: 'session.idle', since: '' }), /^The end of this run did not reach the record;/)
+  assert.match(incompleteDescription({ execution: 1, lost: 1, lastType: 'agent.finished', since: '' }), /^The end of this run did not reach the record;/)
+  assert.match(incompleteDescription({ execution: 1, lost: 1, lastType: 'session.plan_updated', since: '' }), /^At least one command or result/)
+  for (const type of ['session.running', 'session.idle', 'terminal', 'worker.interrupted', 'agent.tool_result']) assert.match(incompleteDescription({ execution: 1, lost: 1, lastType: type, since: '' }), /is not known from this timeline\.$/)
 })
