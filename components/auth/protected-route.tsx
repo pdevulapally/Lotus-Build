@@ -18,7 +18,8 @@ export function ProtectedRoute({ children, requiredTokens = 0 }: ProtectedRouteP
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push(`/login?redirect=${encodeURIComponent(window.location.pathname)}`)
+      // The query travels with the path: an invitation link signed out keeps its organisation and token.
+      router.push(`/login?redirect=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`)
     }
   }, [user, loading, router])
 

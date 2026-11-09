@@ -9,7 +9,7 @@ test('stale task-preview sign-in destinations return to the original home', () =
 })
 
 test('original project and computer destinations remain intact', () => {
-  for (const path of ['/', '/project/project-id', '/computer/session-id?tab=preview']) {
+  for (const path of ['/', '/project/project-id', '/computer/session-id?tab=preview', '/invitations/accept?organisation=org-1&token=' + 'a'.repeat(43)]) {
     assert.equal(getSafeRedirectPath(path), path)
   }
 })

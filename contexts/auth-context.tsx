@@ -84,12 +84,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (workspaces.length === 0) return null
     return workspaces.find((workspace) => workspace.id === selectedWorkspaceId) ?? workspaces.find((workspace) => workspace.kind === 'personal') ?? workspaces[0] ?? null
   }, [workspaces, selectedWorkspaceId])
+  // Read through refs: a caller that refreshed the account a moment ago (an organisation just created or joined)
+  // must see the refreshed memberships, not the ones its closure captured.
+  const current = useRef({ account, workspaces }); current.current = { account, workspaces }
   const switchWorkspace = useCallback(async (id: string) => {
-    if (!account) throw new Error('Sign in to switch workspaces.')
-    if (!workspaces.some((workspace) => workspace.id === id)) throw new Error('That workspace is not available to this account.')
+    const { account: signedIn, workspaces: available } = current.current
+    if (!signedIn) throw new Error('Sign in to switch workspaces.')
+    if (!available.some((workspace) => workspace.id === id)) throw new Error('That workspace is not available to this account.')
     setSelectedWorkspaceId(id)
-    try { window.localStorage.setItem(workspaceStorageKey(account.uid), id) } catch { /* selection is per tab when storage is unavailable */ }
-  }, [account, workspaces])
+    try { window.localStorage.setItem(workspaceStorageKey(signedIn.uid), id) } catch { /* selection is per tab when storage is unavailable */ }
+  }, [])
   const getOptionalAuthHeader = useCallback(async (): Promise<Record<string, string>> => {
     const identity = auth.currentUser
     return identity ? { Authorization: `Bearer ${await identity.getIdToken()}` } : {}
