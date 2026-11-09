@@ -17,18 +17,23 @@ export const backend = {
   missingWorkspaces: new Set<string>(),
   /** One gate per `acceptInvitation` call, in call order: the test decides which completion lands, and when. */
   acceptGates: [] as Gate[],
+  /** Per-workspace gates and failures for the models fetch; absent = immediate. */
+  modelGates: new Map<string, Gate>(),
+  modelFailures: new Set<string>(),
+  modelsFor: ((id: string) => id === 'org1' ? [{ id: 'teams-large', name: 'Teams Large', efforts: ['standard', 'high'], maxOutputTokens: 8000 }] : id === 'org2' ? [{ id: 'beta-model', name: 'Beta Model', efforts: ['standard'], maxOutputTokens: 4000 }] : [{ id: 'free-small', name: 'Free Small', efforts: ['low'], maxOutputTokens: 2000 }]) as (id: string) => { id: string; name: string; efforts: string[]; maxOutputTokens: number }[],
   calls: [] as string[],
-  reset() { backend.acceptGates = []; backend.calls = []; backend.reconcileGate = gate(); backend.billingGates = new Map(); backend.billingFailures = new Set(); backend.acceptFailures = new Set(); backend.meGate = undefined; backend.meFailures = new Set(); backend.missingWorkspaces = new Set(); backend.reconcileAnswer = { subscription: teamsSubscription, pending: null } },
+  reset() { backend.acceptGates = []; backend.calls = []; backend.modelGates = new Map(); backend.modelFailures = new Set(); backend.reconcileGate = gate(); backend.billingGates = new Map(); backend.billingFailures = new Set(); backend.acceptFailures = new Set(); backend.meGate = undefined; backend.meFailures = new Set(); backend.missingWorkspaces = new Set(); backend.reconcileAnswer = { subscription: teamsSubscription, pending: null } },
   client: {
     async me() {
       const uid = (await import('./firebase')).auth.currentUser?.uid ?? 'nobody'; backend.calls.push(`me:${uid}`)
       if (backend.meGate) await backend.meGate.opened
       if (backend.meFailures.delete(uid)) throw new Error('Your account could not be loaded right now.')
       const workspaces = [{ id: uid, kind: 'personal', name: 'Personal', role: 'owner' }, { id: 'org1', kind: 'organisation', name: 'Acme', role: 'owner', slug: 'acme' }, { id: 'org2', kind: 'organisation', name: 'Beta', role: 'owner', slug: 'beta' }]
-      return { uid, email: `${uid}@example.test`, emailVerified: true, projectCount: 0, plan: { key: 'free', name: 'Free' }, workspaces: workspaces.filter((w) => !backend.missingWorkspaces.has(w.id)), capabilities: {}, closing: null }
+      return { uid, email: `${uid}@example.test`, emailVerified: true, projectCount: 0, plan: { key: 'free', name: 'Free' }, models: backend.modelsFor(uid), workspaces: workspaces.filter((w) => !backend.missingWorkspaces.has(w.id)), capabilities: {}, closing: null }
     },
     async usage() { const uid = (await import('./firebase')).auth.currentUser?.uid ?? 'nobody'; return { uid, meters: [] } },
-    async models(_signal?: AbortSignal, workspaceId?: string) { const uid = (await import('./firebase')).auth.currentUser?.uid ?? 'nobody'; backend.calls.push(`models:${workspaceId ?? uid}`); return { workspaceId: workspaceId ?? uid, plan: { key: workspaceId ? 'teams' : 'free', name: workspaceId ? 'Teams' : 'Free' }, models: [] } },
+    /** The workspace's models: `modelsFor` decides the list, `modelGates` can hold the answer, `modelFailures` makes it fail. */
+    async models(signal?: AbortSignal, workspaceId?: string) { const uid = (await import('./firebase')).auth.currentUser?.uid ?? 'nobody'; const id = workspaceId ?? uid; backend.calls.push(`models:${id}`); const held = backend.modelGates.get(id); if (held) await held.opened; if (signal?.aborted) throw new Error('aborted'); if (backend.modelFailures.has(id)) throw new Error(`models unavailable for ${id}`); return { workspaceId: id, plan: workspaceId ? { key: 'teams', name: 'Teams' } : { key: 'free', name: 'Free' }, models: backend.modelsFor(id) } },
     async plans() { return { plans: [] } },
     async subscription() { return { subscription: null } },
     async organisation(orgId: string) { backend.calls.push(`organisation:${orgId}`); return organisationOf(orgId) },
