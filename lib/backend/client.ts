@@ -241,8 +241,8 @@ export class BackendClient {
   subscription(signal?: AbortSignal) { return this.json(z.object({ subscription: subscriptionSchema.nullable() }), '/billing/subscription', { signal }) }
   previewPlanChange(key: string) { return this.json(z.object({ planKey: z.string(), amountDueMinor: z.number().int(), currency: z.string().regex(/^[a-z]{3}$/), appliesNow: z.boolean() }),
     '/billing/subscription/preview', { method: 'POST', body: { planKey: planKey.parse(key) } }) }
-  changePlan(key: string) { return this.json(z.object({ subscription: subscriptionSchema }), '/billing/subscription', { method: 'POST', body: { planKey: planKey.parse(key) } }) }
-  setCancellation(cancelAtPeriodEnd: boolean) { return this.json(z.object({ subscription: subscriptionSchema }), '/billing/subscription/cancellation', { method: 'POST', body: { cancelAtPeriodEnd } }) }
+  changePlan(key: string, operationKey: string) { return this.json(z.object({ subscription: subscriptionSchema }), '/billing/subscription', { method: 'POST', body: { planKey: planKey.parse(key) }, key: keySchema.parse(operationKey) }) }
+  setCancellation(cancelAtPeriodEnd: boolean, operationKey: string) { return this.json(z.object({ subscription: subscriptionSchema }), '/billing/subscription/cancellation', { method: 'POST', body: { cancelAtPeriodEnd }, key: keySchema.parse(operationKey) }) }
   closeAccount(confirmation: string) { return this.json(z.object({ closure: closureSchema }), '/me/close', { method: 'POST', body: { confirmation: z.string().min(3).max(320).parse(confirmation) } }) }
   async keepAccount(): Promise<void> { await this.response('/me/close', { method: 'DELETE' }) }
   connectionCatalogue(signal?: AbortSignal) { return this.json(catalogueSchema, '/connections/catalogue', { signal }) }

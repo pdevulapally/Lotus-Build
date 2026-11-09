@@ -530,3 +530,27 @@ test('asking for the desktop posts to the session and accepts only the run-stamp
     return true
   })
 })
+
+test('plan and cancellation changes carry one operation key per intended action: a retry of the same intent reuses it, a new intent gets a fresh one, and a definite answer settles it', async () => {
+  const { intentKey, settleIntent, withIntent } = await import('../lib/backend/intent-key')
+  const business = intentKey('billing/plan:business')
+  assert.equal(intentKey('billing/plan:business'), business, 'the same intended action keeps its key across retries')
+  assert.notEqual(intentKey('billing/plan:pro'), business, 'another plan is another intent')
+  assert.notEqual(intentKey('billing/cancellation:true'), intentKey('billing/cancellation:false'))
+  await assert.rejects(withIntent('billing/plan:business', async () => { throw new TypeError('Failed to fetch') }, () => false))
+  assert.equal(intentKey('billing/plan:business'), business, 'an uncertain failure keeps the key for the retry')
+  await assert.rejects(withIntent('billing/plan:business', async () => { throw new Error('refused') }, () => true))
+  assert.notEqual(intentKey('billing/plan:business'), business, 'a definite refusal settles the intent; asking again is a new action')
+  settleIntent('billing/plan:business'); settleIntent('billing/plan:pro'); settleIntent('billing/cancellation:true'); settleIntent('billing/cancellation:false')
+  const calls: { url: string; init?: RequestInit }[] = []
+  const client = new BackendClient({ origin: 'https://api.example.test', token: async () => 'id-token', fetch: (async (url: RequestInfo | URL, init?: RequestInit) => {
+    calls.push({ url: String(url), init })
+    return new Response(JSON.stringify({ subscription: { planKey: 'business', planName: 'Business', status: 'active', cancelAtPeriodEnd: false, currentPeriodEnd: '2026-12-01T00:00:00.000Z' } }), { status: 200, headers: { 'content-type': 'application/json' } })
+  }) as typeof fetch })
+  const key = intentKey('billing/plan:business')
+  await client.changePlan('business', key).catch(() => undefined)
+  await client.setCancellation(true, intentKey('billing/cancellation:true')).catch(() => undefined)
+  assert.equal(new Headers(calls[0]!.init?.headers).get('idempotency-key'), key)
+  assert.ok(new Headers(calls[1]!.init?.headers).get('idempotency-key'))
+  assert.notEqual(new Headers(calls[1]!.init?.headers).get('idempotency-key'), key)
+})
