@@ -3,6 +3,7 @@ import test from 'node:test'
 import { acceptanceKey, attachAcceptance, resetAcceptances, acceptInvitation, type AcceptOutcome } from '../lib/organisations/accept-invitation'
 
 const gate = () => { let open!: () => void; const opened = new Promise<void>((resolve) => { open = resolve }); return { open, opened } }
+const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 0))
 
 function harness(principal: { current: string }) {
   const accepted = gate(), refreshed = gate()
@@ -24,7 +25,7 @@ test('a normal acceptance reports joined after the refresh and selects the organ
   const h = harness(principal)
   h.accepted.open(); h.refreshed.open()
   await h.run
-  assert.deepEqual(h.reports, [{ kind: 'joined', name: 'Acme' }])
+  assert.deepEqual(h.reports, [{ kind: 'joined', id: 'org-1', name: 'Acme' }])
   assert.deepEqual(h.selected, [{ id: 'org-1', available: [{ id: 'alice' }, { id: 'org-1' }] }])
 })
 
@@ -96,9 +97,9 @@ test('attaching twice to the same (principal, organisation, token) runs one acce
   assert.equal(accepts, 1, 'the invitation is submitted once')
   accepted.open(); await new Promise((r) => setTimeout(r, 0)); await new Promise((r) => setTimeout(r, 0))
   assert.deepEqual(first, [], 'the detached listener hears nothing')
-  assert.deepEqual(replay, [{ kind: 'joined', name: 'Acme' }])
+  assert.deepEqual(replay, [{ kind: 'joined', id: 'org-1', name: 'Acme' }])
   const late: AcceptOutcome[] = []; attachAcceptance(key, start, (o) => late.push(o))
-  assert.deepEqual(late, [{ kind: 'joined', name: 'Acme' }], 'a listener attaching after completion still gets the outcome')
+  assert.deepEqual(late, [{ kind: 'joined', id: 'org-1', name: 'Acme' }], 'a listener attaching after completion still gets the outcome')
   detachReplay()
 })
 
@@ -110,4 +111,42 @@ test('a different invitation, or the same one under a new principal, is its own 
   attachAcceptance(acceptanceKey('alice#1', 'org-1', 'tok-b'), start, () => undefined)
   attachAcceptance(acceptanceKey('alice#2', 'org-1', 'tok-a'), start, () => undefined)
   assert.equal(accepts, 3)
+})
+
+test('a join that settled with no page attached owes its refresh and selection: the page that attaches next runs them once (a StrictMode double attach does not run them twice), under its own refresh/select, and a page that detaches before the refresh answers leaves them owed for the next one', async () => {
+  resetAcceptances()
+  const accepted = gate(); let refreshes = 0; const selected: string[] = []
+  const start = { principal: () => 'alice#1', accept: async () => { await accepted.opened; return { id: 'org-1', name: 'Acme' } }, refresh: async () => { refreshes++; return { workspaces: [{ id: 'org-1' }] } }, select: async (id: string) => { selected.push(id) } }
+  const key = acceptanceKey('alice#1', 'org-1', 'tok')
+  const detach = attachAcceptance(key, start, () => undefined)
+  detach()                                                      // the page moved on before the server answered
+  accepted.open(); await settle(); await settle()
+  assert.equal(refreshes, 0); assert.deepEqual(selected, [], 'nothing runs for a page that is not there')
+  // The page comes back (StrictMode: attach, detach, attach): one refresh, one selection, from the returning page's own deps.
+  const back: AcceptOutcome[] = []
+  const again = { ...start, refresh: async () => { refreshes++; return { workspaces: [{ id: 'org-1' }] } } }
+  const first = attachAcceptance(key, again, (o) => back.push(o)); first()
+  const second = attachAcceptance(key, again, (o) => back.push(o))
+  await settle(); await settle()
+  assert.deepEqual(back, [{ kind: 'joined', id: 'org-1', name: 'Acme' }, { kind: 'joined', id: 'org-1', name: 'Acme' }], 'both attachments observe the retained outcome without a resubmission')
+  assert.equal(refreshes, 1, 'the owed refresh ran once'); assert.deepEqual(selected, ['org-1'], 'the owed selection ran once')
+  second()
+  // Attaching once more owes nothing: the join was already delivered.
+  const third = attachAcceptance(key, again, () => undefined); await settle(); third()
+  assert.equal(refreshes, 1); assert.deepEqual(selected, ['org-1'])
+})
+
+test('the owed continuation is fenced like every other: a page that detaches while the refresh is in flight gets no selection, and the next page runs the refresh again', async () => {
+  resetAcceptances()
+  const refreshed = gate(); let refreshes = 0; const selected: string[] = []
+  const start = { principal: () => 'alice#1', accept: async () => ({ id: 'org-1', name: 'Acme' }), refresh: async () => { refreshes++; await refreshed.opened; return { workspaces: [{ id: 'org-1' }] } }, select: async (id: string) => { selected.push(id) } }
+  const key = acceptanceKey('alice#1', 'org-1', 'tok')
+  const detach = attachAcceptance(key, start, () => undefined); detach(); await settle(); await settle()
+  assert.equal(refreshes, 0, 'settled detached: nothing ran')
+  const back = attachAcceptance(key, start, () => undefined); await settle()
+  assert.equal(refreshes, 1, 'the returning page starts the owed refresh')
+  back(); refreshed.open(); await settle(); await settle()
+  assert.deepEqual(selected, [], 'it left before the refresh answered: no selection for a page that is gone')
+  const again = attachAcceptance(key, start, () => undefined); await settle(); await settle()
+  assert.equal(refreshes, 2); assert.deepEqual(selected, ['org-1'], 'the next page is refreshed and switched'); again()
 })

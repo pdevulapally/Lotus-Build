@@ -124,9 +124,19 @@ test('A completes while the page is on B (detached); returning to A shows A\'s r
   assert.equal(backend.acceptGates.length, 2)
   backend.acceptGates[0]!.open(); await flush(); await flush()            // A settles while detached
   assert.equal(storedWorkspace('alice'), null, 'no side effect while detached')
+  const callsBefore = backend.calls.length
   setInvitationQuery('org1', 'a'.repeat(43)); await page.rerender(); await flush()
   assert.equal(backend.acceptGates.length, 2, 'returning to A does not submit the invitation again')
   assert.match(text(), /Acme/, 'A\'s recorded outcome is shown')
+  await flush()
+  assert.equal(storedWorkspace('alice'), 'org1', 'the returning page ran the owed refresh and selected Acme — the workspace is A, not left on Personal/B')
+  assert.ok(backend.calls.slice(callsBefore).some((c) => c.startsWith('me:')), 'the returning page refreshed the account')
+  navigation.pushes.length = 0
+  const open = [...document.querySelectorAll('button')].find((b) => b.textContent?.includes('Open the organisation'))
+  assert.ok(open, 'Open the organisation is offered')
+  await act(async () => { open!.click() }); await flush()
+  assert.deepEqual(navigation.pushes, ['/'], 'Open the organisation goes to the workspace')
+  assert.equal(storedWorkspace('alice'), 'org1', 'with Acme selected')
   await page.unmount()
 })
 
@@ -139,5 +149,6 @@ test('A fails while detached; returning to A shows the failure, not a spinner, a
   assert.equal(backend.acceptGates.length, 2)
   assert.match(text(), /expired or been withdrawn/)
   assert.doesNotMatch(text(), /Checking your invitation/)
+  assert.equal(storedWorkspace('alice'), null, 'a failure owes no selection')
   await page.unmount()
 })
