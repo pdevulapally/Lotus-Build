@@ -33,8 +33,11 @@ export async function createBuild(client: BackendClient, storage: Storage,
   const attachments = input.attachments ?? []
   let attempt = raw ? attemptSchema.parse(JSON.parse(raw)) : attemptSchema.parse({ ...input, attachments,
     projectKey: crypto.randomUUID(), sessionKey: crypto.randomUUID() })
-  if (attempt.uid !== input.uid || attempt.prompt !== input.prompt || attempt.model !== input.model || attempt.mode !== input.mode || attempt.entrypoint !== input.entrypoint || !sameAttachments(attempt.attachments, attachments)) {
-    throw new Error('A previous build request has an uncertain outcome. Retry the same request, or discard that pending request before starting another.')
+  if (attempt.uid !== input.uid || attempt.workspaceId !== input.workspaceId || attempt.prompt !== input.prompt || attempt.model !== input.model || attempt.mode !== input.mode || attempt.entrypoint !== input.entrypoint || !sameAttachments(attempt.attachments, attachments)) {
+    // The pending request is never carried out under another workspace: a build asked for in organisation A
+    // is not retried from B, however alike the prompt.
+    const where = attempt.workspaceId === undefined ? 'your personal workspace' : 'another workspace'
+    throw new Error(`A previous build request in ${where} has an uncertain outcome. Return there and retry the same request, or discard that pending request before starting another.`)
   }
   storage.setItem(storageKey, JSON.stringify(attempt))
   if (!attempt.projectId) {

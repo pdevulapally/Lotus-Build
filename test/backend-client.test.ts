@@ -380,6 +380,7 @@ test('an uncertain build cannot silently substitute a different prompt or model'
   await assert.rejects(createBuild(client, state, input), /Unknown outcome/)
   await assert.rejects(createBuild(client, state, { ...input, model: 'another-model' }), /uncertain outcome/)
   await assert.rejects(createBuild(client, state, { ...input, prompt: 'A different app' }), /uncertain outcome/)
+  await assert.rejects(createBuild(client, state, { ...input, workspaceId: 'org-b' }), /in your personal workspace has an uncertain outcome/, 'the same prompt from another workspace never retries the pending request there')
   assert.equal(calls, 1)
 })
 
