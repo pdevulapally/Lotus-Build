@@ -147,7 +147,7 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
   const uidRef = useRef(uid); uidRef.current = uid
   const fenced = useMemo(() => principalFence(() => uidRef.current), [])
   // A different account signed in: nothing the previous one was looking at or waiting for carries over.
-  useEffect(() => { setPlanChange(null); setClosingAccount(false); setMessage(null); setError(null); setBusy(false) }, [uid])
+  useEffect(() => { setPlanChange(null); setClosingAccount(false); setCreatingOrganisation(false); setInviting(false); setDeletingOrganisation(false); setRemoving(null); setMessage(null); setError(null); setBusy(false) }, [uid])
   const perform = async (work: (live: () => boolean) => Promise<void>) => {
     if (busy) return
     await fenced(work, { busy: setBusy, error: setError, message: setMessage })
@@ -193,21 +193,21 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
           }}
           workspaces={workspaces}
           workspace={currentWorkspace}
-          onSelectWorkspace={(workspace: BackendWorkspace) => void perform(async () => { await switchWorkspace(workspace.id) })}
+          onSelectWorkspace={(workspace: BackendWorkspace) => void perform(() => switchWorkspace(workspace.id))}
           onCreateOrganisation={() => { setError(null); setMessage(null); setCreatingOrganisation(true) }}
           organisation={organisationSettings({
             organisation, members, invitations, billing: orgBilling, currentUid: account?.uid ?? '',
-            onRename: (name) => void perform(async () => { if (orgId) { await currentBackend().renameOrganisation(orgId, name); await reloadOrganisation(); setMessage('Organisation renamed.') } }),
-            onTransfer: (uid) => void perform(async () => { if (orgId) { await currentBackend().transferOwnership(orgId, uid); await reloadOrganisation(); setMessage('Ownership transferred. You are now an admin.') } }),
-            onLeave: () => void perform(async () => { if (orgId) { await currentBackend().leaveOrganisation(orgId); const personal = workspaces.find((w) => w.kind === 'personal'); if (personal) await switchWorkspace(personal.id); await refreshAccount(); setMessage('You left the organisation.') } }),
+            onRename: (name) => void perform(async (live) => { if (orgId) { await currentBackend().renameOrganisation(orgId, name); if (!live()) return; await reloadOrganisation(); setMessage('Organisation renamed.') } }),
+            onTransfer: (uid) => void perform(async (live) => { if (orgId) { await currentBackend().transferOwnership(orgId, uid); if (!live()) return; await reloadOrganisation(); setMessage('Ownership transferred. You are now an admin.') } }),
+            onLeave: () => void perform(async (live) => { if (orgId) { await currentBackend().leaveOrganisation(orgId); if (!live()) return; const personal = workspaces.find((w) => w.kind === 'personal'); if (personal) await switchWorkspace(personal.id); await refreshAccount(); setMessage('You left the organisation.') } }),
             onDelete: () => { setError(null); setMessage(null); setDeletingOrganisation(true) },
             onInvite: () => { setError(null); setMessage(null); setInviting(true) },
-            onChangeRole: (uid, role) => void perform(async () => { if (orgId) { await currentBackend().changeMemberRole(orgId, uid, role); await reloadOrganisation() } }),
+            onChangeRole: (uid, role) => void perform(async (live) => { if (orgId) { await currentBackend().changeMemberRole(orgId, uid, role); if (!live()) return; await reloadOrganisation() } }),
             onRemove: (member) => { setError(null); setMessage(null); setRemoving(member) },
-            onRevoke: (invitation) => void perform(async () => { if (orgId) { await currentBackend().revokeInvitation(orgId, invitation.id); await reloadOrganisation(); setMessage('Invitation revoked.') } }),
-            onCheckout: (planKey, seats) => void perform(async () => { if (orgId) { const result = await currentBackend().organisationCheckout(orgId, planKey, seats); window.location.assign(result.url) } }),
-            onChangeSeats: (seats) => void perform(async () => { if (orgId) { const result = await intend(seatsIntent(orgId, seats), (key) => currentBackend().changeSeats(orgId, seats, key)); await reloadOrganisation(); setMessage(`${result.subscription.seats} seats from now on.`) } }),
-            onManageBilling: () => void perform(async () => { if (orgId) { const result = await currentBackend().organisationPortal(orgId); window.location.assign(result.url) } }),
+            onRevoke: (invitation) => void perform(async (live) => { if (orgId) { await currentBackend().revokeInvitation(orgId, invitation.id); if (!live()) return; await reloadOrganisation(); setMessage('Invitation revoked.') } }),
+            onCheckout: (planKey, seats) => void perform(async (live) => { if (orgId) { const result = await currentBackend().organisationCheckout(orgId, planKey, seats); if (!live()) return; window.location.assign(result.url) } }),
+            onChangeSeats: (seats) => void perform(async (live) => { if (orgId) { const result = await intend(seatsIntent(orgId, seats), (key) => currentBackend().changeSeats(orgId, seats, key)); if (!live()) return; await reloadOrganisation(); setMessage(`${result.subscription.seats} seats from now on.`) } }),
+            onManageBilling: () => void perform(async (live) => { if (orgId) { const result = await currentBackend().organisationPortal(orgId); if (!live()) return; window.location.assign(result.url) } }),
           })}
           onCloseAccount={() => { setError(null); setMessage(null); setClosingAccount(true) }}
           onKeepAccount={() => void perform(async (live) => {
@@ -231,8 +231,9 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
           })}
         />
         <CreateOrganisationDialog open={creatingOrganisation} busy={busy} onClose={() => setCreatingOrganisation(false)}
-          onCreate={(name) => void perform(async () => {
+          onCreate={(name) => void perform(async (live) => {
             const created = await currentBackend().createOrganisation(name, `create-organisation-${crypto.randomUUID()}`)
+            if (!live()) return
             setCreatingOrganisation(false)
             await refreshAccount()
             await switchWorkspace(created.id)
@@ -241,8 +242,9 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
           })} />
         {organisation && (
           <InviteMemberDialog open={inviting} busy={busy} organisationName={organisation.name} onClose={() => setInviting(false)}
-            onInvite={(email, role) => void perform(async () => {
+            onInvite={(email, role) => void perform(async (live) => {
               const invitation = await currentBackend().inviteMember(organisation.id, email, role)
+              if (!live()) return
               setInviting(false)
               await reloadOrganisation()
               setMessage(`Invitation sent to ${invitation.email}.`)
@@ -251,8 +253,9 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
         {organisation && (
           <TypedConfirmationDialog open={deletingOrganisation} title={`Delete ${organisation.name}`} phrase={organisation.name} phraseLabel="Organisation name" action="Delete organisation"
             busy={busy} caseSensitive onClose={() => setDeletingOrganisation(false)}
-            onConfirm={(typed) => void perform(async () => {
+            onConfirm={(typed) => void perform(async (live) => {
               await currentBackend().deleteOrganisation(organisation.id, typed)
+              if (!live()) return
               setDeletingOrganisation(false)
               const personal = workspaces.find((w) => w.kind === 'personal')
               if (personal) await switchWorkspace(personal.id)
@@ -265,8 +268,9 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account' }: 
         {organisation && removing && (
           <TypedConfirmationDialog open title={`Remove ${removing.displayName ?? removing.email}`} phrase={removing.email} phraseLabel="Their email address" action="Remove member"
             busy={busy} inputMode="email" onClose={() => setRemoving(null)}
-            onConfirm={() => void perform(async () => {
+            onConfirm={() => void perform(async (live) => {
               await currentBackend().removeMember(organisation.id, removing.uid)
+              if (!live()) return
               setRemoving(null)
               await reloadOrganisation()
               setMessage('Member removed.')
