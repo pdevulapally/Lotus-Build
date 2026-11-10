@@ -76,6 +76,7 @@ import { cn } from "@/lib/utils"
 
 
 import { useAuth } from "@/contexts/auth-context"
+import { WorkspacePersistenceNotice } from "@/components/computer/workspace-persistence-notice"
 
 
 
@@ -286,7 +287,7 @@ export default function ComputerPage() {
   const params = useParams()
   const openVoice = useSearchParams().get('voice') === '1'
   const id = typeof params?.id === 'string' ? params.id : ''
-  const { user, userData, remainingTokens, loading: authLoading, getOptionalAuthHeader } = useAuth()
+  const { user, userData, account, remainingTokens, loading: authLoading, getOptionalAuthHeader } = useAuth()
   const backend = useBackendSession(id, user, authLoading)
   const raw = backend.session
   const loading = authLoading || backend.loading
@@ -621,6 +622,7 @@ export default function ComputerPage() {
 
           {/* Composer */}
           <div className={cn(styles.composerDock, "mx-auto w-full max-w-[792px] shrink-0 px-3 pt-2 [padding-bottom:max(1rem,env(safe-area-inset-bottom))] sm:pb-5 lg:px-4")}>
+            <WorkspacePersistenceNotice capabilities={account?.capabilities} />
             {isBuildTokenBlocked && (
               <div className="mb-3 rounded-xl border border-border bg-muted px-3 py-2.5">
                 <p className="text-sm font-medium text-foreground">You have used all credits for this cycle.</p>

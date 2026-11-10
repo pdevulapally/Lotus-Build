@@ -2,11 +2,14 @@
 import { useEffect, useState } from 'react'
 import Editor from '@monaco-editor/react'
 import { currentBackend } from '@/lib/backend/browser'
+import { useAuth } from '@/contexts/auth-context'
+import { WorkspacePersistenceNotice } from '@/components/computer/workspace-persistence-notice'
 import type { BackendFileTree, BackendFile, BackendHistory, BackendChanges } from '@/lib/backend/client'
 import { buildFileTree, getLanguageFromPath } from '@/lib/projects/utils'
 import { CodeTreeNode } from '@/components/computer/file-tree'
 
 export function SavedProjectFiles({ projectId, codeTheme = 'light' }: { projectId?: string; codeTheme?: 'light' | 'dark'; files?: Array<{path: string; content: string}>; getAuthHeader?: () => Promise<Record<string, string>> }) {
+  const { account } = useAuth()
   const [tree, setTree] = useState<BackendFileTree | null>(null)
   const [path, setPath] = useState<string | null>(null)
   const [file, setFile] = useState<BackendFile | null>(null)
@@ -47,6 +50,7 @@ export function SavedProjectFiles({ projectId, codeTheme = 'light' }: { projectI
       <span className="font-semibold tracking-[-0.02em] text-foreground">Saved files {tree ? `(${tree.files.length}${tree.truncated ? '+' : ''})` : ''}</span>
       <div className="flex gap-4"><button className="rounded-lg font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => setRevision((value) => value + 1)}>Refresh</button><button className="rounded-lg font-medium text-foreground transition-colors hover:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" disabled={!tree?.files.length || downloading} onClick={() => void download()}>{downloading ? 'Downloading…' : 'Download ZIP'}</button></div>
     </div>
+    <WorkspacePersistenceNotice capabilities={account?.capabilities} />
     {error && <p role="alert" className="border-b border-destructive/20 bg-destructive/5 px-4 py-3 text-xs leading-relaxed text-destructive">{error}</p>}
     {tree?.truncated && <p className="px-4 py-2 text-xs">The server has limited this file listing. The ZIP contains the saved branch.</p>}
     {!tree && !error ? <p role="status" className="p-4 text-sm">Loading files…</p> : tree?.files.length === 0 ? <p className="p-4 text-sm text-muted-foreground">No saved files yet.</p> : <div className="flex min-h-0 flex-1">
