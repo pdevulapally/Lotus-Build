@@ -13,6 +13,7 @@ function harness(attempts: Attempt[]) {
   const waits: number[] = []
   let opened = 0
   let refreshed = 0
+  let reconnects = 0
   let clock = 0
   const client = {
     async events(_id: string, options: { onOpen?: () => void; onEvent: (event: SessionEvent) => void | Promise<void> }) {
@@ -29,8 +30,9 @@ function harness(attempts: Attempt[]) {
     onEvent: (event) => { events.push(event.id) },
     onError: (message) => { errors.push(message); seen.push(message) },
     onConnected: () => { errors.length = 0 },
+    onReconnecting: () => { reconnects += 1 },
   }, async (ms) => { waits.push(ms) }, () => clock)
-  return { run, errors, seen, events, waits, counters: () => ({ opened, refreshed }), advance: (ms: number) => { clock += ms }, stop: () => controller.abort() }
+  return { run, errors, seen, events, waits, counters: () => ({ opened, refreshed }), reconnects: () => reconnects, advance: (ms: number) => { clock += ms }, stop: () => controller.abort() }
 }
 
 const id = (n: number) => `${1700000000000 + n}-0`
@@ -47,6 +49,7 @@ test('a planned token rotation refreshes the token and reconnects without tellin
   assert.deepEqual(h.counters(), { opened: 2, refreshed: 1 })
   assert.deepEqual(h.errors, [])
   assert.deepEqual(h.waits, [])
+  assert.equal(h.reconnects(), 0)
 })
 
 test('the first unexpected drop retries quietly and quickly; a second consecutive drop is reported', async () => {
@@ -59,6 +62,7 @@ test('the first unexpected drop retries quietly and quickly; a second consecutiv
   assert.deepEqual(h.seen, [STREAM_MESSAGES.interrupted])
   assert.deepEqual(h.errors, [], 'reconnecting clears the notice')
   assert.deepEqual(h.waits, [300, 2000])
+  assert.equal(h.reconnects(), 1, 'only the repeated failure changes visible connection status')
 })
 
 test('a connection that stayed up for a while resets the failure count', async () => {
