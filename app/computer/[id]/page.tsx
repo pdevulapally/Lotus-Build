@@ -24,7 +24,7 @@ import { useAutoOpenWorkspace } from "@/hooks/use-auto-open-workspace"
 
 
 
-import { sendMessage, readPendingMessage } from "@/lib/backend/send-message"
+import { sendMessage, readPendingMessage, isRejectedInputResponse } from "@/lib/backend/send-message"
 import { ContinuationStatus } from "@/components/computer/continuation-status"
 import { PendingInputCard } from "@/components/computer/pending-input-card"
 import { RequestError } from "@/components/ui/request-error"
@@ -371,6 +371,7 @@ export default function ComputerPage() {
   useEffect(() => {
     if (backend.desktop.status === 'none' && activeTab === 'desktop') setActiveTab('preview')
   }, [activeTab, backend.desktop.status])
+  const reportMessageError = (reason: unknown) => setRunError(reason instanceof Error ? reason : new Error('Could not send your message. Try again.'))
   const handleRun = async (prompt: string, nextMode?: ComputerSessionMode, attachments: AttachmentRef[] = [], originalInput?: { id: string; answer: string } | null) => {
     if (busyRef.current) throw new Error('A message is already being submitted.')
     if (!raw || !user) throw new Error('Session is not available.')
@@ -382,6 +383,9 @@ export default function ComputerPage() {
         originalInput === undefined ? (request === undefined ? undefined : { id: request.id, answer: prompt }) : originalInput ?? undefined)
       void backend.refresh().catch((reason) => setRunError(`Message accepted, but history refresh failed: ${reason instanceof Error ? reason.message : 'Request failed.'}`))
     } catch (reason) {
+      // Another tab or device may have answered or replaced this question.
+      // The rejected command is cleared, but the current question must reload.
+      if (isRejectedInputResponse(reason)) void backend.refresh().catch(reportMessageError)
       // The composer shows the submit error itself; a second copy here would be noise.
       throw reason
     } finally { busyRef.current = false; setIsStartingRun(false); readPending() }
@@ -646,7 +650,7 @@ export default function ComputerPage() {
             {backend.connection !== 'connected' && <p role="status" className="mb-2 text-xs text-muted-foreground">{backend.connection === 'offline' ? 'You are offline.' : 'Reconnecting...'} Showing the last confirmed task state. Accepted work runs on the server.</p>}
             {isStartingRun && <p role="status" className="mb-2 text-xs text-muted-foreground">Sending command. Waiting for confirmation...</p>}
             {pendingMessage && !isStartingRun && <p role="status" className="mb-2 text-xs text-muted-foreground">Message pending confirmation: {pendingMessage.prompt.slice(0, 160)}{' '}
-              <button type="button" className="underline" onClick={() => { void handleRun(pendingMessage.prompt, pendingMessage.mode, pendingMessage.attachments, pendingMessage.inputResponse ?? null).catch(() => {}) }}>Retry original message</button>
+              <button type="button" className="underline" onClick={() => { void handleRun(pendingMessage.prompt, pendingMessage.mode, pendingMessage.attachments, pendingMessage.inputResponse ?? null).catch(reportMessageError) }}>Retry original message</button>
             </p>}
             {pendingCancellation && <p role="status" className="mb-2 text-xs text-muted-foreground">Cancellation pending confirmation.{' '}
               <button type="button" className="underline" onClick={() => { void handleStop() }}>Retry cancellation</button>
@@ -658,7 +662,7 @@ export default function ComputerPage() {
             {raw?.pendingInput && <PendingInputCard key={raw.pendingInput.id}
               request={raw.pendingInput}
               busy={isStartingRun}
-              onAnswer={(answer) => { void handleRun(answer).catch((reason) => setRunError(reason instanceof Error ? reason : new Error('Could not send your answer. Try again.'))) }}
+              onAnswer={(answer) => { void handleRun(answer).catch(reportMessageError) }}
             />}
             <VoiceControls key={`${user?.uid}:${raw?.id}`} session={raw} identity={user?.uid} refresh={backend.refresh} initiallyExpanded={openVoice}>
               {(voiceProps) => <AnimatedAIInput
