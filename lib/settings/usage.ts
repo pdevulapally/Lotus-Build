@@ -21,13 +21,23 @@ export function groupUsageMeters(meters: readonly UsageMeter[]): UsageGroup[] {
   return result.filter((group) => group.meters.length > 0)
 }
 
+/** Prepaid usage remains in totals but must not be counted against the included plan twice. */
+export function planMeterUsage(meter: UsageMeter) {
+  return {
+    consumed: meter.consumed - (meter.prepaidConsumed ?? 0),
+    reserved: meter.reserved - (meter.prepaidReserved ?? 0),
+    totalUsed: meter.totalUsed - (meter.prepaidConsumed ?? 0) - (meter.prepaidReserved ?? 0),
+  }
+}
+
 export function meterProgress(meter: UsageMeter) {
+  const { totalUsed } = planMeterUsage(meter)
   const limit = typeof meter.hardLimit === 'number' ? meter.hardLimit : null
   return {
     limit,
     // Zero is a real ceiling, not missing or unlimited. No NaN / Infinity in the bar.
-    percent: limit === null ? null : limit > 0 ? Math.min(100, meter.totalUsed / limit * 100) : meter.totalUsed > 0 ? 100 : 0,
-    atLimit: limit !== null && meter.totalUsed >= limit,
+    percent: limit === null ? null : limit > 0 ? Math.min(100, totalUsed / limit * 100) : totalUsed > 0 ? 100 : 0,
+    atLimit: limit !== null && totalUsed >= limit,
   }
 }
 
@@ -54,7 +64,8 @@ export function remainingAllowance(meter: UsageMeter): string {
   const { limit } = meterProgress(meter)
   if (limit === null) return 'Unlimited'
   if (limit === 0) return 'No allowance'
-  if (meter.totalUsed >= limit) return 'Limit reached'
-  const percent = (limit - meter.totalUsed) / limit * 100
+  const { totalUsed } = planMeterUsage(meter)
+  if (totalUsed >= limit) return 'Limit reached'
+  const percent = (limit - totalUsed) / limit * 100
   return `${percent < 0.1 ? '<0.1' : new Intl.NumberFormat('en-GB', { maximumFractionDigits: 1 }).format(percent)}% remaining`
 }

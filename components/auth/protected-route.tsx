@@ -18,7 +18,7 @@ export function ProtectedRoute({ children, requiredTokens = 0 }: ProtectedRouteP
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push(`/login?redirect=${encodeURIComponent(window.location.pathname)}`)
+      router.push(`/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`)
     }
   }, [user, loading, router])
 

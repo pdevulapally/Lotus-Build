@@ -5,6 +5,7 @@ export { computerSessionModes as sessionModes } from './session-modes'
 import { catalogueSchema, connectionDetailSchema, connectionListSchema, connectionStartSchema, disconnectSchema, projectSourceResponseSchema, projectSourceSchema, repositoryListSchema, type ConnectorKey } from './connections'
 import { attachmentRefSchema, attachmentRefsSchema, isAttachmentMediaType, storedAttachmentSchema, type AttachmentRef } from './attachments'
 import { deliverySchema } from './delivery'
+import { billingCreditsSchema, creditCheckoutSchema, creditOfferSchema, creditPurchaseSchema } from '../billing/credits'
 
 const id = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/)
 const timestamp = z.string().datetime({ offset: true })
@@ -79,8 +80,10 @@ export const usageSchema = z.object({ uid: z.string(), plan: z.object({ key: z.s
     role: z.string().min(1).optional(),
     kind: z.enum(['COUNTER', 'GAUGE']), resetPeriod: z.enum(['NEVER', 'DAILY', 'MONTHLY']),
     consumed: z.number().nonnegative(), reserved: z.number().nonnegative(), totalUsed: z.number().nonnegative(),
+    prepaidConsumed: z.number().nonnegative().optional(), prepaidReserved: z.number().nonnegative().optional(),
     includedAllowance: allowanceQuantity, hardLimit: allowanceQuantity, overageEnabled: z.boolean(), periodStart: timestamp,
-  })),
+  }).refine(meter => (meter.prepaidConsumed ?? 0) <= meter.consumed && (meter.prepaidReserved ?? 0) <= meter.reserved
+    && (meter.prepaidConsumed ?? 0) + (meter.prepaidReserved ?? 0) <= meter.totalUsed, 'Paid usage cannot exceed reported totals.')),
 })
 export const sessionUsageSchema = z.object({ sessionId: id,
   meters: z.array(z.object({ meterKey: z.string(), unit: z.string(), label: z.string(), settled: z.number().nonnegative(), open: z.number().nonnegative() })),
@@ -247,6 +250,14 @@ export class BackendClient {
   sessionUsage(sessionId: string, signal?: AbortSignal) { return this.json(sessionUsageSchema, `/sessions/${id.parse(sessionId)}/usage`, { signal }) }
   plans(signal?: AbortSignal) { return this.json(z.object({ plans: z.array(planSchema) }), '/plans', { signal, public: true }) }
   billingSubscription(signal?: AbortSignal) { return this.json(billingSubscriptionSchema, '/billing/subscription', { signal }) }
+  billingCredits(signal?: AbortSignal) { return this.json(billingCreditsSchema, '/billing/credits', { signal }) }
+  creditCheckout(input: { offerId: string; offerVersion: string }, key: string) {
+    const body = z.object({ offerId: creditOfferSchema.shape.id, offerVersion: creditOfferSchema.shape.version }).strict().parse(input)
+    return this.json(creditCheckoutSchema, '/billing/credits/checkout', { method: 'POST', body, key })
+  }
+  creditPurchase(purchaseId: string, signal?: AbortSignal) {
+    return this.json(creditPurchaseSchema, `/billing/credits/purchases/${encodeURIComponent(creditPurchaseSchema.shape.purchaseId.parse(purchaseId))}`, { signal })
+  }
   billingPortal() { return this.json(z.object({ url: z.url().startsWith('https://') }), '/billing/portal', { method: 'POST' }) }
   checkout(planKey: string) { return this.json(z.object({ url: z.url().startsWith('https://') }), '/billing/checkout', {
     method: 'POST', body: { planKey: z.string().regex(/^[a-z0-9][a-z0-9_-]{0,63}$/).parse(planKey) },

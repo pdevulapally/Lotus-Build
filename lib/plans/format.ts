@@ -1,4 +1,5 @@
 import type { BackendPlan } from '@/lib/backend/client'
+import { formatStripeAmount } from '@/lib/billing/currency'
 
 type Allowance = BackendPlan['allowances'][number]
 
@@ -50,11 +51,7 @@ export function describeAllowance(allowance: Allowance): { included: string; cei
 }
 
 export function formatPlanPrice(price: NonNullable<BackendPlan['price']>): { amount: string; interval: string } {
-  const digits = new Intl.NumberFormat('en-GB', { style: 'currency', currency: price.currency }).resolvedOptions().maximumFractionDigits
-  if (typeof digits !== 'number') throw new Error('Currency precision is unavailable.')
-  const whole = price.amountMinor % 10 ** digits === 0
-  const format = new Intl.NumberFormat('en-GB', { style: 'currency', currency: price.currency, minimumFractionDigits: whole ? 0 : digits, maximumFractionDigits: digits })
-  const amount = format.format(price.amountMinor / 10 ** digits)
+  const amount = formatStripeAmount(price.amountMinor, price.currency, { trimWhole: true })
   return { amount, interval: `per ${price.interval}` }
 }
 
