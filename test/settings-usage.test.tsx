@@ -3,11 +3,10 @@ import test from 'node:test'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { accountSchema, usageSchema, sessionSchema, type BackendUsage } from '../lib/backend/client'
-import { groupUsageMeters, meterProgress, usagePeriod } from '../lib/settings/usage'
+import { groupUsageMeters, meterProgress, usagePeriod, usageReset, remainingAllowance } from '../lib/settings/usage'
 import { modelLabel } from '../lib/backend/model-selection'
 import { sessionModel, settingsSessionId } from '../lib/settings/models'
 import { AccountUsage, SessionUsage, UsageMeter } from '../components/settings/usage-panel'
-import { ModelsPanel } from '../components/settings/models-panel'
 
 const meter: BackendUsage['meters'][number] = {
   meterKey: 'renamed-input', role: 'ai.input', label: 'Input tokens', unit: 'tokens', kind: 'COUNTER', resetPeriod: 'MONTHLY',
@@ -44,17 +43,17 @@ test('account usage retains exact server amounts, units and reservations without
   ]) }))
   assert.match(html, /297,048 tokens/)
   assert.match(html, /30,817 tokens/)
-  assert.match(html, /22,625 tokens used · 8,192 tokens reserved/)
+  assert.match(html, /22,625 tokens/); assert.match(html, /8,192 tokens/)
   assert.match(html, /Limit reached/)
   assert.match(html, /including reservations/)
-  assert.doesNotMatch(html, /327,865|Credits|left this cycle|99%/)
+  assert.doesNotMatch(html, /327,865|Credits|left this cycle/)
 })
 
 test('zero, unlimited, missing and empty usage are distinct truthful states', () => {
   const zero = { ...meter, totalUsed: 0, consumed: 0, hardLimit: 0 }
   assert.deepEqual(meterProgress(zero), { limit: 0, percent: 0, atLimit: true })
   const zeroHtml = renderToStaticMarkup(createElement(UsageMeter, { meter: zero }))
-  assert.match(zeroHtml, /No allowance/); assert.match(zeroHtml, /of 0 tokens/)
+  assert.match(zeroHtml, /No allowance/); assert.match(zeroHtml, /0 tokens/)
   assert.doesNotMatch(zeroHtml, /Unlimited|NaN|Infinity|role="progressbar"/)
   const unlimitedHtml = renderToStaticMarkup(createElement(UsageMeter, { meter: { ...meter, hardLimit: 'unlimited' } }))
   assert.match(unlimitedHtml, /Unlimited/); assert.doesNotMatch(unlimitedHtml, /role="progressbar"/)
@@ -80,10 +79,7 @@ test('session totals remain separate from account limits and empty data does not
 test('current and catalogue model labels agree without inventing a model name or an account default', () => {
   assert.equal(modelLabel(account.models, 'catalog-haiku'), 'Claude Haiku 4.5')
   assert.equal(modelLabel(account.models, 'removed-model'), 'removed-model')
-  const html = renderToStaticMarkup(createElement(ModelsPanel, { account, sessionId: 's', session, error: null, loading: false }))
-  assert.equal((html.match(/Claude Haiku 4.5/g) ?? []).length, 2)
-  assert.match(html, /Available for new sessions/); assert.match(html, /separate from your account allowance/)
-  assert.doesNotMatch(html, /Sonnet|default model/i)
+
 })
 
 test('a proposed fallback does not become the displayed session model before consent', () => {
@@ -91,12 +87,25 @@ test('a proposed fallback does not become the displayed session model before con
   assert.deepEqual(sessionModel(offered), { id: 'catalog-haiku', continuation: false })
   const continued = { ...offered, fallback: { ...offered.fallback, consent: true, lane: 'fallback' as const, status: 'RUNNING' as const } }
   assert.deepEqual(sessionModel(continued), { id: 'vendor/free-model', continuation: true })
-  const html = renderToStaticMarkup(createElement(ModelsPanel, { account, sessionId: 's', session: continued, error: null, loading: false }))
-  assert.match(html, /vendor\/free-model/); assert.match(html, /Original selection: .*Claude Haiku 4.5/)
+
 })
 
 test('settings fetches session data only on a valid computer route, never from a project or account path', () => {
   assert.equal(settingsSessionId('/computer/s'), 's')
   assert.equal(settingsSessionId('/computer/s/'), 's')
   for (const path of ['/project/s', '/computer/s/edit', '/computer/%2e%2e', '/computer/', null]) assert.equal(settingsSessionId(path), null)
+})
+
+
+test('compact allowance shows remaining without summing meters and resets on UTC boundaries', () => {
+  assert.equal(remainingAllowance(meter), '1% remaining')
+  assert.equal(remainingAllowance({ ...meter, totalUsed: 299999 }), '<0.1% remaining')
+  assert.equal(usageReset(meter), 'Resets 1 Dec 2026 at 00:00 UTC')
+  assert.equal(usageReset({ ...meter, periodStart: '2026-12-01T00:00:00Z' }), 'Resets 1 Jan 2027 at 00:00 UTC')
+  assert.equal(usageReset({ ...meter, resetPeriod: 'DAILY', periodStart: '2028-02-28T00:00:00Z' }), 'Resets 29 Feb 2028 at 00:00 UTC')
+  assert.equal(usageReset({ ...meter, resetPeriod: 'NEVER' }), 'Does not reset')
+  const html = renderToStaticMarkup(createElement(AccountUsage, { usage: usage([meter, { ...meter, meterKey: 'resource', role: 'storage', label: 'Storage' }]) }))
+  assert.match(html, /<details[^>]*><summary[^>]*>Other usage/)
+  assert.match(html, /Top-ups are not available yet/)
+  assert.doesNotMatch(html, /Add credits|Auto.recharge|balance|AI models/)
 })

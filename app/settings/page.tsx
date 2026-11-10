@@ -1,13 +1,6 @@
 "use client"
 
-/**
- * Settings now lives in the global SettingsDialog (Claude-style modal) mounted
- * by SettingsDialogProvider in the root layout. This route remains only as a
- * landing target for external return URLs — the Stripe billing portal
- * (the current backend billing portal return URL)
- * both redirect here. It opens the dialog and moves the user onto the workspace at /.
- * underneath it.
- */
+/** Legacy settings URL. Billing has its own authenticated /account/billing page. */
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
