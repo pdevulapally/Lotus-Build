@@ -156,3 +156,14 @@ test('definite purchase-pending rejection clears only the attempted unbound key,
   await assert.rejects(openCreditCheckout({ ...config, create: async () => { throw rejected } }))
   assert.equal(readCreditOperation(config.storage, 'a')?.purchaseId, purchaseId)
 })
+
+test('missing wallet route remains distinct from authentication and service failures', async () => {
+  const { readCreditsSnapshot } = await import('../lib/billing/credits-read')
+  for (const status of [404, 401, 503]) {
+    const result = await readCreditsSnapshot({ readOperation: () => null, readWallet: async () => { throw Object.assign(new Error('Read failed'), { status }) }, readPurchase: async () => { throw new Error('Must not read a purchase') } })
+    assert.equal(result.unavailable, status === 404)
+    assert.equal(result.error, status === 404 ? null : 'Read failed')
+    assert.equal(result.data, null)
+    assert.equal(result.canRecoverCheckout, false)
+  }
+})

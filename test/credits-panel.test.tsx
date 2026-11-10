@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { CreditsPanel } from '../components/settings/credits-panel'
 import type { CreditsController } from '../hooks/use-credits'
 
-const initial: CreditsController = { data: null, purchase: null, loading: false, busy: false, error: null, purchaseError: null, checkoutBlockedReason: null, canRecoverCheckout: false, recoverCheckout: async () => {}, refresh: async () => {}, checkout: async () => {} }
+const initial: CreditsController = { data: null, purchase: null, loading: false, unavailable: false, busy: false, error: null, purchaseError: null, checkoutBlockedReason: null, canRecoverCheckout: false, recoverCheckout: async () => {}, refresh: async () => {}, checkout: async () => {} }
 const data = { portalAvailable: false, pendingPurchaseId: null, purchasing: { enabled: true, reason: null }, wallet: { availableCredits: 12, reservedCredits: 3, bypassAvailableCredits: 0 }, offers: [{ id: 'small', version: 'v1', credits: 500, amountMinor: 1000, currency: 'usd', expirySeconds: 86400, pacingPolicy: 'respect' as const }] }
 const render = (state: Partial<CreditsController>) => renderToStaticMarkup(createElement(CreditsPanel, { credits: { ...initial, ...state } }))
 
@@ -40,4 +40,10 @@ test('return purchase states distinguish pending from verified paid and disclose
   assert.doesNotMatch(render({ data, purchase }), /Payment confirmed for/)
   assert.match(render({ data, purchase: { ...purchase, status: 'paid' } }), /Payment confirmed for 500 credits/)
   assert.match(render({ data: { ...data, offers: [{ ...data.offers[0], pacingPolicy: 'bypass_paid', expirySeconds: null }] } }), /Credits do not expire.*Paid credits can cover usage beyond the daily allowance. Other limits still apply/)
+})
+
+test('undeployed credits service shows a clear unavailable state without invented balances or purchase controls', () => {
+  const html = render({ unavailable: true })
+  assert.match(html, /On-demand usage is not available yet/)
+  assert.doesNotMatch(html, /Continue to checkout|Resume previous checkout|Available credits|>0<|role="alert"/)
 })

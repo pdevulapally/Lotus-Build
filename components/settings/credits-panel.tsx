@@ -7,7 +7,7 @@ import { creditExpiry, creditPrice, creditPurchaseMessage } from '@/lib/billing/
 
 /** Share the same controller with the billing page so portal eligibility and balances stay together. */
 export function CreditsPanel({ credits }: { credits: CreditsController }) {
-  const { data, loading, busy, error, purchaseError, checkoutBlockedReason, purchase, refresh, checkout, canRecoverCheckout, recoverCheckout } = credits
+  const { data, loading, unavailable, busy, error, purchaseError, checkoutBlockedReason, purchase, refresh, checkout, canRecoverCheckout, recoverCheckout } = credits
   const [selected, setSelected] = useState<string | null>(null)
   const groupName = useId()
   const offer = data?.offers.find(item => `${item.id}:${item.version}` === selected)
@@ -16,9 +16,10 @@ export function CreditsPanel({ credits }: { credits: CreditsController }) {
       <h3 className="text-sm font-semibold">On-demand usage</h3>
       <Button variant="outline" size="sm" disabled={loading || busy} onClick={() => void refresh()}>Refresh credits</Button>
     </header>
-    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Buy extra AI credits with a one-time payment. Your subscription stays the same.</p>
+    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{data?.purchasing.enabled ? 'Buy extra AI credits with a one-time payment. Your subscription stays the same.' : 'Extra AI credits let you continue after your included allowance.'}</p>
     <p className="mt-2 text-xs leading-relaxed text-muted-foreground">Credits cover extra AI usage after your included allowance. They are not a cash balance and do not add storage or other plan features.</p>
     {loading && <p role="status" className="mt-4 text-sm text-muted-foreground">Loading on-demand usage…</p>}
+    {unavailable && !loading && <p role="status" className="mt-4 text-sm text-muted-foreground">On-demand usage is not available yet. Your plan and billing options are still available.</p>}
     {error && <p role="alert" className="mt-4 text-sm text-destructive">{error}</p>}
     {purchaseError && <p role="alert" className="mt-4 text-sm text-destructive">{purchaseError}</p>}
     {checkoutBlockedReason && <p role="status" className="mt-4 text-sm text-muted-foreground">{checkoutBlockedReason}</p>}

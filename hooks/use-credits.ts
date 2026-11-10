@@ -7,8 +7,8 @@ import type { BillingCredits, CreditOffer, CreditPurchase } from '@/lib/billing/
 import { readCreditsSnapshot } from '@/lib/billing/credits-read'
 import { clearCreditOperation, openCreditCheckout, readCreditOperation } from '@/lib/billing/credits-checkout'
 
-export type CreditsState = { data: BillingCredits | null; purchase: CreditPurchase | null; loading: boolean; busy: boolean; error: string | null; purchaseError: string | null; checkoutBlockedReason: string | null; canRecoverCheckout: boolean }
-const initial: CreditsState = { data: null, purchase: null, loading: true, busy: false, error: null, purchaseError: null, checkoutBlockedReason: null, canRecoverCheckout: false }
+export type CreditsState = { data: BillingCredits | null; purchase: CreditPurchase | null; loading: boolean; unavailable: boolean; busy: boolean; error: string | null; purchaseError: string | null; checkoutBlockedReason: string | null; canRecoverCheckout: boolean }
+const initial: CreditsState = { data: null, purchase: null, loading: true, unavailable: false, busy: false, error: null, purchaseError: null, checkoutBlockedReason: null, canRecoverCheckout: false }
 
 /** Every return/focus action is a read. Only the explicit checkout action creates a payment session. */
 export function useCredits(uid: string | undefined, purchaseId?: string | null) {
@@ -25,7 +25,7 @@ export function useCredits(uid: string | undefined, purchaseId?: string | null) 
     if (!uid || !isCurrent()) return
     const request = new AbortController()
     controller.current = request
-    setState(old => ({ ...(old.uid === uid ? old : initial), uid, loading: true, busy: busy.current, error: null }))
+    setState(old => ({ ...(old.uid === uid ? old : initial), uid, loading: true, unavailable: false, busy: busy.current, error: null }))
     try {
       const backend = currentBackend()
       const snapshot = await readCreditsSnapshot({
