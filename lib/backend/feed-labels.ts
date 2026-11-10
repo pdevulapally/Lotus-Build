@@ -68,7 +68,7 @@ const toolStepCopy: Readonly<Record<string, ToolStepCopy>> = {
   consult_specialist: { call: 'Asking a reviewer', result: 'Heard back from the reviewer' },
   submit_review: { call: 'Writing up the review', result: 'Wrote up the review' },
   use_skill: { call: 'Applying a skill', result: 'Applied a skill' },
-  request_user_input: { call: 'Asking you a question', result: 'Asked you a question' },
+  request_user_input: { call: 'Asking you a question', result: 'Asked you a question', failed: 'The question could not be shown' },
 }
 
 /** Internal bookkeeping tools: they have no meaning to the person reading the feed. */

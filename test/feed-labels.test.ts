@@ -117,6 +117,17 @@ test('what the agent said before a tool step does not run into what it says afte
   assert.equal(closeSpokenParagraph('Already closed.\n\n'), 'Already closed.\n\n')
 })
 
+test('question validation failures do not claim a question was asked or expose model-facing schema errors', () => {
+  const row = activity(event('agent.tool_call', { name: 'request_user_input', input: {}, callId: 'q1' }), 0)!
+  const [failed] = updateToolStepEvent([row], event('agent.tool_result', {
+    name: 'request_user_input', callId: 'q1', isError: true,
+    text: 'pendingInput.questions[0].options must hold 2–4 choices',
+  }))
+  assert.equal(failed.status, 'error')
+  assert.equal(failed.title, 'The question could not be shown')
+  assert.equal(failed.description, undefined)
+})
+
 test('a failed tool row reads as customer copy and never shows the model-facing result text', () => {
   const row = activity(event('agent.tool_call', { name: 'start_preview', input: { command: 'npm run dev', port: 3000 }, callId: 'p1' }), 0)!
   const [failed] = updateToolStepEvent([row], event('agent.tool_result', { name: 'start_preview', callId: 'p1', isError: true, text: 'Public previews are disabled. Do not expose another port.' }))

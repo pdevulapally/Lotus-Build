@@ -94,9 +94,10 @@ export async function followSessionEvents(client: BackendClient, sessionId: stri
         return
       }
     }
-    options.onReconnecting?.()
     if (now() - openedAt >= HEALTHY_CONNECTION_MS) failures = 0
     failures = Math.min(MAX_CONSECUTIVE_FAILURES, failures + 1)
+    // Keep the first quick retry quiet in both the notice and connection status.
+    if (failures > 1) options.onReconnecting?.()
     if (failures >= MAX_CONSECUTIVE_FAILURES) {
       options.onError(STREAM_MESSAGES.retrying)
     }

@@ -639,7 +639,7 @@ export default function ComputerPage() {
               const error = runError instanceof Error ? runError : limit ? new BackendError(402, 'usage/limit-reached', message, undefined, details) : new Error(message)
               return <div className="mb-3">
                 <RequestError error={error} planName={allowance?.[0] ? /^The (\S+) plan/.exec(message)?.[1] : undefined}>
-                  {!limit && <button type="button" onClick={() => { setRunError(null); backend.reconnect() }}>Reconnect</button>}
+                  {!limit && !runError && (backend.streamError || backend.fileError) && <button type="button" onClick={backend.reconnect}>{backend.streamError ? 'Reconnect' : 'Refresh'}</button>}
                 </RequestError>
               </div>
             })()}
@@ -658,7 +658,7 @@ export default function ComputerPage() {
             {raw?.pendingInput && <PendingInputCard key={raw.pendingInput.id}
               request={raw.pendingInput}
               busy={isStartingRun}
-              onAnswer={(answer) => { void handleRun(answer).catch(() => {}) }}
+              onAnswer={(answer) => { void handleRun(answer).catch((reason) => setRunError(reason instanceof Error ? reason : new Error('Could not send your answer. Try again.'))) }}
             />}
             <VoiceControls key={`${user?.uid}:${raw?.id}`} session={raw} identity={user?.uid} refresh={backend.refresh} initiallyExpanded={openVoice}>
               {(voiceProps) => <AnimatedAIInput
