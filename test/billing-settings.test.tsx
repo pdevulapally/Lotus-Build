@@ -86,3 +86,9 @@ test('portal opens only for the still-current request and authenticated account'
   await assert.rejects(openBillingPortal({ ...options, currentUid: () => 'b' }), /account changed/)
   assert.equal(created, 2)
 })
+
+test('subscription prices use Stripe charge units for special and three-decimal currencies', () => {
+  assert.match(subscriptionPrice({ ...subscription, price: { ...subscription.price, currency: 'isk', recurringSubtotalMinor: 500 } }), /5 every 3 months/)
+  assert.match(subscriptionPrice({ ...subscription, price: { ...subscription.price, currency: 'ugx', recurringSubtotalMinor: 500 } }), /5 every 3 months/)
+  assert.match(subscriptionPrice({ ...subscription, price: { ...subscription.price, currency: 'kwd', recurringSubtotalMinor: 5123 } }), /5\.123 every 3 months/)
+})

@@ -6,8 +6,10 @@ import { useAuth } from "@/contexts/auth-context"
 import { BackendError } from "@/lib/backend/client"
 import { currentBackend } from "@/lib/backend/browser"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
 type EmailCodeVerificationProps = {
+  buttonClassName?: string
   email: string
   autoSend?: boolean
   onVerified: () => void | Promise<void>
@@ -53,6 +55,7 @@ function formatCountdown(seconds: number): string {
 
 export function EmailCodeVerification({
   email,
+  buttonClassName,
   autoSend = false,
   onVerified,
 }: EmailCodeVerificationProps) {
@@ -179,7 +182,7 @@ export function EmailCodeVerification({
           />
           <Button
             type="button"
-            className="w-full"
+            className={cn("w-full", buttonClassName)}
             disabled={code.length !== 6 || isVerifying}
             aria-busy={isVerifying}
             onClick={() => void verifyCode(code)}
@@ -194,6 +197,7 @@ export function EmailCodeVerification({
         <Button
           type="button"
           variant={hasSent ? "outline" : "default"}
+          className={buttonClassName}
           disabled={isSending || resendAfterSeconds > 0}
           aria-busy={isSending}
           onClick={() => void sendCode()}

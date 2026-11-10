@@ -1,7 +1,7 @@
 import type { BackendAccount } from '@/lib/backend/client'
 import { EmailCodeVerification } from '@/components/auth/email-code-verification'
 import { CookiePreferencesButton } from '@/components/cookie-banner'
-import { Button } from '@/components/ui/button'
+import { SettingsButton as Button } from '@/components/settings/settings-button'
 
 export function AccountPanel({ account, email, busy, onVerified, onErasure }: {
   account: BackendAccount
@@ -34,13 +34,13 @@ export function AccountPanel({ account, email, busy, onVerified, onErasure }: {
       {!account.emailVerified && (
         <section className="space-y-3">
           <h3 className="text-sm font-semibold">Verify your email</h3>
-          <EmailCodeVerification email={email} autoSend={false} onVerified={onVerified} />
+          <EmailCodeVerification email={email} buttonClassName="min-h-11 rounded-full" autoSend={false} onVerified={onVerified} />
         </section>
       )}
       <section>
         <h3 className="text-sm font-semibold">Privacy</h3>
         <p className="mt-2 text-sm text-muted-foreground">Choose how optional cookies are used.</p>
-        <CookiePreferencesButton className="mt-3 block min-h-11 rounded-lg text-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-ring" />
+        <CookiePreferencesButton className="mt-3 inline-flex min-h-11 items-center justify-center rounded-full border border-border px-4 py-2 text-sm font-semibold outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring" />
       </section>
       <section className="border-t border-border/60 pt-6">
         <h3 className="text-sm font-semibold">Account erasure</h3>

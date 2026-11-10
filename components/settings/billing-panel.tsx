@@ -5,14 +5,15 @@ import { ArrowUpRight } from 'lucide-react'
 import type { BackendAccount } from '@/lib/backend/client'
 import type { BillingSummaryState } from '@/hooks/use-billing-summary'
 import { billingDate, subscriptionPrice, subscriptionStatus } from '@/lib/billing/format'
-import { Button } from '@/components/ui/button'
-import { OnDemandUsage } from './usage-panel'
+import { SettingsButton as Button } from '@/components/settings/settings-button'
+import { CreditsPanel } from './credits-panel'
+import type { CreditsController } from '@/hooks/use-credits'
 
 export function SubscriptionSummary({ account, summary }: { account: BackendAccount; summary: BillingSummaryState }) {
   const { subscription, loading, error } = summary
   return <section aria-label="Subscription">
     <header className="flex flex-wrap items-center justify-between gap-3">
-      <section><p className="text-xs text-muted-foreground">Current workspace plan</p><h3 className="mt-2 text-2xl font-semibold tracking-tight">{account.plan.name}</h3></section>
+      <section><p className="text-xs text-muted-foreground">Current plan</p><h3 className="mt-2 text-2xl font-semibold tracking-tight">{account.plan.name}</h3></section>
       {subscription && <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium">{subscriptionStatus(subscription)}</span>}
     </header>
     {loading ? <p role="status" className="mt-4 text-sm text-muted-foreground">Loading subscription details…</p> : error ? <p role="alert" className="mt-4 text-sm text-muted-foreground">Subscription details are unavailable. You can still open Stripe billing to review your account.</p> : subscription ? <>
@@ -28,13 +29,13 @@ export function SubscriptionSummary({ account, summary }: { account: BackendAcco
   </section>
 }
 
-export function BillingPanel({ account, summary, onClose }: { account: BackendAccount; summary: BillingSummaryState; onClose: () => void }) {
+export function BillingPanel({ account, summary, credits, onClose }: { account: BackendAccount; summary: BillingSummaryState; credits: CreditsController; onClose: () => void }) {
   return <section className="space-y-6">
     <SubscriptionSummary account={account} summary={summary} />
     <footer className="flex flex-wrap gap-2">
       <Button asChild><Link href="/account/billing" onClick={onClose}>Manage billing<ArrowUpRight aria-hidden="true" /></Link></Button>
       <Button asChild variant="outline"><Link href="/pricing" onClick={onClose}>Compare plans</Link></Button>
     </footer>
-    <OnDemandUsage onNavigate={onClose} />
+    <CreditsPanel key={account.uid} credits={credits} />
   </section>
 }

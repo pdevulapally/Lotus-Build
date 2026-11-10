@@ -105,7 +105,23 @@ test('compact allowance shows remaining without summing meters and resets on UTC
   assert.equal(usageReset({ ...meter, resetPeriod: 'DAILY', periodStart: '2028-02-28T00:00:00Z' }), 'Resets 29 Feb 2028 at 00:00 UTC')
   assert.equal(usageReset({ ...meter, resetPeriod: 'NEVER' }), 'Does not reset')
   const html = renderToStaticMarkup(createElement(AccountUsage, { usage: usage([meter, { ...meter, meterKey: 'resource', role: 'storage', label: 'Storage' }]) }))
-  assert.match(html, /<details[^>]*><summary[^>]*>Other usage/)
-  assert.match(html, /Top-ups are not available yet/)
+  assert.match(html, /<h3[^>]*>Other usage<\/h3>/)
+  assert.doesNotMatch(html, /<summary[^>]*>Other usage/)
+  assert.match(html, /Choose View details/)
+  assert.match(html, /rounded-full/)
+  assert.match(html, /Hide details/)
   assert.doesNotMatch(html, /Add credits|Auto.recharge|balance|AI models/)
+})
+
+test('prepaid usage is separate from included allowance and cannot be counted twice', () => {
+  const paid = { ...meter, consumed: 1100, reserved: 200, totalUsed: 1300, hardLimit: 1000, prepaidConsumed: 300, prepaidReserved: 100 }
+  const parsed = usageSchema.parse(usage([paid])).meters[0]
+  assert.equal(parsed.prepaidConsumed, 300)
+  assert.deepEqual(meterProgress(parsed), { limit: 1000, percent: 90, atLimit: false })
+  assert.equal(remainingAllowance(parsed), '10% remaining')
+  const html = renderToStaticMarkup(createElement(UsageMeter, { meter: parsed }))
+  assert.match(html, /Plan used/); assert.match(html, /800 tokens/)
+  assert.match(html, /Paid credits used/); assert.match(html, /300 tokens/)
+  assert.match(html, /Paid credits reserved/)
+  assert.equal(usageSchema.safeParse(usage([{ ...paid, prepaidConsumed: 1101 }])).success, false)
 })

@@ -8,8 +8,10 @@ import { currentBackend } from '@/lib/backend/browser'
 import { settingsSessionId } from '@/lib/settings/models'
 import { useBillingSummary } from '@/hooks/use-billing-summary'
 import { useSettingsSnapshot } from '@/hooks/use-settings-snapshot'
-import { Button } from '@/components/ui/button'
+import { SettingsButton as Button } from '@/components/settings/settings-button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
+import { CreditsPanel } from './credits-panel'
+import { useCredits } from '@/hooks/use-credits'
 import { AccountUsage, SessionUsage } from './usage-panel'
 import { AccountPanel } from './account-panel'
 import { BillingPanel } from './billing-panel'
@@ -65,6 +67,8 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account', on
   const [error, setError] = useState<string | null>(null)
   const snapshot = useSettingsSnapshot(open, user?.uid, sessionId, refreshAccount)
   const billing = useBillingSummary(open && page === 'billing' ? user?.uid : undefined)
+  const creditsVisible = page === 'usage' || page === 'billing'
+  const credits = useCredits(open && creditsVisible ? user?.uid : undefined)
   const activeSection = sections[page]
   const contentRef = useRef<HTMLElement | null>(null)
   useEffect(() => {
@@ -95,7 +99,7 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account', on
               const { icon: Icon, label } = sections[item]
               return <button key={item} type="button" aria-current={page === item ? 'page' : undefined} aria-controls="settings-content"
                 onClick={() => { setPage(item); setMessage(null); setError(null) }}
-                className={`flex min-h-11 shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${page === item ? 'bg-muted font-semibold text-foreground' : 'font-medium text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
+                className={`flex min-h-11 shrink-0 items-center gap-2.5 rounded-full px-3 py-2 text-left text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${page === item ? 'bg-muted font-semibold text-foreground' : 'font-medium text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
                 <Icon className="size-4 shrink-0" aria-hidden="true" />{label}
               </button>
             })}
@@ -108,7 +112,7 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account', on
             <h2 id="settings-section-title" className="text-xl font-semibold tracking-tight">{activeSection.label}</h2>
             <DialogDescription className="mt-2 text-sm leading-relaxed text-muted-foreground">{activeSection.description}</DialogDescription>
           </header>
-          <section ref={contentRef} id="settings-content" aria-labelledby="settings-section-title" aria-busy={busy || snapshot.refreshing || (page === 'billing' && billing.loading)} className="min-h-0 flex-1 overflow-y-auto overscroll-contain border-t border-border/60 px-5 py-6 sm:px-8">
+          <section ref={contentRef} id="settings-content" aria-labelledby="settings-section-title" aria-busy={busy || snapshot.refreshing || (page === 'billing' && billing.loading) || (creditsVisible && (credits.loading || credits.busy))} className="min-h-0 flex-1 overflow-y-auto overscroll-contain border-t border-border/60 px-5 py-6 sm:px-8">
             {(error || accountError) && <p role="alert" className="mb-5 rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">{error || accountError}</p>}
             {message && <p role="status" className="mb-5 rounded-lg bg-muted px-4 py-3 text-sm">{message}</p>}
             {!account ? <section className="py-6">
@@ -127,20 +131,20 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account', on
               />}
 
               {page === 'usage' && <section className="space-y-6">
-                <AccountUsage usage={usage} onNavigate={() => onOpenChange(false)} />
+                <AccountUsage usage={usage} onNavigate={() => onOpenChange(false)} onDemand={<CreditsPanel key={user?.uid} credits={credits} />} />
                 {sessionId && <details className="border-t border-border/60 pt-4">
                   <summary className="cursor-pointer rounded-md py-2 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring">This session</summary>
                   <section className="pt-3"><SessionUsage usage={snapshot.usage} error={snapshot.usageError} loading={snapshot.refreshing} /></section>
                 </details>}
               </section>}
 
-              {page === 'billing' && <BillingPanel account={account} summary={billing} onClose={() => onOpenChange(false)} />}
+              {page === 'billing' && <BillingPanel account={account} summary={billing} credits={credits} onClose={() => onOpenChange(false)} />}
 
             </>}
           </section>
           <footer className="flex min-h-16 shrink-0 flex-wrap items-center justify-between gap-2 border-t border-border/60 px-5 py-3 sm:px-8">
             <p role="status" className="text-xs text-muted-foreground">{snapshot.refreshing ? 'Updating…' : snapshot.updatedAt ? `Account updated ${snapshot.updatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Latest details unavailable'}</p>
-            <Button type="button" variant="ghost" disabled={busy || snapshot.refreshing} onClick={() => { void snapshot.refresh(); if (page === 'billing') void billing.refresh() }}><RefreshCw className={snapshot.refreshing ? 'motion-safe:animate-spin' : ''} aria-hidden="true" />Refresh</Button>
+            <Button type="button" variant="ghost" disabled={busy || snapshot.refreshing || (creditsVisible && (credits.loading || credits.busy))} onClick={() => { void snapshot.refresh(); if (creditsVisible) void credits.refresh(); if (page === 'billing') void billing.refresh() }}><RefreshCw className={snapshot.refreshing ? 'motion-safe:animate-spin' : ''} aria-hidden="true" />Refresh</Button>
           </footer>
         </section>
       </section>

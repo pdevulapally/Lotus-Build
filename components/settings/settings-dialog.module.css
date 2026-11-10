@@ -6,7 +6,7 @@
   height: 2.75rem;
   align-items: center;
   justify-content: center;
-  border-radius: 0.75rem;
+  border-radius: 50%;
   color: var(--muted-foreground);
   opacity: 1;
 }
