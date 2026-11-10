@@ -1,5 +1,3 @@
-import Link from 'next/link'
-import { CreditCard } from 'lucide-react'
 import type { BackendAccount } from '@/lib/backend/client'
 import { EmailCodeVerification } from '@/components/auth/email-code-verification'
 import { CookiePreferencesButton } from '@/components/cookie-banner'
@@ -52,37 +50,6 @@ export function AccountPanel({ account, email, busy, onVerified, onErasure }: {
         <Button type="button" variant="outline" className="mt-4" disabled={busy} onClick={onErasure}>
           Request account erasure
         </Button>
-      </section>
-    </section>
-  )
-}
-
-export function BillingPanel({ account, busy, onBilling, onClose }: {
-  account: BackendAccount
-  busy: boolean
-  onBilling: () => void
-  onClose: () => void
-}) {
-  return (
-    <section className="space-y-6">
-      <header className="border-b border-border/60 pb-6">
-        <p className="text-xs font-medium text-muted-foreground">Current plan</p>
-        <h3 className="mt-3 text-3xl font-semibold tracking-tight">{account.plan.name}</h3>
-        {account.subscriptionStatus && <p className="mt-3 text-sm text-muted-foreground">{account.subscriptionStatus}</p>}
-      </header>
-      <section>
-        <h3 className="text-sm font-semibold">Manage your subscription</h3>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          Open your billing portal to manage billing details and your subscription.
-        </p>
-        <footer className="mt-4 flex flex-wrap gap-3">
-          <Button type="button" disabled={busy} onClick={onBilling}>
-            <CreditCard aria-hidden="true" />Manage billing
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/pricing" onClick={onClose}>Compare plans</Link>
-          </Button>
-        </footer>
       </section>
     </section>
   )

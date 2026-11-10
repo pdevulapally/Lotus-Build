@@ -87,6 +87,20 @@ export const sessionUsageSchema = z.object({ sessionId: id,
 })
 export type BackendSessionUsage = z.infer<typeof sessionUsageSchema>
 
+export const billingSubscriptionSchema = z.object({ subscription: z.object({
+  planKey: z.string().min(1), planName: z.string().min(1), status: z.string().min(1),
+  stripeStatus: z.enum(['incomplete', 'incomplete_expired', 'trialing', 'active', 'past_due', 'canceled', 'unpaid', 'paused']),
+  currentPeriodStart: timestamp, currentPeriodEnd: timestamp,
+  cancelAtPeriodEnd: z.boolean(), cancelAt: timestamp.nullable(), collectionPaused: z.boolean(),
+  price: z.object({ amountMinor: z.number().int().nonnegative(), currency: z.string().regex(/^[a-z]{3}$/),
+    interval: z.enum(['day', 'week', 'month', 'year']), intervalCount: z.number().int().positive(),
+    taxBehavior: z.enum(['inclusive', 'exclusive', 'unspecified']),
+    quantity: z.number().int().positive(), recurringSubtotalMinor: z.number().int().nonnegative(),
+  }), discountsApplied: z.boolean(),
+}).nullable() })
+export type BackendSubscription = NonNullable<z.infer<typeof billingSubscriptionSchema>['subscription']>
+
+
 const queuedSchema = z.object({ id, sessionId: id, prompt: z.string(), attachments: z.array(attachmentRefSchema).default([]), createdAt: timestamp })
 const acceptedMessageSchema = z.union([
   z.object({ steered: z.literal(true), sessionId: id }),
@@ -232,6 +246,7 @@ export class BackendClient {
   usage(signal?: AbortSignal) { return this.json(usageSchema, '/me/usage', { signal }) }
   sessionUsage(sessionId: string, signal?: AbortSignal) { return this.json(sessionUsageSchema, `/sessions/${id.parse(sessionId)}/usage`, { signal }) }
   plans(signal?: AbortSignal) { return this.json(z.object({ plans: z.array(planSchema) }), '/plans', { signal, public: true }) }
+  billingSubscription(signal?: AbortSignal) { return this.json(billingSubscriptionSchema, '/billing/subscription', { signal }) }
   billingPortal() { return this.json(z.object({ url: z.url().startsWith('https://') }), '/billing/portal', { method: 'POST' }) }
   checkout(planKey: string) { return this.json(z.object({ url: z.url().startsWith('https://') }), '/billing/checkout', {
     method: 'POST', body: { planKey: z.string().regex(/^[a-z0-9][a-z0-9_-]{0,63}$/).parse(planKey) },

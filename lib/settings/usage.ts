@@ -39,3 +39,22 @@ export function usagePeriod(meter: UsageMeter): string {
   const started = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(meter.periodStart))
   return `${resetLabels[meter.resetPeriod]} · Period started ${started} (UTC)`
 }
+
+/** Server metering uses UTC calendar windows, independent of Stripe billing dates. */
+export function usageReset(meter: UsageMeter): string {
+  if (meter.resetPeriod === 'NEVER') return 'Does not reset'
+  const start = new Date(meter.periodStart)
+  const next = meter.resetPeriod === 'MONTHLY'
+    ? new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1))
+    : new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate() + 1))
+  return `Resets ${new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(next)} at 00:00 UTC`
+}
+
+export function remainingAllowance(meter: UsageMeter): string {
+  const { limit } = meterProgress(meter)
+  if (limit === null) return 'Unlimited'
+  if (limit === 0) return 'No allowance'
+  if (meter.totalUsed >= limit) return 'Limit reached'
+  const percent = (limit - meter.totalUsed) / limit * 100
+  return `${percent < 0.1 ? '<0.1' : new Intl.NumberFormat('en-GB', { maximumFractionDigits: 1 }).format(percent)}% remaining`
+}
