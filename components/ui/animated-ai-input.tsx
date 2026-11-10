@@ -19,7 +19,7 @@ import { createBuild, pendingBuild, type ProjectCreationRequest } from "@/lib/ba
 import { acceptLatencyTrace, latencyTrace } from "@/lib/backend/latency";
 import { BrowserVoiceAudio } from "@/lib/voice/browser-audio";
 import { handoffVoiceAudio } from "@/lib/voice/launch";
-import { resolveModelSelection } from "@/lib/backend/model-selection";
+import { resolveModelSelection, modelLabel } from "@/lib/backend/model-selection";
 import { RequestErrorNotice } from "@/components/ui/request-error";
 
 import {
@@ -251,7 +251,7 @@ export function AnimatedAIInput({
   const effectiveModel = mode === 'chat' && initialModel
     ? initialModel
     : resolveModelSelection(models, selectedModel);
-  const displayModelLabel = account?.models.find((model) => model.id === effectiveModel)?.name || effectiveModel || 'Select model';
+  const displayModelLabel = modelLabel(account?.models ?? [], effectiveModel) || 'Select model';
   const availableSessionModes = useMemo(() => selectableSessionModeConfigs(account?.sessionModes), [account?.sessionModes]);
   const accountDefaultSessionMode = defaultComputerSessionMode(account?.sessionModes, account?.defaultSessionMode);
   const selectedSessionMode = getComputerSessionModeConfig(sessionMode);
@@ -639,7 +639,7 @@ export function AnimatedAIInput({
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-1.5">
                             <span className={cn("text-sm font-medium", isLocked ? "text-foreground/70" : "text-foreground")}>
-                              {account?.models.find((entry) => entry.id === model)?.name || model}
+                              {modelLabel(account?.models ?? [], model)}
                             </span>
                             {meta.badges.map((b) => (
                               <Badge key={b}>{b}</Badge>

@@ -76,11 +76,17 @@ export const accountSchema = z.object({
 const allowanceQuantity = z.union([z.number(), z.literal('unlimited')])
 export const usageSchema = z.object({ uid: z.string(), plan: z.object({ key: z.string(), name: z.string() }),
   meters: z.array(z.object({ meterKey: z.string(), unit: z.string(), label: z.string(),
+    role: z.string().min(1).optional(),
     kind: z.enum(['COUNTER', 'GAUGE']), resetPeriod: z.enum(['NEVER', 'DAILY', 'MONTHLY']),
     consumed: z.number().nonnegative(), reserved: z.number().nonnegative(), totalUsed: z.number().nonnegative(),
     includedAllowance: allowanceQuantity, hardLimit: allowanceQuantity, overageEnabled: z.boolean(), periodStart: timestamp,
   })),
 })
+export const sessionUsageSchema = z.object({ sessionId: id,
+  meters: z.array(z.object({ meterKey: z.string(), unit: z.string(), label: z.string(), settled: z.number().nonnegative(), open: z.number().nonnegative() })),
+})
+export type BackendSessionUsage = z.infer<typeof sessionUsageSchema>
+
 const queuedSchema = z.object({ id, sessionId: id, prompt: z.string(), attachments: z.array(attachmentRefSchema).default([]), createdAt: timestamp })
 const acceptedMessageSchema = z.union([
   z.object({ steered: z.literal(true), sessionId: id }),
@@ -224,8 +230,7 @@ export class BackendClient {
     return this.json(emailVerificationResultSchema, '/auth/email-verification/verify', { method: 'POST', body })
   }
   usage(signal?: AbortSignal) { return this.json(usageSchema, '/me/usage', { signal }) }
-  sessionUsage(sessionId: string, signal?: AbortSignal) { return this.json(z.object({ sessionId: id,
-    meters: z.array(z.object({ meterKey: z.string(), unit: z.string(), label: z.string(), settled: z.number().nonnegative(), open: z.number().nonnegative() })) }), `/sessions/${id.parse(sessionId)}/usage`, { signal }) }
+  sessionUsage(sessionId: string, signal?: AbortSignal) { return this.json(sessionUsageSchema, `/sessions/${id.parse(sessionId)}/usage`, { signal }) }
   plans(signal?: AbortSignal) { return this.json(z.object({ plans: z.array(planSchema) }), '/plans', { signal, public: true }) }
   billingPortal() { return this.json(z.object({ url: z.url().startsWith('https://') }), '/billing/portal', { method: 'POST' }) }
   checkout(planKey: string) { return this.json(z.object({ url: z.url().startsWith('https://') }), '/billing/checkout', {

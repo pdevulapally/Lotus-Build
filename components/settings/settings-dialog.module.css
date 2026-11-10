@@ -1,12 +1,12 @@
 .dialog > [data-slot="dialog-close"] {
-  top: 12px;
-  right: 12px;
+  top: 0.75rem;
+  right: 0.75rem;
   display: inline-flex;
-  width: 44px;
-  height: 44px;
+  width: 2.75rem;
+  height: 2.75rem;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
+  border-radius: 0.75rem;
   color: var(--muted-foreground);
   opacity: 1;
 }
@@ -16,4 +16,4 @@
   color: var(--foreground);
 }
 
-.dialog [data-slot="button"] { min-height: 2.75rem; border-radius: 999px; }
+.dialog [data-slot="button"] { min-height: 2.75rem; }

@@ -20,7 +20,7 @@ export type SessionMenuProps = {
   remainingTokens: number | null
   planLabel: string
   liveSiteUrl?: string
-  contextUsage?: { maxTokens: number; usedTokens: number; usage: ContextUsage }
+  contextUsage?: { modelId?: string; maxTokens: number; usedTokens: number; usage: ContextUsage }
   onRename: () => void
   onRepository?: () => void
   onOpenHistory?: () => void
@@ -44,7 +44,7 @@ function ExternalRow({ href, icon, children }: { href?: string; icon: ReactNode;
 
 /** The session/account menu shared by the mobile and desktop title triggers. */
 export function SessionMenuContent({
-  session, projectFileCount, remainingTokens, planLabel, liveSiteUrl, contextUsage, onRename, onRepository, onOpenHistory, dark, align,
+  session, projectFileCount, planLabel, liveSiteUrl, contextUsage, onRename, onRepository, onOpenHistory, dark, align,
 }: SessionMenuProps) {
   const { userData } = useAuth()
   const { openSettings } = useSettingsDialog()
@@ -72,21 +72,21 @@ export function SessionMenuContent({
         <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">{planLabel}</span>
       </div>
 
-      <DropdownMenuItem onSelect={() => openSettings()} className="mb-1 h-auto gap-3 rounded-xl bg-muted/55 px-2.5 py-2.5 focus:bg-muted">
+      <DropdownMenuItem onSelect={() => openSettings('usage')} className="mb-1 h-auto gap-3 rounded-xl bg-muted/55 px-2.5 py-2.5 focus:bg-muted">
         <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
           <UsageIcon className="size-[18px] text-background" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[13px] font-semibold leading-5 text-foreground">Credits</span>
+          <span className="block text-[13px] font-semibold leading-5 text-foreground">Usage</span>
           <span className="block text-[12px] leading-4 text-muted-foreground">
-            {remainingTokens === null ? "View usage in Settings" : `${remainingTokens.toLocaleString()} left this cycle`}
+            View account and session usage
           </span>
         </span>
       </DropdownMenuItem>
 
-      {contextUsage && (
+      {contextUsage?.modelId && (
         <div className="mb-1 rounded-xl px-2.5 py-2">
-          <Context maxTokens={contextUsage.maxTokens} modelId="anthropic:claude-sonnet-4-6" usage={contextUsage.usage} usedTokens={contextUsage.usedTokens}>
+          <Context maxTokens={contextUsage.maxTokens} modelId={contextUsage.modelId} usage={contextUsage.usage} usedTokens={contextUsage.usedTokens}>
             <ContextTrigger />
             <ContextContent>
               <ContextContentHeader />
