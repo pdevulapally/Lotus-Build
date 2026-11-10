@@ -89,7 +89,7 @@ export function ComputerTopBar({
   navigationOpen: boolean
   workspacePanelOpen: boolean
   onToggleWorkspacePanel: () => void
-  contextUsage?: { maxTokens: number; usedTokens: number; usage: ContextUsage }
+  contextUsage?: { modelId?: string; maxTokens: number; usedTokens: number; usage: ContextUsage }
   theme: ComputerTheme
   onThemeToggle: () => void
 }) {
