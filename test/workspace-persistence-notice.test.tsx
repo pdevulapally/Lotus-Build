@@ -32,5 +32,5 @@ test('the workspace composer and Files view both use the actual account capabili
     assert.match(source, /<WorkspacePersistenceNotice capabilities=\{account\?\.capabilities\} \/>/)
   }
   const source = readFileSync(new URL('../components/computer/saved-project-content.tsx', import.meta.url), 'utf8')
-  assert.match(source, /currentBackend\(\)\.files\(projectId, controller.signal\)/, 'saved content remains readable even after an entitlement change')
+  assert.match(source, /currentBackend\(\)\.files\(projectId, controller.signal, branch\)/, 'saved branch content remains readable even after an entitlement change')
 })

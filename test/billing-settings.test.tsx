@@ -4,7 +4,8 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { BackendClient, billingSubscriptionSchema, accountSchema } from '../lib/backend/client'
 import { subscriptionPrice, subscriptionStatus } from '../lib/billing/format'
-import { SubscriptionSummary } from '../components/settings/billing-panel'
+import { BillingPanel, SubscriptionSummary } from '../components/settings/billing-panel'
+import { BillingPortalAction, PaymentManagement } from '../components/billing/payment-management'
 
 const subscription = billingSubscriptionSchema.parse({ subscription: {
   planKey: 'pro', planName: 'Pro', status: 'ACTIVE', stripeStatus: 'active',
@@ -91,4 +92,75 @@ test('subscription prices use Stripe charge units for special and three-decimal 
   assert.match(subscriptionPrice({ ...subscription, price: { ...subscription.price, currency: 'isk', recurringSubtotalMinor: 500 } }), /5 every 3 months/)
   assert.match(subscriptionPrice({ ...subscription, price: { ...subscription.price, currency: 'ugx', recurringSubtotalMinor: 500 } }), /5 every 3 months/)
   assert.match(subscriptionPrice({ ...subscription, price: { ...subscription.price, currency: 'kwd', recurringSubtotalMinor: 5123 } }), /5\.123 every 3 months/)
+})
+
+test('subscription price details expose server tax and discount information without inventing invoice amounts', () => {
+  for (const [taxBehavior, label] of [
+    ['inclusive', 'Included in the base price'],
+    ['exclusive', 'Added to the base price'],
+    ['unspecified', 'See your invoice for tax details'],
+  ] as const) {
+    const html = renderToStaticMarkup(createElement(SubscriptionSummary, { account, summary: {
+      subscription: { ...subscription, price: { ...subscription.price, taxBehavior } }, loading: false, error: null,
+    } }))
+    assert.ok(html.includes(label))
+    assert.match(html, /Price details/)
+    assert.match(html, /GBP/)
+    assert.match(html, /Applied; see invoice for amounts/)
+    assert.doesNotMatch(html, /next invoice|due now/i)
+  }
+})
+
+test('payment management distinguishes absent billing customers from loading and unknown eligibility', () => {
+  const portal = { available: true, loading: false, busy: false, onOpen: () => {} }
+  const absent = renderToStaticMarkup(createElement(BillingPortalAction, { ...portal, available: false }))
+  assert.match(absent, /do not have a Stripe billing account/)
+  assert.doesNotMatch(absent, /<button/)
+  const loading = renderToStaticMarkup(createElement(BillingPortalAction, { ...portal, available: undefined, loading: true }))
+  assert.match(loading, /disabled/)
+  assert.doesNotMatch(loading, /do not have a Stripe billing account/)
+  const available = renderToStaticMarkup(createElement(PaymentManagement, { portal, noSubscription: false }))
+  assert.match(available, /<h3[^>]*>Payment<\/h3>/)
+  assert.match(available, /<h3[^>]*>Invoices<\/h3>/)
+  assert.match(available, /View available invoices/)
+  assert.match(available, /Opening billing does not change your plan/)
+  assert.doesNotMatch(available, /no active paid subscription|No payment method/)
+})
+
+test('settings billing includes the full subscription, payment and credit experience without leaving the modal', () => {
+  const credits: Parameters<typeof BillingPanel>[0]['credits'] = {
+    data: null, purchase: null, loading: false, unavailable: false, busy: false, error: null,
+    purchaseError: null, checkoutBlockedReason: null, canRecoverCheckout: false,
+    recoverCheckout: async () => {}, refresh: async () => {}, checkout: async () => {},
+  }
+  const html = renderToStaticMarkup(createElement(BillingPanel, {
+    account, summary: { subscription, loading: false, error: null }, credits,
+    portal: { available: true, loading: false, busy: false, onOpen: () => {} },
+    onOpenCredits: () => {}, onClose: () => {},
+  }))
+  assert.match(html, /Free plan/)
+  assert.match(html, /<h3[^>]*>Payment<\/h3>/)
+  assert.match(html, /<h3[^>]*>Invoices<\/h3>/)
+  assert.match(html, /plan changes or cancellation/)
+  assert.match(html, /Adjust plan/)
+  assert.match(html, /Manage payments/)
+  assert.match(html, /View invoices/)
+  assert.match(html, /Available credits/)
+  assert.match(html, /View credit options/)
+  assert.doesNotMatch(html, /href="\/account\/billing/)
+  assert.doesNotMatch(html, /Mastercard|4986|Download PDF|<table/)
+})
+
+test('closing settings invalidates a pending Stripe portal without redirecting', async () => {
+  const { openBillingPortal } = await import('../lib/billing/open-portal')
+  let open = true
+  let resolve!: (value: { url: string }) => void
+  let navigated = false
+  const pending = openBillingPortal({ uid: 'a', currentUid: () => 'a', isCurrent: () => open,
+    create: () => new Promise(done => { resolve = done }), navigate: () => { navigated = true },
+  })
+  open = false
+  resolve({ url: 'https://billing.stripe.com/p/session_fixture' })
+  await pending
+  assert.equal(navigated, false)
 })

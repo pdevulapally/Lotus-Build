@@ -1,19 +1,20 @@
-.dialog > [data-slot="dialog-close"] {
-  top: 0.75rem;
-  right: 0.75rem;
-  display: inline-flex;
-  width: 2.75rem;
-  height: 2.75rem;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  color: var(--muted-foreground);
-  opacity: 1;
+/* Astryx supplies layout and spacing; these rules cover the responsive shell
+   and shared Radix modal boundary, which have no equivalent component prop. */
+.dialog {
+  height: min(42rem, calc(100dvh - 3rem));
+  max-width: 56rem;
+  border-radius: var(--radius);
 }
 
-.dialog > [data-slot="dialog-close"]:hover {
-  background: var(--accent);
-  color: var(--foreground);
-}
+.shell, .layout { min-height: 0; height: 100%; }
+.sidebar { flex-shrink: 0; width: 12rem; }
+.panel { container-type: inline-size; }
+.mobileHeader { display: none; }
+.desktopClose { position: sticky; top: 0; flex-shrink: 0; background: var(--card); }
 
-.dialog [data-slot="button"] { min-height: 2.75rem; }
+@media (max-width: 640px) {
+  .sidebar, .desktopClose { display: none; }
+  .mobileHeader { display: flex; border-bottom: 1px solid var(--border); }
+  .layout { flex: 1; height: auto; }
+  .dialog { height: calc(100dvh - 2rem); }
+}

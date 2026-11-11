@@ -38,6 +38,31 @@
   box-shadow: 0 0 0 1px var(--ring);
 }
 
+/* The rounded input overlaps the notice's backing panel, like a layered composer. */
+.composerStack:has([data-slot="continuation-notice"]) {
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: calc(var(--radius-xl) * 2);
+  background: color-mix(in srgb, var(--background) 88%, var(--overlay));
+}
+
+.composerStack > [data-slot="continuation-notice"] {
+  margin-bottom: 0;
+  border: 0;
+  border-radius: 0;
+  padding-bottom: calc(var(--spacing) * 8);
+  background: transparent;
+}
+
+.composerStack > [data-slot="continuation-notice"] + * {
+  position: relative;
+  margin-top: calc(var(--spacing) * -4);
+}
+
+.composerStack:has([data-slot="continuation-notice"]) .composer:not(:hover):not(:focus-within) {
+  border-color: var(--border-strong);
+}
+
 @media (width >= 64rem) {
   .preview.preview {
     margin: 0 calc(var(--spacing) * 4) calc(var(--spacing) * 4) 0;

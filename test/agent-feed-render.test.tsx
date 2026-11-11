@@ -8,6 +8,8 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import ts from 'typescript'
 import type { AgentFeed } from '../components/computer/agent-feed'
+import { activity, updateToolStepEvent } from '../hooks/use-backend-session'
+import { selectTaskNotice } from '../lib/backend/task-notice'
 
 const require = createRequire(import.meta.url)
 const compiled = ts.transpileModule(readFileSync(new URL('../components/computer/agent-feed.tsx', import.meta.url), 'utf8'), {
@@ -141,4 +143,27 @@ test('a thinking row renders collapsed as a calm trigger, keeping the reasoning 
   assert.match(live, /Thinking/); assert.doesNotMatch(live, /failing assertion/)
   const done = render({ status: 'complete', events: [{ ...thinking, status: 'complete' as const }] })
   assert.match(done, /Thought process/); assert.doesNotMatch(done, /failing assertion/)
+})
+
+test('the current stop appears once in the shared notice while tool diagnostics stay collapsed', () => {
+  const error = 'The Free plan allows 300000 tokens of Input tokens, and 297048 tokens of that is already used or held.'
+  const call = activity({ id: '1700000000000-1', type: 'agent.tool_call', data: { name: 'read_file', callId: 'read', input: { path: '/home/daytona/project/src/App.tsx' } } }, 0)!
+  const tool = updateToolStepEvent([call], { id: '1700000000001-1', type: 'agent.tool_result', data: { name: 'read_file', callId: 'read', isError: true, error: 'Confined ranged read failed: Traceback (most recent call last):' } })
+  const terminal = activity({ id: '1700000000002-1', type: 'session.failed', data: { execution: 2, error } }, 1)!
+  const taskNotice = selectTaskNotice({ session: { id: 's', projectId: 'p', model: 'model', mode: 'build', effort: 'standard', status: 'FAILED', execution: 2, messageCount: 1, createdAt: '2026-11-11T00:00:00Z', error,
+    fallback: { status: 'UNAVAILABLE', limitLabel: 'Input tokens', reason: 'A durable workspace checkpoint is unavailable.', resumable: false, consent: false } } })
+  const html = render({ status: 'error', events: [...tool, terminal], taskNotice })
+  assert.doesNotMatch(html, /The Free plan allows|>Stopped<|durable workspace checkpoint/)
+  assert.match(html, /Could not read/)
+  assert.match(html, /App.tsx/)
+  assert.match(html, /<details[^>]*>/)
+  assert.doesNotMatch(html, /<details[^>]*\sopen/)
+  assert.match(html, /Confined ranged read failed: Traceback/)
+  const visible = html.replace(/<details\b[^>]*>[\s\S]*?<\/details>/g, '')
+  assert.doesNotMatch(visible, /Traceback|Confined ranged|Reading did not finish/)
+  // A different execution's history remains available; a current banner must not erase it.
+  const old = { ...terminal, id: '1699999999999-1', metadata: { ...terminal.metadata, execution: 1 }, description: 'An earlier failure.' }
+  const history = render({ status: 'error', events: [old, ...tool, terminal], taskNotice })
+  assert.match(history, /Previous task failure/)
+  assert.match(history, /An earlier failure/)
 })

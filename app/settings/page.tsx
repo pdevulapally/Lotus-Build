@@ -1,6 +1,6 @@
 "use client"
 
-/** Legacy settings URL. Billing has its own authenticated /account/billing page. */
+/** Legacy settings URL opens the shared settings modal. */
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"

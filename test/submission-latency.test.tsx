@@ -8,7 +8,8 @@ import type { AnimatedAIInput } from '../components/ui/animated-ai-input'
 import { pendingBuild } from '../lib/backend/create-build'
 
 const require = createRequire(import.meta.url)
-const compiled = ts.transpileModule(readFileSync(new URL('../components/ui/animated-ai-input.tsx', import.meta.url), 'utf8'), {
+const inputSource = readFileSync(new URL('../components/ui/animated-ai-input.tsx', import.meta.url), 'utf8')
+const compiled = ts.transpileModule(inputSource, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
 }).outputText
 function elements(node: ReactNode): Record<string, any>[] {
@@ -72,4 +73,30 @@ test('slow creation acknowledges immediately, blocks duplicate clicks, retains i
   await view.find((props) => props['aria-label'] === 'Start project')!.onClick()
   assert.equal(projects, 1); assert.equal(sessions, 2); assert.equal(keys[0], keys[1]); assert.equal(cleared, 1)
   assert.deepEqual(navigations, ['/computer/confirmed-session']); assert.equal(pendingBuild(storage, 'alice'), null)
+})
+
+test('chat submission failures have one presentation owner and retain the unsent draft', async () => {
+  const source = ts.createSourceFile('input.tsx', inputSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+  let handler: ts.Expression | undefined
+  const visit = (node: ts.Node) => {
+    if (ts.isVariableDeclaration(node) && node.name.getText(source) === 'handleSubmit') handler = node.initializer
+    ts.forEachChild(node, visit)
+  }
+  visit(source); assert.ok(handler)
+  const body = ts.transpileModule(`const handler = ${handler.getText(source)}; return handler;`, { compilerOptions: { target: ts.ScriptTarget.ESNext } }).outputText
+  const failure = new Error('The request was refused.')
+  for (const external of [true, false]) {
+    const localErrors: unknown[] = []; const externalErrors: unknown[] = []
+    const context = {
+      value: 'Keep my draft', isCreating: false, isLoading: false, disabled: false, submittingRef: { current: false },
+      setSubmitError: (error: unknown) => { if (error) localErrors.push(error) }, mode: 'chat', effectiveModel: 'model',
+      onSubmit: async () => { throw failure }, onSubmitError: external ? (error: unknown) => { if (error) externalErrors.push(error) } : undefined,
+      attachments: { refs: [], clear: assert.fail }, setValue: assert.fail, adjustHeight: assert.fail,
+    }
+    const submit = new Function(...Object.keys(context), body)(...Object.values(context)) as () => Promise<void>
+    await submit()
+    assert.deepEqual(externalErrors, external ? [failure] : [])
+    assert.deepEqual(localErrors, external ? [] : [failure])
+    assert.equal(context.submittingRef.current, false)
+  }
 })

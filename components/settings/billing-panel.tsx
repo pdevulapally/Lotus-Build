@@ -1,44 +1,73 @@
-'use client'
+﻿'use client'
 
 import Link from 'next/link'
-import { ArrowUpRight } from 'lucide-react'
+import type { ComponentProps, ReactNode } from 'react'
+import { Badge } from '@astryxdesign/core/Badge'
+import { Button } from '@astryxdesign/core/Button'
+import { Collapsible } from '@astryxdesign/core/Collapsible'
+import { Divider } from '@astryxdesign/core/Divider'
+import { HStack } from '@astryxdesign/core/HStack'
+import { StackItem } from '@astryxdesign/core/Stack'
+import { Heading, Text } from '@astryxdesign/core/Text'
+import { VStack } from '@astryxdesign/core/VStack'
 import type { BackendAccount } from '@/lib/backend/client'
 import type { BillingSummaryState } from '@/hooks/use-billing-summary'
-import { billingDate, subscriptionPrice, subscriptionStatus } from '@/lib/billing/format'
-import { SettingsButton as Button } from '@/components/settings/settings-button'
+import type { CreditsController } from '@/hooks/use-credits'
+import { BillingPortalAction, PaymentManagement } from '@/components/billing/payment-management'
+import { CreditBalance } from '@/components/billing/credit-balance'
+import { billingDate, subscriptionPrice, subscriptionStatus, subscriptionTaxLabels } from '@/lib/billing/format'
+import { SettingsRow } from './settings-primitives'
 
-export function SubscriptionSummary({ account, summary }: { account: BackendAccount; summary: BillingSummaryState }) {
+export function SubscriptionSummary({ account, summary, action }: { account: BackendAccount; summary: BillingSummaryState; action?: ReactNode }) {
   const { subscription, loading, error } = summary
-  return <section aria-label="Subscription">
-    <header className="flex flex-wrap items-center justify-between gap-3">
-      <section><p className="text-xs text-muted-foreground">Current plan</p><h3 className="mt-2 text-2xl font-semibold tracking-tight">{account.plan.name}</h3></section>
-      {subscription && <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium">{subscriptionStatus(subscription)}</span>}
-    </header>
-    {loading ? <p role="status" className="mt-4 text-sm text-muted-foreground">Loading subscription details…</p> : error ? <p role="alert" className="mt-4 text-sm text-muted-foreground">Subscription details are unavailable. You can still open Stripe billing to review your account.</p> : subscription ? <>
-      <p className="mt-4 text-lg font-medium tabular-nums">{subscriptionPrice(subscription)}</p>
-      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Base recurring price. Final invoices may reflect taxes, discounts, credits or prorations.</p>
-      <section className="mt-5 divide-y divide-border/60 border-t border-border/60 text-sm">
-        {subscription.planKey !== account.plan.key && <dl className="flex flex-wrap justify-between gap-2 py-3"><dt className="text-muted-foreground">Billed subscription</dt><dd>{subscription.planName}</dd></dl>}
-        <dl className="flex flex-wrap justify-between gap-2 py-3"><dt className="text-muted-foreground">Billing period (UTC)</dt><dd>{billingDate(subscription.currentPeriodStart)} – {billingDate(subscription.currentPeriodEnd)}</dd></dl>
-        <dl className="flex flex-wrap justify-between gap-2 py-3"><dt className="text-muted-foreground">{subscription.cancelAt || subscription.cancelAtPeriodEnd ? 'Scheduled cancellation' : 'Current period ends'}</dt><dd>{billingDate(subscription.cancelAt ?? subscription.currentPeriodEnd)}</dd></dl>
-      </section>
-      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Plan usage resets separately from your billing period. See Usage for allowance reset dates.</p>
-    </> : <p className="mt-4 text-sm text-muted-foreground">No active paid subscription.</p>}
-  </section>
+  return <VStack as="section" aria-label="Subscription" gap={3}>
+    <HStack className="settings-row" align="center" justify="between" gap={4} wrap="wrap">
+      <StackItem size="fill">
+        <VStack gap={1}>
+          <HStack align="center" gap={2} wrap="wrap">
+            <Heading level={3}>{account.plan.name} plan</Heading>
+            {!loading && !error && subscription && <Badge label={subscriptionStatus(subscription)} />}
+          </HStack>
+          {loading ? <Text type="supporting" color="secondary" role="status">Loading subscription details...</Text> : error ?
+            <Text type="supporting" color="secondary" role="alert">Subscription details are unavailable. You can still open Stripe billing to review your account.</Text> : subscription ? <>
+              <Text type="body">{subscriptionPrice(subscription)}</Text>
+              <Text type="supporting" color="secondary">{subscription.cancelAt || subscription.cancelAtPeriodEnd ? 'Scheduled cancellation' : 'Current period ends'}: {billingDate(subscription.cancelAt ?? subscription.currentPeriodEnd)} (UTC)</Text>
+            </> : <Text type="supporting" color="secondary">No active paid subscription.</Text>}
+        </VStack>
+      </StackItem>
+      {action}
+    </HStack>
+    {!loading && !error && subscription && <Collapsible trigger="Price details" defaultIsOpen={false}>
+      <VStack gap={3} paddingBlock={3}>
+        {subscription.planKey !== account.plan.key && <SettingsRow label="Billed subscription"><Text type="body">{subscription.planName}</Text></SettingsRow>}
+        <SettingsRow label="Billing period (UTC)"><Text type="body">{billingDate(subscription.currentPeriodStart)} - {billingDate(subscription.currentPeriodEnd)}</Text></SettingsRow>
+        <SettingsRow label="Currency"><Text type="body">{subscription.price.currency.toUpperCase()}</Text></SettingsRow>
+        <SettingsRow label="Quantity"><Text type="body">{subscription.price.quantity.toLocaleString('en-GB')}</Text></SettingsRow>
+        <SettingsRow label="Tax"><Text type="body">{subscriptionTaxLabels[subscription.price.taxBehavior]}</Text></SettingsRow>
+        <SettingsRow label="Discounts"><Text type="body">{subscription.discountsApplied ? 'Applied; see invoice for amounts' : 'None applied'}</Text></SettingsRow>
+        <Text type="supporting" color="secondary">Base recurring price. Final invoices may reflect taxes, discounts, credits or prorations.</Text>
+        <Text type="supporting" color="secondary">Plan usage resets separately from your billing period. See Usage for allowance reset dates.</Text>
+      </VStack>
+    </Collapsible>}
+  </VStack>
 }
 
-export function BillingPanel({ account, summary, onOpenCredits, onClose }: { account: BackendAccount; summary: BillingSummaryState; onOpenCredits: () => void; onClose: () => void }) {
-  return <section className="space-y-6">
-    <SubscriptionSummary account={account} summary={summary} />
-    <footer className="flex flex-wrap gap-2">
-      <Button asChild><Link href="/account/billing" onClick={onClose}>Manage billing<ArrowUpRight aria-hidden="true" /></Link></Button>
-      <Button asChild variant="outline"><Link href="/pricing" onClick={onClose}>Compare plans</Link></Button>
-    </footer>
-    <section className="border-t border-border/60 pt-5">
-      <h3 className="text-sm font-semibold">Need more AI usage?</h3>
-      <p className="mt-2 text-sm text-muted-foreground">View extra credits and one-time top-ups without changing your subscription.</p>
-      <Button className="mt-4" variant="outline" onClick={onOpenCredits}>View on-demand usage</Button>
-    </section>
-  </section>
+export function BillingPanel({ account, summary, credits, portal, onOpenCredits, onClose }: {
+  account: BackendAccount
+  summary: BillingSummaryState
+  credits: CreditsController
+  portal: ComponentProps<typeof PaymentManagement>['portal']
+  onOpenCredits: () => void
+  onClose: () => void
+}) {
+  return <VStack gap={8}>
+    <SubscriptionSummary account={account} summary={summary} action={portal.available === false ?
+      <Button as={Link} href="/pricing" label="Compare plans" onClick={onClose} /> :
+      <BillingPortalAction {...portal} label="Adjust plan" />} />
+    <PaymentManagement portal={portal} noSubscription={!summary.loading && !summary.error && !summary.subscription} />
+    <VStack gap={3}>
+      <Divider />
+      <CreditBalance credits={credits} onBuy={onOpenCredits} />
+    </VStack>
+  </VStack>
 }
-

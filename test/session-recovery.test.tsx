@@ -2,11 +2,12 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import test from 'node:test'
-import { createElement, type ReactNode } from 'react'
+import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import ts from 'typescript'
 import { BackendError } from '../lib/backend/client'
-import { presentRequestError } from '../lib/backend/error-presentation'
+import { TaskNotice } from '../components/computer/task-notice'
+import { selectTaskNotice } from '../lib/backend/task-notice'
 import { isRejectedInputResponse } from '../lib/backend/send-message'
 
 const require = createRequire(import.meta.url)
@@ -18,16 +19,13 @@ function find(predicate: (node: ts.Node) => boolean): ts.Node {
   assert.ok(found, 'the real workspace recovery surface must remain covered')
   return found
 }
-// Evaluate the actual page expressions, with only the surrounding page state
-// and RequestError shell supplied. No copied recovery predicate or handler.
+// Evaluate the actual answer handlers; render the shared notice for recovery checks.
 function evaluate(node: ts.Node, context: Record<string, unknown>): any {
   const compiled = ts.transpileModule(`const { ${Object.keys(context).join(', ')} } = context; const result = (${node.getText(source)});`, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
   }).outputText
   return new Function('require', 'context', 'exports', `${compiled}\nreturn result`)(require, context, {})
 }
-const recovery = find((node) => ts.isCallExpression(node) && ts.isParenthesizedExpression(node.expression)
-  && ts.isArrowFunction(node.expression.expression) && node.getText(source).includes('<RequestError '))
 const answerAttribute = find((node) => ts.isJsxSelfClosingElement(node) && node.tagName.getText(source) === 'PendingInputCard') as ts.JsxSelfClosingElement
 const answer = answerAttribute.attributes.properties.find((attribute) => ts.isJsxAttribute(attribute) && attribute.name.getText(source) === 'onAnswer') as ts.JsxAttribute
 assert.ok(answer.initializer && ts.isJsxExpression(answer.initializer) && answer.initializer.expression)
@@ -36,10 +34,9 @@ const declaration = (name: string) => (find((node) => ts.isVariableDeclaration(n
 const reporter = (setRunError: (reason: unknown) => void) => evaluate(declaration('reportMessageError'), { setRunError })
 
 function renderRecovery(runError: Error | string | null, streamError: string | null, fileError: string | null, sessionError: string | null) {
-  return renderToStaticMarkup(evaluate(recovery, {
-    runError, backend: { streamError, fileError, reconnect() {} }, raw: { error: sessionError },
-    BackendError, presentRequestError, isTokenLimitError: () => false,
-    RequestError: ({ error, children }: { error: Error; children?: ReactNode }) => createElement('section', { role: 'alert' }, error.message, children),
+  return renderToStaticMarkup(createElement(TaskNotice, {
+    notice: selectTaskNotice({ session: { id: 's', projectId: 'p', model: 'model', mode: 'build', effort: 'standard', status: 'FAILED', messageCount: 1, createdAt: '2026-11-11T00:00:00Z', ...(sessionError ? { error: sessionError } : {}) },
+      requestError: runError, streamError, fileError }), busy: false, onContinue() {}, onCancel() {}, onReconnect() {},
   }))
 }
 

@@ -10,6 +10,11 @@ export function subscriptionPrice(subscription: BackendSubscription) {
 export function billingDate(value: string) {
   return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(value))
 }
+export const subscriptionTaxLabels = {
+  inclusive: 'Included in the base price',
+  exclusive: 'Added to the base price',
+  unspecified: 'See your invoice for tax details',
+} as const
 export function subscriptionStatus(subscription: BackendSubscription) {
   if (subscription.collectionPaused) return 'Payment collection paused'
   const labels = { incomplete: 'Payment incomplete', incomplete_expired: 'Payment expired', trialing: 'Trial', active: 'Active', past_due: 'Payment overdue', canceled: 'Cancelled', unpaid: 'Unpaid', paused: 'Paused' }

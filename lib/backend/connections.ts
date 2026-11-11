@@ -1,8 +1,8 @@
 import { z } from 'zod'
 
-/** Mirrors lotusbuild-server src/connections: the order is the product order. */
-export const connectorKeys = ['github', 'netlify', 'vercel', 'slack', 'aws', 'mcp'] as const
-export type ConnectorKey = (typeof connectorKeys)[number]
+/** Provider identities and presentation come from the backend catalogue. */
+export const connectorKeySchema = z.string().regex(/^[a-z][a-z0-9_-]{0,63}$/)
+export type ConnectorKey = z.infer<typeof connectorKeySchema>
 
 export const connectionStatuses = ['connecting', 'active', 'expired', 'revoked', 'insufficient_permissions', 'provider_unavailable', 'configuration_required'] as const
 export type ConnectionStatus = (typeof connectionStatuses)[number]
@@ -10,8 +10,11 @@ export type ConnectionStatus = (typeof connectionStatuses)[number]
 const capabilitySchema = z.object({ key: z.string(), title: z.string(), description: z.string(), requiresApproval: z.boolean() }).loose()
 
 export const connectorSchema = z.object({
-  key: z.enum(connectorKeys), name: z.string(), summary: z.string(),
-  auth: z.enum(['github-app', 'oauth2', 'slack-install', 'aws-role', 'mcp-remote']),
+  key: connectorKeySchema, name: z.string(), summary: z.string(),
+  auth: connectorKeySchema,
+  browserCallback: z.boolean().optional(),
+  toolPermissions: z.boolean().optional(),
+  iconPath: z.string().regex(/^\/integrations\/[a-z0-9_-]+\.svg$/).optional(),
   capabilities: z.array(capabilitySchema),
   limits: z.array(z.string()).optional(),
   status: z.enum(['available', 'configuration_required']),
@@ -21,7 +24,7 @@ export const catalogueSchema = z.object({ connectors: z.array(connectorSchema) }
 
 /** What the API returns for a connection. Credentials never appear here, by contract. */
 export const connectionSchema = z.object({
-  id: z.string(), connector: z.enum(connectorKeys), status: z.enum(connectionStatuses), scopes: z.array(z.string()),
+  id: z.string(), connector: connectorKeySchema, status: z.enum(connectionStatuses), scopes: z.array(z.string()),
   account: z.object({ id: z.string(), name: z.string(), team: z.string().optional() }).optional(),
   health: z.object({ checkedAt: z.string(), ok: z.boolean(), detail: z.string().optional() }).optional(),
   createdAt: z.string(), updatedAt: z.string(), grantedProjectIds: z.array(z.string()).optional(),
@@ -29,6 +32,11 @@ export const connectionSchema = z.object({
 export type Connection = z.infer<typeof connectionSchema>
 export const connectionListSchema = z.object({ connections: z.array(connectionSchema) })
 export const connectionDetailSchema = z.object({ connection: connectionSchema })
+export const pluginToolSchema = z.object({ name: z.string(), description: z.string(), inputSchema: z.record(z.string(), z.unknown()),
+  fingerprint: z.string().regex(/^[0-9a-f]{64}$/), readOnly: z.boolean(), mode: z.enum(['off', 'read-only', 'always']) }).strict()
+export type PluginTool = z.infer<typeof pluginToolSchema>
+export const pluginToolsSchema = z.object({ tools: z.array(pluginToolSchema), rejected: z.array(z.object({ name: z.string(), reason: z.string() })).optional() })
+export const pluginCreatedSchema = pluginToolsSchema.extend({ connection: connectionSchema })
 export const disconnectSchema = z.object({ connection: connectionSchema, providerRevoked: z.boolean() })
 export const connectionStartSchema = z.object({ authorizeUrl: z.url(), expiresAt: z.string().optional() })
 

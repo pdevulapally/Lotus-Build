@@ -2,7 +2,8 @@ import { z } from 'zod'
 import { planUpdateSchema, sessionPlanSchema, type PlanUpdate } from './session-plan'
 import { computerSessionModeSchema, computerSessionModes, type ComputerSessionMode } from './session-modes'
 export { computerSessionModes as sessionModes } from './session-modes'
-import { catalogueSchema, connectionDetailSchema, connectionListSchema, connectionStartSchema, disconnectSchema, projectSourceResponseSchema, projectSourceSchema, repositoryListSchema, type ConnectorKey } from './connections'
+import { catalogueSchema, connectionDetailSchema, connectionListSchema, connectionStartSchema, disconnectSchema, projectSourceResponseSchema, projectSourceSchema, repositoryListSchema, pluginToolsSchema, pluginCreatedSchema, type PluginTool, type ConnectorKey } from './connections'
+import { netlifyDeploymentsSchema, netlifyDeploymentResponseSchema } from './netlify'
 import { attachmentRefSchema, attachmentRefsSchema, isAttachmentMediaType, storedAttachmentSchema, type AttachmentRef } from './attachments'
 import { deliverySchema } from './delivery'
 import { billingCreditsSchema, creditCheckoutSchema, creditOfferSchema, creditPurchaseSchema } from '../billing/credits'
@@ -10,6 +11,7 @@ import { billingCreditsSchema, creditCheckoutSchema, creditOfferSchema, creditPu
 const id = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/)
 const timestamp = z.string().datetime({ offset: true })
 const sha = z.string().regex(/^[0-9a-f]{40,64}$/)
+const fileRef = z.string().min(1).max(255).regex(/^[A-Za-z0-9._/-]+$/)
 export const fileTreeSchema = z.object({ head: z.string().nullable(), ref: z.string().nullable(), branches: z.array(z.string()),
   files: z.array(z.object({ path: z.string().min(1), size: z.number().int().nonnegative() })), truncated: z.boolean() })
 export const fileSchema = z.object({ path: z.string(), size: z.number().int().nonnegative(), binary: z.boolean(), content: z.string().nullable(), truncated: z.boolean() })
@@ -266,16 +268,39 @@ export class BackendClient {
     '/me/privacy-requests', { method: 'POST', body: { kind: 'erasure' } }) }
   connectionCatalogue(signal?: AbortSignal) { return this.json(catalogueSchema, '/connections/catalogue', { signal }) }
   connections(signal?: AbortSignal) { return this.json(connectionListSchema, '/connections', { signal }) }
+  connectPlugin(input: { connector: string; name: string; url: string; token?: string; projectIds: string[] }) {
+    return this.json(pluginCreatedSchema, '/connections/mcp', { method: 'POST', body: input })
+  }
+  pluginTools(connectionId: string, signal?: AbortSignal) { return this.json(pluginToolsSchema, `/connections/${encodeURIComponent(connectionId)}/tools`, { signal }) }
+  refreshPluginTools(connectionId: string) { return this.json(pluginToolsSchema, `/connections/${encodeURIComponent(connectionId)}/tools/refresh`, { method: 'POST' }) }
+  setPluginPermissions(connectionId: string, tools: readonly Pick<PluginTool, 'name' | 'fingerprint' | 'mode'>[]) {
+    return this.json(pluginToolsSchema, `/connections/${encodeURIComponent(connectionId)}/tools`, { method: 'PUT', body: { permissions: tools.every(tool => tool.mode === 'off') ? [] : tools.map(({ name, fingerprint, mode }) => ({ name, fingerprint, mode })) } })
+  }
   connection(id: string, signal?: AbortSignal) { return this.json(connectionDetailSchema, `/connections/${encodeURIComponent(id)}`, { signal }) }
   setConnectionGrants(id: string, projectIds: readonly string[]) {
     return this.json(connectionDetailSchema, `/connections/${encodeURIComponent(id)}/grants`, { method: 'PUT', body: { projectIds } })
   }
   disconnectConnection(id: string) { return this.json(disconnectSchema, `/connections/${encodeURIComponent(id)}`, { method: 'DELETE' }) }
   startConnection(connector: ConnectorKey, input?: { returnTo: string; projectIds?: readonly string[] }) {
-    return this.json(connectionStartSchema, `/connections/${connector}/start`, { method: 'POST', ...(input ? { body: input } : {}) })
+    return this.json(connectionStartSchema, `/connections/${encodeURIComponent(connector)}/start`, { method: 'POST', ...(input ? { body: input } : {}) })
   }
   completeGitHubConnection(input: { state: string; code: string; installationId: number; returnTo: string }) {
     return this.json(connectionDetailSchema, '/connections/github/complete', { method: 'POST', body: input })
+  }
+  completeNetlifyConnection(input: { state: string; code: string; returnTo: string }) {
+    return this.json(connectionDetailSchema, '/connections/netlify/complete', { method: 'POST', body: input })
+  }
+  netlifyDeployments(projectId: string, signal?: AbortSignal) {
+    return this.json(netlifyDeploymentsSchema, `/projects/${id.parse(projectId)}/netlify-deployments`, { signal })
+  }
+  approveNetlifyDeployment(projectId: string, deploymentId: string, sha256: string) {
+    return this.json(netlifyDeploymentResponseSchema, `/projects/${id.parse(projectId)}/netlify-deployments/${id.parse(deploymentId)}/approve`, { method: 'POST', body: { sha256 } })
+  }
+  refreshNetlifyDeployment(projectId: string, deploymentId: string, signal?: AbortSignal) {
+    return this.json(netlifyDeploymentResponseSchema, `/projects/${id.parse(projectId)}/netlify-deployments/${id.parse(deploymentId)}/refresh`, { method: 'POST', signal })
+  }
+  rejectNetlifyDeployment(projectId: string, deploymentId: string) {
+    return this.json(netlifyDeploymentResponseSchema, `/projects/${id.parse(projectId)}/netlify-deployments/${id.parse(deploymentId)}/reject`, { method: 'POST' })
   }
   connectionRepositories(connectionId: string, signal?: AbortSignal) {
     return this.json(repositoryListSchema, `/connections/${encodeURIComponent(connectionId)}/repositories`, { signal })
@@ -288,9 +313,14 @@ export class BackendClient {
   }
   projects(signal?: AbortSignal) { return this.json(z.object({ projects: z.array(projectSchema) }), '/projects?limit=100', { signal }) }
   project(projectId: string, signal?: AbortSignal) { return this.json(projectSchema, `/projects/${id.parse(projectId)}`, { signal }) }
-  files(projectId: string, signal?: AbortSignal) { return this.json(fileTreeSchema, `/projects/${id.parse(projectId)}/files`, { signal }) }
-  file(projectId: string, path: string, signal?: AbortSignal) {
-    return this.json(fileSchema, `/projects/${id.parse(projectId)}/files/content?${new URLSearchParams({ path: z.string().min(1).max(1024).parse(path) })}`, { signal })
+  files(projectId: string, signal?: AbortSignal, ref?: string) {
+    const query = ref === undefined ? '' : `?${new URLSearchParams({ ref: fileRef.parse(ref) })}`
+    return this.json(fileTreeSchema, `/projects/${id.parse(projectId)}/files${query}`, { signal })
+  }
+  file(projectId: string, path: string, signal?: AbortSignal, ref?: string) {
+    const query = new URLSearchParams({ path: z.string().min(1).max(1024).parse(path) })
+    if (ref !== undefined) query.set('ref', fileRef.parse(ref))
+    return this.json(fileSchema, `/projects/${id.parse(projectId)}/files/content?${query}`, { signal })
   }
   history(projectId: string, signal?: AbortSignal) { return this.json(historySchema, `/projects/${id.parse(projectId)}/changes`, { signal }) }
   changes(projectId: string, commit: string, signal?: AbortSignal) { return this.json(changesSchema, `/projects/${id.parse(projectId)}/changes/${sha.parse(commit)}`, { signal }) }

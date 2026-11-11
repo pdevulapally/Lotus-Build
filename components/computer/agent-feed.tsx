@@ -35,7 +35,6 @@ import {
 import {
   getEventTitle,
   getRunIdGroups,
-  isTokenLimitError,
   type ComputerSessionStatus,
   type ComputerTimelineEvent,
   type LocalMessage,
@@ -48,6 +47,9 @@ import type { SessionPlan } from "@/lib/backend/session-plan"
 import { DeliveryCard } from "@/components/computer/delivery-card"
 import type { Delivery } from "@/lib/backend/delivery"
 import { STILL_STOPPING_AFTER_MS, stoppingLabels } from "@/lib/backend/feed-labels"
+import type { TaskNoticeModel } from '@/lib/backend/task-notice'
+import { redactSecrets } from '@/lib/backend/terminal'
+import { FileReadActivity } from '@/components/computer/file-read-activity'
 
 const commandStates = { pending: 'pending', running: 'running', complete: 'idle', error: 'error', skipped: 'interrupted' } as const
 
@@ -354,9 +356,7 @@ const FeedItem = memo(function FeedItem({
   const isSkipped = event.status === "skipped"
   const toolStatus = event.status === 'running' && !isSessionRunning ? 'skipped' : event.status
   const title = getEventTitle(event)
-  const description = isTokenLimitError(event.description)
-    ? "You have used all credits for this cycle."
-    : event.description
+  const description = event.description
 
   if (event.metadata?.questionType === "supabase") {
     return <SupabaseQuestionCard onSetup={onSupabaseSetup ?? (() => {})} onDecline={onSupabaseDecline} />
@@ -432,6 +432,11 @@ const FeedItem = memo(function FeedItem({
     )
   }
 
+  const diagnostic = typeof event.metadata?.diagnostic === 'string' ? event.metadata.diagnostic : description
+  if (event.metadata?.toolName === 'read_file') {
+    return <FileReadActivity path={typeof event.metadata.filePath === 'string' ? event.metadata.filePath : undefined} status={toolStatus} diagnostic={isError ? diagnostic : undefined} />
+  }
+
   const generatedFilePath = getGeneratingFilePath(event)
   if (generatedFilePath && event.kind === "code") {
     const fileContent = getFileContentMetadata(event)
@@ -455,6 +460,13 @@ const FeedItem = memo(function FeedItem({
         <ReasoningContent>{event.description}</ReasoningContent>
       </Reasoning>
     )
+  }
+
+  if (isError && (event.metadata?.toolName || event.metadata?.eventType === 'session.failed')) {
+    return <details className="my-2 text-sm text-muted-foreground">
+      <summary className="min-h-11 cursor-pointer rounded-md py-3 font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring">{event.metadata?.eventType === 'session.failed' ? 'Previous task failure' : title}</summary>
+      {diagnostic && <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-muted p-3 text-xs leading-relaxed">{redactSecrets(diagnostic)}</pre>}
+    </details>
   }
 
   const showDetail = isRunning || isError
@@ -664,8 +676,9 @@ export function AgentFeed({
   editingIndex, editText, onEditStart, onEditChange, onEditSubmit, onEditCancel,
   onSupabaseSetup, onSupabaseDecline, onClarificationAnswer, plan, planActions, delivery,
   onRestoreCheckpoint,
-  canonicalMessages, queuedMessages, streamText, liveLabel, stopping = false, stoppingSince = null,
+  canonicalMessages, queuedMessages, streamText, liveLabel, stopping = false, stoppingSince = null, taskNotice,
 }: {
+  taskNotice?: TaskNoticeModel | null
   canonicalMessages?: { seq: number; role: 'user' | 'assistant'; voiceSpeaker?: 'user' | 'assistant'; content: string; createdAt: string; attachments?: AttachmentRef[] }[]
   queuedMessages?: { id: string; prompt: string; attachments?: AttachmentRef[] }[]
   streamText?: string
@@ -739,7 +752,10 @@ export function AgentFeed({
   const restoreCheckpoint = onRestoreCheckpoint ? cb.onRestoreCheckpoint : undefined
 
   const isRunning = status === "running" || status === "planning" || status === "queued"
-  const visible = events.filter((e) => e.title !== "Session created")
+  const failure = taskNotice?.failure
+  const coveredFailure = failure ? events.findLast(event => event.metadata?.eventType === 'session.failed'
+    && event.description === failure.message && (failure.execution === undefined || event.metadata.execution === failure.execution)) : undefined
+  const visible = events.filter((e) => e.title !== "Session created" && e !== coveredFailure)
   const { firstRunId, followUpRunIds } = getRunIdGroups(events)
   const initialEvents = firstRunId ? visible.filter((event) => event.runId === firstRunId) : visible
   const runEventsById = new Map<string, ComputerTimelineEvent[]>()
@@ -768,7 +784,7 @@ export function AgentFeed({
     // fallback events stable too so the memoized FeedItem can skip them.
     const rows = [
       ...canonicalMessages.map((message) => ({ time: Date.parse(message.createdAt), key: `message-${message.seq}`, message, event: undefined as ComputerTimelineEvent | undefined })),
-      ...events.map((event) => ({ time: Date.parse(event.createdAt), key: `event-${event.id}`, message: undefined, event })),
+      ...visible.map((event) => ({ time: Date.parse(event.createdAt), key: `event-${event.id}`, message: undefined, event })),
     ].sort((left, right) => left.time - right.time)
     const fallbackFor = (message: NonNullable<(typeof rows)[number]['message']>): ComputerTimelineEvent => {
       let fallback = responseFallbacks.current.get(message)

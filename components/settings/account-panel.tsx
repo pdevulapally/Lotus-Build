@@ -1,56 +1,44 @@
-import type { BackendAccount } from '@/lib/backend/client'
+﻿import type { BackendAccount } from '@/lib/backend/client'
+import { Badge } from '@astryxdesign/core/Badge'
+import { Button } from '@astryxdesign/core/Button'
+import { HStack } from '@astryxdesign/core/HStack'
+import { Heading, Text } from '@astryxdesign/core/Text'
+import { VStack } from '@astryxdesign/core/VStack'
 import { EmailCodeVerification } from '@/components/auth/email-code-verification'
-import { CookiePreferencesButton } from '@/components/cookie-banner'
-import { SettingsButton as Button } from '@/components/settings/settings-button'
+import { openCookiePreferences } from '@/lib/privacy/cookie-consent'
+import { ProfileAvatar } from '@/components/ui/profile-avatar'
+import { SettingsGroup, SettingsRow } from './settings-primitives'
 
-export function AccountPanel({ account, email, busy, onVerified, onErasure }: {
+export function AccountPanel({ account, email, displayName, photoURL, busy, onVerified, onErasure }: {
   account: BackendAccount
   email: string
+  displayName?: string | null
+  photoURL?: string | null
   busy: boolean
   onVerified: () => void
   onErasure: () => void
 }) {
-  return (
-    <section className="space-y-6">
-      <header className="flex items-center gap-4">
-        <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-muted text-lg font-semibold" aria-hidden="true">
-          {(account.displayName || account.email).slice(0, 1).toUpperCase()}
-        </span>
-        <section className="min-w-0">
-          <h3 className="truncate text-base font-semibold">{account.displayName || 'Your account'}</h3>
-          <p className="mt-1 break-all text-sm text-muted-foreground">{account.email}</p>
-        </section>
-      </header>
-      <section className="divide-y divide-border/60 border-y border-border/60">
-        <dl className="flex flex-wrap items-baseline justify-between gap-3 py-4">
-          <dt className="text-sm text-muted-foreground">Email verification</dt>
-          <dd className="text-sm font-medium">{account.emailVerified ? 'Verified' : 'Not verified'}</dd>
-        </dl>
-        <dl className="flex items-baseline justify-between gap-3 py-4">
-          <dt className="text-sm text-muted-foreground">Projects</dt>
-          <dd className="text-sm font-medium tabular-nums">{account.projectCount.toLocaleString()}</dd>
-        </dl>
-      </section>
-      {!account.emailVerified && (
-        <section className="space-y-3">
-          <h3 className="text-sm font-semibold">Verify your email</h3>
-          <EmailCodeVerification email={email} buttonClassName="min-h-11 rounded-full" autoSend={false} onVerified={onVerified} />
-        </section>
-      )}
-      <section>
-        <h3 className="text-sm font-semibold">Privacy</h3>
-        <p className="mt-2 text-sm text-muted-foreground">Choose how optional cookies are used.</p>
-        <CookiePreferencesButton className="mt-3 inline-flex min-h-11 items-center justify-center rounded-full border border-border px-4 py-2 text-sm font-semibold outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring" />
-      </section>
-      <section className="border-t border-border/60 pt-6">
-        <h3 className="text-sm font-semibold">Account erasure</h3>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          Requests are reviewed before deletion. Submitting a request does not delete your account.
-        </p>
-        <Button type="button" variant="outline" className="mt-4" disabled={busy} onClick={onErasure}>
-          Request account erasure
-        </Button>
-      </section>
-    </section>
-  )
+  const name = displayName?.trim() || account.displayName?.trim()
+  return <VStack as="section" aria-label="Account details" gap={4}>
+    <HStack align="center" gap={3}>
+      <ProfileAvatar name={name} email={email} photoURL={photoURL} />
+      <VStack gap={0.5}>
+        <Heading level={3}>{name || 'Your account'}</Heading>
+        <Text type="supporting" color="secondary" wordBreak="break-all">{account.email}</Text>
+      </VStack>
+    </HStack>
+    <SettingsGroup title="Profile">
+      <SettingsRow label="Email verification"><Badge label={account.emailVerified ? 'Verified' : 'Not verified'} /></SettingsRow>
+      <SettingsRow label="Projects"><Text type="body" color="secondary">{account.projectCount.toLocaleString()}</Text></SettingsRow>
+      {!account.emailVerified && <EmailCodeVerification appearance="astryx" email={email} autoSend={false} onVerified={onVerified} />}
+    </SettingsGroup>
+    <SettingsGroup title="Privacy">
+      <SettingsRow label="Cookie preferences" description="Choose how optional cookies are used.">
+        <Button label="Cookie preferences" aria-haspopup="dialog" onClick={openCookiePreferences} />
+      </SettingsRow>
+      <SettingsRow label="Account erasure" description="Requests are reviewed before deletion. Submitting a request does not delete your account.">
+        <Button label="Request account erasure" variant="destructive" isDisabled={busy} onClick={onErasure} />
+      </SettingsRow>
+    </SettingsGroup>
+  </VStack>
 }

@@ -7,23 +7,24 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import ts from 'typescript'
 import { BackendClient, sessionSchema, type BackendSession } from '../lib/backend/client'
 import { continueSession, readPendingContinuation } from '../lib/backend/continue-session'
+import { selectTaskNotice } from '../lib/backend/task-notice'
 
 const session: BackendSession = { id: 's', projectId: 'p', status: 'IDLE', model: 'original-model', effort: 'standard', mode: 'build', messageCount: 1, createdAt: new Date().toISOString(),
   fallback: { status: 'AWAITING_CONSENT', reason: 'Premium allowance reached.', resumable: true, consent: false, checkpointId: 'version', offer: { model: 'offered-model', effort: 'low' } } }
 const require = createRequire(import.meta.url)
-const compiled = ts.transpileModule(readFileSync(new URL('../components/computer/continuation-status.tsx', import.meta.url), 'utf8'), {
+const compiled = ts.transpileModule(readFileSync(new URL('../components/computer/task-notice.tsx', import.meta.url), 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
 }).outputText
 function render(value: BackendSession) {
-  const module = { exports: {} as { ContinuationStatus: React.ComponentType<Record<string, unknown>> } }
+  const module = { exports: {} as { TaskNotice: React.ComponentType<Record<string, unknown>> } }
   const isolatedRequire = (id: string) => id === 'next/link' ? { __esModule: true, default: (props: Record<string, unknown>) => createElement('a', props) } : require(id)
   new Function('require', 'module', 'exports', compiled)(isolatedRequire, module, module.exports)
-  return renderToStaticMarkup(createElement(module.exports.ContinuationStatus, { session: value, busy: false, onContinue: () => assert.fail('Rendering must never accept consent'), onCancel: () => {} }))
+  return renderToStaticMarkup(createElement(module.exports.TaskNotice, { notice: selectTaskNotice({ session: value }), busy: false, onContinue: () => assert.fail('Rendering must never accept consent'), onCancel: () => {} }))
 }
 
 test('continuation UI names the offered model and requires explicit consent while preserving original retry', () => {
   const html = render(session)
-  assert.match(html, /reached your plan’s limit/)
+  assert.match(html, /Your AI usage limit is reached/)
   assert.match(html, /Keep going for free/)
   assert.match(html, /offered-model/)
   assert.doesNotMatch(html, /via |then corrected/)
@@ -34,7 +35,9 @@ test('continuation UI names the offered model and requires explicit consent whil
   assert.match(viaOpenRouter, /vendor\/model via NVIDIA/)
   assert.match(viaOpenRouter, /then corrected/)
   const unavailable = render({ ...session, fallback: { status: 'UNAVAILABLE', reason: 'The configured fallback provider is not set up on this service.', resumable: true, consent: false } })
-  assert.match(unavailable, /Task paused/)
+  assert.match(unavailable, /<h2[^>]*>The configured fallback provider is not set up on this service\.<\/h2>/)
+  assert.doesNotMatch(unavailable, /Task paused/)
+  assert.equal(unavailable.split('The configured fallback provider is not set up on this service.').length - 1, 1)
   assert.doesNotMatch(unavailable, /Keep going for free/)
   assert.match(unavailable, /Retry with original-model/)
 })
@@ -49,6 +52,21 @@ test('temporary capacity and expired context have distinct actionable states', (
   const failed = render({ ...session, fallback: { status: 'UNAVAILABLE', reason: 'The free model could not finish this task.', resumable: false, consent: true, resetAt: new Date(Date.now() + 86_400_000).toISOString() } })
   assert.doesNotMatch(failed, /Allowance resets/)
   assert.equal(sessionSchema.safeParse({ ...session, fallback: { ...session.fallback, imageExpiresAt: 'invalid' } }).success, false)
+})
+
+test('a failed continuation shows the actual limit or original failure before its checkpoint limitation', () => {
+  const reason = 'The transcript is saved, but a durable workspace checkpoint is unavailable for this task. No model was switched.'
+  const error = 'The Free plan allows 300000 tokens of Input tokens, and 300000 tokens of that is already used or held.'
+  const limited = render({ ...session, status: 'FAILED', error, fallback: { status: 'UNAVAILABLE', reason, resumable: false, consent: false, limitLabel: 'Input tokens', resetAt: '2026-12-01T00:00:00Z' } })
+  assert.match(limited, /<h2[^>]*>Input tokens limit reached<\/h2>/)
+  assert.doesNotMatch(limited, /The Free plan allows|durable workspace checkpoint/)
+  assert.match(limited, /Allowance resets/)
+  assert.doesNotMatch(limited, /Task paused|Retry with/)
+  const failed = render({ ...session, status: 'FAILED', error: 'The workspace storage limit was reached.', fallback: { status: 'UNAVAILABLE', reason, resumable: false, consent: false } })
+  assert.match(failed, /<h2[^>]*>The workspace storage limit was reached\.<\/h2>/)
+  assert.doesNotMatch(failed, /Input tokens limit reached|Allowance resets/)
+  const shared = render({ ...session, fallback: { status: 'SHARED_LIMIT', reason: 'No more execution capacity is available for this account.', limitLabel: 'Concurrent tasks', resumable: false, consent: true } })
+  assert.match(shared, /<h2[^>]*>Concurrent tasks limit reached<\/h2>/)
 })
 
 test('a lost continuation acknowledgement survives a new client and retries only its original command identity', async () => {

@@ -13,7 +13,6 @@ export const AwsGlyph = (p: IconProps) => (<svg {...base} {...p}><path d="M4 9.5
 export const McpGlyph = (p: IconProps) => (<svg {...base} {...p}><circle cx="6" cy="12" r="2" /><circle cx="18" cy="6" r="2" /><circle cx="18" cy="18" r="2" /><path d="M8 11l8-4M8 13l8 4" /></svg>)
 export const GrantGlyph = (p: IconProps) => (<svg {...base} {...p}><rect x="4" y="10" width="16" height="10" rx="2.5" /><path d="M8 10V7.5a4 4 0 018 0V10" /><path d="M12 14v2.5" /></svg>)
 
-export const connectorGlyphs: Record<ConnectorKey, (p: IconProps) => React.JSX.Element> = { github: GitHubGlyph, netlify: NetlifyGlyph, vercel: VercelGlyph, slack: SlackGlyph, aws: AwsGlyph, mcp: McpGlyph }
 
 export function CheckGlyph(props: SVGProps<SVGSVGElement>) {
   return (
@@ -65,7 +64,8 @@ export function DotsGlyph(props: SVGProps<SVGSVGElement>) {
 }
 
 /** Official brand marks, stored locally under /public/integrations (no third-party requests). */
-export function BrandLogo({ connector, name }: { connector: ConnectorKey; name: string }) {
+export function BrandLogo({ connector, name, iconPath }: { connector: ConnectorKey; name: string; iconPath?: string }) {
+  if (iconPath === undefined) return <McpGlyph aria-hidden="true" />
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={`/integrations/${connector}.svg`} alt="" width={28} height={28} decoding="async" data-brand={connector} aria-label={undefined} title={name} />
+  return <img src={iconPath} alt="" width={28} height={28} decoding="async" data-brand={connector} aria-label={undefined} title={name} />
 }

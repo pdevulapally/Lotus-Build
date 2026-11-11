@@ -6,8 +6,11 @@ import { ProtectedRoute } from '@/components/auth/protected-route'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { BrandLogo, DotsGlyph, PlusGlyph } from '@/components/integrations/connector-icons'
 import { useAuth } from '@/contexts/auth-context'
+import { useSettingsDialog } from '@/components/settings/settings-dialog'
 import { currentBackend } from '@/lib/backend/browser'
 import { statusLabel, type Connection, type Connector } from '@/lib/backend/connections'
+import { PluginsPanel } from '@/components/settings/plugins-panel'
+import Link from 'next/link'
 import styles from './integrations.module.css'
 
 type State =
@@ -29,6 +32,7 @@ export default function IntegrationsPage() {
 }
 
 function IntegrationsContent() {
+  const { openSettings } = useSettingsDialog()
   const { user } = useAuth()
   const [state, setState] = useState<State>({ kind: 'loading' })
   const [busy, setBusy] = useState<string | null>(null)
@@ -54,10 +58,10 @@ function IntegrationsContent() {
   }, [user])
 
   const connect = async (connector: Connector) => {
+    if (connector.auth === 'mcp-remote') { openSettings('plugins'); return }
     setBusy(connector.key); setNotice(null)
     try {
-      // A GitHub App install returns to our setup page, which completes the connection; nothing is granted to a project yet.
-      const input = connector.auth === 'github-app' ? { returnTo: `${window.location.origin}/integrations/github/setup`, projectIds: [] } : undefined
+      const input = connector.browserCallback === true ? { returnTo: `${window.location.origin}/integrations/${encodeURIComponent(connector.key)}/setup`, projectIds: [] } : undefined
       const { authorizeUrl } = await currentBackend().startConnection(connector.key, input)
       window.location.assign(authorizeUrl)
     } catch (reason) {
@@ -83,6 +87,7 @@ function IntegrationsContent() {
       <header className={styles.intro}>
         <h1 className={styles.title}>Integrations</h1>
         <p className={styles.lead}>Connect services to let LotusBuild deploy and work across your tools</p>
+        <Link href="/integrations/netlify/deployments" className="text-sm underline underline-offset-4">View Netlify deployments</Link>
       </header>
 
       {state.kind === 'loading' && <p className={styles.message} role="status">Loading integrations…</p>}
@@ -95,7 +100,7 @@ function IntegrationsContent() {
             <section className={styles.section} aria-labelledby="connected">
               <h2 id="connected" className={styles.sectionTitle}>Connected</h2>
               <ul className={styles.grid}>
-                {state.connections.map((connection) => {
+                {state.connections.filter(connection => state.connectors.find(item => item.key === connection.connector)?.auth !== 'mcp-remote').map((connection) => {
                   const name = connectorName(state.connectors, connection.connector)
                   const account = connection.account?.name ?? name
                   const meta = connection.status === 'active'
@@ -103,7 +108,7 @@ function IntegrationsContent() {
                     : `${statusLabel[connection.status]} · ${account}`
                   return (
                     <li key={connection.id} className={styles.row}>
-                      <span className={styles.tile} aria-hidden="true"><BrandLogo connector={connection.connector} name={name} /></span>
+                      <span className={styles.tile} aria-hidden="true"><BrandLogo connector={connection.connector} name={name} iconPath={state.connectors.find(item => item.key === connection.connector)?.iconPath} /></span>
                       <div className={styles.text}>
                         <h3 className={styles.name}>{name}</h3>
                         <p className={styles.description}>{meta}</p>
@@ -116,6 +121,7 @@ function IntegrationsContent() {
                             </button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-52 rounded-xl p-1.5">
+                            {state.connectors.find(item => item.key === connection.connector)?.auth === 'mcp-remote' && <DropdownMenuItem onSelect={() => openSettings('plugins')}>Plugin settings</DropdownMenuItem>}
                             <DropdownMenuItem className="rounded-lg px-3 py-2" onSelect={() => disconnect(connection)}>Disconnect</DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -128,13 +134,13 @@ function IntegrationsContent() {
           )}
 
           <section className={styles.section} aria-labelledby="available">
-            <h2 id="available" className={styles.sectionTitle}>Available</h2>
+            <h2 id="available" className={styles.sectionTitle}>Account integrations</h2>
             <ul className={styles.grid}>
-              {state.connectors.map((connector) => {
+              {state.connectors.filter(connector => connector.auth !== 'mcp-remote').map((connector) => {
                 const pending = connector.status === 'configuration_required' || !state.configured
                 return (
                   <li key={connector.key} className={styles.row}>
-                    <span className={styles.tile} aria-hidden="true"><BrandLogo connector={connector.key} name={connector.name} /></span>
+                    <span className={styles.tile} aria-hidden="true"><BrandLogo connector={connector.key} name={connector.name} iconPath={connector.iconPath} /></span>
                     <div className={styles.text}>
                       <h3 className={styles.name}>{connector.name}</h3>
                       <p className={styles.description}>{connector.summary}</p>
@@ -150,6 +156,12 @@ function IntegrationsContent() {
                 )
               })}
             </ul>
+          </section>
+          <section className={styles.section} aria-label="Integration permissions"><PluginsPanel section="integrations" /></section>
+          <section className={styles.section} aria-labelledby="custom-mcp">
+            <h2 id="custom-mcp" className={styles.sectionTitle}>Custom MCP servers</h2>
+            <p className={styles.lead}>Connect a server by its address, then choose its tools and project access.</p>
+            <PluginsPanel />
           </section>
         </>
       )}

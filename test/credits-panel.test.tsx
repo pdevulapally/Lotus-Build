@@ -3,6 +3,7 @@ import test from 'node:test'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { CreditsPanel } from '../components/settings/credits-panel'
+import { CreditBalance } from '../components/billing/credit-balance'
 import { billingCreditsSchema } from '../lib/billing/credits'
 import type { CreditsController } from '../hooks/use-credits'
 
@@ -17,10 +18,10 @@ test('credits panel exposes commercial terms before an explicitly selected check
   assert.match(html, /expire 1 day after payment/)
   assert.match(html, /The daily usage limit still applies/)
   assert.match(html, /not an automatic top-up/)
-  assert.match(html, /disabled=""[^>]*>Continue to checkout/)
+  assert.match(html, /<button[^>]*disabled=""[^>]*>(?:(?!<\/button>)[\s\S])*Continue to checkout/)
   assert.doesNotMatch(html, /checked=""/)
-  assert.match(html, /min-h-11/)
-  assert.match(html, /rounded-full/)
+  assert.match(html, /astryx-radio-list/)
+  assert.match(html, /astryx-button/)
 })
 test('credits panel distinguishes unknown wallet, loading, errors and configured disabled sales', () => {
   assert.match(render({ loading: true }), /Loading on-demand usage/)
@@ -56,8 +57,24 @@ test('parsed calendar-expiry offers render their actual terms before checkout', 
   assert.match(html, /Credits expire 12 calendar months after payment \(UTC\)/)
   assert.match(html, /Month-end dates/)
   assert.doesNotMatch(html, /Credits do not expire|365 days/)
-  assert.match(html, /disabled=""[^>]*>Continue to checkout/)
+  assert.match(html, /<button[^>]*disabled=""[^>]*>(?:(?!<\/button>)[\s\S])*Continue to checkout/)
   const legacy = billingCreditsSchema.parse({ ...data, offers: [{ ...data.offers[0], expirySeconds: null }] })
   assert.match(render({ data: legacy }), /Credits do not expire/)
   assert.doesNotMatch(render({ data: legacy }), /calendar months/)
+})
+
+test('usage and billing expose an eligible Buy credits entry point without inventing unknown balances', () => {
+  const balance = (state: Partial<CreditsController>) => renderToStaticMarkup(createElement(CreditBalance, { credits: { ...initial, ...state } }))
+  const enabled = balance({ data })
+  assert.match(enabled, /Buy credits/)
+  assert.match(enabled, /href="\/account\/billing#on-demand"/)
+  assert.match(enabled, />12</)
+  assert.match(enabled, />3 reserved for work in progress</)
+  const unknown = balance({ data: { ...data, wallet: null, purchasing: { enabled: false, reason: 'Not available.' }, offers: [] } })
+  assert.match(unknown, /Credit balance is unavailable/)
+  assert.match(unknown, /View credit options/)
+  assert.doesNotMatch(unknown, /Buy credits|>0</)
+  const loading = balance({ loading: true })
+  assert.match(loading, /Loading credit balance/)
+  assert.doesNotMatch(loading, />0</)
 })

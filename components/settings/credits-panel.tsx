@@ -1,52 +1,53 @@
-'use client'
+﻿'use client'
 
 import { useId, useState } from 'react'
-import { SettingsButton as Button } from './settings-button'
+import { Button } from '@astryxdesign/core/Button'
+import { HStack } from '@astryxdesign/core/HStack'
+import { RadioList, RadioListItem } from '@astryxdesign/core/RadioList'
+import { Heading, Text } from '@astryxdesign/core/Text'
+import { VStack } from '@astryxdesign/core/VStack'
 import type { CreditsController } from '@/hooks/use-credits'
 import { creditExpiry, creditPrice, creditPurchaseMessage } from '@/lib/billing/credits'
+import { CreditBalance } from '@/components/billing/credit-balance'
+import { SettingsGroup } from './settings-primitives'
 
-/** Share the same controller with the billing page so portal eligibility and balances stay together. */
+/** Shares the billing controller so eligibility, prices and balances stay together. */
 export function CreditsPanel({ credits }: { credits: CreditsController }) {
   const { data, loading, unavailable, busy, error, purchaseError, checkoutBlockedReason, purchase, refresh, checkout, canRecoverCheckout, recoverCheckout } = credits
   const [selected, setSelected] = useState<string | null>(null)
   const groupName = useId()
   const offer = data?.offers.find(item => `${item.id}:${item.version}` === selected)
-  return <section className="space-y-4" aria-label="On-demand usage" aria-busy={loading || busy}>
-    <header className="flex flex-wrap items-center justify-between gap-3">
-      <h3 className="text-base font-semibold">Extra AI credits</h3>
-      <Button variant="outline" size="sm" disabled={loading || busy} onClick={() => void refresh()}>Refresh credits</Button>
-    </header>
-    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{data?.purchasing.enabled ? 'Buy extra AI credits with a one-time payment. Your subscription stays the same.' : 'Extra AI credits let you continue after your included allowance.'}</p>
-    <p className="mt-2 text-xs leading-relaxed text-muted-foreground">Credits cover extra AI usage after your included allowance. They are not a cash balance and do not add storage or other plan features.</p>
-    {loading && <p role="status" className="mt-4 text-sm text-muted-foreground">Loading on-demand usage…</p>}
-    {unavailable && !loading && <p role="status" className="mt-4 text-sm text-muted-foreground">On-demand usage is not available yet. Your plan and billing options are still available.</p>}
-    {error && <p role="alert" className="mt-4 text-sm text-destructive">{error}</p>}
-    {purchaseError && <p role="alert" className="mt-4 text-sm text-destructive">{purchaseError}</p>}
-    {checkoutBlockedReason && <p role="status" className="mt-4 text-sm text-muted-foreground">{checkoutBlockedReason}</p>}
-    {canRecoverCheckout && <Button className="mt-3" variant="outline" disabled={loading || busy} onClick={() => void recoverCheckout()}>Resume previous checkout</Button>}
-    {purchase && <p role="status" className="mt-4 text-sm">{creditPurchaseMessage(purchase)}</p>}
+  return <VStack as="section" gap={4} aria-label="On-demand usage" aria-busy={loading || busy}>
+    <HStack align="center" justify="between" gap={3} wrap="wrap">
+      <Heading level={3}>AI credits</Heading>
+      <Button label="Refresh credits" isDisabled={loading || busy} onClick={() => void refresh()} />
+    </HStack>
+    <Text type="supporting" color="secondary">{data?.purchasing.enabled ? 'Buy extra AI credits with a one-time payment. Your subscription stays the same.' : 'Extra AI credits let you continue after your included allowance.'}</Text>
+    {loading && <Text type="body" color="secondary" role="status">Loading on-demand usage…</Text>}
+    {unavailable && !loading && <Text type="body" color="secondary" role="status">On-demand usage is not available yet. Your plan and billing options are still available.</Text>}
+    {error && <Text type="body" role="alert" className="text-destructive">{error}</Text>}
+    {purchaseError && <Text type="body" role="alert" className="text-destructive">{purchaseError}</Text>}
+    {checkoutBlockedReason && <Text type="body" color="secondary" role="status">{checkoutBlockedReason}</Text>}
+    {canRecoverCheckout && <Button label="Resume previous checkout" isDisabled={loading || busy} onClick={() => void recoverCheckout()} />}
+    {purchase && <Text type="body" role="status">{creditPurchaseMessage(purchase)}</Text>}
     {data && !loading && <>
-      {data.wallet ? <section aria-label="Credit balance" className="my-6 grid gap-5 border-y border-border/60 py-6 text-sm sm:grid-cols-2">
-        <dl><dt className="text-muted-foreground">Available credits</dt><dd className="mt-1 text-3xl font-semibold tracking-tight tabular-nums">{data.wallet.availableCredits.toLocaleString('en-GB')}</dd></dl>
-        <dl><dt className="text-muted-foreground">Reserved for work in progress</dt><dd className="mt-1 text-3xl font-semibold tracking-tight tabular-nums">{data.wallet.reservedCredits.toLocaleString('en-GB')}</dd></dl>
-      </section> : <p className="my-5 text-sm text-muted-foreground">Credit balance is unavailable.</p>}
-      {!data.purchasing.enabled ? <p className="text-sm text-muted-foreground">{data.purchasing.reason || 'Top-ups are not available for this account.'}</p> : data.offers.length === 0 ? <p className="text-sm text-muted-foreground">No top-up options are available right now.</p> : <>
-        <fieldset disabled={busy || Boolean(checkoutBlockedReason)} className="space-y-3">
-          <legend className="mb-3 text-sm font-medium">Choose a top-up</legend>
-          {data.offers.map(item => {
-            const value = `${item.id}:${item.version}`
-            return <label key={value} className="flex cursor-pointer items-start gap-3 rounded-xl border border-border p-4 has-[:checked]:border-primary has-[:checked]:bg-muted/50 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring">
-              <input className="mt-1 size-4 accent-primary" type="radio" name={groupName} value={value} checked={selected === value} onChange={() => setSelected(value)} />
-              <span className="min-w-0 flex-1">
-                <span className="flex flex-wrap justify-between gap-2 text-sm font-medium"><span>{item.credits.toLocaleString('en-GB')} credits</span><span className="tabular-nums">{creditPrice(item)} once</span></span>
-                <span className="mt-2 block text-xs leading-relaxed text-muted-foreground">{creditExpiry(item)} {item.pacingPolicy === 'respect' ? 'The daily usage limit still applies.' : 'Paid credits can cover usage beyond the daily allowance. Other limits still apply.'}</span>
-              </span>
-            </label>
-          })}
-        </fieldset>
-        <p className="mt-3 text-xs leading-relaxed text-muted-foreground">One-time purchase, not an automatic top-up. Review your payment in Stripe before paying. Credits are added only after payment is verified.</p>
-        <Button className="mt-4" disabled={!offer || busy || Boolean(checkoutBlockedReason)} onClick={() => { if (offer) void checkout(offer) }}>{busy ? 'Opening checkout…' : 'Continue to checkout'}</Button>
+      <CreditBalance credits={credits} showAction={false} />
+      {!data.purchasing.enabled ? <Text type="body" color="secondary">{data.purchasing.reason || 'Top-ups are not available for this account.'}</Text> : data.offers.length === 0 ? <Text type="body" color="secondary">No top-up options are available right now.</Text> : <>
+        <SettingsGroup title="Buy credits">
+          <RadioList label="Choose a credit pack" description="Review the payment in Stripe before you pay." value={selected ?? ''} onChange={setSelected}
+            htmlName={groupName} isDisabled={busy || Boolean(checkoutBlockedReason)} aria-describedby={`${groupName}-terms`}>
+            {data.offers.map(item => <RadioListItem key={`${item.id}:${item.version}`} value={`${item.id}:${item.version}`}
+              label={`${item.credits.toLocaleString('en-GB')} credits`}
+              endContent={<Text type="label">{creditPrice(item)} once</Text>}
+              description={`${creditExpiry(item)} ${item.pacingPolicy === 'respect' ? 'The daily usage limit still applies.' : 'Paid credits can cover usage beyond the daily allowance. Other limits still apply.'}`} />)}
+          </RadioList>
+        </SettingsGroup>
+        <VStack gap={3}>
+          <Text type="label" role="status">{offer ? `${offer.credits.toLocaleString('en-GB')} credits for ${creditPrice(offer)}, one-time payment` : 'Select a credit pack to continue.'}</Text>
+          <Text type="supporting" color="secondary" id={`${groupName}-terms`}>One-time purchase, not an automatic top-up. Credits are added only after payment is verified. Credits cover AI usage, not storage or other plan features.</Text>
+          <Button label={busy ? 'Opening checkout…' : 'Continue to checkout'} variant="primary" isDisabled={!offer || busy || Boolean(checkoutBlockedReason)} onClick={() => { if (offer) void checkout(offer) }} />
+        </VStack>
       </>}
     </>}
-  </section>
+  </VStack>
 }

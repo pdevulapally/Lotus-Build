@@ -31,6 +31,8 @@ import { TerminalPanel } from "@/components/computer/terminal-panel"
 import type { TerminalEntry } from "@/lib/backend/terminal"
 import type { DesktopState } from "@/lib/backend/desktop"
 import { DesktopPanel } from "@/components/computer/desktop-panel"
+import type { ProjectSource } from "@/lib/backend/connections"
+import type { Delivery } from "@/lib/backend/delivery"
 
 function formatBrowserHost(url: string) {
   try {
@@ -505,13 +507,13 @@ export function WorkspaceViewTabs({ activeTab, onChange, hasBrowser, hasResearch
   const tabs = [
     { id: "preview", label: "Preview", icon: LiveSiteIcon, visible: true },
     { id: "desktop", label: "Desktop", icon: DesktopIcon, visible: hasDesktop },
-    { id: "code", label: "Files", icon: FilesIcon, visible: true },
+    { id: "code", label: "Repository", icon: FilesIcon, visible: true },
     { id: "terminal", label: "Terminal", icon: TerminalIcon, visible: true },
     { id: "browser", label: "Browser", icon: BrowserIcon, visible: hasBrowser },
     { id: "research", label: "Research", icon: ResearchIcon, visible: hasResearch },
   ] as const
   const visibleTabs = tabs.filter((tab) => tab.visible)
-  return <div role="tablist" aria-label="Workspace views" className="flex min-w-0 items-center rounded-full bg-muted/70 p-1">
+  return <div role="tablist" aria-label="Workspace views" className="flex min-w-0 items-center overflow-x-auto rounded-full bg-muted/70 p-1 [scrollbar-width:none]">
     {visibleTabs.map((tab, index) => {
       const Icon = tab.icon
       const isActive = activeTab === tab.id
@@ -540,7 +542,7 @@ export function WorkspaceViewTabs({ activeTab, onChange, hasBrowser, hasResearch
           document.getElementById(`workspace-tab-${next.id}`)?.focus()
         }}
         className={cn(
-          "relative isolate inline-flex h-8 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none",
+          "relative isolate inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none",
           isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground",
         )}
       >
@@ -685,6 +687,9 @@ export function WorkspaceContent({
   codeTheme = "light",
   terminalEntries = [],
   desktop = { status: "none" },
+  projectSource,
+  currentDelivery,
+  onManageRepository,
 }: {
   session: ComputerSessionResponse
   status: ComputerSessionStatus
@@ -710,6 +715,9 @@ export function WorkspaceContent({
   codeTheme?: "dark" | "light"
   terminalEntries?: TerminalEntry[]
   desktop?: DesktopState
+  projectSource?: ProjectSource
+  currentDelivery?: Delivery
+  onManageRepository?: () => void
 }) {
   const sessionPlatform = normalizePlatform(session.platform)
   const workspaceProgress = progress ?? {
@@ -724,10 +732,14 @@ export function WorkspaceContent({
       <motion.div key="code" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: duration.fast, ease }}
         className="h-full min-h-0">
         <ComputerCodePanel
+          key={session.projectId}
           files={files}
           codeTheme={codeTheme}
           projectId={session.projectId}
           getAuthHeader={getAuthHeader}
+          source={projectSource}
+          currentDelivery={currentDelivery}
+          onManageRepository={onManageRepository}
         />
       </motion.div>
     )
