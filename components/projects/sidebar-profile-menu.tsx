@@ -55,7 +55,7 @@ export function SidebarProfileMenu({ name, email, photoURL, planName, collapsed 
         <DropdownMenuItem className={menuItemClass} onSelect={() => { onNavigate?.(); openSettings() }}>
           <SettingsIcon className="size-4 text-muted-foreground" aria-hidden />Settings
         </DropdownMenuItem>
-        <DropdownMenuItem className={menuItemClass} onSelect={() => { onNavigate?.(); router.push("/pricing") }}>
+        <DropdownMenuItem className={menuItemClass} onSelect={() => { onNavigate?.(); router.push("/account/billing") }}>
           <BillingIcon className="size-4 text-muted-foreground" aria-hidden />Billing &amp; plans
         </DropdownMenuItem>
         <DropdownMenuSeparator className="mx-2 my-1" />
@@ -66,3 +66,4 @@ export function SidebarProfileMenu({ name, email, photoURL, planName, collapsed 
     </DropdownMenu>
   )
 }
+

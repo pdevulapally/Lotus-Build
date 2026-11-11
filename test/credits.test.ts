@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { billingCreditsSchema, creditCheckoutSchema, creditExpiry, creditPrice, creditPurchaseMessage, creditPurchaseSchema, type CreditOffer } from '../lib/billing/credits'
+import { billingCreditsSchema, creditOfferSchema, creditCheckoutSchema, creditExpiry, creditPrice, creditPurchaseMessage, creditPurchaseSchema, type CreditOffer } from '../lib/billing/credits'
 import { clearCreditOperation, openCreditCheckout, readCreditOperation } from '../lib/billing/credits-checkout'
 
 const offer: CreditOffer = { id: 'small', version: 'v1', credits: 1000, amountMinor: 1500, currency: 'usd', expirySeconds: null, pacingPolicy: 'respect' }
@@ -22,8 +22,8 @@ test('credits contract rejects invented/malformed commercial terms and preserves
 test('commercial copy respects currency precision, expiry and authoritative status', () => {
   assert.equal(creditPrice(offer), 'USD 15.00')
   assert.equal(creditPrice({ ...offer, currency: 'jpy' }), 'JPY 1,500')
-  assert.equal(creditExpiry(null), 'Credits do not expire.')
-  assert.equal(creditExpiry(172800), 'Credits expire 2 days after payment.')
+  assert.equal(creditExpiry({ expirySeconds: null }), 'Credits do not expire.')
+  assert.equal(creditExpiry({ expirySeconds: 172800 }), 'Credits expire 2 days after payment.')
   const purchase = creditPurchaseSchema.parse({ purchaseId, status: 'pending', credits: 1000, revokedCredits: 0, expiresAt: response.expiresAt })
   assert.match(creditPurchaseMessage(purchase), /not confirmed/)
   assert.match(creditPurchaseMessage({ ...purchase, status: 'paid' }), /Payment confirmed/)
@@ -155,4 +155,38 @@ test('definite purchase-pending rejection clears only the attempted unbound key,
   await openCreditCheckout({ ...config, create: async () => ({ ...response, url: null }) })
   await assert.rejects(openCreditCheckout({ ...config, create: async () => { throw rejected } }))
   assert.equal(readCreditOperation(config.storage, 'a')?.purchaseId, purchaseId)
+})
+
+test('missing wallet route remains distinct from authentication and service failures', async () => {
+  const { readCreditsSnapshot } = await import('../lib/billing/credits-read')
+  for (const status of [404, 401, 503]) {
+    const result = await readCreditsSnapshot({ readOperation: () => null, readWallet: async () => { throw Object.assign(new Error('Read failed'), { status }) }, readPurchase: async () => { throw new Error('Must not read a purchase') } })
+    assert.equal(result.unavailable, status === 404)
+    assert.equal(result.error, status === 404 ? null : 'Read failed')
+    assert.equal(result.data, null)
+    assert.equal(result.canRecoverCheckout, false)
+  }
+})
+
+
+test('calendar-month expiry survives parsing and cannot become a no-expiry offer', () => {
+  const calendar = { ...offer, expirySeconds: null, expiryCalendarMonths: 12 }
+  const parsed = billingCreditsSchema.parse({ portalAvailable: false, pendingPurchaseId: null,
+    purchasing: { enabled: true, reason: null }, wallet: null, offers: [calendar] }).offers[0]
+  assert.deepEqual(parsed, calendar)
+  assert.match(creditExpiry(parsed), /expire 12 calendar months after payment \(UTC\)/)
+  assert.match(creditExpiry(parsed), /Month-end dates/)
+  assert.doesNotMatch(creditExpiry(parsed), /do not expire|365 days/)
+  assert.match(creditExpiry({ expirySeconds: null, expiryCalendarMonths: 1 }), /1 calendar month after payment/)
+  assert.equal(creditExpiry(creditOfferSchema.parse(offer)), 'Credits do not expire.')
+  assert.equal(creditExpiry(creditOfferSchema.parse({ ...offer, expirySeconds: 86400 })), 'Credits expire 1 day after payment.')
+})
+
+test('expiry validation rejects malformed and conflicting calendar terms', () => {
+  for (const expiryCalendarMonths of [null, 0, -1, 1.5, 121, '12', Infinity, NaN]) {
+    assert.equal(creditOfferSchema.safeParse({ ...offer, expiryCalendarMonths }).success, false)
+  }
+  assert.equal(creditOfferSchema.safeParse({ ...offer, expiryCalendarMonths: 12, expirySeconds: 86400 }).success, false)
+  assert.equal(creditOfferSchema.safeParse({ ...offer, expiryCalendarMonths: 120 }).success, true)
+  assert.equal(creditOfferSchema.safeParse({ ...offer, expirySeconds: 315360001 }).success, false)
 })

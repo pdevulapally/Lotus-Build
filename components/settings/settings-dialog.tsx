@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
-import { CreditCard, Gauge, RefreshCw, UserRound, type LucideIcon } from 'lucide-react'
+import { CreditCard, Gauge, RefreshCw, UserRound, Zap, type LucideIcon } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import { currentBackend } from '@/lib/backend/browser'
 import { settingsSessionId } from '@/lib/settings/models'
@@ -17,14 +17,15 @@ import { AccountPanel } from './account-panel'
 import { BillingPanel } from './billing-panel'
 import styles from './settings-dialog.module.css'
 
-export type SettingsPage = 'account' | 'usage' | 'billing'
+export type SettingsPage = 'account' | 'usage' | 'billing' | 'on-demand'
 type SettingsSection = { label: string; description: string; icon: LucideIcon }
 const sections: Record<SettingsPage, SettingsSection> = {
   account: { label: 'Account', description: 'Your profile, privacy and account details.', icon: UserRound },
   usage: { label: 'Usage', description: 'Your plan allowance and when it resets.', icon: Gauge },
+  'on-demand': { label: 'On-demand usage', description: 'Extra AI credits and one-time top-ups.', icon: Zap },
   billing: { label: 'Plan & billing', description: 'Your subscription, payment details and invoices.', icon: CreditCard },
 }
-const sectionOrder: SettingsPage[] = ['account', 'usage', 'billing']
+const sectionOrder: SettingsPage[] = ['account', 'billing', 'usage', 'on-demand']
 type SettingsContext = { openSettings: (page?: SettingsPage) => void; closeSettings: () => void }
 const Context = createContext<SettingsContext | null>(null)
 
@@ -67,7 +68,7 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account', on
   const [error, setError] = useState<string | null>(null)
   const snapshot = useSettingsSnapshot(open, user?.uid, sessionId, refreshAccount)
   const billing = useBillingSummary(open && page === 'billing' ? user?.uid : undefined)
-  const creditsVisible = page === 'usage' || page === 'billing'
+  const creditsVisible = page === 'on-demand'
   const credits = useCredits(open && creditsVisible ? user?.uid : undefined)
   const activeSection = sections[page]
   const contentRef = useRef<HTMLElement | null>(null)
@@ -99,7 +100,7 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account', on
               const { icon: Icon, label } = sections[item]
               return <button key={item} type="button" aria-current={page === item ? 'page' : undefined} aria-controls="settings-content"
                 onClick={() => { setPage(item); setMessage(null); setError(null) }}
-                className={`flex min-h-11 shrink-0 items-center gap-2.5 rounded-full px-3 py-2 text-left text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${page === item ? 'bg-muted font-semibold text-foreground' : 'font-medium text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
+                className={`flex min-h-11 shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${page === item ? 'bg-muted font-semibold text-foreground' : 'font-medium text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
                 <Icon className="size-4 shrink-0" aria-hidden="true" />{label}
               </button>
             })}
@@ -131,14 +132,17 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account', on
               />}
 
               {page === 'usage' && <section className="space-y-6">
-                <AccountUsage usage={usage} onNavigate={() => onOpenChange(false)} onDemand={<CreditsPanel key={user?.uid} credits={credits} />} />
+                <Button variant="outline" onClick={() => setPage('on-demand')}>View on-demand usage</Button>
+                <AccountUsage usage={usage} onNavigate={() => onOpenChange(false)} />
                 {sessionId && <details className="border-t border-border/60 pt-4">
                   <summary className="cursor-pointer rounded-md py-2 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring">This session</summary>
                   <section className="pt-3"><SessionUsage usage={snapshot.usage} error={snapshot.usageError} loading={snapshot.refreshing} /></section>
                 </details>}
               </section>}
 
-              {page === 'billing' && <BillingPanel account={account} summary={billing} credits={credits} onClose={() => onOpenChange(false)} />}
+              {page === 'on-demand' && <CreditsPanel key={user?.uid} credits={credits} />}
+
+              {page === 'billing' && <BillingPanel account={account} summary={billing} onOpenCredits={() => setPage('on-demand')} onClose={() => onOpenChange(false)} />}
 
             </>}
           </section>
@@ -151,3 +155,4 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account', on
     </DialogContent>
   </Dialog>
 }
+
