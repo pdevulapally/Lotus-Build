@@ -6,8 +6,6 @@ import type { BackendAccount } from '@/lib/backend/client'
 import type { BillingSummaryState } from '@/hooks/use-billing-summary'
 import { billingDate, subscriptionPrice, subscriptionStatus } from '@/lib/billing/format'
 import { SettingsButton as Button } from '@/components/settings/settings-button'
-import { CreditsPanel } from './credits-panel'
-import type { CreditsController } from '@/hooks/use-credits'
 
 export function SubscriptionSummary({ account, summary }: { account: BackendAccount; summary: BillingSummaryState }) {
   const { subscription, loading, error } = summary
@@ -29,13 +27,18 @@ export function SubscriptionSummary({ account, summary }: { account: BackendAcco
   </section>
 }
 
-export function BillingPanel({ account, summary, credits, onClose }: { account: BackendAccount; summary: BillingSummaryState; credits: CreditsController; onClose: () => void }) {
+export function BillingPanel({ account, summary, onOpenCredits, onClose }: { account: BackendAccount; summary: BillingSummaryState; onOpenCredits: () => void; onClose: () => void }) {
   return <section className="space-y-6">
     <SubscriptionSummary account={account} summary={summary} />
     <footer className="flex flex-wrap gap-2">
       <Button asChild><Link href="/account/billing" onClick={onClose}>Manage billing<ArrowUpRight aria-hidden="true" /></Link></Button>
       <Button asChild variant="outline"><Link href="/pricing" onClick={onClose}>Compare plans</Link></Button>
     </footer>
-    <CreditsPanel key={account.uid} credits={credits} />
+    <section className="border-t border-border/60 pt-5">
+      <h3 className="text-sm font-semibold">Need more AI usage?</h3>
+      <p className="mt-2 text-sm text-muted-foreground">View extra credits and one-time top-ups without changing your subscription.</p>
+      <Button className="mt-4" variant="outline" onClick={onOpenCredits}>View on-demand usage</Button>
+    </section>
   </section>
 }
+

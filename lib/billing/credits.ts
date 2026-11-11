@@ -6,7 +6,11 @@ const quantity = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)
 export const creditOfferSchema = z.object({
   id: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/), version: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/),
   credits: positive, amountMinor: positive, currency: z.string().regex(/^[a-z]{3}$/),
-  expirySeconds: positive.nullable(), pacingPolicy: z.enum(['respect', 'bypass_paid']),
+  expirySeconds: positive.max(315360000).nullable(),
+  expiryCalendarMonths: positive.max(120).optional(),
+  pacingPolicy: z.enum(['respect', 'bypass_paid']),
+}).refine(offer => offer.expiryCalendarMonths === undefined || offer.expirySeconds === null, {
+  message: 'Calendar-month expiry requires null expirySeconds.', path: ['expiryCalendarMonths'],
 })
 export const billingCreditsSchema = z.object({
   portalAvailable: z.boolean(), pendingPurchaseId: z.string().regex(/^[a-f0-9]{64}$/).nullable(), purchasing: z.object({ enabled: z.boolean(), reason: z.string().nullable() }),
@@ -30,11 +34,14 @@ export function creditPrice(offer: CreditOffer) {
   return formatStripeAmount(offer.amountMinor, offer.currency, { currencyDisplay: 'code' })
 }
 
-export function creditExpiry(seconds: number | null) {
+export function creditExpiry(offer: Pick<CreditOffer, 'expirySeconds' | 'expiryCalendarMonths'>) {
+  const { expirySeconds: seconds, expiryCalendarMonths: months } = offer
+  if (months !== undefined) return `Credits expire ${months.toLocaleString('en-GB')} calendar month${months === 1 ? '' : 's'} after payment (UTC). Month-end dates use the last day of the month when needed.`
   if (seconds === null) return 'Credits do not expire.'
   for (const [unit, divisor] of [['day', 86400], ['hour', 3600], ['minute', 60], ['second', 1]] as const) {
     if (seconds % divisor === 0) { const count = seconds / divisor; return `Credits expire ${count.toLocaleString('en-GB')} ${unit}${count === 1 ? '' : 's'} after payment.` }
   }
+  return 'Credit expiry is unavailable.'
 }
 export function creditPurchaseMessage(purchase: CreditPurchase) {
   switch (purchase.status) {
@@ -45,3 +52,4 @@ export function creditPurchaseMessage(purchase: CreditPurchase) {
     case 'disputed': return 'This payment is disputed. Credits may be unavailable.'
   }
 }
+
