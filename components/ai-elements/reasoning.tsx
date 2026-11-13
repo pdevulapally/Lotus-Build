@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Brain, ChevronDown } from "lucide-react"
+import { Brain, ChevronRight } from "lucide-react"
 import { motion } from "framer-motion"
 import {
   Collapsible,
@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/collapsible"
 import { Shimmer } from "@/components/ai-elements/shimmer"
 import { cn } from "@/lib/utils"
+import { Markdown } from "@/components/ui/markdown"
 
 type ReasoningContextValue = {
   isStreaming: boolean
@@ -26,15 +27,9 @@ function useReasoningContext() {
   return context
 }
 
-/** Strip fenced code, streaming/unclosed fences, and agent JSON payload blobs from reasoning text. */
-function stripCodeArtifacts(text: string): string {
+/** Keep model-facing JSON payloads out of the thought-process prose. */
+function stripAgentPayloads(text: string): string {
   return text
-    // Complete fenced code blocks
-    .replace(/```[\s\S]*?```/g, "")
-    // Unclosed fence through end of string (streaming / malformed)
-    .replace(/```[\w-]*\n?[\s\S]*$/g, "")
-    // Orphan opening fence line
-    .replace(/^```[\w-]*\s*$/gm, "")
     // Standalone JSON payloads with a "type" key (multiline or compact)
     .replace(/^[ \t]*\{\s*\n?[ \t]*"type"\s*:\s*"[^"]*"[\s\S]*?^[ \t]*\}[ \t]*$/gm, "")
     .replace(/^[ \t]*\{\s*"type"\s*:\s*"[^"]*"[^}]*\}[ \t]*$/gm, "")
@@ -43,19 +38,11 @@ function stripCodeArtifacts(text: string): string {
 }
 
 function sanitizeReasoningText(text: string): string {
-  return stripCodeArtifacts(text)
+  return stripAgentPayloads(text)
     .replace(/\*{0,2}Tool:\*{0,2}\s*\S+[^\n]*\n[ \t]*\*{0,2}Query:\*{0,2}[^\n]+/g, "")
     .replace(/^[ \t]*\*{0,2}Tool:\*{0,2}[^\n]*$/gm, "")
     // Strip tool result blocks echoed into reasoning (e.g. "Assistant (research_results): ...")
     .replace(/^Assistant\s*\([^)]*\):[^\n]*(?:\n(?!\n)[^\n]*)*/gm, "")
-    .replace(/^#{1,6}\s+/gm, "")
-    .replace(/\*\*([^*\n]*)\*\*/g, "$1")
-    .replace(/__([^_\n]*)__/g, "$1")
-    .replace(/\*([^*\n]+)\*/g, "$1")
-    .replace(/(?<![a-zA-Z0-9])_([^_\n]+)_(?![a-zA-Z0-9])/g, "$1")
-    .replace(/^[ \t]*[-*_]{3,}[ \t]*$/gm, "")
-    // Trim leading/trailing whitespace from every line
-    .replace(/^[ \t]+|[ \t]+$/gm, "")
     // Normalise to at most one blank line between paragraphs
     .replace(/\n{2,}/g, "\n\n")
     .trim()
@@ -104,20 +91,18 @@ function renderContentBlocks(blocks: ContentBlock[]): React.ReactNode {
       return (
         <pre
           key={i}
-          className="my-1.5 overflow-x-auto rounded-xl bg-muted/55 px-3 py-2 text-[11.5px] font-mono leading-relaxed [overflow-wrap:normal]"
+          className="my-3 overflow-x-auto rounded-xl bg-muted/55 p-3 font-mono text-xs leading-6 [overflow-wrap:normal]"
         >
           {block.lang ? (
-            <span className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground/55">{block.lang}</span>
+            <span className="mb-2 block font-sans text-xs font-medium text-muted-foreground">{block.lang}</span>
           ) : null}
           <code className="whitespace-pre text-foreground/75">{block.content}</code>
         </pre>
       )
     }
-    return (
-      <span key={i} className="whitespace-pre-wrap [overflow-wrap:anywhere]">
-        {block.content}
-      </span>
-    )
+    // An incomplete fence stays literal until parseContentBlocks receives its closing fence.
+    if (block.content.includes('```')) return <span key={i} className="whitespace-pre-wrap [overflow-wrap:anywhere]">{block.content}</span>
+    return <Markdown key={i} className="text-sm leading-7 text-muted-foreground [&_p]:my-3 [&_h3]:text-sm [&_h4]:text-sm [&_blockquote]:border-0 [&_blockquote]:pl-0 [&_hr]:hidden">{block.content}</Markdown>
   })
 }
 
@@ -227,11 +212,10 @@ export function ReasoningTrigger({
   return (
     <CollapsibleTrigger
       className={cn(
-        "flex w-full items-center gap-2 py-1 text-left text-muted-foreground outline-none transition-colors hover:text-foreground",
+        "inline-flex min-h-11 max-w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-muted-foreground outline-none hover:bg-accent/50 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
         className,
       )}
     >
-      <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70 transition-transform group-data-[state=closed]/reasoning:-rotate-90" />
       {isStreaming ? (
         <motion.div
           animate={{ scale: [1, 1.18, 1], opacity: [0.65, 1, 0.65] }}
@@ -244,14 +228,15 @@ export function ReasoningTrigger({
         <Brain className="h-3.5 w-3.5 shrink-0 text-muted-foreground/75" />
       )}
       {isStreaming ? (
-        <Shimmer className="text-[13px] font-medium">
+        <Shimmer className="text-sm font-medium motion-reduce:animate-none motion-reduce:bg-none motion-reduce:text-muted-foreground">
           {title}
         </Shimmer>
       ) : (
-        <span className="min-w-0 truncate text-[13px] font-medium text-muted-foreground">
+        <span className="min-w-0 truncate text-sm font-medium text-muted-foreground">
           {title}
         </span>
       )}
+      <ChevronRight className="size-3.5 shrink-0 motion-safe:transition-transform group-data-[state=open]/reasoning:rotate-90" aria-hidden="true" />
     </CollapsibleTrigger>
   )
 }
@@ -275,7 +260,7 @@ export function ReasoningContent({
     <CollapsibleContent>
       <div
         className={cn(
-          "pl-[1.375rem] pt-1.5 text-[13.5px] font-medium leading-[1.65] text-muted-foreground",
+          "max-w-prose pb-2 pl-8 pr-2 pt-1 text-sm font-normal leading-7 text-muted-foreground",
           className,
         )}
       >
@@ -283,7 +268,7 @@ export function ReasoningContent({
           <>
             {renderContentBlocks(parseContentBlocks(displayText))}
             {isTyping && (
-              <span className="ml-px inline-block h-[0.8em] w-[1.5px] animate-pulse rounded-[1px] bg-foreground/45 align-baseline" />
+              <span className="ml-px inline-block h-[0.8em] w-[1.5px] motion-safe:animate-pulse rounded-[1px] bg-foreground/45 align-baseline" />
             )}
           </>
         ) : children}

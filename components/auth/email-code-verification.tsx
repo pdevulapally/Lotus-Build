@@ -6,8 +6,16 @@ import { useAuth } from "@/contexts/auth-context"
 import { BackendError } from "@/lib/backend/client"
 import { currentBackend } from "@/lib/backend/browser"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
+import { Button as AstryxButton } from '@astryxdesign/core/Button'
+import { HStack } from '@astryxdesign/core/HStack'
+import { Text } from '@astryxdesign/core/Text'
+import { TextInput } from '@astryxdesign/core/TextInput'
+import { VStack } from '@astryxdesign/core/VStack'
 
 type EmailCodeVerificationProps = {
+  appearance?: 'default' | 'astryx'
+  buttonClassName?: string
   email: string
   autoSend?: boolean
   onVerified: () => void | Promise<void>
@@ -52,7 +60,9 @@ function formatCountdown(seconds: number): string {
 }
 
 export function EmailCodeVerification({
+  appearance = 'default',
   email,
+  buttonClassName,
   autoSend = false,
   onVerified,
 }: EmailCodeVerificationProps) {
@@ -141,6 +151,23 @@ export function EmailCodeVerification({
     if (nextCode.length === 6) void verifyCode(nextCode)
   }
 
+  if (appearance === 'astryx') return <VStack gap={3}>
+    {hasSent && <Text type="supporting" color="secondary">We sent a 6-digit code to {email}</Text>}
+    {!hasSent && autoSend && isSending && <Text type="supporting" color="secondary">Sending a code to {email}…</Text>}
+    {error && <Text type="body" role="alert" id="email-verification-error" className="text-destructive">{error}</Text>}
+    {hasSent && <VStack gap={3}>
+      <TextInput label="Verification code" value={code} onChange={handleCodeChange} width="100%"
+        autoComplete="one-time-code" isDisabled={isVerifying} aria-describedby={error ? 'email-verification-error' : undefined}
+        {...{ inputMode: 'numeric', pattern: '[0-9]*', maxLength: 6 }} />
+      <AstryxButton label="Verify" variant="primary" isDisabled={code.length !== 6 || isVerifying} isLoading={isVerifying} onClick={() => void verifyCode(code)} />
+    </VStack>}
+    <HStack gap={3} align="center" wrap="wrap">
+      <AstryxButton label={hasSent ? 'Send a new code' : 'Send code'} variant={hasSent ? 'secondary' : 'primary'}
+        isDisabled={isSending || resendAfterSeconds > 0} isLoading={isSending} onClick={() => void sendCode()} />
+      {resendAfterSeconds > 0 && <Text type="supporting" color="secondary" role="status" aria-live="polite">Available in {formatCountdown(resendAfterSeconds)}</Text>}
+    </HStack>
+  </VStack>
+
   return (
     <section className="space-y-4">
       {hasSent ? (
@@ -179,7 +206,7 @@ export function EmailCodeVerification({
           />
           <Button
             type="button"
-            className="w-full"
+            className={cn("w-full", buttonClassName)}
             disabled={code.length !== 6 || isVerifying}
             aria-busy={isVerifying}
             onClick={() => void verifyCode(code)}
@@ -194,6 +221,7 @@ export function EmailCodeVerification({
         <Button
           type="button"
           variant={hasSent ? "outline" : "default"}
+          className={buttonClassName}
           disabled={isSending || resendAfterSeconds > 0}
           aria-busy={isSending}
           onClick={() => void sendCode()}

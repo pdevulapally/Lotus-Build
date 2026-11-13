@@ -1,6 +1,5 @@
 "use client"
 
-import { useRouter } from "next/navigation"
 import { BillingIcon, ChevronUpDownIcon, SettingsIcon, SignOutIcon } from "@/components/ui/lotus-icons"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -19,7 +18,6 @@ export function SidebarProfileMenu({ name, email, photoURL, planName, collapsed 
   onNavigate?: () => void
   onSignOut: () => void | Promise<void>
 }) {
-  const router = useRouter()
   const { openSettings } = useSettingsDialog()
   const initial = name.slice(0, 1).toUpperCase()
 
@@ -55,7 +53,7 @@ export function SidebarProfileMenu({ name, email, photoURL, planName, collapsed 
         <DropdownMenuItem className={menuItemClass} onSelect={() => { onNavigate?.(); openSettings() }}>
           <SettingsIcon className="size-4 text-muted-foreground" aria-hidden />Settings
         </DropdownMenuItem>
-        <DropdownMenuItem className={menuItemClass} onSelect={() => { onNavigate?.(); router.push("/pricing") }}>
+        <DropdownMenuItem className={menuItemClass} onSelect={() => { onNavigate?.(); openSettings('billing') }}>
           <BillingIcon className="size-4 text-muted-foreground" aria-hidden />Billing &amp; plans
         </DropdownMenuItem>
         <DropdownMenuSeparator className="mx-2 my-1" />
@@ -66,3 +64,4 @@ export function SidebarProfileMenu({ name, email, photoURL, planName, collapsed 
     </DropdownMenu>
   )
 }
+

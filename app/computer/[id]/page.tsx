@@ -25,12 +25,12 @@ import { useAutoOpenWorkspace } from "@/hooks/use-auto-open-workspace"
 
 
 
-import { sendMessage, readPendingMessage } from "@/lib/backend/send-message"
-import { ContinuationStatus } from "@/components/computer/continuation-status"
+import { sendMessage, readPendingMessage, isRejectedInputResponse } from "@/lib/backend/send-message"
+import { TaskNotice } from "@/components/computer/task-notice"
+import { useSettingsDialog } from "@/components/settings/settings-dialog"
+import { selectTaskNotice } from "@/lib/backend/task-notice"
 import { PendingInputCard } from "@/components/computer/pending-input-card"
-import { RequestError } from "@/components/ui/request-error"
 import { BackendError } from "@/lib/backend/client"
-import { presentRequestError } from "@/lib/backend/error-presentation"
 import { continueSession, readPendingContinuation, type ContinuationCommand } from "@/lib/backend/continue-session"
 import { pendingCommandStorage } from "@/lib/backend/pending-storage"
 import { cancelSession, pendingCancelKey } from "@/lib/backend/cancel-session"
@@ -77,6 +77,7 @@ import { cn } from "@/lib/utils"
 
 
 import { useAuth } from "@/contexts/auth-context"
+import { WorkspacePersistenceNotice } from "@/components/computer/workspace-persistence-notice"
 
 
 
@@ -119,7 +120,6 @@ import {
 import {
   getLatestBrowserInspection,
   getRunIdGroups,
-  isTokenLimitError,
   type BrowserInspection,
   type ComputerSessionResponse,
   type ComputerSessionStatus,
@@ -149,7 +149,7 @@ type MobileView = "feed" | "workspace"
 
 
 
-type DeployProvider = "netlify" | "vercel"
+type DeployProvider = "vercel"
 
 
 
@@ -168,8 +168,6 @@ type ComputerProjectIntegration = {
   githubRepoUrl?: string
   githubRepoFullName?: string
   githubSyncedAt?: unknown
-  netlifySiteUrl?: string
-  netlifyAdminUrl?: string
   vercelSiteUrl?: string
   vercelDeployUrl?: string
   vercelDeploymentId?: string
@@ -248,23 +246,12 @@ const COMPUTER_THEME_KEY = "lotus.computerTheme"
 
 
 
-function getRunErrorMessage(message: string) {
-  return isTokenLimitError(message)
-    ? "You have used all credits for this cycle. Upgrade your plan to continue."
-    : message
-}
 
 
 
 
 function getProjectDeploymentLinks(project?: ComputerProjectIntegration | null): Partial<Record<DeployProvider, DeploymentLink>> {
   const links: Partial<Record<DeployProvider, DeploymentLink>> = {}
-  if (project?.netlifySiteUrl) {
-    links.netlify = {
-      siteUrl: project.netlifySiteUrl,
-      adminUrl: project.netlifyAdminUrl,
-    }
-  }
   const vercelSiteUrl = project?.vercelSiteUrl || project?.vercelDeployUrl
   if (vercelSiteUrl) {
     links.vercel = {
@@ -284,10 +271,11 @@ function getProjectDeploymentLinks(project?: ComputerProjectIntegration | null):
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ComputerPage() {
+  const { openSettings } = useSettingsDialog()
   const params = useParams()
   const openVoice = useSearchParams().get('voice') === '1'
   const id = typeof params?.id === 'string' ? params.id : ''
-  const { user, userData, remainingTokens, loading: authLoading, getOptionalAuthHeader } = useAuth()
+  const { user, userData, account, remainingTokens, loading: authLoading, getOptionalAuthHeader } = useAuth()
   const backend = useBackendSession(id, user, authLoading)
   const raw = backend.session
   const loading = authLoading || backend.loading
@@ -317,6 +305,7 @@ export default function ComputerPage() {
   const setMobileView = (view: MobileView) => setWorkspacePanel(view === "workspace" ? "split" : "closed")
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('preview')
   const [runError, setRunError] = useState<Error | string | null>(null)
+  const taskNotice = selectTaskNotice({ session: raw, requestError: runError, streamError: backend.streamError, fileError: backend.fileError })
   const [isStartingRun, setIsStartingRun] = useState(false)
   const [planBusy, setPlanBusy] = useState(false)
   const [pendingMessage, setPendingMessage] = useState<ReturnType<typeof readPendingMessage>>(null)
@@ -336,7 +325,6 @@ export default function ComputerPage() {
   const isStopping = isRunning && backend.stopping
   const feedStatus: ComputerSessionStatus = effectiveStatus
   const optimisticStart = false
-  const isBuildTokenBlocked = false
   const [editText, setEditText] = useState('')
   const [computerTheme, setComputerTheme] = useState<ComputerTheme>('dark')
   useEffect(() => { const value = localStorage.getItem(COMPUTER_THEME_KEY); if (value === 'light' || value === 'dark') setComputerTheme(value) }, [])
@@ -372,6 +360,7 @@ export default function ComputerPage() {
   useEffect(() => {
     if (backend.desktop.status === 'none' && activeTab === 'desktop') setActiveTab('preview')
   }, [activeTab, backend.desktop.status])
+  const reportMessageError = (reason: unknown) => setRunError(reason instanceof Error ? reason : new Error('Could not send your message. Try again.'))
   const handleRun = async (prompt: string, nextMode?: ComputerSessionMode, attachments: AttachmentRef[] = [], originalInput?: { id: string; answer: string } | null) => {
     if (busyRef.current) throw new Error('A message is already being submitted.')
     if (!raw || !user) throw new Error('Session is not available.')
@@ -383,7 +372,10 @@ export default function ComputerPage() {
         originalInput === undefined ? (request === undefined ? undefined : { id: request.id, answer: prompt }) : originalInput ?? undefined)
       void backend.refresh().catch((reason) => setRunError(`Message accepted, but history refresh failed: ${reason instanceof Error ? reason.message : 'Request failed.'}`))
     } catch (reason) {
-      // The composer shows the submit error itself; a second copy here would be noise.
+      // Another tab or device may have answered or replaced this question.
+      // The rejected command is cleared, but the current question must reload.
+      if (isRejectedInputResponse(reason)) void backend.refresh().catch(reportMessageError)
+      // The composer forwards this to the shared task notice; do not report it twice.
       throw reason
     } finally { busyRef.current = false; setIsStartingRun(false); readPending() }
   }
@@ -457,7 +449,7 @@ export default function ComputerPage() {
   const hasBrowser    = Boolean(browserInspection)
   const hasResearch   = session.timeline.some((e) => (e.kind === "research" || e.kind === "browser") && e.description?.trim())
   const deploymentLinks = getProjectDeploymentLinks(projectIntegration)
-  const liveSiteUrl = deploymentLinks.netlify?.siteUrl || deploymentLinks.vercel?.siteUrl
+  const liveSiteUrl = deploymentLinks.vercel?.siteUrl
   const planLabel = userData?.planId && userData.planId !== "free" ? userData.planId : "Free"
 
   return (
@@ -476,7 +468,10 @@ export default function ComputerPage() {
         Skip to workspace
       </a>
 
-      <ComputerNavigation currentProjectId={backend.project.id} mobileOpen={mobileNavigationOpen} onMobileOpenChange={setMobileNavigationOpen} onCurrentProjectChanged={() => { void backend.refresh().catch((reason) => setRunError(String(reason))) }} theme={computerTheme} />
+      <ComputerNavigation currentProjectId={backend.project.id} mobileOpen={mobileNavigationOpen} onMobileOpenChange={setMobileNavigationOpen} onCurrentProjectChanged={() => { void backend.refresh().catch((reason) => setRunError(String(reason))) }} theme={computerTheme}
+        repositoryActive={workspacePanelOpen && activeTab === 'code'}
+        onOpenRepository={() => { setActiveTab('code'); setWorkspacePanel('split') }}
+      />
 
       {/* ── App shell ── */}
       <div className="relative z-10 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
@@ -602,6 +597,7 @@ export default function ComputerPage() {
                   prompt={firstPrompt} events={session.timeline}
                   canonicalMessages={backend.messages} queuedMessages={backend.queued} streamText={backend.text} liveLabel={backend.liveLabel} stopping={isStopping} stoppingSince={raw?.cancelRequestedAt ?? null}
                   localMessages={localMessages} status={feedStatus}
+                  taskNotice={taskNotice}
                   progress={sessionProgress}
                   optimisticStart={optimisticStart}
                   editingIndex={null} editText=""
@@ -620,36 +616,11 @@ export default function ComputerPage() {
 
           {/* Composer */}
           <div className={cn(styles.composerDock, "mx-auto w-full max-w-[792px] shrink-0 px-3 pt-2 [padding-bottom:max(1rem,env(safe-area-inset-bottom))] sm:pb-5 lg:px-4")}>
-            {isBuildTokenBlocked && (
-              <div className="mb-3 rounded-xl border border-border bg-muted px-3 py-2.5">
-                <p className="text-sm font-medium text-foreground">You have used all credits for this cycle.</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  Upgrade your plan to continue running the computer agent.{" "}
-                  <Link href="/pricing" className="font-semibold underline underline-offset-2">View plans</Link>
-                </p>
-              </div>
-            )}
-            {(runError || backend.streamError || backend.fileError || raw?.error) && !isBuildTokenBlocked && (() => {
-              const message = runError instanceof Error ? runError.message : (runError || backend.streamError || backend.fileError || raw?.error || 'Live connection interrupted.')
-              const allowance = /allows (\d[\d,]*) (\S+) of (.+?), and (\d[\d,]*) \S+ of that is already used or held/i.exec(message)
-              const limit = runError instanceof Error ? presentRequestError(runError).isQuota : allowance !== null || isTokenLimitError(message)
-              // The continuation card already tells the story of this stop — the limit,
-              // the wait, or why the free model could not finish — so the generic error
-              // card would only contradict it. Transport problems still show while the
-              // card is informational (running or finished).
-              if (raw?.fallback !== undefined && raw.fallback.status !== 'RUNNING' && raw.fallback.status !== 'COMPLETED') return null
-              const details = allowance === null ? undefined : { label: allowance[3], unit: allowance[2], limit: Number(allowance[1].replaceAll(',', '')), consumed: Number(allowance[4].replaceAll(',', '')), reserved: 0 }
-              const error = runError instanceof Error ? runError : limit ? new BackendError(402, 'usage/limit-reached', message, undefined, details) : new Error(message)
-              return <div className="mb-3">
-                <RequestError error={error} planName={allowance?.[0] ? /^The (\S+) plan/.exec(message)?.[1] : undefined}>
-                  {!limit && <button type="button" onClick={() => { setRunError(null); backend.reconnect() }}>Reconnect</button>}
-                </RequestError>
-              </div>
-            })()}
+            <WorkspacePersistenceNotice capabilities={account?.capabilities} />
             {backend.connection !== 'connected' && <p role="status" className="mb-2 text-xs text-muted-foreground">{backend.connection === 'offline' ? 'You are offline.' : 'Reconnecting...'} Showing the last confirmed task state. Accepted work runs on the server.</p>}
             {isStartingRun && <p role="status" className="mb-2 text-xs text-muted-foreground">Sending command. Waiting for confirmation...</p>}
             {pendingMessage && !isStartingRun && <p role="status" className="mb-2 text-xs text-muted-foreground">Message pending confirmation: {pendingMessage.prompt.slice(0, 160)}{' '}
-              <button type="button" className="underline" onClick={() => { void handleRun(pendingMessage.prompt, pendingMessage.mode, pendingMessage.attachments, pendingMessage.inputResponse ?? null).catch(() => {}) }}>Retry original message</button>
+              <button type="button" className="underline" onClick={() => { void handleRun(pendingMessage.prompt, pendingMessage.mode, pendingMessage.attachments, pendingMessage.inputResponse ?? null).catch(reportMessageError) }}>Retry original message</button>
             </p>}
             {pendingCancellation && <p role="status" className="mb-2 text-xs text-muted-foreground">Cancellation pending confirmation.{' '}
               <button type="button" className="underline" onClick={() => { void handleStop() }}>Retry cancellation</button>
@@ -657,21 +628,26 @@ export default function ComputerPage() {
             {pendingContinuation && <p role="status" className="mb-2 text-xs text-muted-foreground">Continuation pending confirmation.{' '}
               <button type="button" className="underline" onClick={() => { void handleContinue(pendingContinuation.lane, pendingContinuation) }}>Retry original continuation</button>
             </p>}
-            {raw && <ContinuationStatus session={raw} busy={isStartingRun} onContinue={(lane) => { void handleContinue(lane) }} onCancel={() => { void handleStop() }} />}
             {raw?.pendingInput && <PendingInputCard key={raw.pendingInput.id}
               request={raw.pendingInput}
               busy={isStartingRun}
-              onAnswer={(answer) => { void handleRun(answer).catch(() => {}) }}
+              onAnswer={(answer) => { void handleRun(answer).catch(reportMessageError) }}
             />}
             <VoiceControls key={`${user?.uid}:${raw?.id}`} session={raw} identity={user?.uid} refresh={backend.refresh} initiallyExpanded={openVoice}>
-              {(voiceProps) => <AnimatedAIInput
-                {...voiceProps}
-                mode="chat" compact compactSize="slim" appearance="assistant" initialModel={raw?.model}
-                wrapperClassName={cn(styles.composer, "!shadow-none focus-within:!border-ring")}
-                isLoading={isRunning} isStopping={isStopping} onStop={handleStop} onSubmit={(prompt, _model, attachments) => handleRun(prompt, undefined, attachments)}
-                placeholder="Ask LotusBuild about this project…"
-                disabled={isBuildTokenBlocked || isStartingRun || raw?.pendingInput?.kind === 'approval' || (raw?.status === 'IDLE' && raw.fallback?.resumable === true)}
-              />}
+              {(voiceProps) => <section className={styles.composerStack}>
+                <TaskNotice notice={taskNotice}
+                  onBuyCredits={() => openSettings('on-demand', taskNotice?.creditTask ? { continuation: taskNotice.creditTask } : undefined)}
+                  busy={isStartingRun} onContinue={(lane) => { void handleContinue(lane) }} onCancel={() => { void handleStop() }} onReconnect={backend.reconnect} />
+                <AnimatedAIInput
+                  {...voiceProps}
+                  mode="chat" compact compactSize="slim" appearance="assistant" initialModel={raw?.model}
+                  wrapperClassName={cn(styles.composer, "!shadow-none focus-within:!border-ring")}
+                  isLoading={isRunning} isStopping={isStopping} onStop={handleStop} onSubmit={(prompt, _model, attachments) => handleRun(prompt, undefined, attachments)}
+                  onSubmitError={setRunError}
+                  placeholder="Ask LotusBuild about this project…"
+                  disabled={isStartingRun || raw?.pendingInput?.kind === 'approval' || (raw?.status === 'IDLE' && raw.fallback?.resumable === true)}
+                />
+              </section>}
             </VoiceControls>
           </div>
         </aside>
@@ -758,6 +734,9 @@ export default function ComputerPage() {
                   codeTheme={computerTheme}
                   terminalEntries={backend.terminal}
                   desktop={backend.desktop}
+                  projectSource={backend.project.source}
+                  currentDelivery={raw?.delivery}
+                  onManageRepository={() => setRepositoryOpen(true)}
                 />
               </motion.div>
             </AnimatePresence>

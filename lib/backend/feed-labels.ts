@@ -56,7 +56,7 @@ const text = (input: Readonly<Record<string, unknown>>, key: string, max = 80): 
 /** Tools the agent uses on your behalf, in the words a person would use. */
 const toolStepCopy: Readonly<Record<string, ToolStepCopy>> = {
   list_files: { call: 'Looking through files', result: 'Looked through files' },
-  read_file: { call: 'Reading', result: 'Read', subject: (input) => text(input, 'path') },
+  read_file: { call: 'Reading', result: 'Read', failed: 'Could not read', subject: (input) => text(input, 'path', 2000)?.split(/[\\/]/).at(-1) },
   search_files: { call: 'Searching files', result: 'Searched files', subject: (input) => { const query = text(input, 'query', 60); return query === undefined ? undefined : `for “${query}”` } },
   start_preview: { call: 'Starting the preview', result: 'Started the preview', failed: 'The preview could not start' },
   git_status: { call: 'Checking what changed', result: 'Checked what changed' },
@@ -68,7 +68,7 @@ const toolStepCopy: Readonly<Record<string, ToolStepCopy>> = {
   consult_specialist: { call: 'Asking a reviewer', result: 'Heard back from the reviewer' },
   submit_review: { call: 'Writing up the review', result: 'Wrote up the review' },
   use_skill: { call: 'Applying a skill', result: 'Applied a skill' },
-  request_user_input: { call: 'Asking you a question', result: 'Asked you a question' },
+  request_user_input: { call: 'Asking you a question', result: 'Asked you a question', failed: 'The question could not be shown' },
 }
 
 /** Internal bookkeeping tools: they have no meaning to the person reading the feed. */

@@ -14,6 +14,10 @@ const projectLimitDetails = z.object({
   current: z.number().int().nonnegative(),
 })
 
+export function usageLimitTitle(label?: string): string {
+  return label?.trim() ? `${label.trim()} limit reached` : 'Usage limit reached'
+}
+
 export function presentRequestError(error: Error, planName?: string) {
   const isQuota = error instanceof BackendError && error.code === 'usage/limit-reached'
   const isProjectLimit = error instanceof BackendError && error.code === 'project/limit-reached'
@@ -23,7 +27,7 @@ export function presentRequestError(error: Error, planName?: string) {
   return {
     isQuota,
     isProjectLimit,
-    title: isProjectLimit ? 'Project limit reached' : isQuota ? 'Limit reached' : 'Something went wrong',
+    title: isProjectLimit ? 'Project limit reached' : isQuota ? usageLimitTitle(quota?.success ? quota.data.label : undefined) : 'Something went wrong',
     description: isProjectLimit
       ? projectLimit?.success
         ? projectLimit.data.limit === 0

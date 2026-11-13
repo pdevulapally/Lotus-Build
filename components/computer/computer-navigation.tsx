@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ChevronDown, FolderOpen } from "lucide-react"
+import { ChevronDown, FolderOpen, FolderGit2 } from "lucide-react"
 import { PlusIcon } from "@/components/ui/lotus-icons"
 import { SidebarToggleIcon } from "@/components/ui/sidebar-toggle-icon"
 import { useAuth } from "@/contexts/auth-context"
@@ -21,12 +21,14 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/
 
 const actionClass = "inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 
-export function ComputerNavigation({ currentProjectId, mobileOpen, onMobileOpenChange, onCurrentProjectChanged, theme }: {
+export function ComputerNavigation({ currentProjectId, mobileOpen, onMobileOpenChange, onCurrentProjectChanged, theme, repositoryActive, onOpenRepository }: {
   currentProjectId: string
   mobileOpen: boolean
   onMobileOpenChange: (open: boolean) => void
   onCurrentProjectChanged: () => void
   theme: "light" | "dark"
+  repositoryActive: boolean
+  onOpenRepository: () => void
 }) {
   const router = useRouter()
   const { user, account, userData, signOut } = useAuth()
@@ -73,6 +75,11 @@ export function ComputerNavigation({ currentProjectId, mobileOpen, onMobileOpenC
       <PlusIcon className="size-4 shrink-0" />{!compact && "New project"}
     </Link>
     <SidebarIntegrationsLink collapsed={compact} onNavigate={() => onMobileOpenChange(false)} className="mx-3" />
+    <button type="button" title={compact ? 'Repository' : undefined} aria-label={compact ? 'Repository' : undefined} aria-current={repositoryActive ? 'page' : undefined}
+      onClick={() => { onOpenRepository(); onMobileOpenChange(false) }}
+      className={cn('mx-3 flex min-h-11 items-center gap-2.5 rounded-lg px-3 text-left text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', repositoryActive && 'bg-accent text-foreground', compact && 'justify-center px-0')}>
+      <FolderGit2 aria-hidden className="size-4 shrink-0" />{!compact && 'Repository'}
+    </button>
     {compact ? <button type="button" onClick={() => setCollapsed(false)} className={cn(actionClass, "mx-auto")} aria-label="Show projects"><FolderOpen className="size-4" aria-hidden /></button> : <>
       <button type="button" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded} aria-controls={projectListId} className="mx-3 mt-5 flex min-h-9 items-center justify-between rounded-lg px-2 text-xs whitespace-nowrap text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         Projects<ChevronDown className={cn("size-3.5 transition-transform motion-reduce:transition-none", !expanded && "-rotate-90")} aria-hidden />

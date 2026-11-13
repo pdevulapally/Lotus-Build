@@ -144,7 +144,7 @@ function activityRow(event: SessionEvent, index: number): ComputerTimelineEvent 
     const callId = typeof event.data.callId === 'string' && event.data.callId ? event.data.callId : undefined
     const title = isComputerAction(name) ? computerActionLabel(name, input) : toolStepLabel(name, 'call', input) ?? genericToolStepLabel(name, 'call')
     return { id: event.id, title, status: 'running', kind: 'code', createdAt, index,
-      metadata: { toolName: name, toolInputJson: JSON.stringify(input), ...(callId ? { callId } : {}) } }
+      metadata: { toolName: name, toolInputJson: JSON.stringify(input), ...(name === 'read_file' && typeof input.path === 'string' ? { filePath: input.path } : {}), ...(callId ? { callId } : {}) } }
   }
   const title = event.type === 'agent.skill_used'
     ? `Used skill ${String(typeof event.data.title === 'string' && event.data.title ? event.data.title : name || 'skill').slice(0, 100)}`
@@ -153,6 +153,7 @@ function activityRow(event: SessionEvent, index: number): ComputerTimelineEvent 
   const description = typeof event.data.summary === 'string' ? event.data.summary.slice(0, 2000)
     : typeof event.data.error === 'string' ? event.data.error.slice(0, 2000) : undefined
   return { id: event.id, title, status: event.type.endsWith('failed') ? 'error' : 'complete', kind: 'planning', createdAt, index,
+    metadata: { eventType: event.type, ...(typeof event.data.execution === 'number' ? { execution: event.data.execution } : {}) },
     ...(description ? { description } : {}) }
 }
 
@@ -182,9 +183,11 @@ export function updateToolStepEvent(events: ComputerTimelineEvent[], event: Sess
   const phase = failed ? 'failed' : 'result'
   const description = typeof event.data.error === 'string' ? event.data.error.slice(0, 2000)
     : failed && toolFailureLabel(name) === undefined && typeof event.data.text === 'string' ? event.data.text.slice(0, 400) : undefined
+  const diagnostic = failed && typeof (event.data.error ?? event.data.text) === 'string' ? redactSecrets(String(event.data.error ?? event.data.text)).slice(0, 2000) : undefined
   const next = events.slice()
   next[index] = { ...current, status: failed ? 'error' : 'complete',
     title: isComputerAction(name) ? current.title : toolStepLabel(name, phase, input) ?? genericToolStepLabel(name, phase),
+    metadata: { ...current.metadata, ...(diagnostic ? { diagnostic } : {}) },
     ...(description ? { description } : {}) }
   return next
 }

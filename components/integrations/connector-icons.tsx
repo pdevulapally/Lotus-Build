@@ -6,14 +6,12 @@ const base = { width: 22, height: 22, viewBox: '0 0 24 24', fill: 'none', stroke
 
 /** Hand-drawn glyphs in the lotus-icons stroke style — one shape per service, no brand marks. */
 export const GitHubGlyph = (p: IconProps) => (<svg {...base} {...p}><path d="M9 19c-4.5 1.5-4.5-2.5-6-3M15 21v-3.5a3 3 0 00-.8-2.3c2.7-.3 5.5-1.3 5.5-6a4.6 4.6 0 00-1.3-3.2 4.3 4.3 0 00-.1-3.2s-1-.3-3.4 1.3a11.7 11.7 0 00-6.2 0C6.3 3 5.3 3.3 5.3 3.3a4.3 4.3 0 00-.1 3.2A4.6 4.6 0 003.9 9.7c0 4.6 2.8 5.6 5.5 6a3 3 0 00-.8 2.3V21" /></svg>)
-export const NetlifyGlyph = (p: IconProps) => (<svg {...base} {...p}><path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z" /><path d="M8.5 12h7M12 8.5v7" /></svg>)
 export const VercelGlyph = (p: IconProps) => (<svg {...base} {...p}><path d="M12 4.5l8 14H4z" /><path d="M12 10.5v4" /></svg>)
 export const SlackGlyph = (p: IconProps) => (<svg {...base} {...p}><path d="M9 4v7M15 13v7M4 15h7M13 9h7" /><circle cx="9" cy="15" r="1.4" /><circle cx="15" cy="9" r="1.4" /></svg>)
 export const AwsGlyph = (p: IconProps) => (<svg {...base} {...p}><path d="M4 9.5h16v9H4z" /><path d="M7 9.5V7a5 5 0 0110 0v2.5" /><path d="M8 14h8" /></svg>)
 export const McpGlyph = (p: IconProps) => (<svg {...base} {...p}><circle cx="6" cy="12" r="2" /><circle cx="18" cy="6" r="2" /><circle cx="18" cy="18" r="2" /><path d="M8 11l8-4M8 13l8 4" /></svg>)
 export const GrantGlyph = (p: IconProps) => (<svg {...base} {...p}><rect x="4" y="10" width="16" height="10" rx="2.5" /><path d="M8 10V7.5a4 4 0 018 0V10" /><path d="M12 14v2.5" /></svg>)
 
-export const connectorGlyphs: Record<ConnectorKey, (p: IconProps) => React.JSX.Element> = { github: GitHubGlyph, netlify: NetlifyGlyph, vercel: VercelGlyph, slack: SlackGlyph, aws: AwsGlyph, mcp: McpGlyph }
 
 export function CheckGlyph(props: SVGProps<SVGSVGElement>) {
   return (
@@ -65,7 +63,8 @@ export function DotsGlyph(props: SVGProps<SVGSVGElement>) {
 }
 
 /** Official brand marks, stored locally under /public/integrations (no third-party requests). */
-export function BrandLogo({ connector, name }: { connector: ConnectorKey; name: string }) {
+export function BrandLogo({ connector, name, iconPath }: { connector: ConnectorKey; name: string; iconPath?: string }) {
+  if (iconPath === undefined) return <McpGlyph aria-hidden="true" />
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={`/integrations/${connector}.svg`} alt="" width={28} height={28} decoding="async" data-brand={connector} aria-label={undefined} title={name} />
+  return <img src={iconPath} alt="" width={28} height={28} decoding="async" data-brand={connector} aria-label={undefined} title={name} />
 }

@@ -2,13 +2,15 @@ import { z } from 'zod'
 import { planUpdateSchema, sessionPlanSchema, type PlanUpdate } from './session-plan'
 import { computerSessionModeSchema, computerSessionModes, type ComputerSessionMode } from './session-modes'
 export { computerSessionModes as sessionModes } from './session-modes'
-import { catalogueSchema, connectionDetailSchema, connectionListSchema, connectionStartSchema, disconnectSchema, projectSourceResponseSchema, projectSourceSchema, repositoryListSchema, type ConnectorKey } from './connections'
+import { catalogueSchema, connectionDetailSchema, connectionListSchema, connectionStartSchema, disconnectSchema, projectSourceResponseSchema, projectSourceSchema, repositoryListSchema, pluginToolsSchema, pluginCreatedSchema, type PluginTool, type ConnectorKey } from './connections'
 import { attachmentRefSchema, attachmentRefsSchema, isAttachmentMediaType, storedAttachmentSchema, type AttachmentRef } from './attachments'
 import { deliverySchema } from './delivery'
+import { billingCreditsSchema, creditCheckoutSchema, creditOfferSchema, creditPurchaseSchema, creditTaskSchema, type CreditTask } from '../billing/credits'
 
 const id = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/)
 const timestamp = z.string().datetime({ offset: true })
 const sha = z.string().regex(/^[0-9a-f]{40,64}$/)
+const fileRef = z.string().min(1).max(255).regex(/^[A-Za-z0-9._/-]+$/)
 export const fileTreeSchema = z.object({ head: z.string().nullable(), ref: z.string().nullable(), branches: z.array(z.string()),
   files: z.array(z.object({ path: z.string().min(1), size: z.number().int().nonnegative() })), truncated: z.boolean() })
 export const fileSchema = z.object({ path: z.string(), size: z.number().int().nonnegative(), binary: z.boolean(), content: z.string().nullable(), truncated: z.boolean() })
@@ -44,10 +46,10 @@ export const sessionSchema = z.object({
   /** Which run of this session the state describes; absent until the server starts numbering runs. */
   execution: z.number().int().positive().optional(),
   cancelRequestedAt: timestamp.optional(),
-  fallback: z.object({ status: z.enum(['AWAITING_CONSENT', 'QUEUED', 'RUNNING', 'CAPACITY_WAIT', 'EXHAUSTED', 'SHARED_LIMIT', 'UNAVAILABLE', 'COMPLETED']),
+  fallback: z.object({ status: z.enum(['AWAITING_CREDITS', 'AWAITING_CONSENT', 'QUEUED', 'RUNNING', 'CAPACITY_WAIT', 'EXHAUSTED', 'SHARED_LIMIT', 'UNAVAILABLE', 'COMPLETED']),
     reason: z.string(), resumable: z.boolean(), checkpointId: id.optional(), lane: z.enum(['premium', 'fallback']).optional(), consent: z.boolean(),
     imageExpiresAt: timestamp.optional(), resetAt: timestamp.optional(), retryAt: timestamp.optional(), limitLabel: z.string().optional(),
-    offer: z.object({ provider: z.enum(['anthropic', 'nvidia']).optional(), model: z.string(), effort: z.enum(['low', 'standard', 'high', 'xhigh']), estimatedInput: z.boolean().optional() }).optional(),
+    offer: z.object({ accounting: z.literal('shared').optional(), provider: z.enum(['anthropic', 'nvidia']).optional(), model: z.string(), effort: z.enum(['low', 'standard', 'high', 'xhigh']), estimatedInput: z.boolean().optional() }).optional(),
   }).optional(),
   pendingInput: z.object({ id, kind: z.enum(['question', 'approval']), prompt: z.string(),
     questions: z.array(z.object({ id: z.string(), prompt: z.string().min(1).max(1000), options: z.array(z.object({
@@ -85,11 +87,33 @@ export const accountSchema = z.object({
 const allowanceQuantity = z.union([z.number(), z.literal('unlimited')])
 export const usageSchema = z.object({ uid: z.string(), plan: z.object({ key: z.string(), name: z.string() }),
   meters: z.array(z.object({ meterKey: z.string(), unit: z.string(), label: z.string(),
+    role: z.string().min(1).optional(),
     kind: z.enum(['COUNTER', 'GAUGE']), resetPeriod: z.enum(['NEVER', 'DAILY', 'MONTHLY']),
     consumed: z.number().nonnegative(), reserved: z.number().nonnegative(), totalUsed: z.number().nonnegative(),
+    prepaidConsumed: z.number().nonnegative().optional(), prepaidReserved: z.number().nonnegative().optional(),
     includedAllowance: allowanceQuantity, hardLimit: allowanceQuantity, overageEnabled: z.boolean(), periodStart: timestamp,
-  })),
+  }).refine(meter => (meter.prepaidConsumed ?? 0) <= meter.consumed && (meter.prepaidReserved ?? 0) <= meter.reserved
+    && (meter.prepaidConsumed ?? 0) + (meter.prepaidReserved ?? 0) <= meter.totalUsed, 'Paid usage cannot exceed reported totals.')),
 })
+export const sessionUsageSchema = z.object({ sessionId: id,
+  meters: z.array(z.object({ meterKey: z.string(), unit: z.string(), label: z.string(), settled: z.number().nonnegative(), open: z.number().nonnegative() })),
+})
+export type BackendSessionUsage = z.infer<typeof sessionUsageSchema>
+
+export const billingSubscriptionSchema = z.object({ subscription: z.object({
+  planKey: z.string().min(1), planName: z.string().min(1), status: z.string().min(1),
+  stripeStatus: z.enum(['incomplete', 'incomplete_expired', 'trialing', 'active', 'past_due', 'canceled', 'unpaid', 'paused']),
+  currentPeriodStart: timestamp, currentPeriodEnd: timestamp,
+  cancelAtPeriodEnd: z.boolean(), cancelAt: timestamp.nullable(), collectionPaused: z.boolean(),
+  price: z.object({ amountMinor: z.number().int().nonnegative(), currency: z.string().regex(/^[a-z]{3}$/),
+    interval: z.enum(['day', 'week', 'month', 'year']), intervalCount: z.number().int().positive(),
+    taxBehavior: z.enum(['inclusive', 'exclusive', 'unspecified']),
+    quantity: z.number().int().positive(), recurringSubtotalMinor: z.number().int().nonnegative(),
+  }), discountsApplied: z.boolean(),
+}).nullable() })
+export type BackendSubscription = NonNullable<z.infer<typeof billingSubscriptionSchema>['subscription']>
+
+
 const queuedSchema = z.object({ id, sessionId: id, prompt: z.string(), attachments: z.array(attachmentRefSchema).default([]), createdAt: timestamp })
 const acceptedMessageSchema = z.union([
   z.object({ steered: z.literal(true), sessionId: id }),
@@ -233,9 +257,17 @@ export class BackendClient {
     return this.json(emailVerificationResultSchema, '/auth/email-verification/verify', { method: 'POST', body })
   }
   usage(signal?: AbortSignal) { return this.json(usageSchema, '/me/usage', { signal }) }
-  sessionUsage(sessionId: string, signal?: AbortSignal) { return this.json(z.object({ sessionId: id,
-    meters: z.array(z.object({ meterKey: z.string(), unit: z.string(), label: z.string(), settled: z.number().nonnegative(), open: z.number().nonnegative() })) }), `/sessions/${id.parse(sessionId)}/usage`, { signal }) }
+  sessionUsage(sessionId: string, signal?: AbortSignal) { return this.json(sessionUsageSchema, `/sessions/${id.parse(sessionId)}/usage`, { signal }) }
   plans(signal?: AbortSignal) { return this.json(z.object({ plans: z.array(planSchema) }), '/plans', { signal, public: true }) }
+  billingSubscription(signal?: AbortSignal) { return this.json(billingSubscriptionSchema, '/billing/subscription', { signal }) }
+  billingCredits(signal?: AbortSignal) { return this.json(billingCreditsSchema, '/billing/credits', { signal }) }
+  creditCheckout(input: { offerId: string; offerVersion: string; customAmountMinor?: number; continuation?: CreditTask }, key: string) {
+    const body = z.object({ offerId: creditOfferSchema.shape.id, offerVersion: creditOfferSchema.shape.version, customAmountMinor:creditOfferSchema.shape.customAmountMinor, continuation: creditTaskSchema.optional() }).strict().parse(input)
+    return this.json(creditCheckoutSchema, '/billing/credits/checkout', { method: 'POST', body, key })
+  }
+  creditPurchase(purchaseId: string, signal?: AbortSignal) {
+    return this.json(creditPurchaseSchema, `/billing/credits/purchases/${encodeURIComponent(creditPurchaseSchema.shape.purchaseId.parse(purchaseId))}`, { signal })
+  }
   billingPortal() { return this.json(z.object({ url: z.url().startsWith('https://') }), '/billing/portal', { method: 'POST' }) }
   checkout(planKey: string) { return this.json(z.object({ url: z.url().startsWith('https://') }), '/billing/checkout', {
     method: 'POST', body: { planKey: z.string().regex(/^[a-z0-9][a-z0-9_-]{0,63}$/).parse(planKey) },
@@ -244,17 +276,26 @@ export class BackendClient {
     '/me/privacy-requests', { method: 'POST', body: { kind: 'erasure' } }) }
   connectionCatalogue(signal?: AbortSignal) { return this.json(catalogueSchema, '/connections/catalogue', { signal }) }
   connections(signal?: AbortSignal) { return this.json(connectionListSchema, '/connections', { signal }) }
+  connectPlugin(input: { connector: string; name: string; url: string; token?: string; projectIds: string[] }) {
+    return this.json(pluginCreatedSchema, '/connections/mcp', { method: 'POST', body: input })
+  }
+  pluginTools(connectionId: string, signal?: AbortSignal) { return this.json(pluginToolsSchema, `/connections/${encodeURIComponent(connectionId)}/tools`, { signal }) }
+  refreshPluginTools(connectionId: string) { return this.json(pluginToolsSchema, `/connections/${encodeURIComponent(connectionId)}/tools/refresh`, { method: 'POST' }) }
+  setPluginPermissions(connectionId: string, tools: readonly Pick<PluginTool, 'name' | 'fingerprint' | 'mode'>[]) {
+    return this.json(pluginToolsSchema, `/connections/${encodeURIComponent(connectionId)}/tools`, { method: 'PUT', body: { permissions: tools.every(tool => tool.mode === 'off') ? [] : tools.map(({ name, fingerprint, mode }) => ({ name, fingerprint, mode })) } })
+  }
   connection(id: string, signal?: AbortSignal) { return this.json(connectionDetailSchema, `/connections/${encodeURIComponent(id)}`, { signal }) }
   setConnectionGrants(id: string, projectIds: readonly string[]) {
     return this.json(connectionDetailSchema, `/connections/${encodeURIComponent(id)}/grants`, { method: 'PUT', body: { projectIds } })
   }
   disconnectConnection(id: string) { return this.json(disconnectSchema, `/connections/${encodeURIComponent(id)}`, { method: 'DELETE' }) }
   startConnection(connector: ConnectorKey, input?: { returnTo: string; projectIds?: readonly string[] }) {
-    return this.json(connectionStartSchema, `/connections/${connector}/start`, { method: 'POST', ...(input ? { body: input } : {}) })
+    return this.json(connectionStartSchema, `/connections/${encodeURIComponent(connector)}/start`, { method: 'POST', ...(input ? { body: input } : {}) })
   }
   completeGitHubConnection(input: { state: string; code: string; installationId: number; returnTo: string }) {
     return this.json(connectionDetailSchema, '/connections/github/complete', { method: 'POST', body: input })
   }
+
   connectionRepositories(connectionId: string, signal?: AbortSignal) {
     return this.json(repositoryListSchema, `/connections/${encodeURIComponent(connectionId)}/repositories`, { signal })
   }
@@ -266,9 +307,14 @@ export class BackendClient {
   }
   projects(signal?: AbortSignal) { return this.json(z.object({ projects: z.array(projectSchema) }), '/projects?limit=100', { signal }) }
   project(projectId: string, signal?: AbortSignal) { return this.json(projectSchema, `/projects/${id.parse(projectId)}`, { signal }) }
-  files(projectId: string, signal?: AbortSignal) { return this.json(fileTreeSchema, `/projects/${id.parse(projectId)}/files`, { signal }) }
-  file(projectId: string, path: string, signal?: AbortSignal) {
-    return this.json(fileSchema, `/projects/${id.parse(projectId)}/files/content?${new URLSearchParams({ path: z.string().min(1).max(1024).parse(path) })}`, { signal })
+  files(projectId: string, signal?: AbortSignal, ref?: string) {
+    const query = ref === undefined ? '' : `?${new URLSearchParams({ ref: fileRef.parse(ref) })}`
+    return this.json(fileTreeSchema, `/projects/${id.parse(projectId)}/files${query}`, { signal })
+  }
+  file(projectId: string, path: string, signal?: AbortSignal, ref?: string) {
+    const query = new URLSearchParams({ path: z.string().min(1).max(1024).parse(path) })
+    if (ref !== undefined) query.set('ref', fileRef.parse(ref))
+    return this.json(fileSchema, `/projects/${id.parse(projectId)}/files/content?${query}`, { signal })
   }
   history(projectId: string, signal?: AbortSignal) { return this.json(historySchema, `/projects/${id.parse(projectId)}/changes`, { signal }) }
   changes(projectId: string, commit: string, signal?: AbortSignal) { return this.json(changesSchema, `/projects/${id.parse(projectId)}/changes/${sha.parse(commit)}`, { signal }) }

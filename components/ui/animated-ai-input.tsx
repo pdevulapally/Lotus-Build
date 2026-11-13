@@ -19,7 +19,7 @@ import { createBuild, pendingBuild, type ProjectCreationRequest } from "@/lib/ba
 import { acceptLatencyTrace, latencyTrace } from "@/lib/backend/latency";
 import { BrowserVoiceAudio } from "@/lib/voice/browser-audio";
 import { handoffVoiceAudio } from "@/lib/voice/launch";
-import { resolveModelSelection } from "@/lib/backend/model-selection";
+import { resolveModelSelection, modelLabel } from "@/lib/backend/model-selection";
 import { RequestErrorNotice } from "@/components/ui/request-error";
 
 import {
@@ -90,6 +90,8 @@ interface AnimatedAIInputProps {
   mode?: "create" | "chat";
   appearance?: "default" | "assistant";
   onSubmit?: (value: string, model: string, attachments: AttachmentRef[]) => void | Promise<void>;
+  /** A chat host can own error presentation instead of showing the default floating notice. */
+  onSubmitError?: (error: Error | null) => void;
   onStop?: () => void;
   onOpenVoice?: React.MouseEventHandler<HTMLButtonElement>;
   createWithVoice?: boolean;
@@ -195,6 +197,7 @@ export function AnimatedAIInput({
   mode = "create",
   appearance = "default",
   onSubmit,
+  onSubmitError,
   onStop,
   onOpenVoice,
   createWithVoice = false,
@@ -251,7 +254,7 @@ export function AnimatedAIInput({
   const effectiveModel = mode === 'chat' && initialModel
     ? initialModel
     : resolveModelSelection(models, selectedModel);
-  const displayModelLabel = account?.models.find((model) => model.id === effectiveModel)?.name || effectiveModel || 'Select model';
+  const displayModelLabel = modelLabel(account?.models ?? [], effectiveModel) || 'Select model';
   const availableSessionModes = useMemo(() => selectableSessionModeConfigs(account?.sessionModes), [account?.sessionModes]);
   const accountDefaultSessionMode = defaultComputerSessionMode(account?.sessionModes, account?.defaultSessionMode);
   const selectedSessionMode = getComputerSessionModeConfig(sessionMode);
@@ -358,10 +361,15 @@ export function AnimatedAIInput({
     setSubmitError(null);
 
     if (mode === "chat" && onSubmit) {
+      onSubmitError?.(null);
       const v = value.trim();
       submittingRef.current = true;
       try { await onSubmit(v, effectiveModel, attachments.refs); setValue(''); attachments.clear(); adjustHeight(true); }
-      catch (error) { setSubmitError(error instanceof Error ? error : new Error('Could not send message.')); }
+      catch (error) {
+        const failure = error instanceof Error ? error : new Error('Could not send message.');
+        if (onSubmitError) onSubmitError(failure);
+        else setSubmitError(failure);
+      }
       finally { submittingRef.current = false; }
       return;
     }
@@ -639,7 +647,7 @@ export function AnimatedAIInput({
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-1.5">
                             <span className={cn("text-sm font-medium", isLocked ? "text-foreground/70" : "text-foreground")}>
-                              {account?.models.find((entry) => entry.id === model)?.name || model}
+                              {modelLabel(account?.models ?? [], model)}
                             </span>
                             {meta.badges.map((b) => (
                               <Badge key={b}>{b}</Badge>
