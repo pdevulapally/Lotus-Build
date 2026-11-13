@@ -84,6 +84,16 @@ test('credit packs disclose no expiry once before checkout', () => {
   assert.match(html, /<button[^>]*disabled=""[^>]*>(?:(?!<\/button>)[\s\S])*Continue to checkout/)
 })
 
+test('pack choices show server prices and share their usage terms once', () => {
+  const html = render({ data: { ...data, offers: [data.offers[0], { ...data.offers[0], id: 'large', credits: 1500, amountMinor: 2500 }] } })
+  assert.match(html, /500 credits/)
+  assert.match(html, /1,500 credits/)
+  assert.match(html, /USD.*25.00/)
+  assert.equal((html.match(/The daily usage limit still applies/g) ?? []).length, 1)
+  assert.equal((html.match(/type="radio"/g) ?? []).length, 2)
+  assert.doesNotMatch(html, /checked=""/)
+})
+
 test('usage and billing expose an eligible Buy credits entry point without inventing unknown balances', () => {
   const balance = (state: Partial<CreditsController>) => renderToStaticMarkup(createElement(CreditBalance, { credits: { ...initial, ...state } }))
   const enabled = balance({ data })
