@@ -186,7 +186,7 @@ export function updateToolStepEvent(events: ComputerTimelineEvent[], event: Sess
   return next
 }
 
-function updateCommandEvent(events: ComputerTimelineEvent[], event: SessionEvent): ComputerTimelineEvent[] {
+export function updateCommandEvent(events: ComputerTimelineEvent[], event: SessionEvent): ComputerTimelineEvent[] {
   if (event.type !== 'agent.tool_result' || (event.data.name !== 'run_command' && !isFileTool(event.data.name))) return events
   const callId = typeof event.data.callId === 'string' && event.data.callId ? event.data.callId : undefined
   const index = runningToolIndex(events, callId, event.data.name as string)

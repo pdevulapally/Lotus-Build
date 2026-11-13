@@ -1,32 +1,12 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
-import { createRequire } from 'node:module'
 import test from 'node:test'
-import { createElement, type ComponentProps } from 'react'
+import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import ts from 'typescript'
-import type { AgentFeed } from '../components/computer/agent-feed'
+import { agentFeedModule as module, renderAgentFeed as render } from './support/render-agent-feed'
 import { activity, updateToolStepEvent } from '../hooks/use-backend-session'
 import { selectTaskNotice } from '../lib/backend/task-notice'
-
-const require = createRequire(import.meta.url)
-const compiled = ts.transpileModule(readFileSync(new URL('../components/computer/agent-feed.tsx', import.meta.url), 'utf8'), {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
-}).outputText
-const module = { exports: {} as { AgentFeed: typeof AgentFeed; splitStableBlocks: typeof import('../components/computer/agent-feed').splitStableBlocks } }
-const isolatedRequire = (id: string) => {
-  if (id === '@/components/ai-elements/thinking-reasoning') return { ThinkingReasoning: ({ text, streaming, startedAt, completedAt }: { text: string; streaming: boolean; startedAt: string; completedAt?: string }) =>
-    createElement('div', { 'data-thinking': streaming ? 'streaming' : 'done', 'data-started': startedAt, 'data-completed': completedAt }, text) }
-  if (id === '@/components/ai-elements/shimmer') return { Shimmer: ({ children }: { children: React.ReactNode }) => createElement('span', null, children) }
-  if (id === '@/components/ui/markdown') return { Markdown: ({ children }: { children: React.ReactNode }) => createElement('p', null, children) }
-  return require(id.startsWith('@/') ? `../${id.slice(2)}` : id)
-}
-new Function('require', 'module', 'exports', compiled)(isolatedRequire, module, module.exports)
-const render = (props: Partial<ComponentProps<typeof AgentFeed>>) => renderToStaticMarkup(createElement(module.exports.AgentFeed, {
-  canonicalMessages: [], events: [], localMessages: [], status: 'running', editingIndex: null, editText: '', ...props,
-}))
 
 test('initial startup uses natural copy and confirmed processing supersedes the older queued snapshot', () => {
   assert.match(render({ status: 'queued' }), /Starting your request/)
@@ -56,7 +36,7 @@ test('a running tool replaces the generic status and an interrupted command stay
 })
 
 test('streamed markdown splits only at stable boundaries, preserving the full document', () => {
-  const { splitStableBlocks } = module.exports
+  const { splitStableBlocks } = module
   const whole = 'para one\n\npara two\n\n```ts\nconst x = 1\n\nconst y = 2\n```\n\nlast'
   const { done, tail } = splitStableBlocks(whole)
   assert.deepEqual(done, ['para one', 'para two', '```ts\nconst x = 1\n\nconst y = 2\n```'])
@@ -73,7 +53,7 @@ test('streamed markdown splits only at stable boundaries, preserving the full do
 })
 
 test('constructs that span blank lines are never split: loose lists, blockquotes, continuations', () => {
-  const { splitStableBlocks } = module.exports
+  const { splitStableBlocks } = module
   // A loose list must stay one <ul> — splitting would make two tight lists.
   const list = splitStableBlocks('- one\n\n- two\n\npara')
   assert.deepEqual(list.done, ['- one\n\n- two']); assert.equal(list.tail, 'para')
@@ -92,7 +72,7 @@ test('constructs that span blank lines are never split: loose lists, blockquotes
 })
 
 test('split rendering matches unsplit react-markdown output for document-scoped constructs', () => {
-  const { splitStableBlocks } = module.exports
+  const { splitStableBlocks } = module
   // react-markdown echoes source newlines between top-level blocks; that
   // whitespace is insignificant between block elements, so normalise it.
   const render = (text: string) => renderToStaticMarkup(
