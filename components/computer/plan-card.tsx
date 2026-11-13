@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { AlertTriangle, Check, ChevronsDown, ChevronsUp, Circle, Loader2, Minus, RotateCcw } from "lucide-react"
+import { Check, ChevronDown, ChevronUp, CircleAlert, CircleArrowRight, CircleCheck, CircleDashed, CircleMinus, RotateCcw, type LucideIcon } from "lucide-react"
 import { Markdown } from "@/components/ui/markdown"
 import { cn } from "@/lib/utils"
 import type { PlanStep, PlanStepStatus, PlanUpdate, SessionPlan } from "@/lib/backend/session-plan"
@@ -15,18 +15,19 @@ export type PlanCardActions = {
   onEdit: (revision: number, update: PlanUpdate) => void
 }
 
-/** Plan text is written by the model from repository content: shown as text, never as HTML. */
-const stepLabels: Record<PlanStepStatus, string> = {
-  proposed: "Not started", in_progress: "In progress", done: "Done", skipped: "Skipped", blocked: "Blocked",
-}
-
-function StepMark({ status }: { status: PlanStepStatus }) {
-  const className = "h-3.5 w-3.5 shrink-0"
-  if (status === "done") return <Check className={cn(className, "text-foreground")} aria-hidden />
-  if (status === "in_progress") return <Loader2 className={cn(className, "animate-spin text-foreground")} aria-hidden />
-  if (status === "skipped") return <Minus className={cn(className, "text-muted-foreground")} aria-hidden />
-  if (status === "blocked") return <AlertTriangle className={cn(className, "text-warning")} aria-hidden />
-  return <Circle className={cn(className, "text-muted-foreground/70")} aria-hidden />
+/**
+ * How a to-do looks for each step status, in one place: the list itself never
+ * branches on status. `edit` is the one change the user may make to a step
+ * (only the agent marks work started, done or blocked). Plan text is written
+ * by the model from repository content: shown as text, never as HTML.
+ */
+type StepLook = { label: string; Mark: LucideIcon; mark: string; title: string; edit?: "skip" | "restore" }
+const stepLooks: Record<PlanStepStatus, StepLook> = {
+  proposed: { label: "Not started", Mark: CircleDashed, mark: "text-muted-foreground/60", title: "text-muted-foreground/80", edit: "skip" },
+  in_progress: { label: "In progress", Mark: CircleArrowRight, mark: "text-foreground", title: "font-medium text-foreground" },
+  done: { label: "Done", Mark: CircleCheck, mark: "text-muted-foreground/70", title: "text-muted-foreground/80 line-through decoration-muted-foreground/60" },
+  skipped: { label: "Skipped", Mark: CircleMinus, mark: "text-muted-foreground/60", title: "text-muted-foreground/70 line-through decoration-muted-foreground/60", edit: "restore" },
+  blocked: { label: "Blocked", Mark: CircleAlert, mark: "text-warning", title: "text-foreground" },
 }
 
 function headline(plan: SessionPlan, actions?: PlanCardActions) {
@@ -35,14 +36,39 @@ function headline(plan: SessionPlan, actions?: PlanCardActions) {
   return "Plan changed since you approved it"
 }
 
+function ProgressRing({ done, total }: { done: number; total: number }) {
+  const radius = 7
+  const circumference = 2 * Math.PI * radius
+  const fraction = total === 0 ? 0 : done / total
+  return (
+    <svg viewBox="0 0 18 18" className="h-4 w-4 shrink-0 -rotate-90" aria-hidden>
+      <circle cx="9" cy="9" r={radius} className="stroke-border" strokeWidth="2" fill="none" />
+      <circle
+        cx="9" cy="9" r={radius} className="stroke-foreground transition-[stroke-dashoffset] duration-500 ease-out" strokeWidth="2" fill="none"
+        strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={circumference * (1 - fraction)}
+      />
+    </svg>
+  )
+}
+
 export function PlanCard({ plan, actions }: { plan: SessionPlan; actions?: PlanCardActions }) {
   const [expanded, setExpanded] = useState(false)
   const [answering, setAnswering] = useState<{ id: string; text: string } | null>(null)
   const canApprove = actions?.canApprove === true && !actions.busy
   const canEdit = actions?.canEdit === true && !actions.busy
   const open = plan.questions.filter((question) => question.answer === undefined)
+  const answered = plan.questions.filter((question) => question.answer !== undefined)
   const extras = [...plan.checks.map((item) => ({ group: "Checks", item })), ...plan.risks.map((item) => ({ group: "Risks", item })), ...plan.decisions.map((item) => ({ group: "Decisions", item }))]
-  const progress = plan.steps.filter((step) => step.status === "done").length
+  const done = plan.steps.filter((step) => step.status === "done").length
+  const progress = `${done} of ${plan.steps.length} done`
+
+  // Waiting for the user's approval, the whole plan matters. Otherwise the to-dos lead and the
+  // rest of the plan folds away behind "Show plan".
+  const awaitingApproval = actions?.approvalRequired === true && plan.approvedRevision !== plan.revision
+  const showPlanBody = awaitingApproval || expanded
+  const hasDetails = extras.length > 0 || plan.steps.some((step) => step.detail)
+  const showToggle = awaitingApproval ? hasDetails : true
+  const toggleLabel = awaitingApproval ? (expanded ? "Show less" : "Show details") : (expanded ? "Hide plan" : "Show plan")
 
   const setStep = (step: PlanStep, status: "proposed" | "skipped") => {
     actions?.onEdit(plan.revision, { steps: [status === "skipped" ? { id: step.id, status, note: "Skipped by you" } : { id: step.id, status }] })
@@ -55,43 +81,57 @@ export function PlanCard({ plan, actions }: { plan: SessionPlan; actions?: PlanC
 
   return (
     <section aria-label="Plan" data-plan-revision={plan.revision} className="my-3 overflow-hidden rounded-2xl border border-border bg-card">
-      <div className="flex items-center justify-between gap-2 border-b border-border/70 px-3.5 py-2.5">
-        <span className="text-xs font-semibold text-muted-foreground">{headline(plan, actions)}</span>
-        <span className="text-[11px] text-muted-foreground">{plan.steps.length === 0 ? "" : `${progress} of ${plan.steps.length} done`}</span>
-      </div>
-      <div className="px-3.5 pb-3.5 pt-3">
-        <h3 className="text-[14px] font-semibold text-foreground">{plan.title}</h3>
-        {plan.summary && <Markdown className="mt-1 text-[13px] leading-relaxed text-muted-foreground">{plan.summary}</Markdown>}
+      <div className="flex items-center justify-between gap-3 px-3.5 pt-3 pb-1">
+        <span className="flex min-w-0 items-center gap-2 text-[13px] font-semibold text-foreground">
+          <ProgressRing done={done} total={plan.steps.length} />
+          <span className="truncate">{awaitingApproval ? headline(plan, actions) : "To-dos"}</span>
+        </span>
         {plan.steps.length > 0 && (
-          <ol className="mt-3 space-y-2">
-            {plan.steps.map((step) => (
-              <li key={step.id} className="flex items-start gap-2.5">
-                <span className="mt-[3px]" title={stepLabels[step.status]}>
-                  <StepMark status={step.status} />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className={cn("text-[13px] leading-snug text-foreground", step.status === "skipped" && "text-muted-foreground line-through")}>{step.title}</p>
-                  {step.detail && expanded && <p className="mt-0.5 whitespace-pre-wrap text-[12px] leading-relaxed text-muted-foreground">{step.detail}</p>}
-                  {step.note && <p className="mt-0.5 text-[12px] text-muted-foreground">{step.note}</p>}
-                </div>
-                {canEdit && (step.status === "proposed" || step.status === "skipped") && (
-                  <button
-                    type="button"
-                    onClick={() => setStep(step, step.status === "proposed" ? "skipped" : "proposed")}
-                    className="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                  >
-                    {step.status === "proposed" ? "Skip" : <span className="inline-flex items-center gap-1"><RotateCcw className="h-3 w-3" aria-hidden />Restore</span>}
-                  </button>
-                )}
-              </li>
-            ))}
+          <span className="shrink-0 text-[12px] tabular-nums text-muted-foreground" title={progress} aria-label={progress}>{done}/{plan.steps.length}</span>
+        )}
+      </div>
+      <div className="px-3.5 pb-3.5">
+        {showPlanBody ? (
+          <div className="pt-1.5">
+            <h3 className="text-[14px] font-semibold text-foreground">{plan.title}</h3>
+            {plan.summary && <Markdown className="mt-1 text-[13px] leading-relaxed text-muted-foreground">{plan.summary}</Markdown>}
+          </div>
+        ) : (
+          <p className="truncate pt-0.5 text-[12px] text-muted-foreground">{headline(plan, actions)} · {plan.title}</p>
+        )}
+        {plan.steps.length > 0 && (
+          <ol className="mt-3 space-y-1.5">
+            {plan.steps.map((step) => {
+              const look = stepLooks[step.status]
+              return (
+                <li key={step.id} className="flex items-start gap-2.5">
+                  <span className="mt-[2px]" title={look.label}>
+                    <look.Mark className={cn("h-4 w-4 shrink-0", look.mark)} strokeWidth={1.75} aria-hidden />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className={cn("text-[13px] leading-5", look.title)}>{step.title}</p>
+                    {step.detail && expanded && <p className="mt-0.5 whitespace-pre-wrap text-[12px] leading-relaxed text-muted-foreground">{step.detail}</p>}
+                    {step.note && <p className="mt-0.5 text-[12px] text-muted-foreground">{step.note}</p>}
+                  </div>
+                  {canEdit && look.edit && (
+                    <button
+                      type="button"
+                      onClick={() => setStep(step, look.edit === "skip" ? "skipped" : "proposed")}
+                      className="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      {look.edit === "skip" ? "Skip" : <span className="inline-flex items-center gap-1"><RotateCcw className="h-3 w-3" aria-hidden />Restore</span>}
+                    </button>
+                  )}
+                </li>
+              )
+            })}
           </ol>
         )}
-        {plan.questions.length > 0 && (
+        {(open.length > 0 || (showPlanBody && answered.length > 0)) && (
           <div className="mt-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{open.length > 0 ? "What still needs your input" : "Your answers"}</p>
             <ul className="mt-2 space-y-2">
-              {plan.questions.map((question) => (
+              {(showPlanBody ? plan.questions : open).map((question) => (
                 <li key={question.id} className="text-[13px] leading-snug">
                   <p className="text-foreground">{question.text}</p>
                   {question.answer !== undefined ? (
@@ -101,7 +141,7 @@ export function PlanCard({ plan, actions }: { plan: SessionPlan; actions?: PlanC
                       <textarea
                         autoFocus rows={2} maxLength={2000} value={answering.text}
                         onChange={(event) => setAnswering({ id: question.id, text: event.target.value })}
-                        className="min-w-0 flex-1 resize-none rounded-xl border border-border bg-background px-2.5 py-1.5 text-[13px] text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                        className="min-w-0 flex-1 resize-none rounded-xl border border-border bg-background px-2.5 py-1.5 text-[13px] text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         placeholder="Your answer"
                       />
                       <button type="submit" className="rounded-xl bg-primary px-2.5 py-1.5 text-[12px] font-semibold text-primary-foreground hover:bg-primary/90">Save</button>
@@ -115,14 +155,15 @@ export function PlanCard({ plan, actions }: { plan: SessionPlan; actions?: PlanC
             </ul>
           </div>
         )}
-        {(extras.length > 0 || plan.steps.some((step) => step.detail)) && (
+        {showToggle && (
           <button
             type="button"
             onClick={() => setExpanded((value) => !value)}
-            className="mt-3 flex items-center gap-1 rounded-md px-1 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            aria-expanded={expanded}
+            className="mt-3 flex items-center gap-1 rounded-md px-1 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            {expanded ? <ChevronsUp className="h-3 w-3 shrink-0" aria-hidden /> : <ChevronsDown className="h-3 w-3 shrink-0" aria-hidden />}
-            {expanded ? "Show less" : "Show details"}
+            {expanded ? <ChevronUp className="h-3 w-3 shrink-0" aria-hidden /> : <ChevronDown className="h-3 w-3 shrink-0" aria-hidden />}
+            {toggleLabel}
           </button>
         )}
         {expanded && extras.length > 0 && (
@@ -144,7 +185,7 @@ export function PlanCard({ plan, actions }: { plan: SessionPlan; actions?: PlanC
             type="button"
             onClick={() => actions.onApprove(plan.revision)}
             disabled={!canApprove}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-60"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
           >
             <Check className="h-3.5 w-3.5 shrink-0" aria-hidden />
             {actions.busy ? "One moment…" : plan.approvedRevision === undefined ? "Approve and build" : "Approve the changes and build"}

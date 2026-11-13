@@ -353,13 +353,14 @@ It must also be:
 
 This frontend uses the separate current server for project sessions, Plan/Build modes, saved files, history and project downloads. It contains no embedded generation pipeline or mobile sandbox backend. Do not reintroduce legacy route or provider implementations. Keep capabilities tied to verified current server contracts. See MIGRATION.md for remaining ports and live-verification boundaries.
 
-## Reasoning component (`components/ai-elements/reasoning.tsx`)
+## Reasoning (`components/ai-elements/thinking-reasoning.tsx` + `reasoning.tsx`)
 
-The `ReasoningContent` component renders AI reasoning text. It supports:
+`ThinkingReasoning` is the feed's thought row: the shell adapted from the aicss.dev "thinking-reasoning" block. It takes the live reasoning text, whether it is still streaming, and the server timestamps for when the thought started and ended. It is open while streaming (newest lines kept in view behind a soft fade, capped height), folds into "Thought for Ns" when the step moves on (no time is shown when the end was not recorded), and the user can reopen it. It renders nothing from fixed sample text or timers: everything comes from the session's `agent.thinking` row.
 
-- **Streaming animation**: characters are revealed progressively using `useStreamingText` when `isStreaming=true`
-- **Code block rendering**: triple-backtick fenced code blocks (e.g. ` ```html\n...\` `` `) are parsed by `parseContentBlocks()` and rendered as styled `<pre><code>` elements with a language label
-- **Plain text**: regular text segments are rendered with `whitespace-pre-wrap`
+`ReasoningBlocks` in `reasoning.tsx` renders the text itself:
+
+- **Code block rendering**: complete triple-backtick fences are parsed by `parseContentBlocks()` and rendered as styled `<pre><code>` elements with a language label
+- **Plain text**: prose goes through the sanitising `Markdown` component; model-facing payloads and echoed tool output are stripped by `sanitizeReasoningText()`
 
 ### `parseContentBlocks(text)`
 
@@ -370,6 +371,7 @@ Splits a reasoning string into `TextBlock` and `CodeBlock` segments using a glob
 - Do not replace `parseContentBlocks` with `dangerouslySetInnerHTML` — security risk
 - Do not add a markdown library just for this component unless the scope genuinely expands to full markdown rendering
 - If extending `parseContentBlocks`, ensure partial (unclosed) code fences still degrade gracefully to plain text
+- Keep the thought row driven by real session data; never reintroduce sample sentences or fixed reveal timers
 
 ---
 

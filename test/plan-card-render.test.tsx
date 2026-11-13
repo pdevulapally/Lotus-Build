@@ -80,3 +80,27 @@ test('model-authored text is rendered as text, never as markup', () => {
   assert.doesNotMatch(hostile, /<img|<script>|<svg onload|<b>bold/)
   assert.match(hostile, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/)
 })
+
+test('the steps read as a compact to-do list with live progress', () => {
+  const html = render({ plan, actions: actions() })
+  assert.match(html, /aria-label="1 of 4 done"/); assert.match(html, />1\/4</)
+  assert.match(html, /stroke-dashoffset/)
+  assert.match(html, /line-through[^"]*">Scaffold the app</, 'a done step is struck through')
+  assert.match(html, /font-medium text-foreground">List view</, 'the step in progress stands out')
+  assert.match(html, /text-muted-foreground\/80">Tests</, 'a step not started is muted')
+})
+
+test('once approved, the to-dos lead and the rest of the plan folds behind "Show plan"', () => {
+  const approved = render({ plan: { ...plan, approvedRevision: 2, questions: [{ id: 'q1', text: 'Persist?', answer: 'Yes' }] }, actions: actions({ canApprove: false }) })
+  assert.match(approved, />To-dos</); assert.match(approved, /Approved plan · Todo app/)
+  assert.doesNotMatch(approved, /A small list\./, 'the summary waits behind the toggle'); assert.doesNotMatch(approved, /You: Yes/)
+  assert.match(approved, />Show plan</); assert.doesNotMatch(approved, /Show details/)
+  // A question still open is never folded away: it needs the user.
+  const asking = render({ plan: { ...plan, approvedRevision: 2 }, actions: actions({ canApprove: false }) })
+  assert.match(asking, /What still needs your input/); assert.match(asking, /Persist between reloads\?/)
+  // Waiting for approval, the whole plan shows and the toggle only covers details.
+  const pending = render({ plan, actions: actions() })
+  assert.match(pending, /A small list\./); assert.match(pending, />Show details</); assert.doesNotMatch(pending, />To-dos</)
+  // Without any actions the card is informational and compact.
+  assert.match(render({ plan }), />To-dos</)
+})

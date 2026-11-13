@@ -105,6 +105,7 @@ test('thinking deltas fold into one running row per step that any other run even
   assert.deepEqual([grown[0].kind, grown[0].status, grown[0].title, grown[0].description], ['thinking', 'running', 'Thinking', 'Read the failing test.'])
   const closed = reduceThinking(grown, event('agent.tool_call', { name: 'read_file', input: { path: 'x' } }, '1700000000003-1'), 3)
   assert.equal(closed[0].status, 'complete')
+  assert.equal(closed[0].completedAt, new Date(1700000000003).toISOString(), 'the thought ended when the next event was recorded')
   const next = reduceThinking(closed, event('agent.thinking', { delta: 'Now fix it.' }, '1700000000004-1'), 4)
   assert.equal(next.length, 2)
   assert.equal(next[1].description, 'Now fix it.')

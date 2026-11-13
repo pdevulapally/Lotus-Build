@@ -16,6 +16,9 @@ const compiled = ts.transpileModule(readFileSync(new URL('../../components/compu
 }).outputText
 const module = { exports: {} as { AgentFeed: typeof AgentFeed; splitStableBlocks: typeof splitStableBlocks } }
 const isolatedRequire = (id: string) => {
+  // The thought row has its own render test; here it reports what the feed hands it.
+  if (id === '@/components/ai-elements/thinking-reasoning') return { ThinkingReasoning: ({ text, streaming, startedAt, completedAt }: { text: string; streaming: boolean; startedAt: string; completedAt?: string }) =>
+    createElement('div', { 'data-thinking': streaming ? 'streaming' : 'done', 'data-started': startedAt, 'data-completed': completedAt }, text) }
   if (id === '@/components/ai-elements/shimmer') return { Shimmer: ({ children }: { children: ReactNode }) => createElement('span', null, children) }
   if (id === '@/components/ui/markdown') return { Markdown: ({ children }: { children: ReactNode }) => createElement('p', null, children) }
   return require(id.startsWith('@/') ? `../../${id.slice(2)}` : id)
