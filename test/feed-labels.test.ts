@@ -78,11 +78,47 @@ test('tool steps read as what the agent did, with the subject where it helps', (
 test('internal bookkeeping tools are hidden and unknown tools degrade to readable words', () => {
   assert.equal(activity(event('agent.tool_call', { name: 'finish_task', input: { outcome: 'answered' } }), 0), null)
   assert.equal(activity(event('agent.tool_result', { name: 'update_task', isError: false }), 0), null)
+  assert.equal(activity(event('agent.tool_call', { name: 'recover_task', input: {} }), 0), null)
   assert.equal(toolStepLabel('render_chart', 'call'), undefined)
   assert.equal(genericToolStepLabel('render_chart', 'call'), 'Using render chart')
   assert.equal(activity(event('agent.tool_call', { name: 'render_chart', input: {} }), 0)?.title, 'Using render chart')
   const row = activity(event('agent.tool_call', { name: 'render_chart', input: {} }), 0)!
   assert.equal(updateToolStepEvent([row], event('agent.tool_result', { name: 'render_chart', isError: false }))[0]?.title, 'Finished render chart')
+})
+
+test('web search has one live row that closes with sanitized cited results', () => {
+  const opened = activity(event('agent.tool_call', {
+    name: 'search_web',
+    callId: 'search-1',
+    input: { query: 'Tailwind v4 CLI official docs' },
+  }), 0)!
+  assert.deepEqual([opened.title, opened.status, opened.kind, opened.description],
+    ['Researching web', 'running', 'research', 'Tailwind v4 CLI official docs'])
+  const [closed] = updateToolStepEvent([opened], event('agent.tool_result', {
+    name: 'search_web',
+    callId: 'search-1',
+    text: JSON.stringify({
+      query: 'Tailwind v4 CLI official docs',
+      answer: 'ignored in the activity row',
+      sources: [
+        { title: 'Upgrade guide', url: 'https://tailwindcss.com/docs/upgrade-guide', date: '2026-10-01' },
+        { title: 'Unsafe', url: 'javascript:alert(1)' },
+      ],
+    }),
+  }))
+  assert.deepEqual([closed.title, closed.status], ['Research complete', 'complete'])
+  assert.equal(closed.metadata?.searchQuery, 'Tailwind v4 CLI official docs')
+  assert.deepEqual(JSON.parse(String(closed.metadata?.searchResultsJson)), [
+    { title: 'Upgrade guide', source: 'https://tailwindcss.com/docs/upgrade-guide', date: '2026-10-01' },
+  ])
+  const [failed] = updateToolStepEvent([opened], event('agent.tool_result', {
+    name: 'search_web',
+    callId: 'search-1',
+    isError: true,
+    text: 'provider error with private detail',
+  }))
+  assert.deepEqual([failed.title, failed.status, failed.description], ['Research failed', 'error', 'Web search could not finish.'])
+  assert.doesNotMatch(failed.description ?? '', /private detail/)
 })
 
 test('tool results match both identity and name, including out-of-order results and old events without call IDs', () => {

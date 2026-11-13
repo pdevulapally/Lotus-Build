@@ -4,6 +4,7 @@ import * as React from "react"
 import { ChevronRight, FileText, Globe } from "lucide-react"
 import { TextShimmer } from "@/components/prompt-kit/text-shimmer"
 import { cn } from "@/lib/utils"
+import { useReducedMotion } from "framer-motion"
 
 export type SearchResult = {
   title: string
@@ -23,6 +24,7 @@ export type SearchToolProps = {
 
 function AnimatedGlobe({ className }: { className?: string }) {
   const uid = React.useId().replace(/:/g, "")
+  const reduceMotion = useReducedMotion()
   return (
     <svg
       viewBox="0 0 24 24"
@@ -63,14 +65,16 @@ function AnimatedGlobe({ className }: { className?: string }) {
       {/* Meridian lines — animated vertical lines sliding right-to-left */}
       <g clipPath={`url(#${uid}c)`} mask={`url(#${uid}m)`}>
         <g>
-          <animateTransform
-            attributeName="transform"
-            type="translate"
-            from="0 0"
-            to="-7 0"
-            dur="3s"
-            repeatCount="indefinite"
-          />
+          {!reduceMotion && (
+            <animateTransform
+              attributeName="transform"
+              type="translate"
+              from="0 0"
+              to="-7 0"
+              dur="3s"
+              repeatCount="indefinite"
+            />
+          )}
           <line x1="-2" y1="2" x2="-2" y2="22" />
           <line x1="5"  y1="2" x2="5"  y2="22" />
           <line x1="12" y1="2" x2="12" y2="22" />
@@ -158,9 +162,12 @@ export const SearchTool = React.memo(function SearchTool({
           <div className="max-h-[200px] overflow-y-auto overflow-x-hidden bg-muted/55 [scrollbar-width:thin]">
             <div className="flex flex-col gap-0.5 p-1.5">
               {results.map((result, i) => (
-                <div
+                <a
                   key={i}
-                  className="flex min-w-0 cursor-default items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-muted/55"
+                  href={result.source}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-muted/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <div className="flex items-center justify-center w-4 h-4 shrink-0 text-muted-foreground">
                     <FileText className="w-3.5 h-3.5" />
@@ -171,7 +178,7 @@ export const SearchTool = React.memo(function SearchTool({
                   <span className="text-[11px] text-muted-foreground shrink-0 max-w-[90px] truncate">
                     {(result.date || result.source).replace(/^https?:\/\/(www\.)?/, "")}
                   </span>
-                </div>
+                </a>
               ))}
             </div>
           </div>

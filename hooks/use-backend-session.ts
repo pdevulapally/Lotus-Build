@@ -90,6 +90,36 @@ function isRunningToolItem(item: ComputerTimelineEvent): boolean {
   return item.status === 'running' && typeof item.metadata?.toolName === 'string'
 }
 
+function searchQuery(input: unknown): string {
+  if (typeof input !== 'object' || input === null || Array.isArray(input)) return ''
+  const query = (input as Record<string, unknown>).query
+  return typeof query === 'string' ? query.trim().slice(0, 500) : ''
+}
+
+function searchCompletion(text: unknown, fallbackQuery: string): { query: string; results: Array<{ title: string; source: string; date?: string }> } | undefined {
+  if (typeof text !== 'string' || text.length > 100_000) return undefined
+  try {
+    const value = JSON.parse(text) as Record<string, unknown>
+    const query = typeof value.query === 'string' && value.query.trim() ? value.query.trim().slice(0, 500) : fallbackQuery
+    if (!Array.isArray(value.sources)) return undefined
+    const results = value.sources.slice(0, 10).flatMap((source) => {
+      if (typeof source !== 'object' || source === null || Array.isArray(source)) return []
+      const row = source as Record<string, unknown>
+      if (typeof row.title !== 'string' || typeof row.url !== 'string') return []
+      let url: URL
+      try { url = new URL(row.url) } catch { return [] }
+      if (url.protocol !== 'https:' && url.protocol !== 'http:') return []
+      const title = row.title.trim().slice(0, 200)
+      if (!title) return []
+      const date = typeof row.date === 'string' && row.date.trim() ? row.date.trim().slice(0, 80) : undefined
+      return [{ title, source: url.toString(), ...(date === undefined ? {} : { date }) }]
+    })
+    return { query, results }
+  } catch {
+    return undefined
+  }
+}
+
 export function activity(event: SessionEvent, index: number): ComputerTimelineEvent | null {
   if (!event.id) return null
   if (event.type === 'agent.tool_call' && event.data.name === 'run_command') {
@@ -124,6 +154,20 @@ export function activity(event: SessionEvent, index: number): ComputerTimelineEv
     }
   }
   if (event.type === 'agent.tool_result' && isFileTool(event.data.name)) return null
+  if (event.type === 'agent.tool_call' && event.data.name === 'search_web') {
+    const query = searchQuery(event.data.input)
+    const callId = typeof event.data.callId === 'string' && event.data.callId ? event.data.callId : undefined
+    return {
+      id: event.id,
+      title: 'Researching web',
+      status: 'running',
+      kind: 'research',
+      createdAt: new Date(Number(event.id.split('-')[0])).toISOString(),
+      index,
+      ...(query ? { description: query } : {}),
+      metadata: { toolName: 'search_web', searchQuery: query, ...(callId ? { callId } : {}) },
+    }
+  }
 
   const tool = event.type === 'agent.tool_call' || event.type === 'agent.tool_result'
   const name = typeof event.data.name === 'string' ? event.data.name : ''
@@ -169,6 +213,27 @@ export function updateToolStepEvent(events: ComputerTimelineEvent[], event: Sess
   const index = runningToolIndex(events, callId, name)
   if (index < 0) return events
   const current = events[index]
+  if (name === 'search_web') {
+    const failed = event.data.isError === true
+    const query = typeof current.metadata?.searchQuery === 'string' ? current.metadata.searchQuery : ''
+    const completion = failed ? undefined : searchCompletion(event.data.text, query)
+    const next = events.slice()
+    const { description: _description, ...row } = current
+    next[index] = {
+      ...row,
+      status: failed || completion === undefined ? 'error' : 'complete',
+      title: failed || completion === undefined ? 'Research failed' : 'Research complete',
+      ...(failed || completion === undefined ? { description: 'Web search could not finish.' } : {}),
+      metadata: {
+        ...current.metadata,
+        ...(completion === undefined ? {} : {
+          searchQuery: completion.query,
+          searchResultsJson: JSON.stringify(completion.results),
+        }),
+      },
+    }
+    return next
+  }
   let input: Record<string, unknown> = {}
   if (typeof current.metadata?.toolInputJson === 'string') { try { input = JSON.parse(current.metadata.toolInputJson) as Record<string, unknown> } catch { input = {} } }
   const failed = event.data.isError === true

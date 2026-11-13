@@ -7,6 +7,7 @@ import remarkGfm from 'remark-gfm'
 import { agentFeedModule as module, renderAgentFeed as render } from './support/render-agent-feed'
 import { activity, updateToolStepEvent } from '../hooks/use-backend-session'
 import { selectTaskNotice } from '../lib/backend/task-notice'
+import { SearchTool } from '../components/project/search-tool'
 
 test('initial startup uses natural copy and confirmed processing supersedes the older queued snapshot', () => {
   assert.match(render({ status: 'queued' }), /Starting your request/)
@@ -33,6 +34,32 @@ test('a running tool replaces the generic status and an interrupted command stay
   assert.doesNotMatch(render({ events: [row] }), /Working/)
   const html = render({ status: 'error', events: [{ ...row, status: 'skipped' }] })
   assert.match(html, /Command interrupted/); assert.doesNotMatch(html, /Ran command/)
+})
+
+test('web search renders a dedicated live shimmer and then linked cited results', () => {
+  const call = activity({ id: '1700000000000-1', type: 'agent.tool_call', data: {
+    name: 'search_web', callId: 'search', input: { query: 'Tailwind v4 CLI official docs' },
+  } }, 0)!
+  const live = render({ events: [call] })
+  assert.match(live, /Searching the web/)
+  assert.match(live, /<svg/)
+  const [done] = updateToolStepEvent([call], { id: '1700000000001-1', type: 'agent.tool_result', data: {
+    name: 'search_web',
+    callId: 'search',
+    text: JSON.stringify({ query: 'Tailwind v4 CLI official docs', sources: [
+      { title: 'Tailwind upgrade guide', url: 'https://tailwindcss.com/docs/upgrade-guide', date: '2026-10-01' },
+    ] }),
+  } })
+  const completed = render({ events: [done] })
+  assert.match(completed, /Found 1 result/)
+  const expanded = renderToStaticMarkup(createElement(SearchTool, {
+    state: 'done',
+    query: 'Tailwind v4 CLI official docs',
+    results: [{ title: 'Tailwind upgrade guide', source: 'https://tailwindcss.com/docs/upgrade-guide' }],
+    defaultOpen: true,
+  }))
+  assert.match(expanded, /href="https:\/\/tailwindcss.com\/docs\/upgrade-guide"/)
+  assert.match(expanded, /rel="noreferrer"/)
 })
 
 test('streamed markdown splits only at stable boundaries, preserving the full document', () => {
