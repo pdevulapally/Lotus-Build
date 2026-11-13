@@ -10,9 +10,18 @@ const groups = [
   { key: 'workspace', title: 'Workspace', description: 'Your storage and workspace resources.', roles: ['sandbox.time', 'sandbox.concurrency', 'storage'] },
 ] as const
 
+const allowancePresentation: Readonly<Record<string, { label: string; order: number }>> = {
+  'ai.pacing': { label: 'Daily AI allowance', order: 0 },
+  'ai.allowance': { label: 'Monthly AI allowance', order: 1 },
+}
+
+export function usageMeterLabel(meter: UsageMeter): string {
+  return meter.role === undefined ? meter.label : allowancePresentation[meter.role]?.label ?? meter.label
+}
+
 /** Only the server's semantic role groups a meter. Unknown/older responses remain visible. Never sum unlike meters. */
 export function groupUsageMeters(reportedMeters: readonly UsageMeter[]): UsageGroup[] {
-  const meters = reportedMeters.filter(meter => meter.role !== 'build')
+  const meters = reportedMeters.filter(meter => meter.role !== 'build' && meter.role !== 'sandbox.concurrency')
   const assigned = new Set<string>()
   const result: UsageGroup[] = groups.map((group) => ({ ...group, meters: meters.filter((meter) => {
     const included = meter.role !== undefined && (group.roles as readonly string[]).includes(meter.role)
@@ -27,6 +36,10 @@ export function groupUsageMeters(reportedMeters: readonly UsageMeter[]): UsageGr
     result.find(group => group.key === 'ai')!.meters.push(...tokens.meters)
     tokens.meters = []
   }
+  const ai = result.find(group => group.key === 'ai')!
+  ai.meters.sort((left, right) =>
+    (left.role === undefined ? Number.MAX_SAFE_INTEGER : allowancePresentation[left.role]?.order ?? Number.MAX_SAFE_INTEGER)
+    - (right.role === undefined ? Number.MAX_SAFE_INTEGER : allowancePresentation[right.role]?.order ?? Number.MAX_SAFE_INTEGER))
   return result.filter((group) => group.meters.length > 0)
 }
 
