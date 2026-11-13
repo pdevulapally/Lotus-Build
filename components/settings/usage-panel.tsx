@@ -10,16 +10,17 @@ import { Heading, Text } from '@astryxdesign/core/Text'
 import { VStack } from '@astryxdesign/core/VStack'
 import type { BackendSessionUsage, BackendUsage } from '@/lib/backend/client'
 import { quantityWithUnit } from '@/lib/plans/format'
-import { groupUsageMeters, meterProgress, planMeterUsage, remainingAllowance, usageReset, type UsageMeter as Meter } from '@/lib/settings/usage'
+import { groupUsageMeters, meterProgress, planMeterUsage, remainingAllowance, usageMeterLabel, usageReset, type UsageMeter as Meter } from '@/lib/settings/usage'
 import { SettingsGroup, SettingsRow } from './settings-primitives'
 
 export function UsageMeter({ meter }: { meter: Meter }) {
   const descriptionId = useId()
   const { limit, percent, atLimit } = meterProgress(meter)
   const plan = planMeterUsage(meter)
-  return <VStack as="section" gap={2} aria-label={meter.label}>
-    <SettingsRow label={meter.label}><Text type="label" className={atLimit ? 'text-warning-soft-foreground' : undefined}>{remainingAllowance(meter)}</Text></SettingsRow>
-    {percent !== null && limit !== null && limit > 0 && <ProgressBar label={`${meter.label} including reservations`} isLabelHidden
+  const label = usageMeterLabel(meter)
+  return <VStack as="section" gap={2} aria-label={label}>
+    <SettingsRow label={label}><Text type="label" className={atLimit ? 'text-warning-soft-foreground' : undefined}>{remainingAllowance(meter)}</Text></SettingsRow>
+    {percent !== null && limit !== null && limit > 0 && <ProgressBar label={`${label} including reservations`} isLabelHidden
       value={Math.min(plan.totalUsed, limit)} max={limit} variant={atLimit ? 'warning' : 'neutral'} aria-describedby={descriptionId}
       formatValueLabel={() => `${quantityWithUnit(meter.unit, plan.totalUsed)} of ${quantityWithUnit(meter.unit, limit)}, including ${quantityWithUnit(meter.unit, plan.reserved)} reserved`} />}
     <Text type="supporting" color="secondary" id={descriptionId}>{usageReset(meter)}</Text>
@@ -30,8 +31,9 @@ function UsageMeterDetails({ meter }: { meter: Meter }) {
   const { limit } = meterProgress(meter)
   const plan = planMeterUsage(meter)
   const hasPaidUsage = meter.prepaidConsumed !== undefined || meter.prepaidReserved !== undefined
-  return <VStack as="section" gap={3} aria-label={`${meter.label} details`}>
-    <Text type="label">{meter.label}</Text>
+  const label = usageMeterLabel(meter)
+  return <VStack as="section" gap={3} aria-label={`${label} details`}>
+    <Text type="label">{label}</Text>
     <SettingsRow label={hasPaidUsage ? 'Plan used' : 'Used'}><Text type="body">{quantityWithUnit(meter.unit, plan.consumed)}</Text></SettingsRow>
     <SettingsRow label={hasPaidUsage ? 'Plan reserved' : 'Reserved'}><Text type="body">{quantityWithUnit(meter.unit, plan.reserved)}</Text></SettingsRow>
     <SettingsRow label="Limit"><Text type="body">{limit === null ? 'Unlimited' : quantityWithUnit(meter.unit, limit)}</Text></SettingsRow>

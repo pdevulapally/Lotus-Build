@@ -133,6 +133,8 @@ test('shared usage leads with one pool and daily pacing, with old model counters
     usage: usage([meter, shared, daily,
       { ...meter, meterKey: 'previous', role: 'ai.fallback.input', label: 'Previous input' },
       { ...meter, meterKey: 'storage', role: 'storage', label: 'Storage' },
+      { ...meter, meterKey: 'web-concurrency', role: 'sandbox.concurrency', label: 'Concurrent web sandboxes' },
+      { ...meter, meterKey: 'mobile-concurrency', role: 'sandbox.concurrency', label: 'Concurrent mobile sandboxes' },
       { ...meter, meterKey: 'build-counter', role: 'build', label: 'Builds' },
     ]),
     onDemand: createElement('section', { 'aria-label': 'Purchased credits' }, 'Purchased credits'),
@@ -143,9 +145,15 @@ test('shared usage leads with one pool and daily pacing, with old model counters
   assert.equal((html.match(/aria-expanded="false"/g) ?? []).length, 1)
   assert.doesNotMatch(html, /View details for|View model usage details/)
   assert.doesNotMatch(html, /Builds/)
+  assert.doesNotMatch(html, /Concurrent web sandboxes|Concurrent mobile sandboxes/)
   assert.match(html, /Previous model usage/)
   assert.doesNotMatch(html, /Each allowance is separate|View details for Input tokens|View details for Previous input/)
-  assert.ok(html.indexOf('AI credits') < html.indexOf('Purchased credits'))
+  assert.match(html, /Daily AI allowance/)
+  assert.match(html, /Monthly AI allowance/)
+  assert.doesNotMatch(html, />AI credits</)
+  assert.doesNotMatch(html, />Daily AI usage</)
+  assert.ok(html.indexOf('Daily AI allowance') < html.indexOf('Monthly AI allowance'))
+  assert.ok(html.indexOf('Monthly AI allowance') < html.indexOf('Purchased credits'))
   assert.ok(html.indexOf('Purchased credits') < html.indexOf('Storage'))
   assert.equal((html.match(/role="progressbar"/g) ?? []).length, 3)
 })
