@@ -50,6 +50,33 @@ export function describeAllowance(allowance: Allowance): { included: string; cei
   return { included, ceiling: `up to ${formatAllowanceValue(allowance.unit, allowance.limit)}` }
 }
 
+const aiAllowanceOrder: Readonly<Record<string, number>> = {
+  DAILY: 0,
+  WEEKLY: 1,
+  MONTHLY: 2,
+}
+
+export function planAllowanceLabel(allowance: Allowance): string {
+  if (allowance.role === 'ai.allowance') return 'Monthly AI allowance'
+  if (allowance.role === 'ai.pacing') {
+    if (allowance.resetPeriod === 'DAILY') return 'Daily AI allowance'
+    if (allowance.resetPeriod === 'WEEKLY') return 'Weekly AI allowance'
+  }
+  return allowance.label
+}
+
+export function orderedPlanAllowances(allowances: readonly Allowance[]): readonly Allowance[] {
+  return [...allowances].sort((left, right) => {
+    const leftOrder = left.role?.startsWith('ai.') === true
+      ? aiAllowanceOrder[left.resetPeriod ?? ''] ?? 3
+      : 4
+    const rightOrder = right.role?.startsWith('ai.') === true
+      ? aiAllowanceOrder[right.resetPeriod ?? ''] ?? 3
+      : 4
+    return leftOrder - rightOrder
+  })
+}
+
 export function formatPlanPrice(price: NonNullable<BackendPlan['price']>): { amount: string; interval: string } {
   const amount = formatStripeAmount(price.amountMinor, price.currency, { trimWhole: true })
   return { amount, interval: `per ${price.interval}` }

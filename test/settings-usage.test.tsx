@@ -126,11 +126,12 @@ test('prepaid usage is separate from included allowance and cannot be counted tw
   assert.equal(usageSchema.safeParse(usage([{ ...paid, prepaidConsumed: 1101 }])).success, false)
 })
 
-test('shared usage leads with one pool and daily pacing, with old model counters kept as details', () => {
+test('shared usage leads with pacing before the monthly pool, with old model counters kept as details', () => {
   const shared = { ...meter, meterKey: 'shared', role: 'ai.allowance', label: 'AI credits', unit: 'credits' }
   const daily = { ...shared, meterKey: 'daily', role: 'ai.pacing', label: 'Daily AI usage', resetPeriod: 'DAILY' as const }
+  const weekly = { ...shared, meterKey: 'weekly', role: 'ai.pacing', label: 'Weekly AI usage', resetPeriod: 'WEEKLY' as const }
   const html = renderToStaticMarkup(createElement(AccountUsage, {
-    usage: usage([meter, shared, daily,
+    usage: usage([meter, shared, daily, weekly,
       { ...meter, meterKey: 'previous', role: 'ai.fallback.input', label: 'Previous input' },
       { ...meter, meterKey: 'storage', role: 'storage', label: 'Storage' },
       { ...meter, meterKey: 'web-concurrency', role: 'sandbox.concurrency', label: 'Concurrent web sandboxes' },
@@ -140,7 +141,7 @@ test('shared usage leads with one pool and daily pacing, with old model counters
     onDemand: createElement('section', { 'aria-label': 'Purchased credits' }, 'Purchased credits'),
   }))
   assert.match(html, /One AI allowance across models, voice and projects/)
-  assert.match(html, /Daily limits, when shown, apply to the same allowance/)
+  assert.match(html, /Daily or weekly limits, when shown, apply to the same allowance/)
   assert.match(html, /Usage details/)
   assert.equal((html.match(/aria-expanded="false"/g) ?? []).length, 1)
   assert.doesNotMatch(html, /View details for|View model usage details/)
@@ -149,13 +150,15 @@ test('shared usage leads with one pool and daily pacing, with old model counters
   assert.match(html, /Previous model usage/)
   assert.doesNotMatch(html, /Each allowance is separate|View details for Input tokens|View details for Previous input/)
   assert.match(html, /Daily AI allowance/)
+  assert.match(html, /Weekly AI allowance/)
   assert.match(html, /Monthly AI allowance/)
   assert.doesNotMatch(html, />AI credits</)
   assert.doesNotMatch(html, />Daily AI usage</)
-  assert.ok(html.indexOf('Daily AI allowance') < html.indexOf('Monthly AI allowance'))
+  assert.ok(html.indexOf('Daily AI allowance') < html.indexOf('Weekly AI allowance'))
+  assert.ok(html.indexOf('Weekly AI allowance') < html.indexOf('Monthly AI allowance'))
   assert.ok(html.indexOf('Monthly AI allowance') < html.indexOf('Purchased credits'))
   assert.ok(html.indexOf('Purchased credits') < html.indexOf('Storage'))
-  assert.equal((html.match(/role="progressbar"/g) ?? []).length, 3)
+  assert.equal((html.match(/role="progressbar"/g) ?? []).length, 4)
 })
 
 test('session usage errors do not expose server diagnostics', () => {

@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert'
 import { test } from 'node:test'
-import { describeAllowance, describeCountCapabilities, featuredPlanKey, formatAllowanceValue, formatPlanPrice, quantityWithUnit } from '../lib/plans/format'
+import { describeAllowance, describeCountCapabilities, featuredPlanKey, formatAllowanceValue, formatPlanPrice, orderedPlanAllowances, planAllowanceLabel, quantityWithUnit } from '../lib/plans/format'
 
 test('allowance units read as humans say them', () => {
   assert.equal(formatAllowanceValue('tokens', 1_200_000), '1.2M tokens')
@@ -48,4 +48,13 @@ test('numeric plan capabilities read as counts, with an explicit unlimited', () 
   ])
   assert.deepEqual(rows, [{ key: 'projects.max', label: 'Projects', value: 'Unlimited' }, { key: 'seats.max', label: 'Seats', value: '25' }])
   assert.deepEqual(describeCountCapabilities([{ key: 'ai.run', label: 'AI builds', kind: 'boolean', value: true }]), [])
+})
+
+test('pricing names and orders server-reported AI allowance windows for customers', () => {
+  const monthly = { key: 'month', label: 'AI tokens', unit: 'tokens', role: 'ai.allowance', resetPeriod: 'MONTHLY' as const, included: 2_200_000, limit: 2_200_000 }
+  const weekly = { key: 'week', label: 'AI tokens this week', unit: 'tokens', role: 'ai.pacing', resetPeriod: 'WEEKLY' as const, included: 550_000, limit: 550_000 }
+  const storage = { key: 'storage', label: 'Storage', unit: 'bytes', resetPeriod: 'NEVER' as const, included: 1_000, limit: 1_000 }
+  assert.equal(planAllowanceLabel(monthly), 'Monthly AI allowance')
+  assert.equal(planAllowanceLabel(weekly), 'Weekly AI allowance')
+  assert.deepEqual(orderedPlanAllowances([storage, monthly, weekly]).map((row) => row.key), ['week', 'month', 'storage'])
 })

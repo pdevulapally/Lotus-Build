@@ -10,13 +10,18 @@ const groups = [
   { key: 'workspace', title: 'Workspace', description: 'Your storage and workspace resources.', roles: ['sandbox.time', 'sandbox.concurrency', 'storage'] },
 ] as const
 
-const allowancePresentation: Readonly<Record<string, { label: string; order: number }>> = {
-  'ai.pacing': { label: 'Daily AI allowance', order: 0 },
-  'ai.allowance': { label: 'Monthly AI allowance', order: 1 },
+function allowanceOrder(meter: UsageMeter): number {
+  if (meter.role === 'ai.pacing' && meter.resetPeriod === 'DAILY') return 0
+  if (meter.role === 'ai.pacing' && meter.resetPeriod === 'WEEKLY') return 1
+  if (meter.role === 'ai.allowance') return 2
+  return Number.MAX_SAFE_INTEGER
 }
 
 export function usageMeterLabel(meter: UsageMeter): string {
-  return meter.role === undefined ? meter.label : allowancePresentation[meter.role]?.label ?? meter.label
+  if (meter.role === 'ai.allowance') return 'Monthly AI allowance'
+  if (meter.role === 'ai.pacing' && meter.resetPeriod === 'DAILY') return 'Daily AI allowance'
+  if (meter.role === 'ai.pacing' && meter.resetPeriod === 'WEEKLY') return 'Weekly AI allowance'
+  return meter.label
 }
 
 /** Only the server's semantic role groups a meter. Unknown/older responses remain visible. Never sum unlike meters. */
@@ -37,9 +42,7 @@ export function groupUsageMeters(reportedMeters: readonly UsageMeter[]): UsageGr
     tokens.meters = []
   }
   const ai = result.find(group => group.key === 'ai')!
-  ai.meters.sort((left, right) =>
-    (left.role === undefined ? Number.MAX_SAFE_INTEGER : allowancePresentation[left.role]?.order ?? Number.MAX_SAFE_INTEGER)
-    - (right.role === undefined ? Number.MAX_SAFE_INTEGER : allowancePresentation[right.role]?.order ?? Number.MAX_SAFE_INTEGER))
+  ai.meters.sort((left, right) => allowanceOrder(left) - allowanceOrder(right))
   return result.filter((group) => group.meters.length > 0)
 }
 
@@ -63,7 +66,7 @@ export function meterProgress(meter: UsageMeter) {
   }
 }
 
-export const resetLabels = { NEVER: 'Does not reset', DAILY: 'Resets daily', MONTHLY: 'Resets monthly' } as const
+export const resetLabels = { NEVER: 'Does not reset', DAILY: 'Resets daily', WEEKLY: 'Resets weekly', MONTHLY: 'Resets monthly' } as const
 
 export function usagePeriod(meter: UsageMeter): string {
   if (meter.resetPeriod === 'NEVER') return resetLabels.NEVER
@@ -78,7 +81,7 @@ export function usageReset(meter: UsageMeter): string {
   const start = new Date(meter.periodStart)
   const next = meter.resetPeriod === 'MONTHLY'
     ? new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1))
-    : new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate() + 1))
+    : new Date(start.getTime() + (meter.resetPeriod === 'WEEKLY' ? 7 : 1) * 24 * 60 * 60 * 1000)
   return `Resets ${new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(next)} at 00:00 UTC`
 }
 
