@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { billingCreditsSchema, creditOfferSchema, creditCheckoutSchema, creditPrice, creditPurchaseMessage, creditPurchaseSchema, type CreditOffer } from '../lib/billing/credits'
+import { billingCreditsSchema, customAmountMinor, customCreditOffer, creditChoiceAvailable, creditOfferSchema, creditCheckoutSchema, creditPrice, creditPurchaseMessage, creditPurchaseSchema, type CreditOffer } from '../lib/billing/credits'
 import { clearCreditOperation, openCreditCheckout, readCreditOperation } from '../lib/billing/credits-checkout'
 
 const offer: CreditOffer = { id: 'small', version: 'v1', credits: 1000, amountMinor: 1500, currency: 'usd', expirySeconds: null, pacingPolicy: 'respect' }
@@ -192,3 +192,43 @@ test('buy-and-continue retains one task identity across uncertain checkout and r
     return response
   } })
 })
+
+
+const customPricing={id:'custom',version:'v1',currency:'gbp',minAmountMinor:500,maxAmountMinor:50000,stepAmountMinor:100,creditsPerStep:100000,pacingPolicy:'bypass_paid' as const};
+
+test('custom currency amounts are exact and quotes enforce the approved bounds and increment', () => {
+  for(const [value,amount] of [['5',500],['5.00',500],['25',2500],['500',50000]] as const) assert.equal(customAmountMinor(value,'gbp'),amount);
+  for(const value of ['',' 5','1e3','NaN','Infinity','5,00','5.001','-5','999999999999999999999999']) assert.equal(customAmountMinor(value,'gbp'),null);
+  assert.equal(customAmountMinor('5.1','gbp'),510);
+  assert.equal(customAmountMinor('5.00','jpy'),null);
+  const quote=customCreditOffer(customPricing,2500)!;
+  assert.equal(quote.credits,2500000);
+  assert.equal(quote.customAmountMinor,2500);
+  assert.equal(quote.expirySeconds,null);
+  for(const amount of [null,499,550,50001,NaN,Infinity]) assert.equal(customCreditOffer(customPricing,amount),null);
+  const data=billingCreditsSchema.parse({portalAvailable:false,pendingPurchaseId:null,purchasing:{enabled:true,reason:null},wallet:null,offers:[],customTopUp:customPricing});
+  assert.equal(creditChoiceAvailable(data,quote),true);
+  assert.equal(creditChoiceAvailable(data,{...quote,customAmountMinor:2600}),false);
+  assert.equal(creditChoiceAvailable(data,{...quote,version:'retired'}),false);
+  assert.equal(billingCreditsSchema.safeParse({...data,customTopUp:{...customPricing,stepAmountMinor:3}}).success,false);
+});
+
+test('custom amount cannot change across an uncertain checkout and recovery retains the original amount', async () => {
+  const saved=storage();
+  const quote=customCreditOffer(customPricing,2500)!;
+  const input={...options(),storage:saved,offer:quote};
+  await assert.rejects(openCreditCheckout({...input,create:async()=>{throw new Error('Network unavailable')}}));
+  assert.equal(readCreditOperation(saved,'a')?.customAmountMinor,2500);
+  await assert.rejects(openCreditCheckout({...input,offer:customCreditOffer(customPricing,2600)!}),/earlier checkout/);
+  await openCreditCheckout({...input,requireExisting:true,create:async value=>{
+    assert.equal(value.customAmountMinor,2500);
+    assert.equal(value.offerId,'custom-2500');
+    return response;
+  }});
+  const snapshot=await (await import('../lib/billing/credits-read')).readCreditsSnapshot({
+    readWallet:async()=>({portalAvailable:false,pendingPurchaseId:null,purchasing:{enabled:true,reason:null},wallet:null,offers:[],customTopUp:customPricing}),
+    readPurchase:async()=>({purchaseId,status:'paid',credits:2500000,revokedCredits:0,expiresAt:response.expiresAt}),
+    readOperation:()=>({key:'custom-operation-12345',offerId:'custom-2500',offerVersion:'v1',customAmountMinor:2500}),
+  });
+  assert.equal(snapshot.checkoutBlockedReason,null);
+});

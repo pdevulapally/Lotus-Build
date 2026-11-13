@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { auth } from '@/lib/firebase'
 import { currentBackend } from '@/lib/backend/browser'
 import type { BillingCredits, CreditOffer, CreditPurchase, CreditTask } from '@/lib/billing/credits'
+import { creditChoiceAvailable, type CreditChoice } from '@/lib/billing/credits'
 import { readCreditsSnapshot } from '@/lib/billing/credits-read'
 import { clearCreditOperation, openCreditCheckout, readCreditOperation } from '@/lib/billing/credits-checkout'
 
@@ -66,9 +67,9 @@ export function useCredits(uid: string | undefined, purchaseId?: string | null, 
     const timer = window.setTimeout(() => { paymentChecks.current.count++; void refresh() }, 5000)
     return () => window.clearTimeout(timer)
   }, [uid, state.uid, state.purchase, state.loading, state.purchaseError, state.error, refresh])
-  const runCheckout = useCallback(async (offer: Pick<CreditOffer, 'id' | 'version'>, requireExisting = false) => {
+  const runCheckout = useCallback(async (offer: CreditChoice, requireExisting = false) => {
     if (busy.current || !uid || !isCurrent() || state.loading || state.uid !== uid) return
-    if (!requireExisting && (state.checkoutBlockedReason || !state.data?.purchasing.enabled || !state.data.offers.some(o => o.id === offer.id && o.version === offer.version))) return
+    if (!requireExisting && (state.checkoutBlockedReason || !state.data?.purchasing.enabled || !creditChoiceAvailable(state.data, offer))) return
     const started = generation.current
     const stillCurrent = () => generation.current === started && isCurrent()
     busy.current = true
@@ -92,7 +93,7 @@ export function useCredits(uid: string | undefined, purchaseId?: string | null, 
     try {
       const saved = readCreditOperation(window.sessionStorage, uid)
       if (!saved) { await refresh(); return }
-      await runCheckout({ id: saved.offerId, version: saved.offerVersion }, true)
+      await runCheckout({ id: saved.offerId, version: saved.offerVersion, customAmountMinor:saved.customAmountMinor }, true)
     } catch {
       if (isCurrent()) setState(old => ({ ...old, error: 'Saved checkout information is unavailable. Restore browser storage and refresh.' }))
     }
