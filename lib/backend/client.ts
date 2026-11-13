@@ -252,8 +252,8 @@ export class BackendClient {
   plans(signal?: AbortSignal) { return this.json(z.object({ plans: z.array(planSchema) }), '/plans', { signal, public: true }) }
   billingSubscription(signal?: AbortSignal) { return this.json(billingSubscriptionSchema, '/billing/subscription', { signal }) }
   billingCredits(signal?: AbortSignal) { return this.json(billingCreditsSchema, '/billing/credits', { signal }) }
-  creditCheckout(input: { offerId: string; offerVersion: string; continuation?: CreditTask }, key: string) {
-    const body = z.object({ offerId: creditOfferSchema.shape.id, offerVersion: creditOfferSchema.shape.version, continuation: creditTaskSchema.optional() }).strict().parse(input)
+  creditCheckout(input: { offerId: string; offerVersion: string; customAmountMinor?: number; continuation?: CreditTask }, key: string) {
+    const body = z.object({ offerId: creditOfferSchema.shape.id, offerVersion: creditOfferSchema.shape.version, customAmountMinor:creditOfferSchema.shape.customAmountMinor, continuation: creditTaskSchema.optional() }).strict().parse(input)
     return this.json(creditCheckoutSchema, '/billing/credits/checkout', { method: 'POST', body, key })
   }
   creditPurchase(purchaseId: string, signal?: AbortSignal) {

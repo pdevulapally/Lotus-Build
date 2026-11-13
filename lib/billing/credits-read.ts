@@ -1,4 +1,4 @@
-import type { BillingCredits, CreditPurchase } from './credits'
+import { creditChoiceAvailable, type BillingCredits, type CreditPurchase } from './credits'
 import type { CreditOperation } from './credits-checkout'
 
 const message = (error: unknown, fallback: string) => error instanceof Error ? error.message : fallback
@@ -41,7 +41,7 @@ export async function readCreditsSnapshot(options: {
     data = await readWallet('The updated credit balance could not be loaded.')
   }
   const unresolvedOperation = operation && (!operation.purchaseId || operation.purchaseId !== purchase?.purchaseId || purchase.status === 'pending')
-  const unavailableOperation = operation && unresolvedOperation && !data?.offers.some(offer => offer.id === operation.offerId && offer.version === operation.offerVersion)
+  const unavailableOperation = operation && unresolvedOperation && !creditChoiceAvailable(data, {id:operation.offerId, version:operation.offerVersion, customAmountMinor:operation.customAmountMinor})
   const checkoutBlockedReason = operationError ?? (purchaseError
     ? 'Payment status is unavailable. Refresh to check your earlier checkout before starting another payment.'
     : purchase?.status === 'pending' || data?.pendingPurchaseId

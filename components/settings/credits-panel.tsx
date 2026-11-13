@@ -8,15 +8,20 @@ import { HStack } from '@astryxdesign/core/HStack'
 import { RadioList, RadioListItem } from '@astryxdesign/core/RadioList'
 import { Heading, Text } from '@astryxdesign/core/Text'
 import { VStack } from '@astryxdesign/core/VStack'
+import { TextInput } from '@astryxdesign/core/TextInput'
 import type { CreditsController } from '@/hooks/use-credits'
-import { creditPrice, creditPurchaseMessage, type CreditTask } from '@/lib/billing/credits'
+import { creditPrice, creditPurchaseMessage, customAmountMinor, customCreditOffer, type CreditTask } from '@/lib/billing/credits'
+import { formatStripeAmount } from '@/lib/billing/currency'
 
 /** Shares the billing controller so eligibility, prices and balances stay together. */
 export function CreditsPanel({ credits, task, onClose }: { credits: CreditsController; task?: CreditTask; onClose?: () => void }) {
   const { data, loading, unavailable, busy, error, purchaseError, checkoutBlockedReason, purchase, refresh, checkout, canRecoverCheckout, recoverCheckout } = credits
   const [selected, setSelected] = useState<string | null>(null)
+  const [customAmount, setCustomAmount] = useState('')
   const groupName = useId()
-  const offer = data?.offers.find(item => `${item.id}:${item.version}` === selected)
+  const custom = data?.customTopUp
+  const customQuote = customCreditOffer(custom, custom ? customAmountMinor(customAmount, custom.currency) : null)
+  const offer = selected === 'custom-amount' ? customQuote : data?.offers.find(item => `${item.id}:${item.version}` === selected)
   const PaymentIcon = purchase?.status === 'paid' ? CheckCircle2 : purchase?.status === 'pending' ? Clock3 : CircleAlert
   const continuation = purchase?.status === 'paid' ? purchase.continuation : undefined
   return <VStack as="section" gap={4} aria-label="On-demand usage" aria-busy={loading || busy}>
@@ -62,7 +67,12 @@ export function CreditsPanel({ credits, task, onClose }: { credits: CreditsContr
               label={`${item.credits.toLocaleString('en-GB')} credits`}
               endContent={<Text type="label">{creditPrice(item)} once</Text>}
               description={item.pacingPolicy === 'respect' ? 'The daily usage limit still applies.' : 'Paid credits can cover usage beyond the daily allowance. Other limits still apply.'} />)}
+            {custom && <RadioListItem value="custom-amount" label="Custom amount" description="Choose how much to add." />}
           </RadioList>
+        {custom && selected === 'custom-amount' && <TextInput label={`Amount (${custom.currency.toUpperCase()})`} value={customAmount} onChange={setCustomAmount}
+          ref={input => { if (input) input.inputMode = 'decimal' }} isDisabled={busy || Boolean(checkoutBlockedReason)}
+          description={`${formatStripeAmount(custom.minAmountMinor, custom.currency)}–${formatStripeAmount(custom.maxAmountMinor, custom.currency)}, in ${formatStripeAmount(custom.stepAmountMinor, custom.currency)} increments.`}
+          status={customAmount && !customQuote ? {type:'error',message:'Choose an amount within the range and increment shown.'} : undefined} />}
         <VStack gap={3}>
           <Text type="label" role="status">{offer ? `${offer.credits.toLocaleString('en-GB')} credits for ${creditPrice(offer)}, one-time payment` : 'Select a credit pack to continue.'}</Text>
           {task && !continuation && <Text type="supporting" color="secondary">Your paused task will continue after payment is confirmed.</Text>}

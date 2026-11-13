@@ -99,3 +99,14 @@ test('usage and billing expose an eligible Buy credits entry point without inven
   assert.match(loading, /Loading credit balance/)
   assert.doesNotMatch(loading, />0</)
 })
+
+
+test('custom amount option is driven by server configuration alongside preset packs', () => {
+  const customTopUp={id:'custom',version:'v1',currency:'gbp',minAmountMinor:500,maxAmountMinor:50000,stepAmountMinor:100,creditsPerStep:100000,pacingPolicy:'bypass_paid' as const};
+  const html=render({data:{...data,customTopUp}});
+  assert.match(html,/Custom amount/);
+  assert.match(html,/Choose how much to add/);
+  assert.doesNotMatch(render({data}),/Custom amount/);
+  assert.match(html,/Credits never expire/);
+  assert.match(html,/<button[^>]*disabled=""[^>]*>(?:(?!<\/button>)[\s\S])*Continue to checkout/);
+});
