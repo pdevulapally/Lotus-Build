@@ -2,11 +2,9 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { Reasoning, ReasoningContent } from '../components/ai-elements/reasoning'
+import { ReasoningBlocks } from '../components/ai-elements/reasoning'
 
-const render = (text: string) => renderToStaticMarkup(createElement(Reasoning, {
-  defaultOpen: true, isStreaming: false, children: createElement(ReasoningContent, { children: text }),
-}))
+const render = (text: string) => renderToStaticMarkup(createElement(ReasoningBlocks, { text }))
 
 test('thought-process text retains semantic paragraphs, headings, emphasis, lists and inline code', () => {
   const html = render('### Checking the app\n\nI am checking **layout** in `src/App.tsx`.\n\n- Read the component\n- Review the styles\n\nThen verify the result.')

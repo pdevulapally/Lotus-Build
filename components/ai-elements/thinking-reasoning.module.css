@@ -1,0 +1,77 @@
+/* Adapted from aicss.dev "thinking-reasoning": the shell keeps its motion, the
+   content is the live thought and the colours are the theme's tokens. */
+.block {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  animation: block-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes block-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.header {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  min-height: 20px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: default;
+}
+.header.clickable { cursor: pointer; }
+.header.clickable:hover { color: var(--foreground); }
+.header:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ring);
+  border-radius: 4px;
+}
+.label {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+}
+.verb { color: var(--foreground); opacity: 0.85; }
+.chevron {
+  transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  /* the path is an up caret; a folded summary points down */
+  transform: rotate(180deg);
+}
+.header[aria-expanded="true"] .chevron { transform: rotate(0deg); }
+.collapsible {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition: grid-template-rows 320ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease;
+}
+.collapsible.collapsed {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  pointer-events: none;
+}
+.inner { min-height: 0; overflow: hidden; }
+/* The viewport grows with the thought, then caps. While streaming the newest
+   lines slide into view behind a soft fade; once reopened by the user it
+   scrolls natively and the fades follow the scroll position. */
+.viewport {
+  margin-top: 6px;
+  overflow: hidden;
+  transition: height 360ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.viewport.scroll {
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.viewport.scroll::-webkit-scrollbar { display: none; }
+.stream {
+  transition: transform 560ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .block { animation: none; }
+  .chevron, .collapsible, .viewport, .stream { transition: none; }
+}

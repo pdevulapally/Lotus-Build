@@ -27,11 +27,7 @@ import { lineDiff, countDiffStats, type DiffOp } from "@/components/project/edit
 import { BashTool } from "@/components/project/bash-tool"
 import { SearchTool, type SearchResult } from "@/components/project/search-tool"
 import { QuestionTool, type QuestionAnswer, type QuestionConfig } from "@/components/computer/question-tool"
-import {
-  Reasoning,
-  ReasoningContent,
-  ReasoningTrigger,
-} from "@/components/ai-elements/reasoning"
+import { ThinkingReasoning } from "@/components/ai-elements/thinking-reasoning"
 import {
   getEventTitle,
   getRunIdGroups,
@@ -449,14 +445,12 @@ const FeedItem = memo(function FeedItem({
     )
   }
 
-  // The model's own reasoning for one step, streamed by the server. Collapsed
-  // by default and never unfolded on its own: a calm line the user can open.
+  // The model's own reasoning for one step, streamed by the server: open while it
+  // streams, folded into "Thought for Ns" once the step moves on, reopenable.
   if (event.kind === "thinking" && event.description) {
     return (
-      <Reasoning className="my-2" isStreaming={isRunning} defaultOpen={false} autoOpen={false}>
-        <ReasoningTrigger title={isRunning ? "Thinking" : "Thought process"} />
-        <ReasoningContent>{event.description}</ReasoningContent>
-      </Reasoning>
+      <ThinkingReasoning className="my-2" text={event.description} streaming={isRunning && event.status === "running"}
+        startedAt={event.createdAt} completedAt={event.completedAt} />
     )
   }
 

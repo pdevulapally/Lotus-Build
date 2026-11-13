@@ -12,6 +12,8 @@ export type ComputerTimelineEvent = {
   status: "pending" | "running" | "complete" | "error" | "skipped"
   kind?: "understanding" | "research" | "browser" | "planning" | "code" | "sandbox" | "fix" | "security" | "user" | "question" | "thinking"
   createdAt: string
+  /** When a streamed thought ended, from the server's timestamp on the event that closed it. */
+  completedAt?: string
   description?: string
   runId?: string
   index: number

@@ -17,6 +17,8 @@ const compiled = ts.transpileModule(readFileSync(new URL('../components/computer
 }).outputText
 const module = { exports: {} as { AgentFeed: typeof AgentFeed; splitStableBlocks: typeof import('../components/computer/agent-feed').splitStableBlocks } }
 const isolatedRequire = (id: string) => {
+  if (id === '@/components/ai-elements/thinking-reasoning') return { ThinkingReasoning: ({ text, streaming, startedAt, completedAt }: { text: string; streaming: boolean; startedAt: string; completedAt?: string }) =>
+    createElement('div', { 'data-thinking': streaming ? 'streaming' : 'done', 'data-started': startedAt, 'data-completed': completedAt }, text) }
   if (id === '@/components/ai-elements/shimmer') return { Shimmer: ({ children }: { children: React.ReactNode }) => createElement('span', null, children) }
   if (id === '@/components/ui/markdown') return { Markdown: ({ children }: { children: React.ReactNode }) => createElement('p', null, children) }
   return require(id.startsWith('@/') ? `../${id.slice(2)}` : id)
@@ -137,12 +139,14 @@ test('a confirmed stop is calm: the progress label says Stopped and nothing is s
   assert.match(html, /Stopped/); assert.doesNotMatch(html, /Stopping|Something went wrong|text-destructive/)
 })
 
-test('a thinking row renders collapsed as a calm trigger, keeping the reasoning text folded until opened', () => {
+test('a thinking row hands the feed\'s live state to the thought block: streaming only while this step still thinks', () => {
   const thinking = { id: '1-0', title: 'Thinking', kind: 'thinking' as const, status: 'running' as const, index: 0, createdAt: '2026-11-06T10:00:00Z', description: 'The failing assertion points at the reducer.' }
   const live = render({ events: [thinking] })
-  assert.match(live, /Thinking/); assert.doesNotMatch(live, /failing assertion/)
-  const done = render({ status: 'complete', events: [{ ...thinking, status: 'complete' as const }] })
-  assert.match(done, /Thought process/); assert.doesNotMatch(done, /failing assertion/)
+  assert.match(live, /data-thinking="streaming" data-started="2026-11-06T10:00:00Z"/); assert.match(live, /failing assertion/)
+  const closed = render({ events: [{ ...thinking, status: 'complete' as const, completedAt: '2026-11-06T10:00:04Z' }] })
+  assert.match(closed, /data-thinking="done"[^>]*data-completed="2026-11-06T10:00:04Z"/, 'a step that moved on is no longer thinking even while the session runs')
+  const stopped = render({ status: 'complete', events: [thinking] })
+  assert.match(stopped, /data-thinking="done"/, 'a session that is not running has no live thought')
 })
 
 test('the current stop appears once in the shared notice without exposing tool diagnostics', () => {

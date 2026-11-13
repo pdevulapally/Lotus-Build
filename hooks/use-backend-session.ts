@@ -63,7 +63,9 @@ export function reduceThinking(events: ComputerTimelineEvent[], event: SessionEv
     return events.map((item, position) => position === open ? { ...item, description } : item)
   }
   if (open === -1 || !event.type.startsWith('agent.') && !event.type.startsWith('session.')) return events
-  return events.map((item, position) => position === open ? { ...item, status: 'complete' as const } : item)
+  const closedAt = Number(event.id?.split('-')[0])
+  const completedAt = Number.isFinite(closedAt) && closedAt > 0 ? new Date(closedAt).toISOString() : undefined
+  return events.map((item, position) => position === open ? { ...item, status: 'complete' as const, ...(completedAt === undefined ? {} : { completedAt }) } : item)
 }
 
 const terminalStatuses: ReadonlySet<BackendSession['status']> = new Set(['IDLE', 'STOPPED', 'FAILED'])
