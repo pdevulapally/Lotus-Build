@@ -7,7 +7,7 @@ import { CreditBalance } from '../components/billing/credit-balance'
 import { billingCreditsSchema } from '../lib/billing/credits'
 import type { CreditsController } from '../hooks/use-credits'
 
-const initial: CreditsController = { data: null, purchase: null, loading: false, unavailable: false, busy: false, error: null, purchaseError: null, checkoutBlockedReason: null, canRecoverCheckout: false, recoverCheckout: async () => {}, refresh: async () => {}, checkout: async () => {} }
+const initial: CreditsController = { data: null, purchase: null, loading: false, unavailable: false, busy: false, error: null, purchaseError: null, checkoutBlockedReason: null, awaitingPayment: false, canRecoverCheckout: false, recoverCheckout: async () => {}, refresh: async () => {}, checkout: async () => {} }
 const data = { portalAvailable: false, pendingPurchaseId: null, purchasing: { enabled: true, reason: null }, wallet: { availableCredits: 12, reservedCredits: 3, bypassAvailableCredits: 0 }, offers: [{ id: 'small', version: 'v1', credits: 500, amountMinor: 1000, currency: 'usd', expirySeconds: null, pacingPolicy: 'respect' as const }] }
 const render = (state: Partial<CreditsController>) => renderToStaticMarkup(createElement(CreditsPanel, { credits: { ...initial, ...state } }))
 

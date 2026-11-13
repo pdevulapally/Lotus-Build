@@ -111,6 +111,42 @@ test('server pending intent and failed lookup block new checkout without hiding 
     assert.ok(result.checkoutBlockedReason)
   }
 })
+test('a pending purchase is read once and polled only when this browser is returning from its checkout', async () => {
+  const { readCreditsSnapshot } = await import('../lib/billing/credits-read')
+  let reads = 0
+  const config = {
+    readWallet: async () => { reads++; return { portalAvailable: true, pendingPurchaseId: purchaseId, purchasing: { enabled: true, reason: null }, wallet: { availableCredits: 20, reservedCredits: 0, bypassAvailableCredits: 0 }, offers: [offer] } },
+    readPurchase: async () => ({ purchaseId, status: 'pending' as const, credits: 1000, revokedCredits: 0, expiresAt: response.expiresAt }),
+  }
+  const background = await readCreditsSnapshot({ ...config, readOperation: () => null })
+  assert.equal(reads, 1)
+  assert.equal(background.awaitingPayment, false)
+  assert.equal(background.data?.wallet?.availableCredits, 20)
+  assert.match(background.checkoutBlockedReason!, /earlier payment/)
+  reads = 0
+  const callback = await readCreditsSnapshot({ ...config, readOperation: () => null, purchaseId })
+  assert.equal(reads, 1)
+  assert.equal(callback.awaitingPayment, true)
+  reads = 0
+  const saved = await readCreditsSnapshot({ ...config, readOperation: () => ({ key: 'operation-key-0001', offerId: offer.id, offerVersion: offer.version, purchaseId }) })
+  assert.equal(reads, 1)
+  assert.equal(saved.awaitingPayment, true)
+  reads = 0
+  const other = await readCreditsSnapshot({ ...config, readOperation: () => null, purchaseId: 'b'.repeat(64) })
+  assert.equal(reads, 1)
+  assert.equal(other.awaitingPayment, false)
+  reads = 0
+  const failed = await readCreditsSnapshot({ ...config, readOperation: () => null, purchaseId, readPurchase: async () => { throw new Error('unavailable') } })
+  assert.equal(reads, 2)
+  assert.equal(failed.awaitingPayment, false)
+  assert.equal(failed.data?.wallet?.availableCredits, 20)
+  reads = 0
+  const recovered = await readCreditsSnapshot({ ...config, readOperation: () => null, purchaseId, readWallet: async () => { if (reads++ === 0) throw new Error('wallet unavailable'); return { portalAvailable: true, pendingPurchaseId: purchaseId, purchasing: { enabled: true, reason: null }, wallet: { availableCredits: 20, reservedCredits: 0, bypassAvailableCredits: 0 }, offers: [offer] } } })
+  assert.equal(reads, 2)
+  assert.equal(recovered.error, null)
+  assert.equal(recovered.data?.wallet?.availableCredits, 20)
+  assert.equal(recovered.awaitingPayment, true)
+})
 test('failed wallet reread never pairs confirmed payment with a stale balance', async () => {
   const { readCreditsSnapshot } = await import('../lib/billing/credits-read')
   let reads = 0
