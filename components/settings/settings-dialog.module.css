@@ -1,19 +1,33 @@
-.dialog > [data-slot="dialog-close"] {
-  top: 12px;
-  right: 12px;
-  display: inline-flex;
-  width: 44px;
-  height: 44px;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  color: var(--muted-foreground);
-  opacity: 1;
+/* Astryx supplies layout and spacing; these rules cover the responsive shell
+   and shared Radix modal boundary, which have no equivalent component prop. */
+.dialog {
+  height: min(42rem, calc(100dvh - 3rem));
+  min-height: 0;
+  min-width: 0;
+  max-width: 56rem;
+  border-radius: var(--radius);
 }
 
-.dialog > [data-slot="dialog-close"]:hover {
-  background: var(--accent);
-  color: var(--foreground);
+.shell, .layout { min-height: 0; min-width: 0; height: 100%; }
+.layout { flex: 1; }
+.content { min-height: 0; min-width: 0; overflow: hidden; }
+.content > footer { flex-shrink: 0; border-top: 1px solid var(--border); }
+.scrollArea { min-height: 0; min-width: 0; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.sidebar { flex-shrink: 0; width: 12rem; }
+.panel { container-type: inline-size; min-width: 0; overflow-wrap: anywhere; }
+.panelHeading { padding-inline-end: 3rem; }
+.mobileHeader { display: none; }
+.desktopClose { position: absolute; top: 1rem; right: 1rem; z-index: 1; background: var(--card); }
+.mobileNavigation { min-width: 0; max-width: 100%; }
+.mobileNavigation > * { flex-shrink: 0; }
+
+@media (max-width: 48rem) {
+  .sidebar, .desktopClose { display: none; }
+  .mobileHeader { display: flex; flex-shrink: 0; min-width: 0; border-bottom: 1px solid var(--border); }
+  .panelHeading { padding-inline-end: 0; }
+  .layout { height: auto; }
 }
 
-.dialog [data-slot="button"] { min-height: 2.75rem; border-radius: 999px; }
+@media (max-width: 39.999rem) {
+  .dialog { height: calc(100dvh - 2rem); }
+}

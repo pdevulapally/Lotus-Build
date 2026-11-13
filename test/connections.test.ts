@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFileSync } from 'node:fs'
 import { BackendClient } from '../lib/backend/client'
-import { catalogueSchema, connectionSchema, connectorKeys, connectionStatuses, statusLabel } from '../lib/backend/connections'
+import { catalogueSchema, connectionSchema, connectionStatuses, statusLabel } from '../lib/backend/connections'
 
 const connection = { id: 'c1', connector: 'netlify', status: 'active', createdAt: '2026-10-31T20:00:00.000Z', updatedAt: '2026-10-31T20:00:00.000Z',
   account: { id: 'acct', name: 'Alice' }, scopes: ['sites:read'], grantedProjectIds: ['p1'] }
@@ -19,8 +19,11 @@ test('provider credentials are not part of the client-readable project document'
   assert.equal(/vercelToken|netlifyToken|accessToken|apiKey/i.test(types), false)
 })
 
-test('catalogue keeps the agreed provider order and every lifecycle state has a label', () => {
-  assert.deepEqual([...connectorKeys], ['github', 'netlify', 'vercel', 'slack', 'aws', 'mcp'])
+test('catalogue accepts server-configured providers and every lifecycle state has a label', () => {
+  const configured = { key: 'new-customer-tool', name: 'Customer tool', summary: 'Connected by configuration', auth: 'mcp-remote', status: 'available', capabilities: [] }
+  assert.equal(catalogueSchema.parse({ connectors: [configured] }).connectors[0]!.key, 'new-customer-tool')
+  assert.equal(connectionSchema.parse({ ...connection, connector: 'new-customer-tool' }).connector, 'new-customer-tool')
+  assert.throws(() => catalogueSchema.parse({ connectors: [{ ...configured, key: '../invalid' }] }))
   for (const status of connectionStatuses) assert.ok(statusLabel[status].length > 0, status)
   assert.throws(() => catalogueSchema.parse({ connectors: [{ key: 'github', name: 'GitHub', description: '', authKind: 'oauth2', status: 'active', capabilities: [] }] }))
 })

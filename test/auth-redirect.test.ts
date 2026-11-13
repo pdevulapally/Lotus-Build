@@ -19,3 +19,8 @@ test('untrusted and recursive sign-in destinations still fall back safely', () =
     assert.equal(getSafeRedirectPath(path), '/')
   }
 })
+
+test('credit purchase reference survives the same-origin billing login return', () => {
+  const path = `/account/billing?credit_purchase_id=${'a'.repeat(64)}`
+  assert.equal(getSafeRedirectPath(path), path)
+})

@@ -36,7 +36,7 @@ test('quota error UI validates server details and keeps used and reserved usage 
   await assert.rejects(client.projects(), (error: unknown) => {
     assert.ok(error instanceof BackendError)
     const presentation = presentRequestError(error, 'Free')
-    assert.equal(presentation.title, 'Limit reached')
+    assert.equal(presentation.title, 'Builds limit reached')
     assert.match(presentation.description, /Your Free plan’s builds for this cycle are used up/)
     assert.deepEqual(presentation.quota, details)
     return true

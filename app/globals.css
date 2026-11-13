@@ -1,9 +1,41 @@
+/* Resets must precede Astryx components; application utilities stay last. */
+@layer theme, reset, base, astryx-base, astryx-theme, components, utilities;
+
+@import "@astryxdesign/core/reset.css";
 @import "@astryxdesign/core/astryx.css";
 @import "@astryxdesign/theme-neutral/theme.css";
 @import "tailwindcss";
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
+
+/* Keep the Astryx repository surface on the application's shared theme. */
+.repository-theme,
+.settings-theme {
+  --font-family-body: var(--font-sans);
+  --font-family-heading: var(--font-heading);
+  --color-text-primary: var(--foreground);
+  --color-text-secondary: var(--muted-foreground);
+  --color-icon-primary: var(--foreground);
+  --color-icon-secondary: var(--muted-foreground);
+  --color-background-body: var(--background);
+  --color-background-surface: var(--card);
+  --color-background-muted: var(--muted);
+  --color-overlay-hover: var(--accent);
+  --color-border: var(--border);
+  --color-border-emphasized: var(--border);
+  --color-accent: var(--primary);
+  --color-on-accent: var(--primary-foreground);
+  --color-neutral: var(--muted);
+  --color-text-accent: var(--primary);
+  --color-icon-accent: var(--primary);
+  --focus-outline-color: var(--ring);
+}
+
+/* Settings rows adapt to the content pane, including the shared billing views. */
+@container (max-width: 28rem) {
+  .settings-row { flex-direction: column; align-items: stretch; }
+}
 
 :root {
   --background: #f7f5f3;

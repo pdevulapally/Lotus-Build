@@ -27,7 +27,7 @@ export function extractAgentMessage(content: string): { agentMessage: string | n
 
 export function buildFileTree(files: GeneratedFile[]): FileNode[] {
   type MutableFileNode = Omit<FileNode, "children"> & { children?: Record<string, MutableFileNode> }
-  const root: Record<string, MutableFileNode> = {}
+  const root: Record<string, MutableFileNode> = Object.create(null)
 
   files.forEach((file) => {
     const parts = file.path.split("/")
@@ -42,7 +42,7 @@ export function buildFileTree(files: GeneratedFile[]): FileNode[] {
           name: part,
           path: currentPath,
           type: isFile ? "file" : "folder",
-          children: isFile ? undefined : {},
+          children: isFile ? undefined : Object.create(null),
           content: isFile ? file.content : undefined,
           isGenerating: isFile ? file.isGenerating : undefined,
         }

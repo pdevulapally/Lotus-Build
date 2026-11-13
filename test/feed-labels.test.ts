@@ -59,19 +59,20 @@ test('a confirmed stop is a calm row, and only the server decides when a run is 
 test('tool steps read as what the agent did, with the subject where it helps', () => {
   assert.equal(toolStepLabel('list_files', 'call'), 'Looking through files')
   assert.equal(toolStepLabel('list_files', 'result'), 'Looked through files')
-  assert.equal(toolStepLabel('read_file', 'result', { path: 'app/page.tsx' }), 'Read app/page.tsx')
+  assert.equal(toolStepLabel('read_file', 'result', { path: 'app/page.tsx' }), 'Read page.tsx')
   assert.equal(toolStepLabel('search_files', 'call', { query: 'useState' }), 'Searching files for “useState”')
   const opened = activity(event('agent.tool_call', { name: 'read_file', input: { path: 'app/page.tsx' }, callId: 'c' }), 0)
-  assert.equal(opened?.title, 'Reading app/page.tsx')
+  assert.equal(opened?.title, 'Reading page.tsx')
   assert.equal(opened?.status, 'running')
   assert.equal(activity(event('agent.tool_result', { name: 'read_file', isError: false, callId: 'c' }), 0), null, 'a result adds no second row')
   const closed = updateToolStepEvent([opened!], event('agent.tool_result', { name: 'read_file', isError: false, callId: 'c' }))
   assert.equal(closed.length, 1)
-  assert.equal(closed[0]?.title, 'Read app/page.tsx')
+  assert.equal(closed[0]?.title, 'Read page.tsx')
   assert.equal(closed[0]?.status, 'complete')
   const failed = updateToolStepEvent([opened!], event('agent.tool_result', { name: 'read_file', isError: true, callId: 'c', text: 'No such file' }))
   assert.equal(failed[0]?.status, 'error')
-  assert.equal(failed[0]?.description, 'No such file')
+  assert.equal(failed[0]?.description, undefined)
+  assert.equal(failed[0]?.metadata?.diagnostic, 'No such file')
 })
 
 test('internal bookkeeping tools are hidden and unknown tools degrade to readable words', () => {
@@ -115,6 +116,17 @@ test('what the agent said before a tool step does not run into what it says afte
   assert.equal(closeSpokenParagraph(''), '')
   assert.equal(closeSpokenParagraph('Reading the hero first. '), 'Reading the hero first.\n\n')
   assert.equal(closeSpokenParagraph('Already closed.\n\n'), 'Already closed.\n\n')
+})
+
+test('question validation failures do not claim a question was asked or expose model-facing schema errors', () => {
+  const row = activity(event('agent.tool_call', { name: 'request_user_input', input: {}, callId: 'q1' }), 0)!
+  const [failed] = updateToolStepEvent([row], event('agent.tool_result', {
+    name: 'request_user_input', callId: 'q1', isError: true,
+    text: 'pendingInput.questions[0].options must hold 2–4 choices',
+  }))
+  assert.equal(failed.status, 'error')
+  assert.equal(failed.title, 'The question could not be shown')
+  assert.equal(failed.description, undefined)
 })
 
 test('a failed tool row reads as customer copy and never shows the model-facing result text', () => {

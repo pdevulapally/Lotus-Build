@@ -1,0 +1,20 @@
+.fallback {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  background-image:
+    radial-gradient(ellipse at 15% 10%, color-mix(in srgb, var(--primary-foreground) 18%, transparent), transparent 65%),
+    radial-gradient(ellipse at 90% 85%, color-mix(in srgb, var(--primary-foreground) 10%, transparent), transparent 60%);
+}
+
+/* Local SVG noise gives the fallback texture without image requests or a GPU canvas. */
+.fallback::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.16;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Cpath filter='url(%23grain)' opacity='.8' d='M0 0h120v120H0z'/%3E%3C/svg%3E");
+}
