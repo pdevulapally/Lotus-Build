@@ -85,6 +85,8 @@ test('the steps read as a compact to-do list with live progress', () => {
   const html = render({ plan, actions: actions() })
   assert.match(html, /aria-label="1 of 4 done"/); assert.match(html, />1\/4</)
   assert.match(html, /stroke-dashoffset/)
+  assert.match(html, /data-plan-step="s2" data-plan-step-status="in_progress"/)
+  assert.match(html, /bg-accent\/35/, 'the current task has a live active surface')
   assert.match(html, /line-through[^"]*">Scaffold the app</, 'a done step is struck through')
   assert.match(html, /font-medium text-foreground">List view</, 'the step in progress stands out')
   assert.match(html, /text-muted-foreground\/80">Tests</, 'a step not started is muted')

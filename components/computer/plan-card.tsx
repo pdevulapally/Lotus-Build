@@ -1,8 +1,10 @@
 "use client"
 
 import { useState } from "react"
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
 import { Check, ChevronDown, ChevronUp, CircleAlert, CircleArrowRight, CircleCheck, CircleDashed, CircleMinus, RotateCcw, type LucideIcon } from "lucide-react"
 import { Markdown } from "@/components/ui/markdown"
+import { duration, ease, softSpring } from "@/lib/motion"
 import { cn } from "@/lib/utils"
 import type { PlanStep, PlanStepStatus, PlanUpdate, SessionPlan } from "@/lib/backend/session-plan"
 
@@ -28,6 +30,74 @@ const stepLooks: Record<PlanStepStatus, StepLook> = {
   done: { label: "Done", Mark: CircleCheck, mark: "text-muted-foreground/70", title: "text-muted-foreground/80 line-through decoration-muted-foreground/60" },
   skipped: { label: "Skipped", Mark: CircleMinus, mark: "text-muted-foreground/60", title: "text-muted-foreground/70 line-through decoration-muted-foreground/60", edit: "restore" },
   blocked: { label: "Blocked", Mark: CircleAlert, mark: "text-warning", title: "text-foreground" },
+}
+
+function PlanStepRow({ step, expanded, canEdit, onChange }: {
+  step: PlanStep
+  expanded: boolean
+  canEdit: boolean
+  onChange: (step: PlanStep, status: "proposed" | "skipped") => void
+}) {
+  const reducedMotion = useReducedMotion()
+  const look = stepLooks[step.status]
+  const active = step.status === "in_progress"
+  return (
+    <motion.li
+      layout="position"
+      initial={reducedMotion ? false : { opacity: 0, y: 5 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={reducedMotion ? { duration: 0 } : { duration: duration.base, ease, layout: softSpring }}
+      data-plan-step={step.id}
+      data-plan-step-status={step.status}
+      className={cn("flex items-start gap-2.5 rounded-lg transition-colors duration-300", active && "bg-accent/35 px-2 py-1.5 -mx-2")}
+    >
+      <span className="mt-[2px] h-4 w-4 shrink-0" title={look.label}>
+        <AnimatePresence initial={false} mode="popLayout">
+          <motion.span
+            key={step.status}
+            className="block"
+            initial={reducedMotion ? false : { opacity: 0, scale: 0.65 }}
+            animate={active && !reducedMotion
+              ? { opacity: [1, 0.72, 1], scale: 1, x: [0, 2, 0] }
+              : { opacity: 1, scale: 1, x: 0 }}
+            exit={reducedMotion ? undefined : { opacity: 0, scale: 0.75 }}
+            transition={active && !reducedMotion
+              ? { duration: 1.45, repeat: Infinity, ease: "easeInOut" }
+              : reducedMotion ? { duration: 0 } : softSpring}
+          >
+            <look.Mark className={cn("h-4 w-4 shrink-0", look.mark)} strokeWidth={1.75} aria-hidden />
+          </motion.span>
+        </AnimatePresence>
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className={cn("text-[13px] leading-5 transition-[color,opacity] duration-300", look.title)}>{step.title}</p>
+        {step.detail && expanded && <p className="mt-0.5 whitespace-pre-wrap text-[12px] leading-relaxed text-muted-foreground">{step.detail}</p>}
+        <AnimatePresence initial={false}>
+          {step.note && (
+            <motion.p
+              key={step.note}
+              initial={reducedMotion ? false : { opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={reducedMotion ? undefined : { opacity: 0, height: 0 }}
+              transition={reducedMotion ? { duration: 0 } : { duration: duration.base, ease }}
+              className="mt-0.5 text-[12px] text-muted-foreground"
+            >
+              {step.note}
+            </motion.p>
+          )}
+        </AnimatePresence>
+      </div>
+      {canEdit && look.edit && (
+        <button
+          type="button"
+          onClick={() => onChange(step, look.edit === "skip" ? "skipped" : "proposed")}
+          className="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {look.edit === "skip" ? "Skip" : <span className="inline-flex items-center gap-1"><RotateCcw className="h-3 w-3" aria-hidden />Restore</span>}
+        </button>
+      )}
+    </motion.li>
+  )
 }
 
 function headline(plan: SessionPlan, actions?: PlanCardActions) {
@@ -101,30 +171,11 @@ export function PlanCard({ plan, actions }: { plan: SessionPlan; actions?: PlanC
         )}
         {plan.steps.length > 0 && (
           <ol className="mt-3 space-y-1.5">
-            {plan.steps.map((step) => {
-              const look = stepLooks[step.status]
-              return (
-                <li key={step.id} className="flex items-start gap-2.5">
-                  <span className="mt-[2px]" title={look.label}>
-                    <look.Mark className={cn("h-4 w-4 shrink-0", look.mark)} strokeWidth={1.75} aria-hidden />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className={cn("text-[13px] leading-5", look.title)}>{step.title}</p>
-                    {step.detail && expanded && <p className="mt-0.5 whitespace-pre-wrap text-[12px] leading-relaxed text-muted-foreground">{step.detail}</p>}
-                    {step.note && <p className="mt-0.5 text-[12px] text-muted-foreground">{step.note}</p>}
-                  </div>
-                  {canEdit && look.edit && (
-                    <button
-                      type="button"
-                      onClick={() => setStep(step, look.edit === "skip" ? "skipped" : "proposed")}
-                      className="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      {look.edit === "skip" ? "Skip" : <span className="inline-flex items-center gap-1"><RotateCcw className="h-3 w-3" aria-hidden />Restore</span>}
-                    </button>
-                  )}
-                </li>
-              )
-            })}
+            <AnimatePresence initial={false}>
+              {plan.steps.map((step) => (
+                <PlanStepRow key={step.id} step={step} expanded={expanded} canEdit={canEdit} onChange={setStep} />
+              ))}
+            </AnimatePresence>
           </ol>
         )}
         {(open.length > 0 || (showPlanBody && answered.length > 0)) && (
