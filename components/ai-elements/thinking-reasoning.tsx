@@ -10,6 +10,53 @@ import styles from "./thinking-reasoning.module.css"
 // to this height, then the newest lines show behind a soft fade.
 const MAX_H = 180
 const FADE = 16
+export const THINKING_REVEAL_INTERVAL_MS = 42
+
+/**
+ * Keep the thought readable even when the provider delivers a large chunk at
+ * once. One Unicode code point per tick is roughly normal reading speed, while
+ * the agent and the network continue at full speed behind this display buffer.
+ */
+export function nextThinkingText(visible: string, target: string): string {
+  if (!target.startsWith(visible)) return target
+  const next = Array.from(target.slice(visible.length))[0]
+  return next === undefined ? visible : visible + next
+}
+
+function useThinkingText(text: string, streaming: boolean): string {
+  const initial = streaming ? "" : text
+  const [visible, setVisible] = useState(initial)
+  const visibleRef = useRef(initial)
+  const targetRef = useRef(text)
+  targetRef.current = text
+
+  useEffect(() => {
+    if (!streaming) {
+      visibleRef.current = targetRef.current
+      setVisible(targetRef.current)
+      return
+    }
+
+    const reduceMotion = typeof window.matchMedia === "function"
+      && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    if (reduceMotion) {
+      visibleRef.current = targetRef.current
+      setVisible(targetRef.current)
+      return
+    }
+
+    const timer = window.setInterval(() => {
+      const next = nextThinkingText(visibleRef.current, targetRef.current)
+      if (next === visibleRef.current) return
+      visibleRef.current = next
+      setVisible(next)
+    }, THINKING_REVEAL_INTERVAL_MS)
+
+    return () => window.clearInterval(timer)
+  }, [streaming])
+
+  return visible
+}
 
 /** "12s" from the server's own timestamps; nothing when the end was never recorded. */
 export function thoughtDuration(startedAt: string, completedAt?: string): string | undefined {
@@ -31,6 +78,7 @@ export function ThinkingReasoning({ text, streaming, startedAt, completedAt, cla
   completedAt?: string
   className?: string
 }) {
+  const visibleText = useThinkingText(text, streaming)
   const [open, setOpen] = useState(false)
   const [contentHeight, setContentHeight] = useState(0)
   const [fade, setFade] = useState({ top: false, bottom: true })
@@ -52,7 +100,7 @@ export function ThinkingReasoning({ text, streaming, startedAt, completedAt, cla
     const observer = new ResizeObserver(measure)
     observer.observe(element)
     return () => observer.disconnect()
-  }, [text])
+  }, [visibleText])
 
   const expanded = streaming || open
   const capped = contentHeight > MAX_H
@@ -112,7 +160,7 @@ export function ThinkingReasoning({ text, streaming, startedAt, completedAt, cla
             onScroll={scrollable ? onScroll : undefined}
           >
             <div ref={streamRef} className={styles.stream} style={{ transform: `translateY(${translate}px)` }}>
-              <ReasoningBlocks text={text} />
+              <ReasoningBlocks text={visibleText} />
             </div>
           </div>
         </div>
