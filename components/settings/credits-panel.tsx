@@ -6,12 +6,18 @@ import { CheckCircle2, CircleAlert, Clock3, LockKeyhole } from 'lucide-react'
 import { Button } from '@astryxdesign/core/Button'
 import { HStack } from '@astryxdesign/core/HStack'
 import { RadioList, RadioListItem } from '@astryxdesign/core/RadioList'
-import { Heading, Text } from '@astryxdesign/core/Text'
+import { Text } from '@astryxdesign/core/Text'
 import { VStack } from '@astryxdesign/core/VStack'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import type { CreditsController } from '@/hooks/use-credits'
-import { creditPrice, creditPurchaseMessage, customAmountMinor, customCreditOffer, type CreditTask } from '@/lib/billing/credits'
+import { creditPrice, creditPurchaseMessage, customAmountMinor, customCreditOffer, type CreditOffer, type CreditTask } from '@/lib/billing/credits'
 import { formatStripeAmount } from '@/lib/billing/currency'
+
+const packStyle = 'h-full min-w-0 rounded-xl border border-border bg-card p-4 transition-colors hover:bg-accent/50 focus-within:ring-2 focus-within:ring-ring data-[selected=selected]:border-foreground data-[selected=selected]:bg-muted/50 data-[disabled=disabled]:opacity-50'
+const pacingCopy: Record<CreditOffer['pacingPolicy'], string> = {
+  respect: 'The daily usage limit still applies.',
+  bypass_paid: 'Paid credits can cover usage beyond the daily allowance. Other limits still apply.',
+}
 
 /** Shares the billing controller so eligibility, prices and balances stay together. */
 export function CreditsPanel({ credits, task, onClose }: { credits: CreditsController; task?: CreditTask; onClose?: () => void }) {
@@ -24,11 +30,12 @@ export function CreditsPanel({ credits, task, onClose }: { credits: CreditsContr
   const offer = selected === 'custom-amount' ? customQuote : data?.offers.find(item => `${item.id}:${item.version}` === selected)
   const PaymentIcon = purchase?.status === 'paid' ? CheckCircle2 : purchase?.status === 'pending' ? Clock3 : CircleAlert
   const continuation = purchase?.status === 'paid' ? purchase.continuation : undefined
-  return <VStack as="section" gap={4} aria-label="On-demand usage" aria-busy={loading || busy}>
+  const pacingPolicies = new Set([...(data?.offers.map(item => item.pacingPolicy) ?? []), ...(custom ? [custom.pacingPolicy] : [])])
+  return <VStack as="section" gap={5} aria-label="On-demand usage" aria-busy={loading || busy}>
     <HStack align="center" justify="between" gap={3} wrap="wrap">
-      {data?.wallet && !loading ? <VStack gap={0.5}>
+      {data?.wallet && !loading ? <VStack gap={1}>
         <Text type="supporting" color="secondary">Available credits</Text>
-        <Heading level={3}>{data.wallet.availableCredits.toLocaleString('en-GB')}</Heading>
+        <Text type="label" className="text-2xl font-semibold tracking-tight tabular-nums">{data.wallet.availableCredits.toLocaleString('en-GB')}</Text>
         {data.wallet.reservedCredits > 0 && <Text type="supporting" color="secondary">{data.wallet.reservedCredits.toLocaleString('en-GB')} in progress</Text>}
       </VStack> : <Text type="supporting" color="secondary">Your credit balance</Text>}
       <Button label="Refresh credits" variant="ghost" size="sm" isDisabled={loading || busy} onClick={() => void refresh()} />
@@ -61,24 +68,38 @@ export function CreditsPanel({ credits, task, onClose }: { credits: CreditsContr
         <HStack gap={2} align="center"><CircleAlert className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" /><Text type="label">Top-ups are temporarily unavailable</Text></HStack>
         <Button label="Try again" size="sm" isDisabled={busy} onClick={() => void refresh()} />
       </VStack> : <>
-          <RadioList label="Choose a credit pack" value={selected ?? ''} onChange={setSelected}
+          <RadioList label="Choose a credit pack" description="Choose an amount to add to your balance." value={selected ?? ''} onChange={setSelected}
+            controlClassName="grid grid-cols-1 gap-3 @sm:grid-cols-2"
             htmlName={groupName} isDisabled={busy || Boolean(checkoutBlockedReason)} aria-describedby={`${groupName}-terms`}>
             {data.offers.map(item => <RadioListItem key={`${item.id}:${item.version}`} value={`${item.id}:${item.version}`}
-              label={`${item.credits.toLocaleString('en-GB')} credits`}
-              endContent={<Text type="label">{creditPrice(item)} once</Text>}
-              description={item.pacingPolicy === 'respect' ? 'The daily usage limit still applies.' : 'Paid credits can cover usage beyond the daily allowance. Other limits still apply.'} />)}
-            {custom && <RadioListItem value="custom-amount" label="Custom amount" description="Choose how much to add." />}
+              className={packStyle}
+              label={<VStack as="span" gap={2}>
+                <Text as="span" type="label" className="font-semibold tabular-nums">{item.credits.toLocaleString('en-GB')} credits</Text>
+                <Text as="span" type="supporting" color="secondary">{creditPrice(item)} <span className="text-muted-foreground">one-time</span></Text>
+              </VStack>} />)}
+            {custom && <RadioListItem value="custom-amount" className={packStyle}
+              label={<VStack as="span" gap={2}>
+                <Text as="span" type="label" className="font-semibold">Custom amount</Text>
+                <Text as="span" type="supporting" color="secondary">Choose how much to add.</Text>
+              </VStack>} />}
           </RadioList>
         {custom && selected === 'custom-amount' && <TextInput label={`Amount (${custom.currency.toUpperCase()})`} value={customAmount} onChange={setCustomAmount}
           ref={input => { if (input) input.inputMode = 'decimal' }} isDisabled={busy || Boolean(checkoutBlockedReason)}
           description={`${formatStripeAmount(custom.minAmountMinor, custom.currency)}–${formatStripeAmount(custom.maxAmountMinor, custom.currency)}, in ${formatStripeAmount(custom.stepAmountMinor, custom.currency)} increments.`}
           status={customAmount && !customQuote ? {type:'error',message:'Choose an amount within the range and increment shown.'} : undefined} />}
-        <VStack gap={3}>
-          <Text type="label" role="status">{offer ? `${offer.credits.toLocaleString('en-GB')} credits for ${creditPrice(offer)}, one-time payment` : 'Select a credit pack to continue.'}</Text>
+        <VStack gap={4} className="border-t border-border pt-5">
+          <HStack align="center" justify="between" gap={3} wrap="wrap" role="status">
+            <Text type="supporting" color="secondary">{offer ? `${offer.credits.toLocaleString('en-GB')} credits` : 'Select a credit pack to continue.'}</Text>
+            {offer && <Text type="label" className="font-semibold tabular-nums">{creditPrice(offer)}</Text>}
+          </HStack>
           {task && !continuation && <Text type="supporting" color="secondary">Your paused task will continue after payment is confirmed.</Text>}
-          <Text type="supporting" color="secondary" id={`${groupName}-terms`}>Credits never expire. One-time purchase, not an automatic top-up. Credits are added only after payment is verified. Credits cover AI usage, not storage or other plan features.</Text>
-          <Button label={busy ? 'Opening checkout…' : task ? 'Buy credits and continue' : 'Continue to checkout'} variant="primary" isDisabled={!offer || busy || Boolean(checkoutBlockedReason)} onClick={() => { if (offer) void checkout(offer) }} />
-          <HStack gap={2} align="center"><LockKeyhole className="size-3.5 text-muted-foreground" aria-hidden="true" /><Text type="supporting" color="secondary">Secure checkout with Stripe</Text></HStack>
+          <Button label={busy ? 'Opening checkout…' : task ? 'Buy credits and continue' : 'Continue to checkout'} variant="primary" width="100%" isDisabled={!offer || busy || Boolean(checkoutBlockedReason)} onClick={() => { if (offer) void checkout(offer) }} />
+          <HStack gap={2} align="center" justify="center"><LockKeyhole className="size-3.5 text-muted-foreground" aria-hidden="true" /><Text type="supporting" color="secondary">Secure checkout with Stripe</Text></HStack>
+          <VStack gap={2} id={`${groupName}-terms`}>
+            <Text type="supporting" color="secondary">Credits never expire. One-time purchase, not an automatic top-up. Your subscription stays the same.</Text>
+            <Text type="supporting" color="secondary">Credits are added only after payment is verified. Credits cover AI usage, not storage or other plan features.</Text>
+            {[...pacingPolicies].map(policy => <Text key={policy} type="supporting" color="secondary">{pacingCopy[policy]}</Text>)}
+          </VStack>
         </VStack>
       </>}
     </>}
