@@ -141,7 +141,7 @@ test('a pending purchase is read once and polled only when this browser is retur
   assert.equal(failed.awaitingPayment, false)
   assert.equal(failed.data?.wallet?.availableCredits, 20)
   reads = 0
-  const recovered = await readCreditsSnapshot({ ...config, readOperation: () => null, purchaseId, readWallet: async () => { if (reads++ === 0) throw new Error('wallet unavailable'); return (await config.readWallet()) } })
+  const recovered = await readCreditsSnapshot({ ...config, readOperation: () => null, purchaseId, readWallet: async () => { if (reads++ === 0) throw new Error('wallet unavailable'); return { portalAvailable: true, pendingPurchaseId: purchaseId, purchasing: { enabled: true, reason: null }, wallet: { availableCredits: 20, reservedCredits: 0, bypassAvailableCredits: 0 }, offers: [offer] } } })
   assert.equal(reads, 2)
   assert.equal(recovered.error, null)
   assert.equal(recovered.data?.wallet?.availableCredits, 20)
