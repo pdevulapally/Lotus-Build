@@ -48,7 +48,6 @@ import { DeliveryCard } from "@/components/computer/delivery-card"
 import type { Delivery } from "@/lib/backend/delivery"
 import { STILL_STOPPING_AFTER_MS, stoppingLabels } from "@/lib/backend/feed-labels"
 import type { TaskNoticeModel } from '@/lib/backend/task-notice'
-import { redactSecrets } from '@/lib/backend/terminal'
 import { FileReadActivity } from '@/components/computer/file-read-activity'
 
 const commandStates = { pending: 'pending', running: 'running', complete: 'idle', error: 'error', skipped: 'interrupted' } as const
@@ -432,9 +431,8 @@ const FeedItem = memo(function FeedItem({
     )
   }
 
-  const diagnostic = typeof event.metadata?.diagnostic === 'string' ? event.metadata.diagnostic : description
   if (event.metadata?.toolName === 'read_file') {
-    return <FileReadActivity path={typeof event.metadata.filePath === 'string' ? event.metadata.filePath : undefined} status={toolStatus} diagnostic={isError ? diagnostic : undefined} />
+    return <FileReadActivity path={typeof event.metadata.filePath === 'string' ? event.metadata.filePath : undefined} status={toolStatus} />
   }
 
   const generatedFilePath = getGeneratingFilePath(event)
@@ -462,11 +460,12 @@ const FeedItem = memo(function FeedItem({
     )
   }
 
-  if (isError && (event.metadata?.toolName || event.metadata?.eventType === 'session.failed')) {
-    return <details className="my-2 text-sm text-muted-foreground">
-      <summary className="min-h-11 cursor-pointer rounded-md py-3 font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring">{event.metadata?.eventType === 'session.failed' ? 'Previous task failure' : title}</summary>
-      {diagnostic && <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-muted p-3 text-xs leading-relaxed">{redactSecrets(diagnostic)}</pre>}
-    </details>
+  if (isError && event.metadata?.eventType === 'session.failed') {
+    return <p className="my-2 text-sm text-muted-foreground">This request couldn’t finish.</p>
+  }
+
+  if (isError && event.metadata?.toolName) {
+    return <p className="my-2 text-sm text-muted-foreground">This step couldn’t finish.</p>
   }
 
   const showDetail = isRunning || isError
@@ -485,22 +484,15 @@ const FeedItem = memo(function FeedItem({
             className={cn(
               "leading-snug",
               isStep ? "text-[13px] font-medium" : "text-[13.5px] font-semibold",
-              isError
-                ? "text-destructive"
-                : isSkipped || isStep
-                  ? "text-muted-foreground"
-                  : "text-foreground/80",
+              isError || isSkipped || isStep ? "text-muted-foreground" : "text-foreground/80",
             )}
           >
-            {title}
+            {isError ? 'This step couldn’t finish' : title}
           </p>
         )}
-        {secondaryLine && (
+        {secondaryLine && !isError && (
           <p
-            className={cn(
-              "mt-1 text-[12.5px] leading-relaxed [overflow-wrap:anywhere]",
-              isError ? "text-destructive/80" : "text-muted-foreground",
-            )}
+            className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground [overflow-wrap:anywhere]"
           >
             {secondaryLine}
           </p>

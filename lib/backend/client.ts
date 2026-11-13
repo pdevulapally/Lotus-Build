@@ -3,10 +3,9 @@ import { planUpdateSchema, sessionPlanSchema, type PlanUpdate } from './session-
 import { computerSessionModeSchema, computerSessionModes, type ComputerSessionMode } from './session-modes'
 export { computerSessionModes as sessionModes } from './session-modes'
 import { catalogueSchema, connectionDetailSchema, connectionListSchema, connectionStartSchema, disconnectSchema, projectSourceResponseSchema, projectSourceSchema, repositoryListSchema, pluginToolsSchema, pluginCreatedSchema, type PluginTool, type ConnectorKey } from './connections'
-import { netlifyDeploymentsSchema, netlifyDeploymentResponseSchema } from './netlify'
 import { attachmentRefSchema, attachmentRefsSchema, isAttachmentMediaType, storedAttachmentSchema, type AttachmentRef } from './attachments'
 import { deliverySchema } from './delivery'
-import { billingCreditsSchema, creditCheckoutSchema, creditOfferSchema, creditPurchaseSchema } from '../billing/credits'
+import { billingCreditsSchema, creditCheckoutSchema, creditOfferSchema, creditPurchaseSchema, creditTaskSchema, type CreditTask } from '../billing/credits'
 
 const id = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/)
 const timestamp = z.string().datetime({ offset: true })
@@ -38,10 +37,10 @@ export const sessionSchema = z.object({
   /** Which run of this session the state describes; absent until the server starts numbering runs. */
   execution: z.number().int().positive().optional(),
   cancelRequestedAt: timestamp.optional(),
-  fallback: z.object({ status: z.enum(['AWAITING_CONSENT', 'QUEUED', 'RUNNING', 'CAPACITY_WAIT', 'EXHAUSTED', 'SHARED_LIMIT', 'UNAVAILABLE', 'COMPLETED']),
+  fallback: z.object({ status: z.enum(['AWAITING_CREDITS', 'AWAITING_CONSENT', 'QUEUED', 'RUNNING', 'CAPACITY_WAIT', 'EXHAUSTED', 'SHARED_LIMIT', 'UNAVAILABLE', 'COMPLETED']),
     reason: z.string(), resumable: z.boolean(), checkpointId: id.optional(), lane: z.enum(['premium', 'fallback']).optional(), consent: z.boolean(),
     imageExpiresAt: timestamp.optional(), resetAt: timestamp.optional(), retryAt: timestamp.optional(), limitLabel: z.string().optional(),
-    offer: z.object({ provider: z.enum(['anthropic', 'nvidia']).optional(), model: z.string(), effort: z.enum(['low', 'standard', 'high', 'xhigh']), estimatedInput: z.boolean().optional() }).optional(),
+    offer: z.object({ accounting: z.literal('shared').optional(), provider: z.enum(['anthropic', 'nvidia']).optional(), model: z.string(), effort: z.enum(['low', 'standard', 'high', 'xhigh']), estimatedInput: z.boolean().optional() }).optional(),
   }).optional(),
   pendingInput: z.object({ id, kind: z.enum(['question', 'approval']), prompt: z.string(),
     questions: z.array(z.object({ id: z.string(), prompt: z.string().min(1).max(1000), options: z.array(z.object({
@@ -253,8 +252,8 @@ export class BackendClient {
   plans(signal?: AbortSignal) { return this.json(z.object({ plans: z.array(planSchema) }), '/plans', { signal, public: true }) }
   billingSubscription(signal?: AbortSignal) { return this.json(billingSubscriptionSchema, '/billing/subscription', { signal }) }
   billingCredits(signal?: AbortSignal) { return this.json(billingCreditsSchema, '/billing/credits', { signal }) }
-  creditCheckout(input: { offerId: string; offerVersion: string }, key: string) {
-    const body = z.object({ offerId: creditOfferSchema.shape.id, offerVersion: creditOfferSchema.shape.version }).strict().parse(input)
+  creditCheckout(input: { offerId: string; offerVersion: string; continuation?: CreditTask }, key: string) {
+    const body = z.object({ offerId: creditOfferSchema.shape.id, offerVersion: creditOfferSchema.shape.version, continuation: creditTaskSchema.optional() }).strict().parse(input)
     return this.json(creditCheckoutSchema, '/billing/credits/checkout', { method: 'POST', body, key })
   }
   creditPurchase(purchaseId: string, signal?: AbortSignal) {
@@ -287,21 +286,7 @@ export class BackendClient {
   completeGitHubConnection(input: { state: string; code: string; installationId: number; returnTo: string }) {
     return this.json(connectionDetailSchema, '/connections/github/complete', { method: 'POST', body: input })
   }
-  completeNetlifyConnection(input: { state: string; code: string; returnTo: string }) {
-    return this.json(connectionDetailSchema, '/connections/netlify/complete', { method: 'POST', body: input })
-  }
-  netlifyDeployments(projectId: string, signal?: AbortSignal) {
-    return this.json(netlifyDeploymentsSchema, `/projects/${id.parse(projectId)}/netlify-deployments`, { signal })
-  }
-  approveNetlifyDeployment(projectId: string, deploymentId: string, sha256: string) {
-    return this.json(netlifyDeploymentResponseSchema, `/projects/${id.parse(projectId)}/netlify-deployments/${id.parse(deploymentId)}/approve`, { method: 'POST', body: { sha256 } })
-  }
-  refreshNetlifyDeployment(projectId: string, deploymentId: string, signal?: AbortSignal) {
-    return this.json(netlifyDeploymentResponseSchema, `/projects/${id.parse(projectId)}/netlify-deployments/${id.parse(deploymentId)}/refresh`, { method: 'POST', signal })
-  }
-  rejectNetlifyDeployment(projectId: string, deploymentId: string) {
-    return this.json(netlifyDeploymentResponseSchema, `/projects/${id.parse(projectId)}/netlify-deployments/${id.parse(deploymentId)}/reject`, { method: 'POST' })
-  }
+
   connectionRepositories(connectionId: string, signal?: AbortSignal) {
     return this.json(repositoryListSchema, `/connections/${encodeURIComponent(connectionId)}/repositories`, { signal })
   }

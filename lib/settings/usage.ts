@@ -4,13 +4,15 @@ export type UsageMeter = BackendUsage['meters'][number]
 export type UsageGroup = { key: string; title: string; description: string; meters: UsageMeter[] }
 
 const groups = [
-  { key: 'ai', title: 'AI usage', description: 'Account-wide usage across your projects. Each limit is separate.', roles: ['ai.allowance', 'ai.pacing', 'ai.input', 'ai.output'] },
-  { key: 'fallback', title: 'Free continuation', description: 'Separate usage for tasks continued on a free model.', roles: ['ai.fallback.input', 'ai.fallback.output'] },
-  { key: 'workspace', title: 'Workspace', description: 'Your builds, storage and workspace resources.', roles: ['sandbox.time', 'sandbox.concurrency', 'build', 'storage'] },
+  { key: 'ai', title: 'AI usage', description: 'Your shared AI allowance across projects and models.', roles: ['ai.allowance', 'ai.pacing'] },
+  { key: 'tokens', title: 'Model usage details', description: 'Token usage reported for your account.', roles: ['ai.input', 'ai.output'] },
+  { key: 'fallback', title: 'Previous model usage', description: 'Usage recorded before models shared one credit balance.', roles: ['ai.fallback.input', 'ai.fallback.output'] },
+  { key: 'workspace', title: 'Workspace', description: 'Your storage and workspace resources.', roles: ['sandbox.time', 'sandbox.concurrency', 'storage'] },
 ] as const
 
 /** Only the server's semantic role groups a meter. Unknown/older responses remain visible. Never sum unlike meters. */
-export function groupUsageMeters(meters: readonly UsageMeter[]): UsageGroup[] {
+export function groupUsageMeters(reportedMeters: readonly UsageMeter[]): UsageGroup[] {
+  const meters = reportedMeters.filter(meter => meter.role !== 'build')
   const assigned = new Set<string>()
   const result: UsageGroup[] = groups.map((group) => ({ ...group, meters: meters.filter((meter) => {
     const included = meter.role !== undefined && (group.roles as readonly string[]).includes(meter.role)
@@ -18,6 +20,13 @@ export function groupUsageMeters(meters: readonly UsageMeter[]): UsageGroup[] {
     return included
   }) }))
   result.push({ key: 'other', title: 'Other usage', description: 'Additional usage reported for your account.', meters: meters.filter((meter) => !assigned.has(meter.meterKey)) })
+  // Older servers can still enforce token allowances. Keep these visible until
+  // the server reports a shared allowance; never invent a conversion between them.
+  if (!meters.some(meter => meter.role === 'ai.allowance')) {
+    const tokens = result.find(group => group.key === 'tokens')!
+    result.find(group => group.key === 'ai')!.meters.push(...tokens.meters)
+    tokens.meters = []
+  }
   return result.filter((group) => group.meters.length > 0)
 }
 

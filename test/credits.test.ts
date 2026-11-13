@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { billingCreditsSchema, creditOfferSchema, creditCheckoutSchema, creditExpiry, creditPrice, creditPurchaseMessage, creditPurchaseSchema, type CreditOffer } from '../lib/billing/credits'
+import { billingCreditsSchema, creditOfferSchema, creditCheckoutSchema, creditPrice, creditPurchaseMessage, creditPurchaseSchema, type CreditOffer } from '../lib/billing/credits'
 import { clearCreditOperation, openCreditCheckout, readCreditOperation } from '../lib/billing/credits-checkout'
 
 const offer: CreditOffer = { id: 'small', version: 'v1', credits: 1000, amountMinor: 1500, currency: 'usd', expirySeconds: null, pacingPolicy: 'respect' }
@@ -19,11 +19,9 @@ test('credits contract rejects invented/malformed commercial terms and preserves
   assert.equal(creditCheckoutSchema.safeParse({ ...response, url: 'javascript:alert(1)' }).success, false)
   assert.equal(creditCheckoutSchema.parse({ ...response, url: null }).url, null)
 })
-test('commercial copy respects currency precision, expiry and authoritative status', () => {
+test('commercial copy respects currency precision and authoritative status', () => {
   assert.equal(creditPrice(offer), 'USD 15.00')
   assert.equal(creditPrice({ ...offer, currency: 'jpy' }), 'JPY 1,500')
-  assert.equal(creditExpiry({ expirySeconds: null }), 'Credits do not expire.')
-  assert.equal(creditExpiry({ expirySeconds: 172800 }), 'Credits expire 2 days after payment.')
   const purchase = creditPurchaseSchema.parse({ purchaseId, status: 'pending', credits: 1000, revokedCredits: 0, expiresAt: response.expiresAt })
   assert.match(creditPurchaseMessage(purchase), /not confirmed/)
   assert.match(creditPurchaseMessage({ ...purchase, status: 'paid' }), /Payment confirmed/)
@@ -169,24 +167,28 @@ test('missing wallet route remains distinct from authentication and service fail
 })
 
 
-test('calendar-month expiry survives parsing and cannot become a no-expiry offer', () => {
-  const calendar = { ...offer, expirySeconds: null, expiryCalendarMonths: 12 }
-  const parsed = billingCreditsSchema.parse({ portalAvailable: false, pendingPurchaseId: null,
-    purchasing: { enabled: true, reason: null }, wallet: null, offers: [calendar] }).offers[0]
-  assert.deepEqual(parsed, calendar)
-  assert.match(creditExpiry(parsed), /expire 12 calendar months after payment \(UTC\)/)
-  assert.match(creditExpiry(parsed), /Month-end dates/)
-  assert.doesNotMatch(creditExpiry(parsed), /do not expire|365 days/)
-  assert.match(creditExpiry({ expirySeconds: null, expiryCalendarMonths: 1 }), /1 calendar month after payment/)
-  assert.equal(creditExpiry(creditOfferSchema.parse(offer)), 'Credits do not expire.')
-  assert.equal(creditExpiry(creditOfferSchema.parse({ ...offer, expirySeconds: 86400 })), 'Credits expire 1 day after payment.')
-})
-
-test('expiry validation rejects malformed and conflicting calendar terms', () => {
-  for (const expiryCalendarMonths of [null, 0, -1, 1.5, 121, '12', Infinity, NaN]) {
+test('credit offers reject all expiry settings', () => {
+  assert.equal(creditOfferSchema.parse(offer).expirySeconds, null)
+  for (const expirySeconds of [0, 86400, 315360001, 'never']) {
+    assert.equal(creditOfferSchema.safeParse({ ...offer, expirySeconds }).success, false)
+  }
+  for (const expiryCalendarMonths of [null, 0, 1, 12, 120, '12']) {
     assert.equal(creditOfferSchema.safeParse({ ...offer, expiryCalendarMonths }).success, false)
   }
-  assert.equal(creditOfferSchema.safeParse({ ...offer, expiryCalendarMonths: 12, expirySeconds: 86400 }).success, false)
-  assert.equal(creditOfferSchema.safeParse({ ...offer, expiryCalendarMonths: 120 }).success, true)
-  assert.equal(creditOfferSchema.safeParse({ ...offer, expirySeconds: 315360001 }).success, false)
+})
+
+test('buy-and-continue retains one task identity across uncertain checkout and refuses task substitution', async () => {
+  const store = storage()
+  const continuation = { sessionId: 'task', checkpointId: 'saved-version' }
+  const options = { uid: 'a', offer, continuation, storage: store, currentUid: () => 'a', isCurrent: () => true,
+    navigate: () => {}, randomKey: () => 'stable-task-purchase-123' }
+  await assert.rejects(openCreditCheckout({ ...options, create: async () => { throw new Error('Response lost') } }))
+  assert.deepEqual(readCreditOperation(store, 'a')?.continuation, continuation)
+  await assert.rejects(openCreditCheckout({ ...options, continuation: { ...continuation, checkpointId: 'another' },
+    create: async () => { assert.fail('A different task must not create a checkout') } }), /earlier checkout/)
+  await openCreditCheckout({ ...options, requireExisting: true, create: async (input, key) => {
+    assert.deepEqual(input, { offerId: offer.id, offerVersion: offer.version, continuation })
+    assert.equal(key, 'stable-task-purchase-123')
+    return response
+  } })
 })

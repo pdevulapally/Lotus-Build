@@ -53,12 +53,14 @@ export function SettingsShell({ open, onOpenChange, page, onPageChange, onRestor
       <DialogTitle className="sr-only">Settings</DialogTitle>
       <DialogDescription className="sr-only">Manage your LotusBuild account, billing, usage, credits and plugins.</DialogDescription>
       <VStack className={styles.shell} gap={0}>
+        <IconButton className={styles.desktopClose} label="Close settings" tooltip="Close settings" variant="ghost"
+          icon={<Icon icon="close" size="sm" />} onClick={() => onOpenChange(false)} />
         <VStack className={styles.mobileHeader} gap={2} padding={3}>
           <HStack justify="between" align="center">
             <Heading level={4}>Settings</Heading>
             <IconButton label="Close settings" tooltip="Close settings" variant="ghost" icon={<Icon icon="close" size="sm" />} onClick={() => onOpenChange(false)} />
           </HStack>
-          <HStack as="nav" aria-label="Settings sections" gap={2} isScrollable>
+          <HStack className={styles.mobileNavigation} as="nav" aria-label="Settings sections" gap={2} isScrollable>
             {sections.map(({ id, label }) => <Button key={id} label={label} size="sm" variant={id === page ? 'secondary' : 'ghost'}
               aria-current={id === page ? 'page' : undefined} aria-controls={contentId} onClick={() => onPageChange(id)} />)}
           </HStack>
@@ -67,16 +69,14 @@ export function SettingsShell({ open, onOpenChange, page, onPageChange, onRestor
           header={<HStack paddingInline={2} paddingBlock={2}><Heading level={4}>Settings</Heading></HStack>}>
           <VStack gap={2} paddingBlock={2}>{navigation}</VStack>
         </SideNav>}
-          content={<VStack height="100%" gap={0}>
-            <LayoutContent ref={contentRef} id={contentId} role="region" aria-labelledby={titleId} aria-busy={busy} isScrollable padding={4}>
+          content={<VStack className={styles.content} height="100%" gap={0}>
+            <LayoutContent className={styles.scrollArea} ref={contentRef} id={contentId} role="region" aria-labelledby={titleId} aria-busy={busy} isScrollable padding={4}>
               <VStack className={styles.panel} gap={4}>
-                <HStack align="start" justify="between" gap={3}>
+                <HStack className={styles.panelHeading} align="start" justify="between" gap={3}>
                   <VStack gap={1}>
                     <Heading level={3} id={titleId}>{activeSection.title}</Heading>
                     <Text type="supporting" color="secondary">{activeSection.description}</Text>
                   </VStack>
-                  <IconButton className={styles.desktopClose} label="Close settings" tooltip="Close settings" variant="ghost"
-                    icon={<Icon icon="close" size="sm" />} onClick={() => onOpenChange(false)} />
                 </HStack>
                 {children}
               </VStack>

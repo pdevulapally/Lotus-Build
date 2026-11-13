@@ -2,19 +2,32 @@
    and shared Radix modal boundary, which have no equivalent component prop. */
 .dialog {
   height: min(42rem, calc(100dvh - 3rem));
+  min-height: 0;
+  min-width: 0;
   max-width: 56rem;
   border-radius: var(--radius);
 }
 
-.shell, .layout { min-height: 0; height: 100%; }
+.shell, .layout { min-height: 0; min-width: 0; height: 100%; }
+.layout { flex: 1; }
+.content { min-height: 0; min-width: 0; overflow: hidden; }
+.content > footer { flex-shrink: 0; border-top: 1px solid var(--border); }
+.scrollArea { min-height: 0; min-width: 0; overscroll-behavior: contain; scrollbar-gutter: stable; }
 .sidebar { flex-shrink: 0; width: 12rem; }
-.panel { container-type: inline-size; }
+.panel { container-type: inline-size; min-width: 0; overflow-wrap: anywhere; }
+.panelHeading { padding-inline-end: 3rem; }
 .mobileHeader { display: none; }
-.desktopClose { position: sticky; top: 0; flex-shrink: 0; background: var(--card); }
+.desktopClose { position: absolute; top: 1rem; right: 1rem; z-index: 1; background: var(--card); }
+.mobileNavigation { min-width: 0; max-width: 100%; }
+.mobileNavigation > * { flex-shrink: 0; }
 
-@media (max-width: 640px) {
+@media (max-width: 48rem) {
   .sidebar, .desktopClose { display: none; }
-  .mobileHeader { display: flex; border-bottom: 1px solid var(--border); }
-  .layout { flex: 1; height: auto; }
+  .mobileHeader { display: flex; flex-shrink: 0; min-width: 0; border-bottom: 1px solid var(--border); }
+  .panelHeading { padding-inline-end: 0; }
+  .layout { height: auto; }
+}
+
+@media (max-width: 39.999rem) {
   .dialog { height: calc(100dvh - 2rem); }
 }

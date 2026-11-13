@@ -23,8 +23,6 @@ export type ComputerProjectIntegration = {
   githubRepoUrl?: string
   githubRepoFullName?: string
   githubSyncedAt?: unknown
-  netlifySiteUrl?: string
-  netlifyAdminUrl?: string
   vercelSiteUrl?: string
   vercelDeployUrl?: string
   vercelDeploymentId?: string
