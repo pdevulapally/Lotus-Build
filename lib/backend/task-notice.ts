@@ -1,15 +1,16 @@
 import type { BackendSession } from './client'
-import { presentRequestError, usageLimitTitle } from './error-presentation'
+import { presentRequestError } from './error-presentation'
 
 type Continuation = NonNullable<BackendSession['fallback']>
 type VisibleStatus = Exclude<Continuation['status'], 'RUNNING' | 'COMPLETED'>
-export type TaskNoticeAction = 'upgrade' | 'free' | 'premium' | 'cancel' | 'reconnect' | 'refresh' | 'projects'
+export type TaskNoticeAction = 'credits' | 'upgrade' | 'free' | 'premium' | 'cancel' | 'reconnect' | 'refresh' | 'projects'
 export type TaskNoticeModel = {
   title: string
   description?: string
   kind: 'quota' | 'waiting' | 'error'
   actions: TaskNoticeAction[]
   retryModel?: string
+  creditTask?: { sessionId: string; checkpointId: string }
   failure?: { execution?: number; message: string }
 }
 export type TaskNoticeInput = {
@@ -19,13 +20,16 @@ export type TaskNoticeInput = {
   fileError?: string | null
 }
 
-const statuses: Record<VisibleStatus, { title: string | null; kind: TaskNoticeModel['kind']; allowance: boolean }> = {
-  AWAITING_CONSENT: { title: 'Your AI usage limit is reached', kind: 'quota', allowance: true },
-  EXHAUSTED: { title: 'Free model allowance used up', kind: 'quota', allowance: true },
-  SHARED_LIMIT: { title: 'Resource limit reached', kind: 'quota', allowance: true },
+const usageTitle = 'Your usage limit is reached'
+const usageDescription = 'This request needs more usage than is currently available on your plan.'
+const statuses: Record<VisibleStatus, { title: string; description?: string; kind: TaskNoticeModel['kind']; allowance: boolean }> = {
+  AWAITING_CREDITS: { title: usageTitle, kind: 'quota', allowance: true },
+  AWAITING_CONSENT: { title: usageTitle, kind: 'quota', allowance: true },
+  EXHAUSTED: { title: usageTitle, kind: 'quota', allowance: true },
+  SHARED_LIMIT: { title: usageTitle, kind: 'quota', allowance: true },
   QUEUED: { title: 'Continuing shortly', kind: 'waiting', allowance: false },
-  CAPACITY_WAIT: { title: 'The free model is busy', kind: 'waiting', allowance: false },
-  UNAVAILABLE: { title: null, kind: 'error', allowance: false },
+  CAPACITY_WAIT: { title: 'The selected model is busy', kind: 'waiting', allowance: false },
+  UNAVAILABLE: { title: 'This request couldn’t finish', description: 'You can review the conversation and send a new message when you’re ready.', kind: 'error', allowance: false },
 }
 const providerNames = { anthropic: 'Anthropic', nvidia: 'NVIDIA' } as const
 const formatWhen = (iso: string) => new Date(iso).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
@@ -38,25 +42,28 @@ export function selectTaskNotice({ session, requestError, streamError, fileError
     const config = statuses[state.status]
     const allowance = config.allowance || (state.status === 'UNAVAILABLE' && Boolean(state.limitLabel))
     const paused = session.status === 'IDLE' && state.resumable
-    const free = paused && state.offer !== undefined && config.allowance
-    const reason = state.status === 'UNAVAILABLE' && session.status === 'FAILED' && session.error ? session.error : state.reason
-    const title = allowance && state.limitLabel ? usageLimitTitle(state.limitLabel) : config.title ?? reason
+    const free = paused && state.offer?.accounting === 'shared' && config.allowance
+    const title = allowance ? usageTitle : config.title
     const details: string[] = []
-    // The failure's cause is already in the heading. Do not repeat it with a second checkpoint explanation.
-    if (state.status !== 'UNAVAILABLE' && !state.limitLabel && state.reason !== title) details.push(state.reason)
+    // Reasons are diagnostics for the server and may contain codes or provider details.
+    if (allowance) details.push(state.status === 'AWAITING_CREDITS' ? 'Add credits to continue this task, or view plans for more usage.' : usageDescription)
+    else if (config.description) details.push(paused ? 'Choose retry to try continuing this request.' : config.description)
     if (free && state.offer) {
       const provider = state.offer.provider ? ` via ${providerNames[state.offer.provider]}` : ''
-      details.push(`Continue with ${state.offer.model}${provider}.${state.offer.estimatedInput ? ' Free usage is estimated, then corrected.' : ''}`)
+      details.push(`Continue with ${state.offer.model}${provider} using the same AI credit balance.`)
     }
     if (state.status === 'CAPACITY_WAIT') details.push(`We’ll retry automatically${state.retryAt ? `; next attempt ${formatWhen(state.retryAt)}` : ''}. You can close this tab.`)
     if (state.resetAt && allowance && !free) details.push(`Allowance resets ${formatWhen(state.resetAt)}.`)
-    if (state.imageExpiresAt && state.resumable) details.push(`Saved screenshot context expires ${formatWhen(state.imageExpiresAt)}; fresh context is required after that.`)
+    if (state.imageExpiresAt && state.resumable) details.push(`You may need to share a new screenshot after ${formatWhen(state.imageExpiresAt)}.`)
     const actions: TaskNoticeAction[] = []
+    const canAddCredits = state.status === 'AWAITING_CREDITS' || (state.status === 'AWAITING_CONSENT' && state.offer?.accounting === 'shared')
+    if (canAddCredits) actions.push('credits')
     if (allowance) actions.push('upgrade')
     if (free) actions.push('free')
     if (paused) actions.push('premium')
     if (['QUEUED', 'RUNNING', 'IDLE'].includes(session.status)) actions.push('cancel')
-    return { title, description: details.length ? details.join(' ') : undefined, kind: allowance ? 'quota' : config.kind, actions, retryModel: paused ? session.model : undefined, failure: failureIdentity }
+    return { title, description: details.length ? details.join(' ') : undefined, kind: allowance ? 'quota' : config.kind, actions, retryModel: paused ? session.model : undefined, failure: failureIdentity,
+      ...(canAddCredits && paused && state.checkpointId ? { creditTask: { sessionId: session.id, checkpointId: state.checkpointId } } : {}) }
   }
 
   const failure = requestError || streamError || fileError || session?.error
@@ -71,7 +78,12 @@ export function selectTaskNotice({ session, requestError, streamError, fileError
     if (streamError) actions.push('reconnect')
     else if (fileError) actions.push('refresh')
   }
-  const title = message.isQuota || message.isProjectLimit ? message.title : error.message
-  return { title, description: message.isQuota || message.isProjectLimit ? message.description : undefined, kind: message.isQuota ? 'quota' : 'error', actions,
+  const presentation = message.isQuota ? { title: usageTitle, description: usageDescription }
+    : message.isProjectLimit ? message
+    : streamError && !requestError ? { title: 'Let’s reconnect', description: 'Live updates were interrupted. Reconnect to see the latest progress.' }
+    : fileError && !requestError ? { title: 'Your files couldn’t load', description: 'Refresh to try loading your project files again.' }
+    : requestError ? { title: 'Your request couldn’t be completed', description: 'Please try again. If this keeps happening, contact support.' }
+    : statuses.UNAVAILABLE
+  return { title: presentation.title, description: presentation.description, kind: message.isQuota ? 'quota' : 'error', actions,
     failure: requestError || streamError || fileError ? undefined : failureIdentity }
 }

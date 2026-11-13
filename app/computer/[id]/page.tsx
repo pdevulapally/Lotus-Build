@@ -26,6 +26,7 @@ import { useAutoOpenWorkspace } from "@/hooks/use-auto-open-workspace"
 
 import { sendMessage, readPendingMessage, isRejectedInputResponse } from "@/lib/backend/send-message"
 import { TaskNotice } from "@/components/computer/task-notice"
+import { useSettingsDialog } from "@/components/settings/settings-dialog"
 import { selectTaskNotice } from "@/lib/backend/task-notice"
 import { PendingInputCard } from "@/components/computer/pending-input-card"
 import { BackendError } from "@/lib/backend/client"
@@ -147,7 +148,7 @@ type MobileView = "feed" | "workspace"
 
 
 
-type DeployProvider = "netlify" | "vercel"
+type DeployProvider = "vercel"
 
 
 
@@ -166,8 +167,6 @@ type ComputerProjectIntegration = {
   githubRepoUrl?: string
   githubRepoFullName?: string
   githubSyncedAt?: unknown
-  netlifySiteUrl?: string
-  netlifyAdminUrl?: string
   vercelSiteUrl?: string
   vercelDeployUrl?: string
   vercelDeploymentId?: string
@@ -252,12 +251,6 @@ const COMPUTER_THEME_KEY = "lotus.computerTheme"
 
 function getProjectDeploymentLinks(project?: ComputerProjectIntegration | null): Partial<Record<DeployProvider, DeploymentLink>> {
   const links: Partial<Record<DeployProvider, DeploymentLink>> = {}
-  if (project?.netlifySiteUrl) {
-    links.netlify = {
-      siteUrl: project.netlifySiteUrl,
-      adminUrl: project.netlifyAdminUrl,
-    }
-  }
   const vercelSiteUrl = project?.vercelSiteUrl || project?.vercelDeployUrl
   if (vercelSiteUrl) {
     links.vercel = {
@@ -277,6 +270,7 @@ function getProjectDeploymentLinks(project?: ComputerProjectIntegration | null):
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ComputerPage() {
+  const { openSettings } = useSettingsDialog()
   const params = useParams()
   const openVoice = useSearchParams().get('voice') === '1'
   const id = typeof params?.id === 'string' ? params.id : ''
@@ -454,7 +448,7 @@ export default function ComputerPage() {
   const hasBrowser    = Boolean(browserInspection)
   const hasResearch   = session.timeline.some((e) => (e.kind === "research" || e.kind === "browser") && e.description?.trim())
   const deploymentLinks = getProjectDeploymentLinks(projectIntegration)
-  const liveSiteUrl = deploymentLinks.netlify?.siteUrl || deploymentLinks.vercel?.siteUrl
+  const liveSiteUrl = deploymentLinks.vercel?.siteUrl
   const planLabel = userData?.planId && userData.planId !== "free" ? userData.planId : "Free"
 
   return (
@@ -639,6 +633,7 @@ export default function ComputerPage() {
             <VoiceControls key={`${user?.uid}:${raw?.id}`} session={raw} identity={user?.uid} refresh={backend.refresh} initiallyExpanded={openVoice}>
               {(voiceProps) => <section className={styles.composerStack}>
                 <TaskNotice notice={taskNotice}
+                  onBuyCredits={() => openSettings('on-demand', taskNotice?.creditTask ? { continuation: taskNotice.creditTask } : undefined)}
                   busy={isStartingRun} onContinue={(lane) => { void handleContinue(lane) }} onCancel={() => { void handleStop() }} onReconnect={backend.reconnect} />
                 <AnimatedAIInput
                   {...voiceProps}

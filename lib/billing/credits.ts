@@ -3,14 +3,17 @@ import { formatStripeAmount } from './currency'
 
 const positive = z.number().int().positive().max(Number.MAX_SAFE_INTEGER)
 const quantity = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)
+export const creditTaskSchema = z.object({
+  sessionId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
+  checkpointId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
+}).strict()
+export type CreditTask = z.infer<typeof creditTaskSchema>
 export const creditOfferSchema = z.object({
   id: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/), version: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/),
   credits: positive, amountMinor: positive, currency: z.string().regex(/^[a-z]{3}$/),
-  expirySeconds: positive.max(315360000).nullable(),
-  expiryCalendarMonths: positive.max(120).optional(),
+  expirySeconds: z.null(),
+  expiryCalendarMonths: z.never().optional(),
   pacingPolicy: z.enum(['respect', 'bypass_paid']),
-}).refine(offer => offer.expiryCalendarMonths === undefined || offer.expirySeconds === null, {
-  message: 'Calendar-month expiry requires null expirySeconds.', path: ['expiryCalendarMonths'],
 })
 export const billingCreditsSchema = z.object({
   portalAvailable: z.boolean(), pendingPurchaseId: z.string().regex(/^[a-f0-9]{64}$/).nullable(), purchasing: z.object({ enabled: z.boolean(), reason: z.string().nullable() }),
@@ -24,6 +27,8 @@ export const creditCheckoutSchema = z.object({
 export const creditPurchaseSchema = z.object({
   purchaseId: z.string().regex(/^[a-f0-9]{64}$/), status: z.enum(['pending', 'paid', 'expired', 'refunded', 'disputed']),
   credits: quantity, revokedCredits: quantity, expiresAt: positive,
+  continuation: z.object({ sessionId: creditTaskSchema.shape.sessionId,
+    status: z.enum(['queued', 'active', 'finished', 'blocked']) }).optional(),
 })
 export type CreditOffer = z.infer<typeof creditOfferSchema>
 export type BillingCredits = z.infer<typeof billingCreditsSchema>
@@ -34,15 +39,6 @@ export function creditPrice(offer: CreditOffer) {
   return formatStripeAmount(offer.amountMinor, offer.currency, { currencyDisplay: 'code' })
 }
 
-export function creditExpiry(offer: Pick<CreditOffer, 'expirySeconds' | 'expiryCalendarMonths'>) {
-  const { expirySeconds: seconds, expiryCalendarMonths: months } = offer
-  if (months !== undefined) return `Credits expire ${months.toLocaleString('en-GB')} calendar month${months === 1 ? '' : 's'} after payment (UTC). Month-end dates use the last day of the month when needed.`
-  if (seconds === null) return 'Credits do not expire.'
-  for (const [unit, divisor] of [['day', 86400], ['hour', 3600], ['minute', 60], ['second', 1]] as const) {
-    if (seconds % divisor === 0) { const count = seconds / divisor; return `Credits expire ${count.toLocaleString('en-GB')} ${unit}${count === 1 ? '' : 's'} after payment.` }
-  }
-  return 'Credit expiry is unavailable.'
-}
 export function creditPurchaseMessage(purchase: CreditPurchase) {
   switch (purchase.status) {
     case 'paid': return `Payment confirmed for ${purchase.credits.toLocaleString('en-GB')} credits.`

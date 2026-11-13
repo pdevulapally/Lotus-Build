@@ -28,11 +28,12 @@ test('usage preserves server roles, accepts future roles, and groups by role rat
     { ...meter, meterKey: 'fallback', role: 'ai.fallback.input' },
     { ...meter, meterKey: 'workspace', role: 'sandbox.time', unit: 'seconds' },
     { ...meter, meterKey: 'old-response', role: undefined },
+    { ...meter, meterKey: 'renamed-build-counter', role: 'build', label: 'Builds' },
   ]))
   assert.equal(value.meters[0].role, 'ai.input')
   const groups = groupUsageMeters(value.meters)
   assert.deepEqual(groups.map((group) => [group.key, group.meters.map((row) => row.meterKey)]), [
-    ['ai', ['renamed-input', 'unified']], ['fallback', ['fallback']], ['workspace', ['workspace']], ['other', ['raw-ai-looking', 'old-response']],
+    ['ai', ['unified']], ['tokens', ['renamed-input']], ['fallback', ['fallback']], ['workspace', ['workspace']], ['other', ['raw-ai-looking', 'old-response']],
   ])
   assert.equal(groups.flatMap((group) => group.meters).length, 6)
 })
@@ -53,7 +54,7 @@ test('zero, unlimited, missing and empty usage are distinct truthful states', ()
   const zero = { ...meter, totalUsed: 0, consumed: 0, hardLimit: 0 }
   assert.deepEqual(meterProgress(zero), { limit: 0, percent: 0, atLimit: true })
   const zeroHtml = renderToStaticMarkup(createElement(UsageMeter, { meter: zero }))
-  assert.match(zeroHtml, /No allowance/); assert.match(zeroHtml, /0 tokens/)
+  assert.match(zeroHtml, /No allowance/)
   assert.doesNotMatch(zeroHtml, /Unlimited|NaN|Infinity|role="progressbar"/)
   const unlimitedHtml = renderToStaticMarkup(createElement(UsageMeter, { meter: { ...meter, hardLimit: 'unlimited' } }))
   assert.match(unlimitedHtml, /Unlimited/); assert.doesNotMatch(unlimitedHtml, /role="progressbar"/)
@@ -105,9 +106,8 @@ test('compact allowance shows remaining without summing meters and resets on UTC
   assert.equal(usageReset({ ...meter, resetPeriod: 'DAILY', periodStart: '2028-02-28T00:00:00Z' }), 'Resets 29 Feb 2028 at 00:00 UTC')
   assert.equal(usageReset({ ...meter, resetPeriod: 'NEVER' }), 'Does not reset')
   const html = renderToStaticMarkup(createElement(AccountUsage, { usage: usage([meter, { ...meter, meterKey: 'resource', role: 'storage', label: 'Storage' }]) }))
-  assert.match(html, /<h4[^>]*>Other usage<\/h4>/)
-  assert.doesNotMatch(html, /<summary[^>]*>Other usage/)
-  assert.match(html, /Choose View details/)
+  assert.match(html, /<h4[^>]*>Workspace<\/h4>/)
+  assert.doesNotMatch(html, /Each allowance is separate|Other usage<\/h4>/)
   assert.match(html, /astryx-progress-bar/)
   assert.match(html, /aria-expanded="false"/)
   assert.doesNotMatch(html, /Add credits|Auto.recharge|balance|AI models/)
@@ -119,9 +119,39 @@ test('prepaid usage is separate from included allowance and cannot be counted tw
   assert.equal(parsed.prepaidConsumed, 300)
   assert.deepEqual(meterProgress(parsed), { limit: 1000, percent: 90, atLimit: false })
   assert.equal(remainingAllowance(parsed), '10% remaining')
-  const html = renderToStaticMarkup(createElement(UsageMeter, { meter: parsed }))
+  const html = renderToStaticMarkup(createElement(AccountUsage, { usage: usage([parsed]) }))
   assert.match(html, /Plan used/); assert.match(html, /800 tokens/)
   assert.match(html, /Paid credits used/); assert.match(html, /300 tokens/)
   assert.match(html, /Paid credits reserved/)
   assert.equal(usageSchema.safeParse(usage([{ ...paid, prepaidConsumed: 1101 }])).success, false)
+})
+
+test('shared usage leads with one pool and daily pacing, with old model counters kept as details', () => {
+  const shared = { ...meter, meterKey: 'shared', role: 'ai.allowance', label: 'AI credits', unit: 'credits' }
+  const daily = { ...shared, meterKey: 'daily', role: 'ai.pacing', label: 'Daily AI usage', resetPeriod: 'DAILY' as const }
+  const html = renderToStaticMarkup(createElement(AccountUsage, {
+    usage: usage([meter, shared, daily,
+      { ...meter, meterKey: 'previous', role: 'ai.fallback.input', label: 'Previous input' },
+      { ...meter, meterKey: 'storage', role: 'storage', label: 'Storage' },
+      { ...meter, meterKey: 'build-counter', role: 'build', label: 'Builds' },
+    ]),
+    onDemand: createElement('section', { 'aria-label': 'Purchased credits' }, 'Purchased credits'),
+  }))
+  assert.match(html, /One AI allowance across models, voice and projects/)
+  assert.match(html, /Daily limits, when shown, apply to the same allowance/)
+  assert.match(html, /Usage details/)
+  assert.equal((html.match(/aria-expanded="false"/g) ?? []).length, 1)
+  assert.doesNotMatch(html, /View details for|View model usage details/)
+  assert.doesNotMatch(html, /Builds/)
+  assert.match(html, /Previous model usage/)
+  assert.doesNotMatch(html, /Each allowance is separate|View details for Input tokens|View details for Previous input/)
+  assert.ok(html.indexOf('AI credits') < html.indexOf('Purchased credits'))
+  assert.ok(html.indexOf('Purchased credits') < html.indexOf('Storage'))
+  assert.equal((html.match(/role="progressbar"/g) ?? []).length, 3)
+})
+
+test('session usage errors do not expose server diagnostics', () => {
+  const html = renderToStaticMarkup(createElement(SessionUsage, { usage: null, error: 'Internal database diagnostic', loading: false }))
+  assert.match(html, /Refresh to try again/)
+  assert.doesNotMatch(html, /Internal database diagnostic/)
 })

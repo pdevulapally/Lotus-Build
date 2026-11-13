@@ -145,7 +145,7 @@ test('a thinking row renders collapsed as a calm trigger, keeping the reasoning 
   assert.match(done, /Thought process/); assert.doesNotMatch(done, /failing assertion/)
 })
 
-test('the current stop appears once in the shared notice while tool diagnostics stay collapsed', () => {
+test('the current stop appears once in the shared notice without exposing tool diagnostics', () => {
   const error = 'The Free plan allows 300000 tokens of Input tokens, and 297048 tokens of that is already used or held.'
   const call = activity({ id: '1700000000000-1', type: 'agent.tool_call', data: { name: 'read_file', callId: 'read', input: { path: '/home/daytona/project/src/App.tsx' } } }, 0)!
   const tool = updateToolStepEvent([call], { id: '1700000000001-1', type: 'agent.tool_result', data: { name: 'read_file', callId: 'read', isError: true, error: 'Confined ranged read failed: Traceback (most recent call last):' } })
@@ -158,12 +158,12 @@ test('the current stop appears once in the shared notice while tool diagnostics 
   assert.match(html, /App.tsx/)
   assert.match(html, /<details[^>]*>/)
   assert.doesNotMatch(html, /<details[^>]*\sopen/)
-  assert.match(html, /Confined ranged read failed: Traceback/)
+  assert.doesNotMatch(html, /Confined ranged read failed: Traceback/)
   const visible = html.replace(/<details\b[^>]*>[\s\S]*?<\/details>/g, '')
   assert.doesNotMatch(visible, /Traceback|Confined ranged|Reading did not finish/)
   // A different execution's history remains available; a current banner must not erase it.
   const old = { ...terminal, id: '1699999999999-1', metadata: { ...terminal.metadata, execution: 1 }, description: 'An earlier failure.' }
   const history = render({ status: 'error', events: [old, ...tool, terminal], taskNotice })
-  assert.match(history, /Previous task failure/)
-  assert.match(history, /An earlier failure/)
+  assert.match(history, /This request couldn\u2019t finish/)
+  assert.doesNotMatch(history, /An earlier failure|text-destructive/)
 })

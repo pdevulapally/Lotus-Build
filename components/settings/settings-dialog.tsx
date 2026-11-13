@@ -20,7 +20,8 @@ import { AccountPanel } from './account-panel'
 import { BillingPanel } from './billing-panel'
 import { PluginsPanel } from './plugins-panel'
 import { CreditBalance } from '@/components/billing/credit-balance'
-type SettingsOpenOptions = { purchaseId?: string | null }
+import type { CreditTask } from '@/lib/billing/credits'
+type SettingsOpenOptions = { purchaseId?: string | null; continuation?: CreditTask }
 type SettingsContext = { openSettings: (page?: SettingsPage, options?: SettingsOpenOptions) => void; closeSettings: () => void }
 const Context = createContext<SettingsContext | null>(null)
 
@@ -34,26 +35,28 @@ export function SettingsDialogProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false)
   const [initialPage, setInitialPage] = useState<SettingsPage>('account')
   const [purchaseId, setPurchaseId] = useState<string | null>(null)
+  const [continuation, setContinuation] = useState<CreditTask | undefined>()
   const opener = useRef<HTMLElement | null>(null)
   const openSettings = useCallback((page: SettingsPage = 'account', options?: SettingsOpenOptions) => {
     opener.current = document.querySelector<HTMLElement>('[data-slot="dropdown-menu-trigger"][data-state="open"]')
       ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null)
     setInitialPage(page)
     setPurchaseId(options?.purchaseId ?? null)
+    setContinuation(options?.continuation)
     setOpen(true)
   }, [])
   const closeSettings = useCallback(() => setOpen(false), [])
   const value = useMemo(() => ({ openSettings, closeSettings }), [openSettings, closeSettings])
   return <Context.Provider value={value}>
     {children}
-    <SettingsDialog open={open} onOpenChange={setOpen} initialPage={initialPage} purchaseId={purchaseId} onRestoreFocus={() => {
+    <SettingsDialog open={open} onOpenChange={setOpen} initialPage={initialPage} purchaseId={purchaseId} continuation={continuation} onRestoreFocus={() => {
       if (opener.current?.isConnected) opener.current.focus()
     }} />
   </Context.Provider>
 }
 
-export function SettingsDialog({ open, onOpenChange, initialPage = 'account', purchaseId, onRestoreFocus }: {
-  open: boolean; onOpenChange: (value: boolean) => void; initialPage?: SettingsPage; purchaseId?: string | null; onRestoreFocus?: () => void
+export function SettingsDialog({ open, onOpenChange, initialPage = 'account', purchaseId, continuation, onRestoreFocus }: {
+  open: boolean; onOpenChange: (value: boolean) => void; initialPage?: SettingsPage; purchaseId?: string | null; continuation?: CreditTask; onRestoreFocus?: () => void
 }) {
   const { user, account, usage, accountError, refreshAccount, loading } = useAuth()
   const [page, setPage] = useState<SettingsPage>(initialPage)
@@ -65,11 +68,10 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account', pu
   const billing = useBillingSummary(open && page === 'billing' ? user?.uid : undefined)
   const portal = useBillingPortal(open && page === 'billing' ? user?.uid : undefined)
   const creditsVisible = page === 'on-demand' || page === 'usage' || page === 'billing'
-  const credits = useCredits(open && creditsVisible ? user?.uid : undefined, purchaseId)
+  const credits = useCredits(open && creditsVisible ? user?.uid : undefined, purchaseId, continuation)
   useEffect(() => {
     if (open) { setPage(initialPage); setMessage(null); setError(null) }
   }, [open, initialPage])
-
   const perform = async (work: () => Promise<void>) => {
     if (busyRef.current) return
     busyRef.current = true
@@ -107,12 +109,10 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account', pu
         })}
       />}
 
-      {page === 'usage' && <VStack gap={4}>
-        <AccountUsage usage={usage} onManagePlan={() => setPage('billing')} />
-        <CreditBalance credits={credits} onBuy={() => setPage('on-demand')} />
-      </VStack>}
+      {page === 'usage' && <AccountUsage usage={usage} onManagePlan={() => setPage('billing')}
+        onDemand={<CreditBalance credits={credits} onBuy={() => setPage('on-demand')} />} />}
 
-      {page === 'on-demand' && <CreditsPanel key={user?.uid} credits={credits} />}
+      {page === 'on-demand' && <CreditsPanel key={user?.uid} credits={credits} task={continuation} onClose={() => onOpenChange(false)} />}
 
       {page === 'billing' && <BillingPanel account={account} summary={billing} credits={credits}
         portal={{ available: credits.data?.portalAvailable, loading: credits.loading, busy: portal.busy, onOpen: () => { void portal.open() } }}

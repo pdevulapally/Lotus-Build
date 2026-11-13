@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { auth } from '@/lib/firebase'
 import { currentBackend } from '@/lib/backend/browser'
-import type { BillingCredits, CreditOffer, CreditPurchase } from '@/lib/billing/credits'
+import type { BillingCredits, CreditOffer, CreditPurchase, CreditTask } from '@/lib/billing/credits'
 import { readCreditsSnapshot } from '@/lib/billing/credits-read'
 import { clearCreditOperation, openCreditCheckout, readCreditOperation } from '@/lib/billing/credits-checkout'
 
@@ -11,12 +11,13 @@ export type CreditsState = { data: BillingCredits | null; purchase: CreditPurcha
 const initial: CreditsState = { data: null, purchase: null, loading: true, unavailable: false, busy: false, error: null, purchaseError: null, checkoutBlockedReason: null, canRecoverCheckout: false }
 
 /** Every return/focus action is a read. Only the explicit checkout action creates a payment session. */
-export function useCredits(uid: string | undefined, purchaseId?: string | null) {
+export function useCredits(uid: string | undefined, purchaseId?: string | null, continuation?: CreditTask) {
   const [state, setState] = useState<CreditsState & { uid?: string }>(initial)
   const controller = useRef<AbortController | null>(null)
   const mounted = useRef(false)
   const generation = useRef(0)
   const busy = useRef(false)
+  const paymentChecks = useRef({ purchaseId: '', count: 0 })
   const currentUid = useRef(uid)
   currentUid.current = uid
   const isCurrent = useCallback(() => mounted.current && currentUid.current === uid && auth.currentUser?.uid === uid, [uid])
@@ -57,6 +58,14 @@ export function useCredits(uid: string | undefined, purchaseId?: string | null) 
     window.addEventListener('pageshow', onFocus)
     return () => { generation.current += 1; mounted.current = false; controller.current?.abort(); window.removeEventListener('focus', onFocus); window.removeEventListener('pageshow', onFocus) }
   }, [refresh])
+  useEffect(() => {
+    const purchase = state.uid === uid ? state.purchase : null
+    if (!uid || !purchase || purchase.status !== 'pending' || state.purchaseError || state.error || state.loading) return
+    if (paymentChecks.current.purchaseId !== purchase.purchaseId) paymentChecks.current = { purchaseId: purchase.purchaseId, count: 0 }
+    if (paymentChecks.current.count >= 12) return
+    const timer = window.setTimeout(() => { paymentChecks.current.count++; void refresh() }, 5000)
+    return () => window.clearTimeout(timer)
+  }, [uid, state.uid, state.purchase, state.loading, state.purchaseError, state.error, refresh])
   const runCheckout = useCallback(async (offer: Pick<CreditOffer, 'id' | 'version'>, requireExisting = false) => {
     if (busy.current || !uid || !isCurrent() || state.loading || state.uid !== uid) return
     if (!requireExisting && (state.checkoutBlockedReason || !state.data?.purchasing.enabled || !state.data.offers.some(o => o.id === offer.id && o.version === offer.version))) return
@@ -65,7 +74,7 @@ export function useCredits(uid: string | undefined, purchaseId?: string | null) 
     busy.current = true
     setState(old => ({ ...old, busy: true, error: null }))
     try {
-      await openCreditCheckout({ uid, offer, requireExisting, storage: window.sessionStorage, currentUid: () => auth.currentUser?.uid, isCurrent: stillCurrent,
+      await openCreditCheckout({ uid, offer, requireExisting, ...(continuation === undefined ? {} : { continuation }), storage: window.sessionStorage, currentUid: () => auth.currentUser?.uid, isCurrent: stillCurrent,
         create: (input, key) => currentBackend().creditCheckout(input, key), navigate: url => window.location.assign(url) })
       if (stillCurrent()) await refresh()
     } catch (error) {
@@ -76,7 +85,7 @@ export function useCredits(uid: string | undefined, purchaseId?: string | null) 
     } finally {
       if (stillCurrent()) { busy.current = false; setState(old => ({ ...old, busy: false })) }
     }
-  }, [uid, state.data, state.uid, state.loading, state.checkoutBlockedReason, isCurrent, refresh])
+  }, [uid, state.data, state.uid, state.loading, state.checkoutBlockedReason, isCurrent, refresh, continuation])
   const checkout = useCallback((offer: CreditOffer) => runCheckout(offer), [runCheckout])
   const recoverCheckout = useCallback(async () => {
     if (!uid || !isCurrent() || busy.current || state.loading) return

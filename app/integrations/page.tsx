@@ -10,7 +10,6 @@ import { useSettingsDialog } from '@/components/settings/settings-dialog'
 import { currentBackend } from '@/lib/backend/browser'
 import { statusLabel, type Connection, type Connector } from '@/lib/backend/connections'
 import { PluginsPanel } from '@/components/settings/plugins-panel'
-import Link from 'next/link'
 import styles from './integrations.module.css'
 
 type State =
@@ -87,7 +86,6 @@ function IntegrationsContent() {
       <header className={styles.intro}>
         <h1 className={styles.title}>Integrations</h1>
         <p className={styles.lead}>Connect services to let LotusBuild deploy and work across your tools</p>
-        <Link href="/integrations/netlify/deployments" className="text-sm underline underline-offset-4">View Netlify deployments</Link>
       </header>
 
       {state.kind === 'loading' && <p className={styles.message} role="status">Loading integrations…</p>}
