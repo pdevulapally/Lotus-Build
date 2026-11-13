@@ -3,7 +3,11 @@ import type { CreditOperation } from './credits-checkout'
 
 const message = (error: unknown, fallback: string) => error instanceof Error ? error.message : fallback
 
-/** Discover the server's active intent, reconcile it, then read the resulting wallet. */
+/**
+ * Discover the server's active intent, reconcile it, then read the resulting wallet.
+ * `awaitingPayment` is true only while this browser is returning from that checkout (callback id or saved operation),
+ * so the hook polls for a payment the user is completing, not for any pending purchase on the account.
+ */
 export async function readCreditsSnapshot(options: {
   readWallet: () => Promise<BillingCredits>
   readPurchase: (id: string) => Promise<CreditPurchase>
@@ -37,9 +41,13 @@ export async function readCreditsSnapshot(options: {
     } catch (failure) { purchaseError = `Payment status could not be checked. ${message(failure, 'Refresh to try again.')}` }
     // Reconciliation can grant/revoke credits, even before reporting a transient failure.
     // Never pair the pre-reconciliation balance with the resulting payment status.
-    data = null
-    data = await readWallet('The updated credit balance could not be loaded.')
+    // A purchase the server still reports as pending changed nothing, so the first balance stands.
+    if (!purchase || purchase.status !== 'pending') {
+      data = null
+      data = await readWallet('The updated credit balance could not be loaded.')
+    }
   }
+  const awaitingPayment = purchase?.status === 'pending' && (options.purchaseId === purchase.purchaseId || operation?.purchaseId === purchase.purchaseId)
   const unresolvedOperation = operation && (!operation.purchaseId || operation.purchaseId !== purchase?.purchaseId || purchase.status === 'pending')
   const unavailableOperation = operation && unresolvedOperation && !creditChoiceAvailable(data, {id:operation.offerId, version:operation.offerVersion, customAmountMinor:operation.customAmountMinor})
   const checkoutBlockedReason = operationError ?? (purchaseError
@@ -49,5 +57,5 @@ export async function readCreditsSnapshot(options: {
       : unavailableOperation
         ? 'Your earlier checkout needs to be checked before another top-up. Refresh its status. If it remains unavailable, contact billing support; do not start another payment.'
         : null)
-  return { data, purchase, operation, error, purchaseError, unavailable, checkoutBlockedReason, canRecoverCheckout: operation !== null && !operationError && !unavailable }
+  return { data, purchase, operation, error, purchaseError, unavailable, checkoutBlockedReason, awaitingPayment, canRecoverCheckout: operation !== null && !operationError && !unavailable }
 }

@@ -130,7 +130,7 @@ test('payment management distinguishes absent billing customers from loading and
 test('settings billing includes the full subscription, payment and credit experience without leaving the modal', () => {
   const credits: Parameters<typeof BillingPanel>[0]['credits'] = {
     data: null, purchase: null, loading: false, unavailable: false, busy: false, error: null,
-    purchaseError: null, checkoutBlockedReason: null, canRecoverCheckout: false,
+    purchaseError: null, checkoutBlockedReason: null, awaitingPayment: false, canRecoverCheckout: false,
     recoverCheckout: async () => {}, refresh: async () => {}, checkout: async () => {},
   }
   const html = renderToStaticMarkup(createElement(BillingPanel, {
