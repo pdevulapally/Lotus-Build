@@ -72,7 +72,7 @@ const toolStepCopy: Readonly<Record<string, ToolStepCopy>> = {
 }
 
 /** Internal bookkeeping tools: they have no meaning to the person reading the feed. */
-const hiddenTools: ReadonlySet<string> = new Set(['update_task', 'finish_task'])
+const hiddenTools: ReadonlySet<string> = new Set(['update_task', 'finish_task', 'recover_task'])
 
 export function isHiddenToolStep(name: string): boolean {
   return hiddenTools.has(name)
