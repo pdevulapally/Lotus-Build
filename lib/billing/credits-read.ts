@@ -41,8 +41,9 @@ export async function readCreditsSnapshot(options: {
     } catch (failure) { purchaseError = `Payment status could not be checked. ${message(failure, 'Refresh to try again.')}` }
     // Reconciliation can grant/revoke credits, even before reporting a transient failure.
     // Never pair the pre-reconciliation balance with the resulting payment status.
-    // A purchase the server still reports as pending changed nothing, so the first balance stands.
-    if (!purchase || purchase.status !== 'pending') {
+    // A purchase the server still reports as pending changed nothing, so a successful first read stands.
+    const pendingWithBalance = purchase?.status === 'pending' && data !== null
+    if (!pendingWithBalance) {
       data = null
       data = await readWallet('The updated credit balance could not be loaded.')
     }

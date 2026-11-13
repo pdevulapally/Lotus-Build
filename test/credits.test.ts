@@ -140,6 +140,12 @@ test('a pending purchase is read once and polled only when this browser is retur
   assert.equal(reads, 2)
   assert.equal(failed.awaitingPayment, false)
   assert.equal(failed.data?.wallet?.availableCredits, 20)
+  reads = 0
+  const recovered = await readCreditsSnapshot({ ...config, readOperation: () => null, purchaseId, readWallet: async () => { if (reads++ === 0) throw new Error('wallet unavailable'); return (await config.readWallet()) } })
+  assert.equal(reads, 2)
+  assert.equal(recovered.error, null)
+  assert.equal(recovered.data?.wallet?.availableCredits, 20)
+  assert.equal(recovered.awaitingPayment, true)
 })
 test('failed wallet reread never pairs confirmed payment with a stale balance', async () => {
   const { readCreditsSnapshot } = await import('../lib/billing/credits-read')
