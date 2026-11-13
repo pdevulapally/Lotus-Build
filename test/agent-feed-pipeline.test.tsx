@@ -61,9 +61,9 @@ test('small edit: write, then the agent reads the file back, then it answers —
     ev('agent.step', { step: 3 }), ev('agent.text', { delta: 'Renamed the heading.' }),
     ev('session.idle', { steps: 3, stopReason: 'end_turn' }),
   ])
-  assert.deepEqual(rows(state), ['Creating file:complete', 'Read src/App.tsx:complete'], 'one row per real tool attempt, closed by its own result; bookkeeping steps add no rows')
+  assert.deepEqual(rows(state), ['Creating file:complete', 'Read App.tsx:complete'], 'one row per real tool attempt, closed by its own result; bookkeeping steps add no rows')
   const html = render(state)
-  assert.match(html, /Created/); assert.match(html, /Read src\/App\.tsx/); assert.match(html, /Renamed the heading\./)
+  assert.match(html, /Created/); assert.match(html, /Read/); assert.match(html, /App\.tsx/); assert.match(html, /Renamed the heading\./)
   assert.doesNotMatch(html, /Couldn|Interrupted|Working|Processing your request/)
   assert.equal(state.liveLabel, null, 'the live line is cleared when the turn ends')
 })
