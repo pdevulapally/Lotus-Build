@@ -14,7 +14,7 @@ import { useAuth } from '@/contexts/auth-context'
 import { currentBackend } from '@/lib/backend/browser'
 import { clearCheckoutAttempt, readCheckoutAttempt, saveCheckoutAttempt, type CheckoutAttempt } from '@/lib/backend/checkout-attempt'
 import type { BackendPlan } from '@/lib/backend/client'
-import { describeAllowance, describeCountCapabilities, featuredPlanKey, formatPlanPrice } from '@/lib/plans/format'
+import { describeAllowance, describeCountCapabilities, featuredPlanKey, formatPlanPrice, orderedPlanAllowances, planAllowanceLabel } from '@/lib/plans/format'
 import styles from './pricing.module.css'
 import billingStyles from '@/components/billing/billing-dialog.module.css'
 
@@ -144,15 +144,19 @@ export default function PricingPage() {
               </div>
               <div className={styles.allowances}>
                 <p className={styles.allowanceLabel}>What’s included</p>
-                {plan.allowances.length > 0 || describeCountCapabilities(plan.capabilities).length > 0 ? <ul className={styles.allowanceList}>
+                {plan.allowances.length > 0 || plan.automaticFallback || describeCountCapabilities(plan.capabilities).length > 0 ? <ul className={styles.allowanceList}>
                   {describeCountCapabilities(plan.capabilities).map((capability) => <li key={capability.key}>
                     <span className={styles.allowanceName}>{capability.label}</span>
                     <span className={styles.allowanceValue}>{capability.value}</span>
                   </li>)}
-                  {plan.allowances.map((allowance) => {
+                  {plan.automaticFallback && <li>
+                    <span className={styles.allowanceName}>Automatic model fallback</span>
+                    <span className={styles.allowanceValue}>Included</span>
+                  </li>}
+                  {orderedPlanAllowances(plan.allowances).map((allowance) => {
                     const described = describeAllowance(allowance)
                     return <li key={allowance.key}>
-                      <span className={styles.allowanceName}>{allowance.label}</span>
+                      <span className={styles.allowanceName}>{planAllowanceLabel(allowance)}</span>
                       <span className={styles.allowanceValue}>{described.included}{described.ceiling && <small>{described.ceiling}</small>}</span>
                     </li>
                   })}

@@ -79,7 +79,7 @@ const allowanceQuantity = z.union([z.number(), z.literal('unlimited')])
 export const usageSchema = z.object({ uid: z.string(), plan: z.object({ key: z.string(), name: z.string() }),
   meters: z.array(z.object({ meterKey: z.string(), unit: z.string(), label: z.string(),
     role: z.string().min(1).optional(),
-    kind: z.enum(['COUNTER', 'GAUGE']), resetPeriod: z.enum(['NEVER', 'DAILY', 'MONTHLY']),
+    kind: z.enum(['COUNTER', 'GAUGE']), resetPeriod: z.enum(['NEVER', 'DAILY', 'WEEKLY', 'MONTHLY']),
     consumed: z.number().nonnegative(), reserved: z.number().nonnegative(), totalUsed: z.number().nonnegative(),
     prepaidConsumed: z.number().nonnegative().optional(), prepaidReserved: z.number().nonnegative().optional(),
     includedAllowance: allowanceQuantity, hardLimit: allowanceQuantity, overageEnabled: z.boolean(), periodStart: timestamp,
@@ -131,8 +131,14 @@ export type BackendMessage = z.infer<typeof messageSchema>
 export type SessionEvent = { id?: string; type: string; data: Record<string, unknown> }
 const planSchema = z.object({ key: z.string(), name: z.string(), rank: z.number(),
   price: z.object({ amountMinor: z.number().int().positive(), currency: z.string().regex(/^[a-z]{3}$/), interval: z.enum(['day', 'week', 'month', 'year']) }).optional(),
+  automaticFallback: z.boolean().optional(),
   capabilities: z.array(capabilitySchema.and(z.object({ label: z.string() }))),
-  allowances: z.array(z.object({ key: z.string(), label: z.string(), unit: z.string(), included: allowanceQuantity, limit: allowanceQuantity })),
+  allowances: z.array(z.object({
+    key: z.string(), label: z.string(), unit: z.string(),
+    role: z.string().optional(),
+    resetPeriod: z.enum(['NEVER', 'DAILY', 'WEEKLY', 'MONTHLY']).optional(),
+    included: allowanceQuantity, limit: allowanceQuantity,
+  })),
 })
 export type BackendPlan = z.infer<typeof planSchema>
 

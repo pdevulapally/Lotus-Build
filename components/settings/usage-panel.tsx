@@ -63,7 +63,7 @@ export function AccountUsage({ usage, onManagePlan, showManagePlan = true, onDem
     </HStack>
     {primary ? <SettingsGroup title="AI allowance">
       {primary.meters.map(meter => <UsageMeter key={meter.meterKey} meter={meter} />)}
-      <Text type="supporting" color="secondary">{shared ? 'Work in progress counts towards usage. Daily limits, when shown, apply to the same allowance.' : 'Work in progress counts towards your usage.'}</Text>
+      <Text type="supporting" color="secondary">{shared ? 'Work in progress counts towards usage. Daily or weekly limits, when shown, apply to the same allowance.' : 'Work in progress counts towards your usage.'}</Text>
     </SettingsGroup> : <Text type="body" color="secondary">An AI allowance summary is not available for this account. View reported usage below.</Text>}
     {onDemand}
     {other.length > 0 && <VStack as="section" gap={3} aria-label="Workspace and other usage">
