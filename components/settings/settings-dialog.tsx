@@ -15,6 +15,7 @@ import { SettingsShell, type SettingsPage } from './settings-shell'
 export type { SettingsPage } from './settings-shell'
 import { CreditsPanel } from './credits-panel'
 import { useCredits } from '@/hooks/use-credits'
+import { useSupportAccess } from '@/hooks/use-support-access'
 import { AccountUsage } from './usage-panel'
 import { AccountPanel } from './account-panel'
 import { BillingPanel } from './billing-panel'
@@ -68,6 +69,7 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account', pu
   const billing = useBillingSummary(open && page === 'billing' ? user?.uid : undefined)
   const portal = useBillingPortal(open && page === 'billing' ? user?.uid : undefined)
   const creditsVisible = page === 'on-demand' || page === 'usage' || page === 'billing'
+  const support = useSupportAccess(open && page === 'account' ? user?.uid : undefined)
   const credits = useCredits(open && creditsVisible ? user?.uid : undefined, purchaseId, continuation)
   useEffect(() => {
     if (open) { setPage(initialPage); setMessage(null); setError(null) }
@@ -102,6 +104,7 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account', pu
         displayName={user?.displayName}
         photoURL={user?.photoURL}
         busy={busy}
+        support={support}
         onVerified={() => setMessage('Email verified.')}
         onErasure={() => void perform(async () => {
           const result = await currentBackend().requestErasure()
