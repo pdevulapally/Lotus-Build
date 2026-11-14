@@ -106,7 +106,7 @@ test('compact allowance shows remaining without summing meters and resets on UTC
   assert.equal(usageReset({ ...meter, resetPeriod: 'DAILY', periodStart: '2028-02-28T00:00:00Z' }), 'Resets 29 Feb 2028 at 00:00 UTC')
   assert.equal(usageReset({ ...meter, resetPeriod: 'NEVER' }), 'Does not reset')
   const html = renderToStaticMarkup(createElement(AccountUsage, { usage: usage([meter, { ...meter, meterKey: 'resource', role: 'storage', label: 'Storage' }]) }))
-  assert.match(html, /<h4[^>]*>Workspace<\/h4>/)
+  assert.doesNotMatch(html, /Workspace|>Storage</)
   assert.doesNotMatch(html, /Each allowance is separate|Other usage<\/h4>/)
   assert.match(html, /astryx-progress-bar/)
   assert.match(html, /aria-expanded="false"/)
@@ -141,7 +141,7 @@ test('shared usage leads with pacing before the monthly pool, with old model cou
     onDemand: createElement('section', { 'aria-label': 'Purchased credits' }, 'Purchased credits'),
   }))
   assert.match(html, /One AI allowance across models, voice and projects/)
-  assert.match(html, /Daily or weekly limits, when shown, apply to the same allowance/)
+  assert.match(html, /Every window applies to the same allowance/)
   assert.match(html, /Usage details/)
   assert.equal((html.match(/aria-expanded="false"/g) ?? []).length, 1)
   assert.doesNotMatch(html, /View details for|View model usage details/)
@@ -157,9 +157,10 @@ test('shared usage leads with pacing before the monthly pool, with old model cou
   assert.ok(html.indexOf('Daily AI allowance') < html.indexOf('Weekly AI allowance'))
   assert.ok(html.indexOf('Weekly AI allowance') < html.indexOf('Monthly AI allowance'))
   assert.ok(html.indexOf('Monthly AI allowance') < html.indexOf('Purchased credits'))
-  assert.ok(html.indexOf('Purchased credits') < html.indexOf('Storage'))
-  assert.equal((html.match(/role="progressbar"/g) ?? []).length, 4)
+  assert.doesNotMatch(html, />Storage</)
+  assert.equal((html.match(/role="progressbar"/g) ?? []).length, 3)
 })
+
 
 test('session usage errors do not expose server diagnostics', () => {
   const html = renderToStaticMarkup(createElement(SessionUsage, { usage: null, error: 'Internal database diagnostic', loading: false }))

@@ -912,3 +912,7 @@ body:has([data-product-theme='dark']) :is([data-slot='dropdown-menu-content'], [
   --ring: #c0d3ec;
 }
 :is([data-workspace-theme='dark'], [data-product-theme='dark']) { color-scheme: dark; }
+
+.usage-progress .astryx-progress-bar-fill {
+  background-color: var(--foreground) !important;
+}
