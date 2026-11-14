@@ -7,7 +7,7 @@ const groups = [
   { key: 'ai', title: 'AI usage', description: 'Your shared AI allowance across projects and models.', roles: ['ai.allowance', 'ai.pacing'] },
   { key: 'tokens', title: 'Model usage details', description: 'Token usage reported for your account.', roles: ['ai.input', 'ai.output'] },
   { key: 'fallback', title: 'Previous model usage', description: 'Usage recorded before models shared one credit balance.', roles: ['ai.fallback.input', 'ai.fallback.output'] },
-  { key: 'workspace', title: 'Workspace', description: 'Your storage and workspace resources.', roles: ['sandbox.time', 'sandbox.concurrency', 'storage'] },
+  { key: 'workspace', title: 'Sandbox computing', description: 'Compute used by your cloud workspaces.', roles: ['sandbox.time'] },
 ] as const
 
 function allowanceOrder(meter: UsageMeter): number {
@@ -26,7 +26,7 @@ export function usageMeterLabel(meter: UsageMeter): string {
 
 /** Only the server's semantic role groups a meter. Unknown/older responses remain visible. Never sum unlike meters. */
 export function groupUsageMeters(reportedMeters: readonly UsageMeter[]): UsageGroup[] {
-  const meters = reportedMeters.filter(meter => meter.role !== 'build' && meter.role !== 'sandbox.concurrency')
+  const meters = reportedMeters.filter(meter => !['build', 'sandbox.concurrency', 'storage'].includes(meter.role ?? ''))
   const assigned = new Set<string>()
   const result: UsageGroup[] = groups.map((group) => ({ ...group, meters: meters.filter((meter) => {
     const included = meter.role !== undefined && (group.roles as readonly string[]).includes(meter.role)

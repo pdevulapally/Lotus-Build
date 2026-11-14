@@ -22,6 +22,7 @@ export function UsageMeter({ meter }: { meter: Meter }) {
     <SettingsRow label={label}><Text type="label" className={atLimit ? 'text-warning-soft-foreground' : undefined}>{remainingAllowance(meter)}</Text></SettingsRow>
     {percent !== null && limit !== null && limit > 0 && <ProgressBar label={`${label} including reservations`} isLabelHidden
       value={Math.min(plan.totalUsed, limit)} max={limit} variant={atLimit ? 'warning' : 'neutral'} aria-describedby={descriptionId}
+      className={atLimit ? undefined : 'usage-progress'}
       formatValueLabel={() => `${quantityWithUnit(meter.unit, plan.totalUsed)} of ${quantityWithUnit(meter.unit, limit)}, including ${quantityWithUnit(meter.unit, plan.reserved)} reserved`} />}
     <Text type="supporting" color="secondary" id={descriptionId}>{usageReset(meter)}</Text>
   </VStack>
@@ -45,7 +46,12 @@ function UsageMeterDetails({ meter }: { meter: Meter }) {
   </VStack>
 }
 
-export function AccountUsage({ usage, onManagePlan, showManagePlan = true, onDemand }: { usage: BackendUsage | null; onManagePlan?: () => void; showManagePlan?: boolean; onDemand?: ReactNode }) {
+export function AccountUsage({ usage, onManagePlan, showManagePlan = true, onDemand }: {
+  usage: BackendUsage | null
+  onManagePlan?: () => void
+  showManagePlan?: boolean
+  onDemand?: ReactNode
+}) {
   if (!usage) return <VStack gap={4}><Text type="body" color="secondary">Usage is unavailable. Refresh to try again.</Text>{onDemand}</VStack>
   if (usage.meters.length === 0) return <VStack gap={4}><Text type="body" color="secondary">No usage has been reported for your account yet.</Text>{onDemand}</VStack>
   const groups = groupUsageMeters(usage.meters)
@@ -53,18 +59,28 @@ export function AccountUsage({ usage, onManagePlan, showManagePlan = true, onDem
   const other = groups.filter(group => group.key === 'workspace' || group.key === 'other')
   const details = groups.filter(group => group.key === 'tokens' || group.key === 'fallback')
   const shared = usage.meters.some(meter => meter.role === 'ai.allowance')
+  const windows = [
+    { period: 'DAILY', title: 'Daily limits' },
+    { period: 'WEEKLY', title: 'Weekly limits' },
+    { period: 'MONTHLY', title: 'Monthly limits' },
+  ] as const
   return <VStack as="section" gap={4} aria-label="Account usage">
     <HStack align="center" justify="between" gap={3} wrap="wrap">
       <VStack gap={1}>
-        <Heading level={3}>{usage.plan.name} plan allowance</Heading>
+        <HStack align="center" gap={2}><Heading level={3}>Plan usage limits</Heading><Text type="label" color="secondary">{usage.plan.name}</Text></HStack>
         <Text type="supporting" color="secondary">{shared ? 'One AI allowance across models, voice and projects.' : 'Shared across your projects.'}</Text>
       </VStack>
       {showManagePlan && (onManagePlan ? <Button label="Manage plan" onClick={onManagePlan} /> : <Button label="Manage plan" as={Link} href="/account/billing" />)}
     </HStack>
-    {primary ? <SettingsGroup title="AI allowance">
-      {primary.meters.map(meter => <UsageMeter key={meter.meterKey} meter={meter} />)}
-      <Text type="supporting" color="secondary">{shared ? 'Work in progress counts towards usage. Daily or weekly limits, when shown, apply to the same allowance.' : 'Work in progress counts towards your usage.'}</Text>
-    </SettingsGroup> : <Text type="body" color="secondary">An AI allowance summary is not available for this account. View reported usage below.</Text>}
+    {primary ? <VStack gap={4}>
+      {windows.map(window => {
+        const meters = primary.meters.filter(meter => meter.resetPeriod === window.period)
+        return meters.length === 0 ? null : <SettingsGroup key={window.period} title={window.title}>
+          {meters.map(meter => <UsageMeter key={meter.meterKey} meter={meter} />)}
+        </SettingsGroup>
+      })}
+      <Text type="supporting" color="secondary">{shared ? 'Work in progress counts towards usage. Every window applies to the same allowance.' : 'Work in progress counts towards your usage.'}</Text>
+    </VStack> : <Text type="body" color="secondary">An AI allowance summary is not available for this account. View reported usage below.</Text>}
     {onDemand}
     {other.length > 0 && <VStack as="section" gap={3} aria-label="Workspace and other usage">
       {other.map(group => <SettingsGroup key={group.key} title={group.key === 'other' ? 'Additional allowances' : group.title}>
