@@ -89,7 +89,7 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account', pu
     footer={<HStack as="footer" gap={2} align="center" justify="between" wrap="wrap" paddingInline={4} paddingBlock={2}>
       <Text type="supporting" color="secondary" role="status">{snapshot.refreshing ? 'Updating...' : snapshot.updatedAt ? `Account updated ${snapshot.updatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Latest details unavailable'}</Text>
       <Button label="Refresh" variant="ghost" size="sm" isDisabled={busy || portal.busy || snapshot.refreshing || (creditsVisible && (credits.loading || credits.busy))}
-        onClick={() => { void snapshot.refresh(); if (creditsVisible) void credits.refresh(); if (page === 'billing') void billing.refresh() }}
+        onClick={() => { void snapshot.refresh(); if (creditsVisible) void credits.refresh(); if (page === 'billing') void billing.refresh(); if (page === 'account') void support.refresh() }}
         icon={<RefreshCw className={snapshot.refreshing ? 'size-4 motion-safe:animate-spin' : 'size-4'} aria-hidden="true" />} />
     </HStack>}>
     {(error || accountError || portal.error) && <Text type="body" role="alert" className="text-destructive">{error || accountError || portal.error}</Text>}
