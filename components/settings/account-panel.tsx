@@ -8,9 +8,12 @@ import { EmailCodeVerification } from '@/components/auth/email-code-verification
 import { openCookiePreferences } from '@/lib/privacy/cookie-consent'
 import { ProfileAvatar } from '@/components/ui/profile-avatar'
 import { SettingsGroup, SettingsRow } from './settings-primitives'
+import { SupportAccessPanel } from './support-access-panel'
+import type { SupportAccessController } from '@/hooks/use-support-access'
 
-export function AccountPanel({ account, email, displayName, photoURL, busy, onVerified, onErasure }: {
+export function AccountPanel({ account, email, displayName, photoURL, busy, support, onVerified, onErasure }: {
   account: BackendAccount
+  support: SupportAccessController
   email: string
   displayName?: string | null
   photoURL?: string | null
@@ -32,6 +35,7 @@ export function AccountPanel({ account, email, displayName, photoURL, busy, onVe
       <SettingsRow label="Projects"><Text type="body" color="secondary">{account.projectCount.toLocaleString()}</Text></SettingsRow>
       {!account.emailVerified && <EmailCodeVerification appearance="astryx" email={email} autoSend={false} onVerified={onVerified} />}
     </SettingsGroup>
+    <SupportAccessPanel support={support} />
     <SettingsGroup title="Privacy">
       <SettingsRow label="Cookie preferences" description="Choose how optional cookies are used.">
         <Button label="Cookie preferences" aria-haspopup="dialog" onClick={openCookiePreferences} />

@@ -15,6 +15,7 @@ import { SettingsShell, type SettingsPage } from './settings-shell'
 export type { SettingsPage } from './settings-shell'
 import { CreditsPanel } from './credits-panel'
 import { useCredits } from '@/hooks/use-credits'
+import { useSupportAccess } from '@/hooks/use-support-access'
 import { AccountUsage } from './usage-panel'
 import { AccountPanel } from './account-panel'
 import { BillingPanel } from './billing-panel'
@@ -68,6 +69,7 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account', pu
   const billing = useBillingSummary(open && page === 'billing' ? user?.uid : undefined)
   const portal = useBillingPortal(open && page === 'billing' ? user?.uid : undefined)
   const creditsVisible = page === 'on-demand' || page === 'usage' || page === 'billing'
+  const support = useSupportAccess(open && page === 'account' ? user?.uid : undefined)
   const credits = useCredits(open && creditsVisible ? user?.uid : undefined, purchaseId, continuation)
   useEffect(() => {
     if (open) { setPage(initialPage); setMessage(null); setError(null) }
@@ -87,7 +89,7 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account', pu
     footer={<HStack as="footer" gap={2} align="center" justify="between" wrap="wrap" paddingInline={4} paddingBlock={2}>
       <Text type="supporting" color="secondary" role="status">{snapshot.refreshing ? 'Updating...' : snapshot.updatedAt ? `Account updated ${snapshot.updatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Latest details unavailable'}</Text>
       <Button label="Refresh" variant="ghost" size="sm" isDisabled={busy || portal.busy || snapshot.refreshing || (creditsVisible && (credits.loading || credits.busy))}
-        onClick={() => { void snapshot.refresh(); if (creditsVisible) void credits.refresh(); if (page === 'billing') void billing.refresh() }}
+        onClick={() => { void snapshot.refresh(); if (creditsVisible) void credits.refresh(); if (page === 'billing') void billing.refresh(); if (page === 'account') void support.refresh() }}
         icon={<RefreshCw className={snapshot.refreshing ? 'size-4 motion-safe:animate-spin' : 'size-4'} aria-hidden="true" />} />
     </HStack>}>
     {(error || accountError || portal.error) && <Text type="body" role="alert" className="text-destructive">{error || accountError || portal.error}</Text>}
@@ -102,6 +104,7 @@ export function SettingsDialog({ open, onOpenChange, initialPage = 'account', pu
         displayName={user?.displayName}
         photoURL={user?.photoURL}
         busy={busy}
+        support={support}
         onVerified={() => setMessage('Email verified.')}
         onErasure={() => void perform(async () => {
           const result = await currentBackend().requestErasure()
