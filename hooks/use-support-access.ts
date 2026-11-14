@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { currentBackend } from '@/lib/backend/browser'
 import { BackendError, type BackendSupportAccess } from '@/lib/backend/client'
 
@@ -27,21 +27,40 @@ export function useSupportAccess(uid: string | undefined): SupportAccessControll
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Responses are applied only if the account they were requested for is still
+  // the one on screen, so a reply that lands after sign-out or a switch is dropped.
+  const owner = useRef(uid)
+  owner.current = uid
   const refresh = useCallback(async () => {
-    if (!uid) return
+    const requested = uid
+    if (!requested) return
     setLoading(true)
-    try { setData(await currentBackend().supportAccess()); setError(null) } catch (cause) { setError(describe(cause)) } finally { setLoading(false) }
+    try {
+      const next = await currentBackend().supportAccess()
+      if (owner.current !== requested) return
+      setData(next); setError(null)
+    } catch (cause) { if (owner.current === requested) setError(describe(cause)) } finally { setLoading(false) }
   }, [uid])
-  useEffect(() => { if (uid) void refresh(); else { setData(null); setCode(null) } }, [uid, refresh])
+  useEffect(() => { if (uid) void refresh(); else { setData(null); setCode(null); setError(null) } }, [uid, refresh])
 
-  const perform = useCallback(async (action: () => Promise<void>) => {
+  // While a code is out or access is active, the other side's actions change this state; keep it current.
+  const watching = data !== null && (data.code !== null || data.grant !== null)
+  useEffect(() => {
+    if (!uid || !watching) return
+    const timer = setInterval(() => { void refresh() }, 15_000)
+    return () => clearInterval(timer)
+  }, [uid, watching, refresh])
+
+  const perform = useCallback(async (action: (requested: string) => Promise<void>) => {
+    const requested = uid
+    if (!requested) return
     setBusy(true); setError(null)
-    try { await action(); await refresh() } catch (cause) { setError(describe(cause)) } finally { setBusy(false) }
-  }, [refresh])
+    try { await action(requested); await refresh() } catch (cause) { if (owner.current === requested) setError(describe(cause)) } finally { setBusy(false) }
+  }, [uid, refresh])
 
   return {
     data, code, loading, busy, error, refresh,
-    generate: () => perform(async () => { setCode(await currentBackend().issueSupportCode()) }),
+    generate: () => perform(async (requested) => { const issued = await currentBackend().issueSupportCode(); if (owner.current === requested) setCode(issued) }),
     cancelCode: () => perform(async () => { await currentBackend().cancelSupportCode(); setCode(null) }),
     endAccess: () => perform(async () => { await currentBackend().endSupportAccess(); setCode(null) }),
   }
