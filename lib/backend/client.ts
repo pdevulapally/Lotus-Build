@@ -91,6 +91,14 @@ export const sessionUsageSchema = z.object({ sessionId: id,
 })
 export type BackendSessionUsage = z.infer<typeof sessionUsageSchema>
 
+/** The customer's view of support access: the pending code's expiry (never the code), the active grant, and what support did. */
+export const supportAccessSchema = z.object({
+  code: z.object({ expiresAt: timestamp }).nullable(),
+  grant: z.object({ id: z.string(), grantedAt: timestamp, expiresAt: timestamp }).nullable(),
+  events: z.array(z.object({ id: z.string(), kind: z.string().min(1), at: timestamp, by: z.enum(['customer', 'support']), sessionId: z.string().optional() })),
+})
+export type BackendSupportAccess = z.infer<typeof supportAccessSchema>
+
 export const billingSubscriptionSchema = z.object({ subscription: z.object({
   planKey: z.string().min(1), planName: z.string().min(1), status: z.string().min(1),
   stripeStatus: z.enum(['incomplete', 'incomplete_expired', 'trialing', 'active', 'past_due', 'canceled', 'unpaid', 'paused']),
@@ -269,6 +277,10 @@ export class BackendClient {
   checkout(planKey: string) { return this.json(z.object({ url: z.url().startsWith('https://') }), '/billing/checkout', {
     method: 'POST', body: { planKey: z.string().regex(/^[a-z0-9][a-z0-9_-]{0,63}$/).parse(planKey) },
   }) }
+  supportAccess(signal?: AbortSignal) { return this.json(supportAccessSchema, '/me/support-access', { signal }) }
+  issueSupportCode() { return this.json(z.object({ code: z.string().regex(/^[A-Z0-9]{4}-[A-Z0-9]{4}$/), expiresAt: timestamp }), '/me/support-access/code', { method: 'POST' }) }
+  async cancelSupportCode() { await this.response('/me/support-access/code', { method: 'DELETE' }) }
+  async endSupportAccess() { await this.response('/me/support-access', { method: 'DELETE' }) }
   requestErasure() { return this.json(z.object({ request: z.object({ reference: z.string(), kind: z.literal('erasure'), status: z.enum(['RECEIVED', 'IN_PROGRESS', 'COMPLETED']), receivedAt: timestamp }), message: z.string() }),
     '/me/privacy-requests', { method: 'POST', body: { kind: 'erasure' } }) }
   connectionCatalogue(signal?: AbortSignal) { return this.json(catalogueSchema, '/connections/catalogue', { signal }) }
