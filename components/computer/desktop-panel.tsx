@@ -30,6 +30,7 @@ export function DesktopPanelView({
   onRetry,
   onStart,
   onClose,
+  closeFailed = false,
   children,
 }: {
   state: DesktopViewState
@@ -37,6 +38,7 @@ export function DesktopPanelView({
   onStart?: () => void
   /** Present only for a desktop the user opened themselves. */
   onClose?: () => void
+  closeFailed?: boolean
   children?: ReactNode
 }) {
   return (
@@ -47,9 +49,9 @@ export function DesktopPanelView({
       >
         {children}
       </div>
-      {state === "live" && onClose && (
-        <div className="absolute right-3 top-3 flex items-center gap-2 rounded-md border border-border bg-background/95 px-2 py-1 shadow-sm">
-          <span className="text-xs text-muted-foreground">Uses your computer time</span>
+      {onClose && (
+        <div className="absolute right-3 top-3 z-10 flex items-center gap-2 rounded-md border border-border bg-background/95 px-2 py-1 shadow-sm">
+          <span role={closeFailed ? "alert" : undefined} className="text-xs text-muted-foreground">{closeFailed ? "Couldn't close the desktop. Try again." : "Uses your computer time"}</span>
           <Button type="button" variant="outline" size="sm" onClick={onClose}>Close desktop</Button>
         </div>
       )}
@@ -108,12 +110,15 @@ export function DesktopPanel({ sessionId, desktop, active, canStart, userOpened 
       if (next !== undefined) setStartRequest(next)
     })
   }
-  const [closing, setClosing] = useState(false)
-  useEffect(() => { setClosing(false) }, [sessionId, execution])
+  const [closeRequest, setCloseRequest] = useState<"none" | "sent" | "failed">("none")
+  useEffect(() => { setCloseRequest("none") }, [sessionId, execution])
   const requestClose = () => {
     if (execution === undefined) return
-    setClosing(true)
-    void currentBackend().closeDesktop(sessionId, execution).catch(() => { setClosing(false) })
+    setCloseRequest("sent")
+    const requested = { sessionId, execution }
+    void currentBackend().closeDesktop(sessionId, execution).catch(() => {
+      if (onScreen.current.sessionId === requested.sessionId && onScreen.current.execution === requested.execution) setCloseRequest("failed")
+    })
   }
   const targetRef = useRef<HTMLDivElement | null>(null)
   const [connectionState, setConnectionState] = useState<DesktopViewState>("connecting")
@@ -262,7 +267,7 @@ export function DesktopPanel({ sessionId, desktop, active, canStart, userOpened 
   }
 
   return (
-    <DesktopPanelView state={connectionState} onRetry={retryAllowed ? retry : undefined} onClose={userOpened && !closing ? requestClose : undefined}>
+    <DesktopPanelView state={connectionState} onRetry={retryAllowed ? retry : undefined} onClose={userOpened && closeRequest !== "sent" ? requestClose : undefined} closeFailed={closeRequest === "failed"}>
       <div ref={targetRef} className="h-full w-full" />
     </DesktopPanelView>
   )
