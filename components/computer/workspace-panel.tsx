@@ -750,7 +750,7 @@ export function WorkspaceContent({
   }
 
   if (activeTab === "desktop") {
-    return <DesktopPanel sessionId={session.id} desktop={desktop} active={panelOpen} canStart={session.status === "running"} execution={session.execution} />
+    return <DesktopPanel sessionId={session.id} desktop={desktop} active={panelOpen} canStart={!session.userDesktop} userOpened={session.userDesktop === true} execution={session.execution} />
   }
 
   if (activeTab === "research") {

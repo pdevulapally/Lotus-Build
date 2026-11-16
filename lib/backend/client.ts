@@ -37,6 +37,8 @@ export const sessionSchema = z.object({
   cancelRequested: z.boolean().optional(),
   /** Which run of this session the state describes; absent until the server starts numbering runs. */
   execution: z.number().int().positive().optional(),
+  /** The run the user opened only to use the desktop; no agent turn runs in it. */
+  desktopOnly: z.number().int().positive().optional(),
   cancelRequestedAt: timestamp.optional(),
   fallback: z.object({ status: z.enum(['AWAITING_CREDITS', 'AWAITING_CONSENT', 'QUEUED', 'RUNNING', 'CAPACITY_WAIT', 'EXHAUSTED', 'SHARED_LIMIT', 'UNAVAILABLE', 'COMPLETED']),
     reason: z.string(), resumable: z.boolean(), checkpointId: id.optional(), lane: z.enum(['premium', 'fallback']).optional(), consent: z.boolean(),
@@ -126,6 +128,7 @@ const emailVerificationCodeSentSchema = z.object({
   resendAfterSeconds: z.number().int().nonnegative(),
 })
 const emailVerificationResultSchema = z.object({ verified: z.boolean() })
+const desktopCloseSchema = z.object({ sessionId: id, execution: z.number().int().positive(), closing: z.literal(true) }).strict()
 const desktopRequestSchema = z.object({ sessionId: id, execution: z.number().int().positive(), requested: z.literal(true) }).strict()
 const desktopTicketSchema = z.object({
   ticket: z.string().min(1).max(2048),
@@ -380,11 +383,17 @@ export class BackendClient {
     }
     return ticket
   }
-  /** Asks the running agent to bring its desktop up; the server records the request against `execution` and refuses a stale one. */
+  /** Asks for the desktop: during a build it joins the run, otherwise the server opens the project's machine for the user. Refused when `execution` is stale. */
   requestDesktop(sessionId: string, execution: number) {
     const encodedId = encodeURIComponent(id.parse(sessionId))
     const body = z.object({ execution: z.number().int().positive() }).strict().parse({ execution })
     return this.json(desktopRequestSchema, `/sessions/${encodedId}/desktop`, { method: 'POST', body })
+  }
+  /** Closes a desktop the user opened with no build running; the server saves the project before the machine stops. */
+  closeDesktop(sessionId: string, execution: number) {
+    const encodedId = encodeURIComponent(id.parse(sessionId))
+    const body = z.object({ execution: z.number().int().positive() }).strict().parse({ execution })
+    return this.json(desktopCloseSchema, `/sessions/${encodedId}/desktop`, { method: 'DELETE', body })
   }
   messages(sessionId: string, signal?: AbortSignal) { return this.json(z.object({ messages: z.array(messageSchema) }), `/sessions/${id.parse(sessionId)}/messages?limit=200`, { signal }) }
   queuedMessages(sessionId: string, signal?: AbortSignal) { return this.json(z.object({ queuedMessages: z.array(queuedSchema), nextCursor: z.string().nullable() }), `/sessions/${id.parse(sessionId)}/queued-messages?limit=100`, { signal }) }

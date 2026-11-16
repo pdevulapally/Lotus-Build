@@ -288,10 +288,12 @@ export default function ComputerPage() {
     trace.mark('workspace')
     if (backend.text || backend.liveLabel || backend.events.length) trace.mark('feedVisible')
   }, [user, id, loading, raw, backend.project, backend.text, backend.liveLabel, backend.events])
+  // A desktop the user opened is a run with no agent in it: the chat stays ready for the next request.
+  const userDesktop = raw?.desktopOnly !== undefined && raw.desktopOnly === raw.execution && (raw.status === 'QUEUED' || raw.status === 'RUNNING')
   const effectiveStatus: ComputerSessionStatus = raw?.status === 'FAILED' ? 'error' : raw?.status === 'STOPPED' ? 'stopped'
-    : raw?.status === 'QUEUED' ? 'queued' : raw?.status === 'RUNNING' ? 'running' : 'idle'
+    : userDesktop ? 'idle' : raw?.status === 'QUEUED' ? 'queued' : raw?.status === 'RUNNING' ? 'running' : 'idle'
   const session: ComputerSessionResponse | null = raw && backend.project ? { id: raw.id, projectId: raw.projectId,
-    status: effectiveStatus, sessionMode: raw.mode, timeline: backend.events, execution: raw.execution,
+    status: effectiveStatus, sessionMode: raw.mode, timeline: backend.events, execution: raw.execution, userDesktop,
     prompt: backend.messages[0]?.content, previewUrl: backend.preview, platform: backend.project.platform } : null
   const projectIntegration: ComputerProjectIntegration | null = backend.project ? { name: backend.project.name } : null
   const projectFileCount = backend.fileCount
