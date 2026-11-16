@@ -18,7 +18,7 @@ const stateCopy: Record<Exclude<DesktopViewState, "live">, string> = {
   waiting: "Start desktop is available while the agent is working.",
   "start-failed": "Couldn't start the desktop.",
   "not-offered": "Start desktop isn't available on this server yet.",
-  ended: "The desktop has ended. It will appear again on the next build.",
+  ended: "The desktop has closed. It opens again when the agent needs the screen, or you can start it now.",
   unavailable: "No desktop for this session.",
   capacity: "Close another desktop view to watch here.",
   slow: "Paused — connection too slow",
@@ -29,11 +29,14 @@ export function DesktopPanelView({
   state,
   onRetry,
   onStart,
+  onClose,
   children,
 }: {
   state: DesktopViewState
   onRetry?: () => void
   onStart?: () => void
+  /** Present only for a desktop the user opened themselves. */
+  onClose?: () => void
   children?: ReactNode
 }) {
   return (
@@ -44,6 +47,12 @@ export function DesktopPanelView({
       >
         {children}
       </div>
+      {state === "live" && onClose && (
+        <div className="absolute right-3 top-3 flex items-center gap-2 rounded-md border border-border bg-background/95 px-2 py-1 shadow-sm">
+          <span className="text-xs text-muted-foreground">Uses your computer time</span>
+          <Button type="button" variant="outline" size="sm" onClick={onClose}>Close desktop</Button>
+        </div>
+      )}
       {state !== "live" && (
         <div role="status" className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
           {state === "connecting" || state === "starting"
@@ -52,8 +61,8 @@ export function DesktopPanelView({
           {onRetry && (state === "failed" || state === "capacity" || state === "slow") && (
             <Button type="button" variant="outline" size="sm" onClick={onRetry}>Try again</Button>
           )}
-          {onStart && (state === "idle" || state === "start-failed") && (
-            <Button type="button" variant="outline" size="sm" onClick={onStart}>{state === "idle" ? "Start desktop" : "Try again"}</Button>
+          {onStart && (state === "idle" || state === "ended" || state === "start-failed") && (
+            <Button type="button" variant="outline" size="sm" onClick={onStart}>{state === "start-failed" ? "Try again" : "Start desktop"}</Button>
           )}
         </div>
       )}
@@ -79,8 +88,8 @@ export function desktopStartOutcome(error: unknown): DesktopStartRequest {
   return "failed"
 }
 
-export function DesktopPanel({ sessionId, desktop, active, canStart, execution }: {
-  sessionId: string; desktop: DesktopState; active: boolean; canStart: boolean; execution?: number
+export function DesktopPanel({ sessionId, desktop, active, canStart, userOpened = false, execution }: {
+  sessionId: string; desktop: DesktopState; active: boolean; canStart: boolean; userOpened?: boolean; execution?: number
 }) {
   // Local only until the server's own `desktop.requested` / `desktop.ready` events take over,
   // and reset whenever the run it was aimed at is no longer the one on screen.
@@ -88,7 +97,7 @@ export function DesktopPanel({ sessionId, desktop, active, canStart, execution }
   const onScreen = useRef<{ sessionId: string; execution: number | undefined }>({ sessionId, execution })
   onScreen.current = { sessionId, execution }
   useEffect(() => { setStartRequest("none") }, [sessionId, execution, canStart])
-  useEffect(() => { if (desktop.status !== "none") setStartRequest("none") }, [desktop.status])
+  useEffect(() => { if (desktop.status === "starting" || desktop.status === "ready") setStartRequest("none") }, [desktop.status])
   const requestStart = () => {
     if (execution === undefined) { setStartRequest("not-offered"); return }
     setStartRequest("sent")
@@ -98,6 +107,13 @@ export function DesktopPanel({ sessionId, desktop, active, canStart, execution }
       const next = settleStartRequest(requested.execution, onScreen.current.execution, error)
       if (next !== undefined) setStartRequest(next)
     })
+  }
+  const [closing, setClosing] = useState(false)
+  useEffect(() => { setClosing(false) }, [sessionId, execution])
+  const requestClose = () => {
+    if (execution === undefined) return
+    setClosing(true)
+    void currentBackend().closeDesktop(sessionId, execution).catch(() => { setClosing(false) })
   }
   const targetRef = useRef<HTMLDivElement | null>(null)
   const [connectionState, setConnectionState] = useState<DesktopViewState>("connecting")
@@ -233,11 +249,11 @@ export function DesktopPanel({ sessionId, desktop, active, canStart, execution }
 
   const retry = () => setRetryVersion((version) => version + 1)
 
-  if (desktop.status === "ended") {
-    return <DesktopPanelView state={desktop.reason === "error" ? "unavailable" : "ended"} />
+  if (startRequest === "sent" || (desktop.status === "none" && userOpened) || desktop.status === "starting") return <DesktopPanelView state="starting" />
+  if (desktop.status === "ended" && (desktop.reason === "error" || startRequest === "none")) {
+    return <DesktopPanelView state={desktop.reason === "error" ? "unavailable" : "ended"} onStart={canStart && desktop.reason !== "error" ? requestStart : undefined} />
   }
-  if (desktop.status === "starting" || (desktop.status === "none" && startRequest === "sent")) return <DesktopPanelView state="starting" />
-  if (desktop.status === "none") {
+  if (desktop.status === "none" || desktop.status === "ended") {
     if (startRequest === "not-offered") return <DesktopPanelView state="not-offered" />
     if (startRequest === "failed") return <DesktopPanelView state="start-failed" onStart={requestStart} />
     return canStart && startRequest !== "no-run"
@@ -246,7 +262,7 @@ export function DesktopPanel({ sessionId, desktop, active, canStart, execution }
   }
 
   return (
-    <DesktopPanelView state={connectionState} onRetry={retryAllowed ? retry : undefined}>
+    <DesktopPanelView state={connectionState} onRetry={retryAllowed ? retry : undefined} onClose={userOpened && !closing ? requestClose : undefined}>
       <div ref={targetRef} className="h-full w-full" />
     </DesktopPanelView>
   )

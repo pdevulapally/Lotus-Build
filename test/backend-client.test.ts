@@ -556,3 +556,18 @@ test('asking for the desktop posts to the session and accepts only the run-stamp
     return true
   })
 })
+
+test('closing a user-opened desktop sends DELETE for the named run and accepts only the closing acknowledgement', async () => {
+  const requests: { url: string; method?: string; body?: string }[] = []
+  const client = new BackendClient({
+    origin: 'https://api.example.test',
+    token: async () => 'id-token',
+    fetch: async (input, init) => {
+      requests.push({ url: String(input), method: init?.method, body: init?.body as string | undefined })
+      return Response.json({ sessionId: 'session_1', execution: 4, closing: true }, { status: 202 })
+    },
+  })
+  assert.deepEqual(await client.closeDesktop('session_1', 4), { sessionId: 'session_1', execution: 4, closing: true })
+  assert.deepEqual(requests, [{ url: 'https://api.example.test/sessions/session_1/desktop', method: 'DELETE', body: JSON.stringify({ execution: 4 }) }])
+  assert.throws(() => client.closeDesktop('session_1', 0))
+})

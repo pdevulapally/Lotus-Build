@@ -414,7 +414,9 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
             const status = sessionEventStatus[event.type]
             if (status) {
               latestStatus = status; stateVersion++
-              setSession((current) => current ? { ...current, status } : current)
+              // A desktop the user opened is a run of its own: the event names it, so Close can be aimed at it.
+              const run = execution === undefined ? {} : { execution, ...(event.type === 'session.queued' && event.data.desktopOnly === true ? { desktopOnly: execution } : {}) }
+              setSession((current) => current ? { ...current, status, ...run } : current)
             }
             latency.event(event.type, event.id)
             if (['agent.step', 'agent.thinking', 'agent.text', 'agent.tool_call'].includes(event.type)) latency.mark('modelReceived')
