@@ -1,3 +1,4 @@
+import { netlifyDeploymentsSchema, netlifyDeploymentFor } from './netlify'
 import { z } from 'zod'
 import { planUpdateSchema, sessionPlanSchema, type PlanUpdate } from './session-plan'
 import { computerSessionModeSchema, computerSessionModes, type ComputerSessionMode } from './session-modes'
@@ -308,6 +309,21 @@ export class BackendClient {
     return this.json(connectionDetailSchema, '/connections/github/complete', { method: 'POST', body: input })
   }
 
+  completeNetlifyConnection(input: { state: string; code: string; returnTo: string }) {
+    return this.json(connectionDetailSchema, '/connections/netlify/complete', { method: 'POST', body: input })
+  }
+  netlifyDeployments(projectId: string, signal?: AbortSignal) {
+    return this.json(netlifyDeploymentsSchema.refine(value => value.deployments.every(record => record.projectId === projectId)), `/projects/${id.parse(projectId)}/netlify-deployments`, { signal })
+  }
+  approveNetlifyDeployment(projectId: string, deploymentId: string, sha256: string) {
+    return this.json(netlifyDeploymentFor(projectId, deploymentId), `/projects/${id.parse(projectId)}/netlify-deployments/${id.parse(deploymentId)}/approve`, { method: 'POST', body: { sha256: z.string().regex(/^[a-f0-9]{64}$/).parse(sha256) } })
+  }
+  refreshNetlifyDeployment(projectId: string, deploymentId: string, signal?: AbortSignal) {
+    return this.json(netlifyDeploymentFor(projectId, deploymentId), `/projects/${id.parse(projectId)}/netlify-deployments/${id.parse(deploymentId)}/refresh`, { method: 'POST', signal })
+  }
+  rejectNetlifyDeployment(projectId: string, deploymentId: string) {
+    return this.json(netlifyDeploymentFor(projectId, deploymentId), `/projects/${id.parse(projectId)}/netlify-deployments/${id.parse(deploymentId)}/reject`, { method: 'POST' })
+  }
   connectionRepositories(connectionId: string, signal?: AbortSignal) {
     return this.json(repositoryListSchema, `/connections/${encodeURIComponent(connectionId)}/repositories`, { signal })
   }

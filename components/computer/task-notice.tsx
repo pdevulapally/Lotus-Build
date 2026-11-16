@@ -11,27 +11,39 @@ import { Info } from 'lucide-react'
 const icons = { quota: AllowanceLimitIcon, waiting: QueuedIcon, error: Info }
 const pill = 'inline-flex min-h-11 items-center justify-center rounded-full border border-border px-4 text-sm font-semibold text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-progress disabled:opacity-60'
 
-export function TaskNotice({ notice, busy, onContinue, onCancel, onReconnect, onBuyCredits }: {
+export type TaskNoticeProps = {
   notice: TaskNoticeModel | null
   busy: boolean
   onContinue: (lane: 'premium' | 'fallback') => void
   onCancel: () => void
   onReconnect?: () => void
   onBuyCredits?: () => void
-}) {
-  const reducedMotion = useReducedMotion()
-  if (!notice) return null
-  const Icon = icons[notice.kind]
-  const actions: Record<TaskNoticeAction, ReactNode> = {
+}
+
+function noticeActions({ notice, busy, onContinue, onCancel, onReconnect, onBuyCredits }: TaskNoticeProps): Record<TaskNoticeAction, ReactNode> {
+  return {
     credits: <button type="button" className={cn(pill, 'bg-primary text-primary-foreground hover:bg-primary/90')} disabled={busy || !onBuyCredits} onClick={onBuyCredits}>Add credits</button>,
     upgrade: <Link href="/pricing" className={pill}>Upgrade</Link>,
     free: <button type="button" className={pill} disabled={busy} onClick={() => onContinue('fallback')}>Switch model</button>,
-    premium: <button type="button" className={pill} disabled={busy} onClick={() => onContinue('premium')}>{notice.creditTask ? 'Continue task' : `Retry with ${notice.retryModel}`}</button>,
+    premium: <button type="button" className={pill} disabled={busy} onClick={() => onContinue('premium')}>{notice?.creditTask ? 'Continue task' : `Retry with ${notice?.retryModel}`}</button>,
     cancel: <button type="button" className={pill} disabled={busy} onClick={onCancel}>Cancel task</button>,
     reconnect: <button type="button" className={pill} disabled={busy || !onReconnect} onClick={onReconnect}>Reconnect</button>,
     refresh: <button type="button" className={pill} disabled={busy || !onReconnect} onClick={onReconnect}>Refresh</button>,
     projects: <Link href="/" className={pill}>Manage projects</Link>,
   }
+}
+
+export function TaskNoticeActions(props: TaskNoticeProps) {
+  const actions = noticeActions(props)
+  return props.notice?.actions.map(action => <span key={action}>{actions[action]}</span>)
+}
+
+export function TaskNotice(props: TaskNoticeProps) {
+  const reducedMotion = useReducedMotion()
+  const { notice } = props
+  if (!notice) return null
+  const Icon = icons[notice.kind]
+  const actions = noticeActions(props)
   const [primary, ...secondary] = notice.actions
   return <motion.section data-slot="continuation-notice" aria-label="Task notice" role={notice.kind === 'error' ? 'alert' : 'status'}
     initial={reducedMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}

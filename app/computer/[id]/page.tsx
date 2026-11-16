@@ -26,7 +26,7 @@ import { useAutoOpenWorkspace } from "@/hooks/use-auto-open-workspace"
 
 
 import { sendMessage, readPendingMessage, isRejectedInputResponse } from "@/lib/backend/send-message"
-import { TaskNotice } from "@/components/computer/task-notice"
+import { TaskFeedback } from "@/components/computer/task-feedback"
 import { useSettingsDialog } from "@/components/settings/settings-dialog"
 import { selectTaskNotice } from "@/lib/backend/task-notice"
 import { PendingInputCard } from "@/components/computer/pending-input-card"
@@ -93,6 +93,8 @@ import { ConversationScrollArea } from "@/components/computer/conversation-scrol
 
 
 import { ComputerTopBar, type ComputerTheme } from "@/components/computer/computer-top-bar"
+import { PublishPopover } from "@/components/computer/publish-popover"
+import { netlifyPreparationPrompt } from "@/lib/backend/netlify"
 import { RepositoryDialog } from "@/components/computer/repository-dialog"
 import { ComputerNavigation } from "@/components/computer/computer-navigation"
 import styles from "@/components/computer/computer-workspace.module.css"
@@ -454,7 +456,7 @@ export default function ComputerPage() {
   }
 
   if (loading) return <LoadingShell theme={computerTheme} />
-  if (error || !session || !backend.project) return <ErrorState theme={computerTheme} message={error ?? "Session or project state is unavailable."} />
+  if (error || !session || !backend.project || !raw) return <ErrorState theme={computerTheme} message={error ?? "Session or project state is unavailable."} />
 
   const sessionPlatform = normalizePlatform(session.platform)
   const hasBrowser    = Boolean(browserInspection)
@@ -545,6 +547,13 @@ export default function ComputerPage() {
         contextUsage={agentContextUsage}
         theme={computerTheme}
         onThemeToggle={handleThemeToggle}
+        publishControl={<PublishPopover key={raw.id} projectId={raw.projectId} running={isRunning} terminal={backend.terminal} events={backend.events}
+          blockedReason={!account?.sessionModes.includes('build') ? 'Build mode isn’t available for this account.'
+            : isRunning || isStartingRun ? 'Wait for the current task to finish before preparing a deployment.'
+            : raw.pendingInput ? 'Answer the pending question or approval in the workspace first.'
+            : raw.fallback?.resumable ? 'Continue or cancel the saved task before preparing a deployment.'
+            : pendingMessage || pendingContinuation || pendingCancellation ? 'Confirm the pending workspace request before preparing a deployment.' : undefined}
+          onPrepare={() => handleRun(netlifyPreparationPrompt, 'build')} />}
       />
       <RepositoryDialog
         open={repositoryOpen}
@@ -608,7 +617,6 @@ export default function ComputerPage() {
                   prompt={firstPrompt} events={session.timeline}
                   canonicalMessages={backend.messages} queuedMessages={backend.queued} streamText={backend.text} liveLabel={backend.liveLabel} stopping={isStopping} stoppingSince={raw?.cancelRequestedAt ?? null}
                   localMessages={localMessages} status={feedStatus}
-                  taskNotice={taskNotice}
                   progress={sessionProgress}
                   optimisticStart={optimisticStart}
                   editingIndex={null} editText=""
@@ -644,7 +652,7 @@ export default function ComputerPage() {
             />}
             <VoiceControls key={`${user?.uid}:${raw?.id}`} session={raw} identity={user?.uid} refresh={backend.refresh} initiallyExpanded={openVoice}>
               {(voiceProps) => <section className={styles.composerStack}>
-                <TaskNotice notice={taskNotice}
+                <TaskFeedback key={raw?.id} notice={taskNotice}
                   onBuyCredits={() => openSettings('on-demand', taskNotice?.creditTask ? { continuation: taskNotice.creditTask } : undefined)}
                   busy={isStartingRun} onContinue={(lane) => { void handleContinue(lane) }} onCancel={() => { void handleStop() }} onReconnect={backend.reconnect} />
                 <AnimatedAIInput

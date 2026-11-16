@@ -43,7 +43,6 @@ import type { SessionPlan } from "@/lib/backend/session-plan"
 import { DeliveryCard } from "@/components/computer/delivery-card"
 import type { Delivery } from "@/lib/backend/delivery"
 import { STILL_STOPPING_AFTER_MS, stoppingLabels } from "@/lib/backend/feed-labels"
-import type { TaskNoticeModel } from '@/lib/backend/task-notice'
 import { FileReadActivity } from '@/components/computer/file-read-activity'
 
 const commandStates = { pending: 'pending', running: 'running', complete: 'idle', error: 'error', skipped: 'interrupted' } as const
@@ -662,9 +661,8 @@ export function AgentFeed({
   editingIndex, editText, onEditStart, onEditChange, onEditSubmit, onEditCancel,
   onSupabaseSetup, onSupabaseDecline, onClarificationAnswer, plan, planActions, delivery,
   onRestoreCheckpoint,
-  canonicalMessages, queuedMessages, streamText, liveLabel, stopping = false, stoppingSince = null, taskNotice,
+  canonicalMessages, queuedMessages, streamText, liveLabel, stopping = false, stoppingSince = null,
 }: {
-  taskNotice?: TaskNoticeModel | null
   canonicalMessages?: { seq: number; role: 'user' | 'assistant'; voiceSpeaker?: 'user' | 'assistant'; content: string; createdAt: string; attachments?: AttachmentRef[] }[]
   queuedMessages?: { id: string; prompt: string; attachments?: AttachmentRef[] }[]
   streamText?: string
@@ -738,10 +736,7 @@ export function AgentFeed({
   const restoreCheckpoint = onRestoreCheckpoint ? cb.onRestoreCheckpoint : undefined
 
   const isRunning = status === "running" || status === "planning" || status === "queued"
-  const failure = taskNotice?.failure
-  const coveredFailure = failure ? events.findLast(event => event.metadata?.eventType === 'session.failed'
-    && event.description === failure.message && (failure.execution === undefined || event.metadata.execution === failure.execution)) : undefined
-  const visible = events.filter((e) => e.title !== "Session created" && e !== coveredFailure)
+  const visible = events.filter((e) => e.title !== "Session created" && e.metadata?.eventType !== 'session.failed')
   const { firstRunId, followUpRunIds } = getRunIdGroups(events)
   const initialEvents = firstRunId ? visible.filter((event) => event.runId === firstRunId) : visible
   const runEventsById = new Map<string, ComputerTimelineEvent[]>()

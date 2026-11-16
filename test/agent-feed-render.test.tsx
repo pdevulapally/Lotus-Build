@@ -6,7 +6,6 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { agentFeedModule as module, renderAgentFeed as render } from './support/render-agent-feed'
 import { activity, updateToolStepEvent } from '../hooks/use-backend-session'
-import { selectTaskNotice } from '../lib/backend/task-notice'
 import { SearchTool } from '../components/project/search-tool'
 
 test('initial startup uses natural copy and confirmed processing supersedes the older queued snapshot', () => {
@@ -161,9 +160,7 @@ test('the current stop appears once in the shared notice without exposing tool d
   const call = activity({ id: '1700000000000-1', type: 'agent.tool_call', data: { name: 'read_file', callId: 'read', input: { path: '/home/daytona/project/src/App.tsx' } } }, 0)!
   const tool = updateToolStepEvent([call], { id: '1700000000001-1', type: 'agent.tool_result', data: { name: 'read_file', callId: 'read', isError: true, error: 'Confined ranged read failed: Traceback (most recent call last):' } })
   const terminal = activity({ id: '1700000000002-1', type: 'session.failed', data: { execution: 2, error } }, 1)!
-  const taskNotice = selectTaskNotice({ session: { id: 's', projectId: 'p', model: 'model', mode: 'build', effort: 'standard', status: 'FAILED', execution: 2, messageCount: 1, createdAt: '2026-11-11T00:00:00Z', error,
-    fallback: { status: 'UNAVAILABLE', limitLabel: 'Input tokens', reason: 'A durable workspace checkpoint is unavailable.', resumable: false, consent: false } } })
-  const html = render({ status: 'error', events: [...tool, terminal], taskNotice })
+  const html = render({ status: 'error', events: [...tool, terminal] })
   assert.doesNotMatch(html, /The Free plan allows|>Stopped<|durable workspace checkpoint/)
   assert.match(html, /Could not read/)
   assert.match(html, /App.tsx/)
@@ -172,9 +169,9 @@ test('the current stop appears once in the shared notice without exposing tool d
   assert.doesNotMatch(html, /Confined ranged read failed: Traceback/)
   const visible = html.replace(/<details\b[^>]*>[\s\S]*?<\/details>/g, '')
   assert.doesNotMatch(visible, /Traceback|Confined ranged|Reading did not finish/)
-  // A different execution's history remains available; a current banner must not erase it.
+  // Session error messages, including old ones, stay out of the conversation.
   const old = { ...terminal, id: '1699999999999-1', metadata: { ...terminal.metadata, execution: 1 }, description: 'An earlier failure.' }
-  const history = render({ status: 'error', events: [old, ...tool, terminal], taskNotice })
-  assert.match(history, /This request couldn\u2019t finish/)
+  const history = render({ status: 'error', events: [old, ...tool, terminal] })
+  assert.doesNotMatch(history, /This request couldn\u2019t finish/)
   assert.doesNotMatch(history, /An earlier failure|text-destructive/)
 })

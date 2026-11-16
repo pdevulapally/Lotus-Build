@@ -1,5 +1,6 @@
 import type { SVGProps } from 'react'
 import type { ConnectorKey } from '@/lib/backend/connections'
+import { connectorLogoPath } from '@/lib/integrations/directory'
 
 type IconProps = SVGProps<SVGSVGElement>
 const base = { width: 22, height: 22, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round' } as const
@@ -64,7 +65,8 @@ export function DotsGlyph(props: SVGProps<SVGSVGElement>) {
 
 /** Official brand marks, stored locally under /public/integrations (no third-party requests). */
 export function BrandLogo({ connector, name, iconPath }: { connector: ConnectorKey; name: string; iconPath?: string }) {
-  if (iconPath === undefined) return <McpGlyph aria-hidden="true" />
+  const source = connectorLogoPath(connector, iconPath)
+  if (source === undefined) return <McpGlyph aria-hidden="true" />
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={iconPath} alt="" width={28} height={28} decoding="async" data-brand={connector} aria-label={undefined} title={name} />
+  return <img src={source} alt="" width={28} height={28} decoding="async" data-brand={connector} aria-label={undefined} title={name} />
 }

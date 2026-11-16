@@ -1,4 +1,5 @@
 "use client"
+import type { ReactNode } from 'react'
 
 import {
   MoreHorizontal,
@@ -61,6 +62,7 @@ export function ComputerTopBar({
   contextUsage,
   theme,
   onThemeToggle,
+  publishControl,
 }: {
   session: ComputerSessionResponse
   sessionTitle: string
@@ -90,6 +92,7 @@ export function ComputerTopBar({
   contextUsage?: { modelId?: string; maxTokens: number; usedTokens: number; usage: ContextUsage }
   theme: ComputerTheme
   onThemeToggle: () => void
+  publishControl?: ReactNode
 }) {
 
   return (
@@ -139,6 +142,7 @@ export function ComputerTopBar({
           <div className={cn(styles.toolbarRight, "flex h-full shrink-0 items-center justify-end gap-2 px-3")}>
             {/* Actions */}
             <div className="flex items-center gap-1.5">
+              {publishControl}
               <button
                 type="button"
                 onClick={onThemeToggle}

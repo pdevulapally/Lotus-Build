@@ -39,3 +39,45 @@
   .action { width: 44px; height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) { .row, .action { transition: none; } }
+
+/* The directory shares the app palette; setup and deployment pages keep their layout. */
+.directoryMain { width: 100%; padding-inline: calc(var(--spacing) * 6); gap: calc(var(--spacing) * 8); }
+.directoryHeader { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: calc(var(--spacing) * 8); }
+.directoryTitle { font-size: var(--text-4xl); }
+.directoryHeader .lead { font-size: var(--text-xl); }
+.directoryTools { flex-wrap: wrap; justify-content: flex-end; }
+.search { display: flex; align-items: center; gap: calc(var(--spacing) * 3); width: calc(var(--spacing) * 80); min-height: calc(var(--spacing) * 13); border: 1px solid var(--border); border-radius: var(--radius-4xl); padding-inline: calc(var(--spacing) * 4); color: var(--muted-foreground); }
+.search svg { flex: none; width: calc(var(--spacing) * 5); height: calc(var(--spacing) * 5); }
+.search input { min-width: 0; width: 100%; background: transparent; border: 0; outline: none; color: var(--foreground); font-size: var(--text-base); }
+.search:focus-within { outline: calc(var(--spacing) / 2) solid var(--ring); outline-offset: calc(var(--spacing) / 2); }
+.addAction { display: inline-flex; align-items: center; gap: calc(var(--spacing) * 2); min-height: calc(var(--spacing) * 13); padding-inline: calc(var(--spacing) * 5); border-radius: var(--radius-4xl); background: var(--primary); color: var(--primary-foreground); cursor: pointer; font-size: var(--text-base); }
+.addAction svg { width: calc(var(--spacing) * 5); height: calc(var(--spacing) * 5); }
+.addAction:focus-visible, .view:focus-visible { outline: calc(var(--spacing) / 2) solid var(--ring); outline-offset: calc(var(--spacing) / 2); }
+.addAction:disabled { opacity: .5; cursor: not-allowed; }
+.nameAction { text-align: start; cursor: pointer; border-radius: var(--radius-sm); }
+.nameAction:focus-visible { outline: calc(var(--spacing) / 2) solid var(--ring); outline-offset: calc(var(--spacing) / 2); }
+.views { display: flex; gap: calc(var(--spacing) * 2); flex-wrap: wrap; }
+.view { padding: calc(var(--spacing) * 3) calc(var(--spacing) * 6); border-radius: var(--radius-4xl); color: var(--muted-foreground); font-size: var(--text-base); font-weight: 600; cursor: pointer; }
+.view[aria-pressed='true'] { background: var(--muted); color: var(--foreground); }
+.view:hover { color: var(--foreground); }
+.directoryGrid { gap: calc(var(--spacing) * 7) calc(var(--spacing) * 14); }
+.directoryMain .section { gap: calc(var(--spacing) * 8); }
+.directoryMain .sectionTitle { padding-inline: 0; font-size: var(--text-2xl); }
+.directoryMain .row { padding: calc(var(--spacing) * 3) 0; gap: calc(var(--spacing) * 4); }
+.directoryMain .row:hover { background: transparent; }
+.directoryMain .name { font-size: var(--text-2xl); }
+.directoryMain .description { font-size: var(--text-xl); }
+.directoryMain .tile { width: calc(var(--spacing) * 13); height: calc(var(--spacing) * 13); background: transparent; border: 1px solid var(--border); border-radius: var(--radius-xl); }
+.directoryMain .tile img[data-brand='github'], .directoryMain .tile img[data-brand='vercel'] { filter: invert(1); }
+.directoryMain .tile:has(img[data-brand='aws']) { background: var(--primary); }
+@media (max-width: 64rem) {
+  .directoryHeader { grid-template-columns: minmax(0, 1fr); gap: calc(var(--spacing) * 5); }
+  .directoryTools { justify-content: flex-start; }
+}
+@media (max-width: 48rem) {
+  .directoryGrid { grid-template-columns: minmax(0, 1fr); gap: calc(var(--spacing) * 4); }
+  .directoryMain .name { font-size: var(--text-lg); }
+  .directoryMain .description { font-size: var(--text-base); }
+  .search { width: auto; flex: 1; }
+  .directoryTools { width: 100%; flex-wrap: nowrap; }
+}
