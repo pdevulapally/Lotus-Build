@@ -100,7 +100,7 @@ test('preparation access requires a real available service, active account, proj
     [{ available: true, connected: true, granted: true, enabled: true }, 'ready'],
   ] as const) {
     const { client } = makeClient(options)
-    assert.equal(await netlifyPreparationAccess(client, 'p1', signal), expected)
+    assert.equal((await netlifyPreparationAccess(client, 'p1', signal)).state, expected)
   }
 })
 

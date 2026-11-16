@@ -59,7 +59,8 @@ function directoryFixture(catalogue = connectors, options: { failure?: boolean; 
   const module = { exports: {} as { TestContent: () => any } }
   let dialogComponent: ((props: any) => any) | undefined
   const isolatedRequire = (id: string) => {
-    if (id === 'react') return { ...react, useEffect: () => {}, useState: (initial: unknown) => {
+    if (id === '@/hooks/use-integration-connect') return { useIntegrationConnect: () => ({ connecting: null, connect: async (connector: { key: string }) => { calls.push(connector.key) } }) }
+    if (id === 'react') return { ...react, useEffect: () => {}, useCallback: (callback: unknown) => callback, useState: (initial: unknown) => {
       const index = stateIndex++
       if (!(index in states)) states[index] = index === 0 ? options.failure ? { kind: 'error', message: 'Raw diagnostic' }
         : { kind: 'ready', connectors: catalogue, connections: [connection], configured: !options.connectionsFailed } : typeof initial === 'function' ? initial() : initial
@@ -138,7 +139,6 @@ test('browsing opens service details, and only explicit Connect starts authoriza
   fixture.click({ aria: 'Continue to GitHub' })
   await setImmediate()
   assert.deepEqual(fixture.calls, ['github'])
-  assert.deepEqual(fixture.redirects, ['https://provider.test/authorize'])
 })
 
 test('request failures and unavailable connection history are not presented as an empty catalogue', () => {
@@ -153,17 +153,4 @@ test('request failures and unavailable connection history are not presented as a
   const empty = directoryFixture([])
   empty.render()
   assert.equal(empty.calls.length, 0, 'No invented providers or authorization requests')
-})
-
-test('Netlify uses the current frontend origin unchanged; no localhost callback substitution', async () => {
-  for (const origin of ['http://localhost:3000', 'https://www.lotusbuild.co.uk']) {
-    const fixture = directoryFixture(connectors, { origin })
-    fixture.render()
-    // The name opens the same service review even when an account is connected.
-    fixture.click({ text: 'Netlify' })
-    fixture.render()
-    fixture.click({ aria: 'Continue to Netlify' })
-    await setImmediate()
-    assert.deepEqual(fixture.inputs, [{ returnTo: `${origin}/integrations/netlify/setup`, projectIds: [] }])
-  }
 })

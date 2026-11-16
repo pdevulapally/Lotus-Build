@@ -1,15 +1,17 @@
 "use client"
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Spinner } from "@/components/ui/spinner"
 import { currentBackend } from "@/lib/backend/browser"
 import { cn } from "@/lib/utils"
-import type { Connection, ProjectSource, Repository } from "@/lib/backend/connections"
+import type { Connection, Connector, ProjectSource, Repository } from "@/lib/backend/connections"
+import { useIntegrationConnect } from "@/hooks/use-integration-connect"
+import type { ConnectOutcome } from "@/lib/integrations/connect"
 
 type Load =
   | { kind: "loading" }
-  | { kind: "none" }
+  | { kind: "none"; connector: Connector | undefined }
   | { kind: "ready"; connections: Connection[] }
   | { kind: "error"; message: string }
 
@@ -34,15 +36,25 @@ export function RepositoryDialog({ open, projectId, source, dark, onClose, onBou
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [changing, setChanging] = useState(false)
+  const [revision, setRevision] = useState(0)
+  const onConnectOutcome = useCallback((outcome: ConnectOutcome) => {
+    if (outcome.connector !== "github") return
+    if (outcome.status === "failed") setError(outcome.message)
+    if (outcome.status === "connected") setRevision((value) => value + 1)
+  }, [])
+  const { connect, connecting } = useIntegrationConnect(onConnectOutcome)
 
   useEffect(() => {
     if (!open) return
     const controller = new AbortController()
     setLoad({ kind: "loading" }); setError(null); setChanging(false); setQuery("")
-    currentBackend().connections(controller.signal)
-      .then(({ connections }) => {
+    const backend = currentBackend()
+    Promise.all([backend.connections(controller.signal), backend.connectionCatalogue(controller.signal)])
+      .then(([{ connections }, { connectors }]) => {
         const github = connections.filter((c) => c.connector === "github" && c.status === "active")
-        setLoad(github.length === 0 ? { kind: "none" } : { kind: "ready", connections: github })
+        setLoad(github.length === 0
+          ? { kind: "none", connector: connectors.find((c) => c.key === "github" && c.status === "available") }
+          : { kind: "ready", connections: github })
         setConnectionId(source?.connectionId ?? github[0]?.id ?? null)
       })
       .catch((reason: unknown) => {
@@ -50,7 +62,7 @@ export function RepositoryDialog({ open, projectId, source, dark, onClose, onBou
         setLoad({ kind: "error", message: reason instanceof Error ? reason.message : "Could not load your GitHub connections." })
       })
     return () => controller.abort()
-  }, [open, source?.connectionId])
+  }, [open, source?.connectionId, revision])
 
   const picking = open && (source === undefined || changing)
   useEffect(() => {
@@ -122,7 +134,12 @@ export function RepositoryDialog({ open, projectId, source, dark, onClose, onBou
         ) : load.kind === "loading" ? (
           <p className="mt-4 flex items-center gap-2 text-[13px] text-muted-foreground" role="status"><Spinner className="size-4" /> Loading…</p>
         ) : load.kind === "none" ? (
-          <p className="mt-4 text-[13.5px] text-muted-foreground">Connect GitHub first in <a href="/integrations" className="font-medium text-foreground underline-offset-4 hover:underline">Integrations</a>, then choose a repository here.</p>
+          load.connector === undefined
+            ? <p className="mt-4 text-[13.5px] text-muted-foreground">GitHub isn’t available yet. Check Integrations or contact support.</p>
+            : <div className="mt-4 grid gap-3">
+                <p className="text-[13.5px] text-muted-foreground">Connect GitHub to choose a repository for this project.</p>
+                <Button disabled={connecting !== null} onClick={() => { const connector = load.connector; if (connector) void connect(connector, { projectIds: [projectId] }) }}>{connecting ? "Waiting for GitHub…" : "Connect GitHub"}</Button>
+              </div>
         ) : load.kind === "error" ? (
           <p className="mt-4 text-[13px] text-destructive" role="alert">{load.message}</p>
         ) : (

@@ -44,6 +44,7 @@ function mount(options: { records?: NetlifyDeployment[]; available?: boolean; bl
       if (!(index in slots)) slots[index] = typeof initial === 'function' ? initial() : initial
       return [slots[index], (value: any) => { const next = typeof value === 'function' ? value(slots[index]) : value; if (!Object.is(next, slots[index])) { slots[index] = next; dirty = true } }]
     },
+    useCallback(callback: unknown) { cursor++; return callback },
     useRef(current: any) { const index = cursor++; return slots[index] ??= { current } },
     useEffect(effect: () => (() => void) | void, deps: unknown[]) {
       const index = cursor++; const old = slots[index]
@@ -53,6 +54,7 @@ function mount(options: { records?: NetlifyDeployment[]; available?: boolean; bl
   const module = { exports: {} as { PublishPopover: (props: any) => any } }
   const isolatedRequire = (id: string): any => {
     if (id === 'react') return react
+    if (id === '@/hooks/use-integration-connect') return { useIntegrationConnect: () => ({ connecting: null, connect: async () => {} }) }
     if (id === 'next/link') return { __esModule: true, default: (p: any) => React.createElement('a', p) }
     if (id === '@/lib/backend/browser') return { currentBackend: () => backend }
     return require(id.startsWith('@/') ? `../${id.slice(2)}` : id === './session-types' ? '../components/computer/session-types' : id)

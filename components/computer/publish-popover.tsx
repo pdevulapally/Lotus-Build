@@ -1,13 +1,15 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Popover } from '@astryxdesign/core/Popover'
 import { Button } from '@astryxdesign/core/Button'
 import { VStack } from '@astryxdesign/core/VStack'
 import { HStack } from '@astryxdesign/core/HStack'
 import { currentBackend } from '@/lib/backend/browser'
-import { loadNetlifyDeploymentHistory, netlifyPreparationAccess, pendingNetlifyDeployment, type NetlifyDeployment } from '@/lib/backend/netlify'
+import { loadNetlifyDeploymentHistory, netlifyPreparationAccess, netlifyPreparationTools, pendingNetlifyDeployment, type NetlifyDeployment, type NetlifyPreparationAccess } from '@/lib/backend/netlify'
+import { allowConnectionForProject, type ConnectOutcome } from '@/lib/integrations/connect'
+import { useIntegrationConnect } from '@/hooks/use-integration-connect'
 import { redactSecrets, type TerminalEntry } from '@/lib/backend/terminal'
 import type { ComputerTimelineEvent } from './session-types'
 import { NetlifyDeploymentCard } from '@/components/integrations/netlify-deployment-card'
@@ -21,11 +23,8 @@ type Props = {
   events: ComputerTimelineEvent[]
   onPrepare: () => Promise<void>
 }
-const accessMessages = {
-  unavailable: 'Netlify publishing isn’t available yet. Check Integrations or contact support.',
-  connect: 'Connect Netlify before preparing a deployment.',
-  access: 'Grant this project access and enable deployment preparation in Integration access.',
-}
+const unavailableMessage = 'Netlify publishing isn’t available yet. Check Integrations or contact support.'
+const allowFailedMessage = 'Netlify couldn’t be allowed for this project. Try again, or review Integration access.'
 
 export function PublishPopover(props: Props) {
   const [open, setOpen] = useState(false)
@@ -33,6 +32,7 @@ export function PublishPopover(props: Props) {
   const [message, setMessage] = useState<string | null>(null)
   const [request, setRequest] = useState<'none' | 'checking' | 'sending' | 'accepted' | 'uncertain'>('none')
   const [busy, setBusy] = useState(false)
+  const [needs, setNeeds] = useState<Extract<NetlifyPreparationAccess, { state: 'connect' | 'access' }> | null>(null)
   const [revision, setRevision] = useState(0)
   const [boundary, setBoundary] = useState<{ commands: string[]; events: string[]; deployments: string[] } | null>(null)
   const latest = useRef(props)
@@ -73,7 +73,7 @@ export function PublishPopover(props: Props) {
     const signal = lifetime.current?.signal
     if (!signal || signal.aborted) return
     inFlight.current = true
-    setMessage(null); setRequest('checking')
+    setMessage(null); setNeeds(null); setRequest('checking')
     try {
       const client = currentBackend()
       const history = await loadNetlifyDeploymentHistory(client, latest.current.projectId, signal)
@@ -84,7 +84,8 @@ export function PublishPopover(props: Props) {
       if (latest.current.blockedReason) { setMessage(latest.current.blockedReason); setRequest('none'); return }
       const access = await netlifyPreparationAccess(client, latest.current.projectId, signal)
       if (signal.aborted) return
-      if (access !== 'ready') { setMessage(accessMessages[access]); setRequest('none'); return }
+      if (access.state === 'unavailable') { setMessage(unavailableMessage); setRequest('none'); return }
+      if (access.state !== 'ready') { setNeeds(access); setRequest('none'); return }
       if (latest.current.blockedReason) { setMessage(latest.current.blockedReason); setRequest('none'); return }
       attempted.current = true
       setBoundary({ commands: latest.current.terminal.map(entry => entry.id), events: latest.current.events.flatMap(event => event.id ? [event.id] : []), deployments: history.deployments.map(record => record.id) })
@@ -98,6 +99,27 @@ export function PublishPopover(props: Props) {
       }
     } finally { inFlight.current = false }
   }
+
+  // Connecting or allowing happens here, then the publish the user asked for carries on.
+  const allow = async (connectionId: string) => {
+    if (inFlight.current) return
+    setBusy(true); setMessage(null)
+    try {
+      await allowConnectionForProject(currentBackend(), connectionId, latest.current.projectId, netlifyPreparationTools)
+      setNeeds(null)
+      void prepare()
+    } catch {
+      if (!lifetime.current?.signal.aborted) setMessage(allowFailedMessage)
+    } finally { if (!lifetime.current?.signal.aborted) setBusy(false) }
+  }
+  const allowRef = useRef(allow)
+  allowRef.current = allow
+  const onConnectOutcome = useCallback((outcome: ConnectOutcome) => {
+    if (outcome.connector !== 'netlify') return
+    if (outcome.status === 'failed') { setOpen(true); setMessage(outcome.message); return }
+    if (outcome.status === 'connected') { setOpen(true); void allowRef.current(outcome.connectionId) }
+  }, [])
+  const { connect, connecting } = useIntegrationConnect(onConnectOutcome)
 
   const submit = async (record: NetlifyDeployment, action: 'approve' | 'reject') => {
     if (inFlight.current) return
@@ -135,13 +157,19 @@ export function PublishPopover(props: Props) {
         <p className="text-sm text-muted-foreground">Prepare the build here, then review and approve publication. Preparation uses your AI allowance.</p>
         <p role="status" className="text-sm">{request === 'checking' ? 'Checking saved deployments and access…' : request === 'sending' ? 'Sending preparation request…' : props.running && request === 'accepted' ? 'The project agent is preparing your deployment.' : request === 'accepted' && !current ? 'The preparation request was accepted. Check the conversation for progress or questions.' : 'Only an approved build can be published.'}</p>
         {message && <p role="alert" className="text-sm text-destructive">{message}</p>}
+        {needs && <VStack gap={2}>
+          <p className="text-sm">{needs.state === 'connect' ? 'Connect Netlify to publish this project.' : 'Netlify is connected, but this project isn’t allowed to use it yet.'} This lets LotusBuild prepare deployments for this project. Publishing still needs your approval each time.</p>
+          <HStack gap={3}>{needs.state === 'connect'
+            ? <Button label={connecting ? 'Waiting for Netlify…' : 'Connect Netlify'} isDisabled={busy || connecting !== null} onClick={() => { void connect(needs.connector, { projectIds: [props.projectId] }) }} />
+            : <Button label="Allow Netlify for this project" isDisabled={busy} onClick={() => { void allow(needs.connectionId) }} />}</HStack>
+        </VStack>}
         <Terminal output={output} isStreaming={props.running && request === 'accepted'}>
           <TerminalHeader><TerminalTitle>Deployment output</TerminalTitle><TerminalCopyButton /></TerminalHeader><TerminalContent className="max-h-64" />
         </Terminal>
         {!output && <p className="text-xs text-muted-foreground">No terminal output has been reported for this preparation request yet. Upload progress is shown by deployment status.</p>}
         {current && <ul className="list-none p-0"><NetlifyDeploymentCard record={current} busy={busy || request === 'sending' || request === 'checking'} onSubmit={action => { void submit(current, action) }} /></ul>}
         <HStack gap={3} wrap="wrap"><Button label="Refresh" variant="secondary" isDisabled={busy} onClick={() => { setMessage(null); setRevision(value => value + 1) }} />
-          {request === 'none' && !pendingNetlifyDeployment(records) && <Button label="Prepare deployment" isDisabled={Boolean(props.blockedReason)} onClick={() => { void prepare() }} />}
+          {request === 'none' && !needs && !pendingNetlifyDeployment(records) && <Button label="Prepare deployment" isDisabled={Boolean(props.blockedReason)} onClick={() => { void prepare() }} />}
           {canPrepareAgain && <Button label="Prepare new deployment" isDisabled={busy || Boolean(props.blockedReason)} onClick={() => { attempted.current = false; void prepare() }} />}
           <Link href="/integrations#integration-access" className="text-sm underline">Integration access</Link>
           <Link href={`/integrations/netlify/deployments?projectId=${encodeURIComponent(props.projectId)}`} className="text-sm underline">Deployment history</Link>
