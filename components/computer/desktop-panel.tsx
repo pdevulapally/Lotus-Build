@@ -254,7 +254,7 @@ export function DesktopPanel({ sessionId, desktop, active, canStart, userOpened 
   const retry = () => setRetryVersion((version) => version + 1)
 
   if (startRequest === "sent" || (desktop.status === "none" && userOpened) || desktop.status === "starting") return <DesktopPanelView state="starting" />
-  if (desktop.status === "ended" && (desktop.reason === "error" || startRequest === "none")) {
+  if (desktop.status === "ended" && startRequest === "none") {
     return <DesktopPanelView state={desktop.reason === "error" ? "start-failed" : "ended"} onStart={canStart ? requestStart : undefined} />
   }
   if (desktop.status === "none" || desktop.status === "ended") {
