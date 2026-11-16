@@ -79,6 +79,8 @@ export function EmailCodeVerification({
 
   const completeVerification = useCallback(async () => {
     if (!user) throw new Error("Sign in to verify your email.")
+    await user.reload()
+    if (!user.emailVerified) throw new Error("Your email verification could not be confirmed. Please try again.")
     await user.getIdToken(true)
     await refreshAccount()
     await onVerified()

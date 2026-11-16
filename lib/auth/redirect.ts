@@ -28,6 +28,7 @@ export function getSafeRedirectPath(
     if (parsed.origin !== APP_ORIGIN) return fallback
     // Discard sign-in URLs left by the withdrawn task-workspace preview.
     if (parsed.pathname === "/tasks" || parsed.pathname.startsWith("/tasks/")) return fallback
+    if (parsed.pathname === "/verify-email" || parsed.pathname.startsWith("/verify-email/")) return fallback
     const next = `${parsed.pathname}${parsed.search}${parsed.hash}` || fallback
     if (next === "/login" || next.startsWith("/login?")) return fallback
     if (next === "/signup" || next.startsWith("/signup?")) return fallback

@@ -76,12 +76,17 @@ export function usagePeriod(meter: UsageMeter): string {
 }
 
 /** Server metering uses UTC calendar windows, independent of Stripe billing dates. */
-export function usageReset(meter: UsageMeter): string {
-  if (meter.resetPeriod === 'NEVER') return 'Does not reset'
+export function usageResetAt(meter: UsageMeter): Date | null {
+  if (meter.resetPeriod === 'NEVER') return null
   const start = new Date(meter.periodStart)
-  const next = meter.resetPeriod === 'MONTHLY'
+  return meter.resetPeriod === 'MONTHLY'
     ? new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1))
     : new Date(start.getTime() + (meter.resetPeriod === 'WEEKLY' ? 7 : 1) * 24 * 60 * 60 * 1000)
+}
+
+export function usageReset(meter: UsageMeter): string {
+  const next = usageResetAt(meter)
+  if (!next) return 'Does not reset'
   return `Resets ${new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(next)} at 00:00 UTC`
 }
 

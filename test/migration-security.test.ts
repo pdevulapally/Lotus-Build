@@ -27,7 +27,7 @@ test('only an explicit expired-token rejection refreshes and retries the identic
 })
 
 test('revoked, disabled, malformed, forbidden and uncertain writes are never automatically retried', async () => {
-  for (const [status, code] of [[401, 'auth/token-revoked'], [401, 'auth/user-disabled'], [401, 'auth/token-invalid'], [403, 'auth/email-not-verified'], [409, 'request/idempotency-conflict'], [503, 'unavailable']] as const) {
+  for (const [status, code] of [[401, 'auth/token-revoked'], [401, 'auth/user-disabled'], [401, 'auth/token-invalid'], [403, 'auth/permission-denied'], [409, 'request/idempotency-conflict'], [503, 'unavailable']] as const) {
     let calls = 0
     const client = new BackendClient({ origin: 'https://api.example.test', token: async () => 'token', fetch: async () => {
       calls++; return Response.json({ error: { code, message: code } }, { status })
@@ -39,6 +39,21 @@ test('revoked, disabled, malformed, forbidden and uncertain writes are never aut
   const client = new BackendClient({ origin: 'https://api.example.test', token: async () => 'token', fetch: async () => { calls++; return expired() } })
   await assert.rejects(client.cancel('s1', 'same-operation-123'), { code: 'auth/token-expired' })
   assert.equal(calls, 2)
+})
+
+test('an explicit verification rejection refreshes once and keeps the same mutation key', async () => {
+  const writes: RequestInit[] = [];
+  const client = new BackendClient({ origin: 'https://api.example.test', token: async force => force ? 'fresh-token' : 'stale-token', fetch: async (_url, init) => {
+    writes.push(init!);
+    return writes.length === 1
+      ? Response.json({ error: { code: 'auth/email-not-verified', message: 'Verify your email.' } }, { status: 403 })
+      : Response.json(session);
+  } });
+  await client.cancel('s1', 'same-operation-123');
+  assert.equal(writes.length, 2);
+  assert.equal(writes[0]!.body, writes[1]!.body);
+  assert.equal(new Headers(writes[0]!.headers).get('idempotency-key'), new Headers(writes[1]!.headers).get('idempotency-key'));
+  assert.equal(new Headers(writes[1]!.headers).get('authorization'), 'Bearer fresh-token');
 })
 
 test('aborting during token lookup prevents the request from being dispatched', async () => {

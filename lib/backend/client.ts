@@ -206,8 +206,11 @@ export class BackendClient {
     if (!response.ok) {
       const body: unknown = await response.json().catch(() => null)
       const error = errorSchema.safeParse(body)
-      if (!options.public && !forceRefresh && response.status === 401 && error.success && error.data.error.code === 'auth/token-expired') {
-        return this.response(path, options, true)
+      if (!options.public && !forceRefresh && error.success && (
+        response.status === 401 && error.data.error.code === 'auth/token-expired' ||
+        response.status === 403 && error.data.error.code === 'auth/email-not-verified'
+      )) {
+        return this.response(path, options, true, rateLimited)
       }
       // The server rate limiter rejects before doing work, so one retry after
       // its own window is safe for reads and writes alike.

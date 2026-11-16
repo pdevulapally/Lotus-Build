@@ -20,6 +20,7 @@ import { currentBackend } from "@/lib/backend/browser"
 
 
 import { useBackendSession } from "@/hooks/use-backend-session"
+import { useTaskNoticeUsage } from "@/hooks/use-task-notice-usage"
 import { useAutoOpenWorkspace } from "@/hooks/use-auto-open-workspace"
 
 
@@ -304,12 +305,19 @@ export default function ComputerPage() {
   const setMobileView = (view: MobileView) => setWorkspacePanel(view === "workspace" ? "split" : "closed")
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('preview')
   const [runError, setRunError] = useState<Error | string | null>(null)
-  const taskNotice = selectTaskNotice({ session: raw, requestError: runError, streamError: backend.streamError, fileError: backend.fileError })
+  const [continuationError, setContinuationError] = useState<Error | null>(null)
+  useEffect(() => { setContinuationError(null) }, [raw?.id])
+  useEffect(() => {
+    if (raw?.status === 'QUEUED' || raw?.status === 'RUNNING' || raw?.fallback?.status === 'COMPLETED') setContinuationError(null)
+  }, [raw?.status, raw?.fallback?.status])
+  const noticeUsage = useTaskNoticeUsage(raw, user?.uid)
   const [isStartingRun, setIsStartingRun] = useState(false)
   const [planBusy, setPlanBusy] = useState(false)
   const [pendingMessage, setPendingMessage] = useState<ReturnType<typeof readPendingMessage>>(null)
   const [pendingContinuation, setPendingContinuation] = useState<ReturnType<typeof readPendingContinuation>>(null)
   const [pendingCancellation, setPendingCancellation] = useState(false)
+  const taskNotice = selectTaskNotice({ session: raw, requestError: runError, streamError: backend.streamError, fileError: backend.fileError,
+    continuationError, continuationPending: Boolean(pendingContinuation), currentUsage: noticeUsage.currentUsage })
   const busyRef = useRef(false)
   const readPending = useCallback(() => {
     if (!user || !raw) return
@@ -399,15 +407,19 @@ export default function ComputerPage() {
       const checkpointId = state?.checkpointId
       const model = lane === 'fallback' ? state?.offer?.model : raw.model
       const effort = lane === 'fallback' ? state?.offer?.effort : raw.effort
-      if (!checkpointId || !state?.resumable || !model || !effort) { setRunError('This task has no verified continuation available.'); return }
+      if (!checkpointId || !state?.resumable || !model || !effort) { setContinuationError(new Error('This task has no verified continuation available.')); return }
       command = { lane, model, effort, checkpointId }
     }
-    busyRef.current = true; setIsStartingRun(true); setRunError(null)
+    busyRef.current = true; setIsStartingRun(true); setRunError(null); setContinuationError(null)
     try {
-      await continueSession(currentBackend(), pendingCommandStorage(), user.uid, raw.id, command)
-      await backend.refresh()
-    } catch (reason) { setRunError(reason instanceof Error ? reason.message : 'Could not confirm this continuation.') }
-    finally { busyRef.current = false; setIsStartingRun(false); readPending() }
+      const accepted = await continueSession(currentBackend(), pendingCommandStorage(), user.uid, raw.id, command)
+      backend.applyState(accepted)
+      void backend.refresh().catch(() => setRunError('Continuation confirmed, but the latest progress could not be loaded. Refresh this page.'))
+    } catch (reason) {
+      setContinuationError(reason instanceof Error ? reason : new Error('Could not confirm this continuation.'))
+      void backend.refresh().catch(() => { /* Keep the original continuation error visible. */ })
+    }
+    finally { busyRef.current = false; setIsStartingRun(false); readPending(); noticeUsage.refresh() }
   }
   const requestPreviewRecovery = () => { backend.reconnect(); setPreviewNavSrc(null); setPreviewReloadNonce((value) => value + 1) }
   const planState = planAvailability(raw)

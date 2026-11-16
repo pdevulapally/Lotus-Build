@@ -9,6 +9,32 @@ import { presentRequestError } from '../lib/backend/error-presentation'
 import { MissingProjectSessionError, projectSessionPath } from '../lib/backend/project-session-path'
 import { clearCheckoutAttempt, readCheckoutAttempt, saveCheckoutAttempt } from '../lib/backend/checkout-attempt'
 
+test('a verification rejection refreshes a stale token once while preserving the request body', async () => {
+  const refreshed: (boolean | undefined)[] = [];
+  const requests: RequestInit[] = [];
+  const client = new BackendClient({ origin: 'https://backend.example', token: async force => {
+    refreshed.push(force); return force ? 'verified-token' : 'stale-token';
+  }, fetch: async (_url, init) => {
+    requests.push(init!);
+    if (requests.length === 1) return new Response(JSON.stringify({ error: { code: 'auth/email-not-verified', message: 'Verify your email.' } }), { status: 403 });
+    return new Response(JSON.stringify({ sessionId: 's1', execution: 1, requested: true }), { status: 202 });
+  } });
+  await client.requestDesktop('s1', 1);
+  assert.deepEqual(refreshed, [false, true]);
+  assert.equal(requests[0]!.body, requests[1]!.body);
+  assert.equal(new Headers(requests[1]!.headers).get('authorization'), 'Bearer verified-token');
+})
+
+test('a genuinely unverified account remains blocked after one token refresh', async () => {
+  let calls = 0;
+  const client = new BackendClient({ origin: 'https://backend.example', token: async () => 'unverified-token', fetch: async () => {
+    calls++;
+    return new Response(JSON.stringify({ error: { code: 'auth/email-not-verified', message: 'Verify your email.' } }), { status: 403 });
+  } });
+  await assert.rejects(client.requestDesktop('s1', 1), (error: unknown) => error instanceof BackendError && error.code === 'auth/email-not-verified');
+  assert.equal(calls, 2);
+})
+
 test('checkout cancellation resumes the original Stripe URL for the same account', () => {
   const values = new Map<string, string>()
   const storage = {

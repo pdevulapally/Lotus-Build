@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { onAuthStateChanged, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword,
+import { onIdTokenChanged, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword,
   signOut as firebaseSignOut, sendPasswordResetEmail, type User } from 'firebase/auth'
 import { auth, googleProvider, githubProvider } from '@/lib/firebase'
 import { currentBackend } from '@/lib/backend/browser'
@@ -55,10 +55,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
   useEffect(() => {
     let version = 0
-    const unsubscribe = onAuthStateChanged(auth, async (identity) => {
+    let previousUid: string | null = null
+    const unsubscribe = onIdTokenChanged(auth, async (identity) => {
       const current = ++version
+      const identityChanged = (identity?.uid ?? null) !== previousUid
+      previousUid = identity?.uid ?? null
       accountRequest.current++
-      setUser(identity); setAccount(null); setUsage(null); setAccountError(null); setLoading(true)
+      setUser(identity)
+      if (identityChanged || !identity) {
+        setAccount(null); setUsage(null); setAccountError(null); setLoading(true)
+      }
       try { if (identity) await refreshAccount() } catch { /* The explicit account error is rendered by consumers. */ }
       finally { if (current === version) setLoading(false) }
     })

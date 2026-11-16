@@ -15,7 +15,7 @@ test('original project and computer destinations remain intact', () => {
 })
 
 test('untrusted and recursive sign-in destinations still fall back safely', () => {
-  for (const path of [null, '', 'https://example.test', '//example.test', '/\\example.test', '/login', '/signup?redirect=/']) {
+  for (const path of [null, '', 'https://example.test', '//example.test', '/\\example.test', '/login', '/signup?redirect=/', '/verify-email', '/verify-email?redirect=/', '/verify-email#code']) {
     assert.equal(getSafeRedirectPath(path), '/')
   }
 })
