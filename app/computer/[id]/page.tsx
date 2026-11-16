@@ -368,9 +368,6 @@ export default function ComputerPage() {
     setActiveTab,
     userClosedRef,
   })
-  useEffect(() => {
-    if (backend.desktop.status === 'none' && activeTab === 'desktop') setActiveTab('preview')
-  }, [activeTab, backend.desktop.status])
   const reportMessageError = (reason: unknown) => setRunError(reason instanceof Error ? reason : new Error('Could not send your message. Try again.'))
   const handleRun = async (prompt: string, nextMode?: ComputerSessionMode, attachments: AttachmentRef[] = [], originalInput?: { id: string; answer: string } | null) => {
     if (busyRef.current) throw new Error('A message is already being submitted.')
@@ -692,7 +689,7 @@ export default function ComputerPage() {
           "m-2 mt-0 flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card",
         )}>
           <div className="flex min-h-14 shrink-0 items-center justify-between gap-2 border-b border-border/50 px-3">
-            <WorkspaceViewTabs activeTab={activeTab} onChange={setActiveTab} hasBrowser={hasBrowser} hasResearch={hasResearch} hasDesktop={backend.desktop.status !== 'none'} />
+            <WorkspaceViewTabs activeTab={activeTab} onChange={setActiveTab} hasBrowser={hasBrowser} hasResearch={hasResearch} hasDesktop />
             <div className="flex shrink-0 items-center gap-1">
               <button type="button" aria-label={workspacePanel === "expanded" ? "Restore split view" : "Expand preview panel"} aria-pressed={workspacePanel === "expanded"} onClick={() => setWorkspacePanel(workspacePanel === "expanded" ? "split" : "expanded")} className="hidden size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:inline-flex">
                 {workspacePanel === "expanded" ? <CollapseIcon className="size-4" /> : <ExpandIcon className="size-4" />}
