@@ -14,7 +14,7 @@ const pending: NetlifyDeployment = { id: 'd1', projectId: 'p1', ownerUid: 'u', c
   sha256: 'a'.repeat(64), bytes: 100, files: 1, createdAt: '2026-11-16T12:00:00Z', expiresAt: '2026-11-16T13:00:00Z', status: 'awaiting_approval' }
 
 /** Run the existing page's hooks and handlers with controlled backend responses. */
-function mount(page: 'setup' | 'deployments', backend: Record<string, any>, query: URLSearchParams) {
+function mount(page: 'deployments', backend: Record<string, any>, query: URLSearchParams) {
   const slots: any[] = []; let cursor = 0; let dirty = true; let tree: React.ReactNode
   const effects: (() => void)[] = []
   const replacements: string[] = []
@@ -32,7 +32,7 @@ function mount(page: 'setup' | 'deployments', backend: Record<string, any>, quer
       }
     },
   }
-  const name = page === 'setup' ? 'Complete' : 'Deployments'
+  const name = 'Deployments'
   const source = readFileSync(new URL(`../app/integrations/netlify/${page}/page.tsx`, import.meta.url), 'utf8')
   const compiled = ts.transpileModule(`${source}\nexports.TestPage = ${name}`, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText
   const module = { exports: {} as { TestPage: () => React.ReactNode } }
@@ -67,30 +67,6 @@ function mount(page: 'setup' | 'deployments', backend: Record<string, any>, quer
     close() { slots.forEach(slot => slot?.cleanup?.()) },
   }
 }
-
-test('OAuth denial never exchanges a code; success explains project access and preparation', async () => {
-  let calls = 0
-  const backend = { completeNetlifyConnection: async () => { calls++; return { connection: { account: { name: 'My team' } } } } }
-  const denied = mount('setup', backend, new URLSearchParams('error=access_denied&code=discard&state=discard'))
-  await denied.settle()
-  assert.equal(calls, 0)
-  assert.match(denied.html(), /role="alert"/)
-  assert.match(denied.html(), /Netlify was not connected/)
-  assert.deepEqual(denied.replacements, ['https://app.test/integrations/netlify/setup'])
-  denied.close()
-  const success = mount('setup', backend, new URLSearchParams('code=code&state=state'))
-  assert.match(success.html(), /Finishing the Netlify connection/)
-  await success.settle()
-  assert.equal(calls, 1)
-  assert.match(success.html(), /Grant project access and enable deployment preparation/)
-  assert.match(success.html(), /href="\/integrations#integration-access"/)
-  success.close()
-  const failed = mount('setup', { completeNetlifyConnection: async () => { throw new Error('Raw secret diagnostic') } }, new URLSearchParams('code=code&state=state'))
-  await failed.settle()
-  assert.match(failed.html(), /connection could not be confirmed/)
-  assert.doesNotMatch(failed.html(), /Raw secret/)
-  failed.close()
-})
 
 test('switching projects clears history immediately and ignores an interrupted old response', async () => {
   let resolve!: (value: unknown) => void

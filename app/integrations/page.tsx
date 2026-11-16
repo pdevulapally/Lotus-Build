@@ -1,7 +1,6 @@
 "use client"
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useCallback, useEffect, useState } from 'react'
 import { Navbar } from '@/components/ui/navbar'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -17,6 +16,8 @@ import { VStack } from '@astryxdesign/core/VStack'
 import { Search, Settings2, ChevronDown } from 'lucide-react'
 import { integrationRows, type IntegrationView } from '@/lib/integrations/directory'
 import { ConnectIntegrationDialog } from '@/components/integrations/connect-integration-dialog'
+import { useIntegrationConnect } from '@/hooks/use-integration-connect'
+import type { ConnectOutcome } from '@/lib/integrations/connect'
 
 type State =
   | { kind: 'loading' }
@@ -44,8 +45,7 @@ function IntegrationsContent() {
   const [accessOpen, setAccessOpen] = useState(false)
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [revision, setRevision] = useState(0)
-  const searchParams = useSearchParams()
-  const [notice, setNotice] = useState<string | null>(() => (searchParams.get('connected') === 'github' ? 'GitHub is connected. Open a project and choose Repository to work in one of its repositories.' : null))
+  const [notice, setNotice] = useState<string | null>(null)
   useEffect(() => {
     const openAccess = () => { if (window.location.hash === '#integration-access') setAccessOpen(true) }
     openAccess()
@@ -72,16 +72,16 @@ function IntegrationsContent() {
     return () => controller.abort()
   }, [user?.uid, revision])
 
+  const onOutcome = useCallback((outcome: ConnectOutcome) => {
+    if (outcome.status === 'failed') { setNotice(outcome.message); return }
+    if (outcome.status !== 'connected') return
+    setSelectedKey(null); setNotice(null); setView('connected'); setRevision(value => value + 1)
+  }, [])
+  const { connect: startConnect, connecting } = useIntegrationConnect(onOutcome)
   const connect = async (connector: Connector) => {
     if (connector.auth === 'mcp-remote') { setSelectedKey(null); openSettings('plugins'); return }
-    setBusy(connector.key); setNotice(null)
-    try {
-      const input = connector.browserCallback === true ? { returnTo: `${window.location.origin}/integrations/${encodeURIComponent(connector.key)}/setup`, projectIds: [] } : undefined
-      const { authorizeUrl } = await currentBackend().startConnection(connector.key, input)
-      window.location.assign(authorizeUrl)
-    } catch (reason) {
-      setNotice(reason instanceof Error ? reason.message : `Could not start connecting ${connector.name}.`)
-    } finally { setBusy(null) }
+    setNotice(null)
+    await startConnect(connector)
   }
 
   const disconnect = async (connection: Connection) => {
@@ -155,7 +155,7 @@ function IntegrationsContent() {
                           </DropdownMenuContent>
                         </DropdownMenu>
                       ) : pending ? <span className="integration-soon">{state.configured ? 'Unavailable' : 'Refresh needed'}</span>
-                        : <button type="button" className="integration-action" disabled={busy === connector.key} aria-label={`Connect ${name}`} onClick={() => { setNotice(null); setSelectedKey(connector.key) }}><PlusGlyph /></button>}
+                        : <button type="button" className="integration-action" disabled={connecting === connector.key} aria-label={`Connect ${name}`} onClick={() => { setNotice(null); setSelectedKey(connector.key) }}><PlusGlyph /></button>}
                     </li>
                   )
                 })}
@@ -164,7 +164,7 @@ function IntegrationsContent() {
             </section>
         </>
       )}
-      <ConnectIntegrationDialog connector={selected ?? null} configured={state.kind === 'ready' && state.configured} busy={busy !== null} error={notice}
+      <ConnectIntegrationDialog connector={selected ?? null} configured={state.kind === 'ready' && state.configured} busy={busy !== null || connecting !== null} error={notice}
         onOpenChange={open => { if (!open) setSelectedKey(null) }} onConnect={connect} />
       <Dialog open={accessOpen} onOpenChange={setAccessOpen}><DialogContent className="dark max-h-dvh overflow-y-auto sm:max-w-3xl">
         <DialogTitle>Integration access</DialogTitle><DialogDescription>Choose the projects and tools each integration can use. Publishing still requires your approval.</DialogDescription>

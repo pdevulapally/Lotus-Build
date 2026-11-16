@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { BackendClient } from './client'
+import type { Connector } from './connections'
 const documentId = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/)
 const https = z.url().refine(value => { const url = new URL(value); return url.protocol === 'https:' && !url.username && !url.password && !url.port })
 export const netlifyDeploymentSchema = z.object({
@@ -47,17 +48,28 @@ export function pendingNetlifyDeployment(records: readonly NetlifyDeployment[], 
     || (record.status === 'awaiting_approval' && Date.parse(record.expiresAt) > now))
 }
 
+/** The tool a project must have switched on before the agent may prepare a deployment. */
+export const netlifyPreparationTools = ['deploy'] as const
+
+export type NetlifyPreparationAccess =
+  | { state: 'ready' }
+  | { state: 'unavailable' }
+  | { state: 'connect'; connector: Connector }
+  | { state: 'access'; connectionId: string }
+
 /** Check the existing grants and deploy permission before asking the agent to spend allowance. */
-export async function netlifyPreparationAccess(client: BackendClient, projectId: string, signal: AbortSignal): Promise<'ready' | 'unavailable' | 'connect' | 'access'> {
+export async function netlifyPreparationAccess(client: BackendClient, projectId: string, signal: AbortSignal): Promise<NetlifyPreparationAccess> {
   const { connectors } = await client.connectionCatalogue(signal)
-  if (!connectors.some(connector => connector.key === 'netlify' && connector.auth === 'netlify-oauth' && connector.status === 'available')) return 'unavailable'
+  const connector = connectors.find(candidate => candidate.key === 'netlify' && candidate.auth === 'netlify-oauth' && candidate.status === 'available')
+  if (!connector) return { state: 'unavailable' }
   const { connections } = await client.connections(signal)
   const active = connections.filter(connection => connection.connector === 'netlify' && connection.status === 'active')
-  if (!active.length) return 'connect'
+  if (!active.length) return { state: 'connect', connector }
   const permissions = await Promise.all(active.map(async connection => {
     const [detail, tools] = await Promise.all([client.connection(connection.id, signal), client.pluginTools(connection.id, signal)])
     if (detail.connection.grantedProjectIds === undefined) throw new Error('Project access could not be verified.')
-    return detail.connection.grantedProjectIds.includes(projectId) && tools.tools.some(tool => tool.name === 'deploy' && tool.mode === 'always')
+    return detail.connection.grantedProjectIds.includes(projectId)
+      && netlifyPreparationTools.every(name => tools.tools.some(tool => tool.name === name && tool.mode === 'always'))
   }))
-  return permissions.some(Boolean) ? 'ready' : 'access'
+  return permissions.some(Boolean) ? { state: 'ready' } : { state: 'access', connectionId: active[0]!.id }
 }
