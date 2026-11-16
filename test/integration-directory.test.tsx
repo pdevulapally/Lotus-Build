@@ -57,6 +57,7 @@ function directoryFixture(catalogue = connectors, options: { failure?: boolean; 
   const calls: string[] = []; const redirects: string[] = []; const inputs: unknown[] = []
   let tree: any
   const module = { exports: {} as { TestContent: () => any } }
+  let dialogComponent: ((props: any) => any) | undefined
   const isolatedRequire = (id: string) => {
     if (id === 'react') return { ...react, useEffect: () => {}, useState: (initial: unknown) => {
       const index = stateIndex++
@@ -68,6 +69,14 @@ function directoryFixture(catalogue = connectors, options: { failure?: boolean; 
     if (id === '@/contexts/auth-context') return { useAuth: () => ({ user: { uid: 'u' } }) }
     if (id === '@/components/settings/settings-dialog') return { useSettingsDialog: () => ({ openSettings: () => assert.fail('Render must not change settings') }) }
     if (id === '@/lib/backend/browser') return { currentBackend: () => ({ startConnection: async (key: string, input: unknown) => { calls.push(key); inputs.push(input); return { authorizeUrl: 'https://provider.test/authorize' } } }) }
+    if (id === '@/components/integrations/connect-integration-dialog') {
+      const dialogSource = readFileSync(new URL('../components/integrations/connect-integration-dialog.tsx', import.meta.url), 'utf8')
+      const dialogCompiled = ts.transpileModule(dialogSource, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText
+      const dialogModule = { exports: {} as { ConnectIntegrationDialog: (props: any) => any } }
+      new Function('require', 'module', 'exports', dialogCompiled)(isolatedRequire, dialogModule, dialogModule.exports)
+      dialogComponent = dialogModule.exports.ConnectIntegrationDialog
+      return dialogModule.exports
+    }
     if (id === '@/components/ui/dialog') return {
       Dialog: ({ open, children }: any) => open ? children : null,
       DialogContent: ({ children }: any) => createElement('section', { role: 'dialog' }, children),
@@ -84,7 +93,8 @@ function directoryFixture(catalogue = connectors, options: { failure?: boolean; 
   const render = () => { stateIndex = 0; tree = module.exports.TestContent(); return renderToStaticMarkup(tree) }
   return { calls, redirects, inputs, render, click(match: { aria?: string; text?: string }) {
     const find = (node: any): any => Array.isArray(node) ? node.map(find).find(Boolean) : node && typeof node === 'object'
-      ? ((match.aria ? node.props?.['aria-label'] === match.aria : node.props?.children === match.text) && node.props?.onClick ? node : find(node.props?.children)) : undefined
+      ? node.type === dialogComponent ? find(dialogComponent?.(node.props))
+        : ((match.aria ? node.props?.['aria-label'] === match.aria : node.props?.children === match.text) && node.props?.onClick ? node : find(node.props?.children)) : undefined
     const element = find(tree); assert.ok(element); element.props.onClick()
   } }
 }
@@ -120,9 +130,12 @@ test('browsing opens service details, and only explicit Connect starts authoriza
   fixture.click({ aria: 'Connect GitHub' })
   const details = fixture.render()
   assert.match(details, /role="dialog"/)
-  assert.match(details, /After connecting, choose which projects and tools/)
+  assert.match(details, /You control access/)
+  assert.match(details, /How your data is used/)
+  assert.match(details, /Connect services you trust/)
+  assert.doesNotMatch(details, /Approved by your admin|Developed by OpenAI|do not train/)
   assert.equal(fixture.calls.length, 0)
-  fixture.click({ text: 'Connect GitHub' })
+  fixture.click({ aria: 'Continue to GitHub' })
   await setImmediate()
   assert.deepEqual(fixture.calls, ['github'])
   assert.deepEqual(fixture.redirects, ['https://provider.test/authorize'])
@@ -149,7 +162,7 @@ test('Netlify uses the current frontend origin unchanged; no localhost callback 
     // The name opens the same service review even when an account is connected.
     fixture.click({ text: 'Netlify' })
     fixture.render()
-    fixture.click({ text: 'Connect Netlify' })
+    fixture.click({ aria: 'Continue to Netlify' })
     await setImmediate()
     assert.deepEqual(fixture.inputs, [{ returnTo: `${origin}/integrations/netlify/setup`, projectIds: [] }])
   }

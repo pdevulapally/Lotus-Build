@@ -16,7 +16,7 @@ import { HStack } from '@astryxdesign/core/HStack'
 import { VStack } from '@astryxdesign/core/VStack'
 import { Search, Settings2, ChevronDown } from 'lucide-react'
 import { integrationRows, type IntegrationView } from '@/lib/integrations/directory'
-import styles from './integrations.module.css'
+import { ConnectIntegrationDialog } from '@/components/integrations/connect-integration-dialog'
 
 type State =
   | { kind: 'loading' }
@@ -26,7 +26,7 @@ type State =
 export default function IntegrationsPage() {
   return (
     <ProtectedRoute>
-      <div data-product-theme="dark" className={`dark ${styles.page}`}>
+      <div data-product-theme="dark" className="dark integration-page">
         <Navbar />
         <IntegrationsContent />
       </div>
@@ -101,33 +101,33 @@ function IntegrationsContent() {
   const selected = state.kind === 'ready' ? state.connectors.find(connector => connector.key === selectedKey) : undefined
   const refresh = () => { setSelectedKey(null); setRevision(value => value + 1) }
   return (
-    <main className={`${styles.main} ${styles.directoryMain}`}>
-      <header className={styles.directoryHeader}>
-        <VStack gap={3}><h1 className={`${styles.title} ${styles.directoryTitle}`}>Integrations</h1><p className={styles.lead}>Connect integrations to let LotusBuild work across your tools</p></VStack>
-        <HStack gap={3} align="center" className={styles.directoryTools}>
-          <label className={styles.search}><Search aria-hidden="true" /><input type="search" aria-label="Search integrations" placeholder="Search integrations" value={query} onChange={event => setQuery(event.target.value)} /></label>
-          <button type="button" className={styles.action} aria-label="Integration settings" onClick={() => setAccessOpen(true)}><Settings2 aria-hidden="true" /></button>
-          <DropdownMenu><DropdownMenuTrigger asChild><button type="button" className={styles.addAction}>Add <ChevronDown aria-hidden="true" /></button></DropdownMenuTrigger>
+    <main className="integration-main integration-directory-main">
+      <header className="integration-directory-header">
+        <VStack gap={3}><h1 className="integration-title integration-directory-title">Integrations</h1><p className="integration-lead">Connect integrations to let LotusBuild work across your tools</p></VStack>
+        <HStack gap={3} align="center" className="integration-directory-tools">
+          <label className="integration-search"><Search aria-hidden="true" /><input type="search" aria-label="Search integrations" placeholder="Search integrations" value={query} onChange={event => setQuery(event.target.value)} /></label>
+          <button type="button" className="integration-action" aria-label="Integration settings" onClick={() => setAccessOpen(true)}><Settings2 aria-hidden="true" /></button>
+          <DropdownMenu><DropdownMenuTrigger asChild><button type="button" className="integration-add-action">Add <ChevronDown aria-hidden="true" /></button></DropdownMenuTrigger>
             <DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => openSettings('plugins')}>Add custom plugin</DropdownMenuItem><DropdownMenuItem asChild><Link href="/integrations/netlify/deployments">Netlify deployments</Link></DropdownMenuItem></DropdownMenuContent>
           </DropdownMenu>
         </HStack>
       </header>
-      <nav className={styles.views} aria-label="Integration views">
-        <button type="button" className={styles.view} aria-pressed={view === 'available'} onClick={() => setView('available')}>Available</button>
-        <button type="button" className={styles.view} aria-pressed={view === 'connected'} onClick={() => setView('connected')}>Connected</button>
+      <nav className="integration-views" aria-label="Integration views">
+        <button type="button" className="integration-view" aria-pressed={view === 'available'} onClick={() => setView('available')}>Available</button>
+        <button type="button" className="integration-view" aria-pressed={view === 'connected'} onClick={() => setView('connected')}>Connected</button>
       </nav>
 
-      {state.kind === 'loading' && <p className={styles.message} role="status">Loading integrations…</p>}
-      {state.kind === 'error' && <section className={styles.message} aria-label="Integration loading error"><p role="alert">Integrations couldn’t be loaded. Refresh to try again.</p><button type="button" className={styles.view} onClick={refresh}>Refresh integrations</button></section>}
-      {notice && <p className={styles.message} role="status">{notice}</p>}
+      {state.kind === 'loading' && <p className="integration-message" role="status">Loading integrations…</p>}
+      {state.kind === 'error' && <section className="integration-message" aria-label="Integration loading error"><p role="alert">Integrations couldn’t be loaded. Refresh to try again.</p><button type="button" className="integration-view" onClick={refresh}>Refresh integrations</button></section>}
+      {notice && <p className="integration-message" role="status">{notice}</p>}
 
       {state.kind === 'ready' && (
         <>
-          {state.connectors.length === 0 && <section className={styles.message} aria-label="Integration setup required"><p role="alert">Integrations haven’t been set up yet. Refresh to check again, or contact support.</p><button type="button" className={styles.view} onClick={refresh}>Refresh integrations</button></section>}
-          {!state.configured && <section className={styles.message}><p role="alert">Your connections couldn’t be loaded. Refresh before connecting or disconnecting a service.</p><button type="button" className={styles.view} onClick={refresh}>Refresh connections</button></section>}
-            <section className={styles.section} aria-labelledby="integration-list-title">
-              <h2 id="integration-list-title" className={styles.sectionTitle}>{view === 'available' ? 'Available integrations' : 'Your connections'}</h2>
-              <ul className={`${styles.grid} ${styles.directoryGrid}`}>
+          {state.connectors.length === 0 && <section className="integration-message" aria-label="Integration setup required"><p role="alert">Integrations haven’t been set up yet. Refresh to check again, or contact support.</p><button type="button" className="integration-view" onClick={refresh}>Refresh integrations</button></section>}
+          {!state.configured && <section className="integration-message"><p role="alert">Your connections couldn’t be loaded. Refresh before connecting or disconnecting a service.</p><button type="button" className="integration-view" onClick={refresh}>Refresh connections</button></section>}
+            <section className="integration-section" aria-labelledby="integration-list-title">
+              <h2 id="integration-list-title" className="integration-section-title">{view === 'available' ? 'Available integrations' : 'Your connections'}</h2>
+              <ul className="integration-grid integration-directory-grid">
                 {rows.map(({ connector, connection }) => {
                   const name = connector.name
                   const account = connection?.account?.name ?? name
@@ -136,16 +136,16 @@ function IntegrationsContent() {
                     ? [account, connection.account?.team].filter(Boolean).join(' · ')
                     : `${statusLabel[connection.status]} · ${account}` : connector.summary
                   return (
-                    <li key={connection?.id ?? connector.key} className={styles.row}>
-                      <span className={styles.tile} aria-hidden="true"><BrandLogo connector={connector.key} name={name} iconPath={connector.iconPath} /></span>
-                      <VStack gap={1} className={styles.text}>
-                        <h3 className={styles.name}><button type="button" className={styles.nameAction} onClick={() => { setNotice(null); setSelectedKey(connector.key) }}>{name}</button></h3>
-                        <p className={styles.description}>{meta}</p>
+                    <li key={connection?.id ?? connector.key} className="integration-row">
+                      <span className="integration-tile" aria-hidden="true"><BrandLogo connector={connector.key} name={name} iconPath={connector.iconPath} /></span>
+                      <VStack gap={1} className="integration-text">
+                        <h3 className="integration-name"><button type="button" className="integration-name-action" onClick={() => { setNotice(null); setSelectedKey(connector.key) }}>{name}</button></h3>
+                        <p className="integration-description">{meta}</p>
                       </VStack>
                       {connection ? (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <button type="button" className={styles.action} disabled={busy === connection.id} aria-label={`Options for ${name} (${account})`}>
+                            <button type="button" className="integration-action" disabled={busy === connection.id} aria-label={`Options for ${name} (${account})`}>
                               <DotsGlyph />
                             </button>
                           </DropdownMenuTrigger>
@@ -154,27 +154,18 @@ function IntegrationsContent() {
                             <DropdownMenuItem className="rounded-lg px-3 py-2" onSelect={() => disconnect(connection)}>Disconnect</DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
-                      ) : pending ? <span className={styles.soon}>{state.configured ? 'Unavailable' : 'Refresh needed'}</span>
-                        : <button type="button" className={styles.action} disabled={busy === connector.key} aria-label={`Connect ${name}`} onClick={() => { setNotice(null); setSelectedKey(connector.key) }}><PlusGlyph /></button>}
+                      ) : pending ? <span className="integration-soon">{state.configured ? 'Unavailable' : 'Refresh needed'}</span>
+                        : <button type="button" className="integration-action" disabled={busy === connector.key} aria-label={`Connect ${name}`} onClick={() => { setNotice(null); setSelectedKey(connector.key) }}><PlusGlyph /></button>}
                     </li>
                   )
                 })}
               </ul>
-              {state.connectors.length > 0 && rows.length === 0 && <p className={styles.lead}>{query.trim() ? 'No integrations match your search.' : 'No integrations connected yet. Choose Available to connect a service.'}</p>}
+              {state.connectors.length > 0 && rows.length === 0 && <p className="integration-lead">{query.trim() ? 'No integrations match your search.' : 'No integrations connected yet. Choose Available to connect a service.'}</p>}
             </section>
         </>
       )}
-      <Dialog open={Boolean(selected)} onOpenChange={open => { if (!open) setSelectedKey(null) }}><DialogContent className="dark sm:max-w-xl">
-        {selected && <>
-          <span className={styles.tile} aria-hidden="true"><BrandLogo connector={selected.key} name={selected.name} iconPath={selected.iconPath} /></span>
-          <DialogTitle>{selected.name}</DialogTitle><DialogDescription>{selected.summary}</DialogDescription>
-          {selected.capabilities.length > 0 && <ul className="list-disc space-y-2 pl-5 text-sm text-muted-foreground">{selected.capabilities.map(capability => <li key={capability.key}>{capability.title}{capability.requiresApproval ? ' — requires your approval' : ''}</li>)}</ul>}
-          <p className="text-sm text-muted-foreground">After connecting, choose which projects and tools can use this integration. Publishing still requires your approval.</p>
-          {notice && <p role="alert" className={styles.message}>{notice}</p>}
-          {(selected.status === 'configuration_required' || (state.kind === 'ready' && !state.configured)) && <p role="status">This integration isn’t ready to connect yet. Refresh or contact support.</p>}
-          <button type="button" className={styles.addAction} disabled={busy !== null || selected.status !== 'available' || (state.kind === 'ready' && !state.configured)} onClick={() => void connect(selected)}>{busy === selected.key ? 'Connecting…' : selected.auth === 'mcp-remote' ? 'Set up plugin' : `Connect ${selected.name}`}</button>
-        </>}
-      </DialogContent></Dialog>
+      <ConnectIntegrationDialog connector={selected ?? null} configured={state.kind === 'ready' && state.configured} busy={busy !== null} error={notice}
+        onOpenChange={open => { if (!open) setSelectedKey(null) }} onConnect={connect} />
       <Dialog open={accessOpen} onOpenChange={setAccessOpen}><DialogContent className="dark max-h-dvh overflow-y-auto sm:max-w-3xl">
         <DialogTitle>Integration access</DialogTitle><DialogDescription>Choose the projects and tools each integration can use. Publishing still requires your approval.</DialogDescription>
         <section id="integration-access"><PluginsPanel section="integrations" /></section>

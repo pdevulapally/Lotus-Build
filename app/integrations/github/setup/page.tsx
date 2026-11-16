@@ -6,7 +6,6 @@ import { Navbar } from '@/components/ui/navbar'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { useAuth } from '@/contexts/auth-context'
 import { currentBackend } from '@/lib/backend/browser'
-import styles from '../../integrations.module.css'
 
 /**
  * Where GitHub sends the browser after the LotusBuild app is installed and
@@ -18,10 +17,10 @@ import styles from '../../integrations.module.css'
 export default function GitHubSetupPage() {
   return (
     <ProtectedRoute>
-      <div data-product-theme="dark" className={`dark ${styles.page}`}>
+      <div data-product-theme="dark" className="dark integration-page">
         <Navbar />
-        <main className={styles.main}>
-          <Suspense fallback={<p className={styles.message} role="status">Connecting GitHub…</p>}>
+        <main className="integration-main">
+          <Suspense fallback={<p className="integration-message" role="status">Connecting GitHub…</p>}>
             <GitHubSetup />
           </Suspense>
         </main>
@@ -63,9 +62,9 @@ function GitHubSetup() {
 
   return (
     <>
-      <header className={styles.intro}>
-        <h1 className={styles.title}>GitHub</h1>
-        <p className={styles.lead}>
+      <header className="integration-intro">
+        <h1 className="integration-title">GitHub</h1>
+        <p className="integration-lead">
           {state.kind === 'working' && 'Finishing the connection…'}
           {state.kind === 'done' && `Connected as ${state.account}. Open a project and choose Repository to work in one of its repositories.`}
           {state.kind === 'error' && state.message}

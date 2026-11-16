@@ -9,10 +9,9 @@ import { useAuth } from '@/contexts/auth-context'
 import { currentBackend } from '@/lib/backend/browser'
 import { NetlifyDeploymentCard } from '@/components/integrations/netlify-deployment-card'
 import { loadNetlifyDeploymentHistory, type NetlifyDeployment } from '@/lib/backend/netlify'
-import styles from '../../integrations.module.css'
 
 export default function NetlifyDeploymentsPage() {
-  return <ProtectedRoute><div data-product-theme="dark" className={`dark ${styles.page}`}><Navbar /><main className={styles.main}><Suspense fallback={<p role="status">Loading deployments…</p>}><Deployments /></Suspense></main></div></ProtectedRoute>
+  return <ProtectedRoute><div data-product-theme="dark" className="dark integration-page"><Navbar /><main className="integration-main"><Suspense fallback={<p role="status">Loading deployments…</p>}><Deployments /></Suspense></main></div></ProtectedRoute>
 }
 function Deployments() {
   const { user } = useAuth(); const params = useSearchParams()
@@ -82,15 +81,15 @@ function Deployments() {
     finally { submitting.current = false; if (currentScope.current === scope) { setBusy(null); setRevision(value => value + 1) } }
   }
   return <>
-    <header className={styles.intro}><Link href="/integrations" className="text-sm underline underline-offset-4">Integrations</Link><h1 className={styles.title}>Netlify deployments</h1><p className={styles.lead}>Review a build, publish it to your account, and return to its links whenever you need them.</p></header>
+    <header className="integration-intro"><Link href="/integrations" className="text-sm underline underline-offset-4">Integrations</Link><h1 className="integration-title">Netlify deployments</h1><p className="integration-lead">Review a build, publish it to your account, and return to its links whenever you need them.</p></header>
     <div className="flex flex-wrap items-end gap-4"><label className="grid min-w-56 gap-2 text-sm">Project<select value={projectId} disabled={!projects || busy !== null} onChange={event => { setProjectId(event.target.value); setActionError(null) }} className="rounded-md border border-border bg-background px-3 py-2"><option value="">Choose a project</option>{projects?.projects.map(project => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label><Button variant="outline" disabled={busy !== null} onClick={() => setRevision(value => value + 1)}>Refresh</Button></div>
     {!projects && <p role="status">Loading projects…</p>}
-    {projects?.error && <p role="alert" className={styles.message}>{projects.error}</p>}
+    {projects?.error && <p role="alert" className="integration-message">{projects.error}</p>}
     {projects && !projects.error && projects.projects.length === 0 && <p role="status">No projects are available yet. Create a project before preparing a deployment.</p>}
-    {error && <p role="alert" className={styles.message}>{error}</p>}
-    {actionError?.scope === scope && <p role="alert" className={styles.message}>{actionError.message}</p>}
+    {error && <p role="alert" className="integration-message">{error}</p>}
+    {actionError?.scope === scope && <p role="alert" className="integration-message">{actionError.message}</p>}
     {projectId && deployments === null && !error && <p role="status">Loading deployments…</p>}
-    {projectId && deployments?.length === 0 && <p className={styles.lead}>No deployments yet. Connect Netlify, grant this project access, and ask the agent to build and prepare it for deployment.</p>}
+    {projectId && deployments?.length === 0 && <p className="integration-lead">No deployments yet. Connect Netlify, grant this project access, and ask the agent to build and prepare it for deployment.</p>}
     <p className="text-sm text-muted-foreground"><Link href="/integrations#integration-access" className="underline underline-offset-4">Review Integration access</Link>{projectId && <> · <Link href={`/project/${encodeURIComponent(projectId)}`} className="underline underline-offset-4">Open project to prepare a deployment</Link></>}</p>
     <ul className="grid list-none gap-6 p-0">{deployments?.map(record => <NetlifyDeploymentCard key={record.id} record={record} busy={busy !== null} onSubmit={action => void submit(record, action)} />)}</ul>
     <p className="text-sm text-muted-foreground">Published links do not depend on your LotusBuild workspace running. They remain available while the Netlify deployment and account are retained.</p>

@@ -6,10 +6,9 @@ import { Navbar } from '@/components/ui/navbar'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { useAuth } from '@/contexts/auth-context'
 import { currentBackend } from '@/lib/backend/browser'
-import styles from '../../integrations.module.css'
 
 export default function NetlifySetupPage() {
-  return <ProtectedRoute><div data-product-theme="dark" className={`dark ${styles.page}`}><Navbar /><main className={styles.main}><Suspense fallback={<p role="status">Connecting Netlify…</p>}><Complete /></Suspense></main></div></ProtectedRoute>
+  return <ProtectedRoute><div data-product-theme="dark" className="dark integration-page"><Navbar /><main className="integration-main"><Suspense fallback={<p role="status">Connecting Netlify…</p>}><Complete /></Suspense></main></div></ProtectedRoute>
 }
 function Complete() {
   const { user } = useAuth(); const params = useSearchParams(); const started = useRef(false)
@@ -25,5 +24,5 @@ function Complete() {
       setState({ working: false, error: false, message: `Connected as ${connection.account?.name ?? 'your Netlify account'}. Grant project access and enable deployment preparation in Integration access. Then ask the project agent to prepare a deployment. You’ll review it before publishing.` })
     }).catch(() => setState({ working: false, error: true, message: 'The connection could not be confirmed. Return to Integrations to check your connections before starting again.' }))
   }, [params, user])
-  return <><header className={styles.intro}><h1 className={styles.title}>Netlify</h1><p className={styles.lead} role={state.error ? 'alert' : 'status'}>{state.message}</p></header>{!state.working && <Link href={state.error ? '/integrations' : '/integrations#integration-access'} className="underline underline-offset-4">{state.error ? 'Back to Integrations' : 'Choose Integration access'}</Link>}</>
+  return <><header className="integration-intro"><h1 className="integration-title">Netlify</h1><p className="integration-lead" role={state.error ? 'alert' : 'status'}>{state.message}</p></header>{!state.working && <Link href={state.error ? '/integrations' : '/integrations#integration-access'} className="underline underline-offset-4">{state.error ? 'Back to Integrations' : 'Choose Integration access'}</Link>}</>
 }
