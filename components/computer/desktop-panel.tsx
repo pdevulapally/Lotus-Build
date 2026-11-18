@@ -8,7 +8,7 @@ import { currentBackend } from "@/lib/backend/browser"
 import { desktopCloseAction, desktopSocketUrl, type DesktopState } from "@/lib/backend/desktop"
 
 export type DesktopViewState =
-  | "connecting" | "live" | "ended" | "unavailable" | "capacity" | "slow" | "failed"
+  | "connecting" | "live" | "ended" | "capacity" | "slow" | "failed"
   | "idle" | "starting" | "waiting" | "start-failed" | "not-offered"
 
 const stateCopy: Record<Exclude<DesktopViewState, "live">, string> = {
@@ -19,7 +19,6 @@ const stateCopy: Record<Exclude<DesktopViewState, "live">, string> = {
   "start-failed": "Couldn't start the desktop.",
   "not-offered": "Start desktop isn't available on this server yet.",
   ended: "The desktop has closed. It opens again when the agent needs the screen, or you can start it now.",
-  unavailable: "No desktop for this session.",
   capacity: "Close another desktop view to watch here.",
   slow: "Paused — connection too slow",
   failed: "Couldn't connect",
@@ -255,8 +254,8 @@ export function DesktopPanel({ sessionId, desktop, active, canStart, userOpened 
   const retry = () => setRetryVersion((version) => version + 1)
 
   if (startRequest === "sent" || (desktop.status === "none" && userOpened) || desktop.status === "starting") return <DesktopPanelView state="starting" />
-  if (desktop.status === "ended" && (desktop.reason === "error" || startRequest === "none")) {
-    return <DesktopPanelView state={desktop.reason === "error" ? "unavailable" : "ended"} onStart={canStart && desktop.reason !== "error" ? requestStart : undefined} />
+  if (desktop.status === "ended" && startRequest === "none") {
+    return <DesktopPanelView state={desktop.reason === "error" ? "start-failed" : "ended"} onStart={canStart ? requestStart : undefined} />
   }
   if (desktop.status === "none" || desktop.status === "ended") {
     if (startRequest === "not-offered") return <DesktopPanelView state="not-offered" />
