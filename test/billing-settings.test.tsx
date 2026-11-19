@@ -19,21 +19,23 @@ const account = accountSchema.parse({ uid: 'u', email: 'demo@example.test', emai
 
 test('billing summary is a private authenticated read, not a portal or checkout mutation', async () => {
   let calls = 0
-  let sentSignal!: AbortSignal
   const controller = new AbortController()
   const client = new BackendClient({ origin: 'https://backend.example', token: async () => 'account-token', fetch: async (url, init) => {
     calls++
     assert.equal(url, 'https://backend.example/billing/subscription')
     assert.equal(init?.method, 'GET'); assert.equal(init?.cache, 'no-store')
-    assert.ok(init?.signal); sentSignal = init.signal
+    assert.ok(init?.signal)
+    if (calls === 2) {
+      controller.abort()
+      assert.equal(init.signal.reason, controller.signal.reason)
+    }
     assert.equal(init?.body, undefined)
     assert.equal((init?.headers as Record<string, string>).Authorization, 'Bearer account-token')
     return Response.json({ subscription })
   } })
   assert.deepEqual(await client.billingSubscription(controller.signal), { subscription })
   assert.equal(calls, 1)
-  controller.abort('view closed')
-  assert.equal(sentSignal.reason, controller.signal.reason)
+  await assert.rejects(client.billingSubscription(controller.signal), { name: 'AbortError' })
 })
 
 test('missing subscription is distinct from a failed or malformed response', async () => {
