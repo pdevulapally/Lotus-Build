@@ -2,16 +2,22 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { BackendClient } from '../lib/backend/client'
 import { applyEvents, type Conversation } from '../lib/backend/conversation'
-import { PrivateQueries, operationIdentity } from '../lib/backend/private-queries'
+import { PrivateQueries } from '../lib/backend/private-queries'
 
 const project = 'a'.repeat(32)
 const session = 'b'.repeat(32)
 const page = {projects: [{id: project, name: 'Example'}], next_cursor: null}
 const snapshot: Conversation = {session, status: 'queued', cursor: 1, events: [{sequence: 1, kind: 'question', text: 'Example?'}]}
-const storage = () => {
-  const map = new Map<string, string>()
-  return {getItem: (k: string) => map.get(k) ?? null, setItem: (k: string, v: string) => { map.set(k,v) }, removeItem: (k: string) => { map.delete(k) }}
-}
+test('existing TypeScript project lists coalesce only in flight and recheck permission on refresh', async () => {
+  const requests: string[] = []
+  const client = new BackendClient({origin:'https://api.example', token:async () => 'fixture', fetch:async url => {
+    requests.push(new URL(String(url)).pathname)
+    return requests.length === 1 ? Response.json({projects:[]}) : Response.json({}, {status:403})
+  }})
+  await Promise.all([client.projects(), client.projects()])
+  await assert.rejects(client.projects(), {status:403})
+  assert.deepEqual(requests, ['/projects','/projects'])
+})
 
 test('private list: simultaneous components share one request, then reuse the warm page', async () => {
   let bytes = 0
@@ -87,20 +93,20 @@ test('one reader can cancel; account disposal fences a transport that ignores ab
   await assert.rejects(alice.read('project',1000,undefined,load),{name:'AbortError'})
 })
 
-test('operation identity survives remount, separates changed payloads and accounts, clears on success', async () => {
-  const store = storage(), scope = ['https://api.example','alice','personal','create','']
-  const [one, two] = await Promise.all([operationIdentity(store,scope,['Name']),operationIdentity(store,scope,['Name'])])
-  assert.equal(one.id,two.id)
-  assert.notEqual((await operationIdentity(store,scope,['Other'])).id,one.id)
-  assert.notEqual((await operationIdentity(store,[...scope,'different'],['Name'])).id,one.id)
-  one.confirmed()
-  assert.notEqual((await operationIdentity(store,scope,['Name'])).id,one.id)
+test('invalidation fences a pending read even if the transport ignores abort', async () => {
+  const cache = new PrivateQueries()
+  let deliver!: (value: string) => void
+  const old = cache.read('list', 5000, undefined, () => new Promise<string>(r => { deliver = r }))
+  await Promise.resolve()
+  cache.invalidate('list')
+  assert.equal(await cache.read('list',5000,undefined,async () => 'new'),'new')
+  deliver('old')
+  await assert.rejects(old,{name:'AbortError'})
+  assert.equal(await cache.read('list',5000,undefined,async () => assert.fail()),'new')
 })
 
 test('lost acknowledgement keeps the same project identity; confirmation invalidates cached lists', async () => {
-  const descriptor = Object.getOwnPropertyDescriptor(globalThis,'sessionStorage')
-  Object.defineProperty(globalThis,'sessionStorage',{value:storage(),configurable:true})
-  try {
+    const first = crypto.randomUUID(), second = crypto.randomUUID()
     let reads = 0
     const writes: string[] = []
     const client = new BackendClient({origin:'https://api.example',owner:'alice',token:async () => 'test',fetch:async (_,init) => {
@@ -110,15 +116,13 @@ test('lost acknowledgement keeps the same project identity; confirmation invalid
       return Response.json(page.projects[0])
     }})
     await client.privateProjects(null)
-    await assert.rejects(client.createPrivateProject('Example'))
+    await assert.rejects(client.createPrivateProject('Example',first))
     assert.equal(writes.length,1)
-    await client.createPrivateProject('Example')
-    assert.equal(writes[0],writes[1])
     await client.privateProjects(null); assert.equal(reads,2)
-  } finally {
-    if (descriptor) Object.defineProperty(globalThis,'sessionStorage',descriptor)
-    else Reflect.deleteProperty(globalThis,'sessionStorage')
-  }
+    await client.createPrivateProject('Example',second)
+    await client.createPrivateProject('Example',first)
+    assert.notEqual(writes[0],writes[1])
+    assert.equal(writes[0],writes[2])
 })
 
 test('reconnect merges ordered events, ignores replay and rejects gaps', () => {
@@ -131,6 +135,34 @@ test('reconnect merges ordered events, ignores replay and rejects gaps', () => {
   assert.throws(() => applyEvents(null,delta))
 })
 
+test('a denied project read evicts earlier private pages', async () => {
+  let calls = 0
+  const client = new BackendClient({origin:'https://api.example',token:async () => 'fixture',fetch:async () => {
+    calls++
+    return calls === 1 ? Response.json(page) : Response.json({}, {status:404})
+  }})
+  await client.privateProjects(null)
+  await assert.rejects(client.latestConversation(project), {status:404})
+  await assert.rejects(client.privateProjects(null), {status:404})
+  assert.equal(calls, 3)
+})
+
+test('switching clients rejects a late account mutation response without repeating the write', async () => {
+  let deliver!: (result: Response) => void
+  let calls = 0
+  const alice = new BackendClient({origin:'https://api.example',owner:'alice',token:async () => 'alice',fetch:async () => {
+    calls++
+    return new Promise<Response>(r => { deliver = r })
+  }})
+  const result = alice.renameProject('project','Private')
+  await new Promise(resolve => setImmediate(resolve))
+  alice.close()
+  deliver(Response.json({id:'project',name:'Private',platform:'web',publicPreviewEnabled:false,status:'draft',createdAt:'2026-11-01T00:00:00Z'}))
+  await assert.rejects(result, {name:'AbortError'})
+  await assert.rejects(alice.projects(), {name:'AbortError'})
+  assert.equal(calls, 1)
+})
+
 test('an accepted terminal snapshot does not start another poll or refetch history', async () => {
   const client = new BackendClient({origin:'https://api.example',token:async () => 'test',fetch:async () => assert.fail('unexpected request')})
   const controller = new AbortController()
@@ -140,30 +172,24 @@ test('an accepted terminal snapshot does not start another poll or refetch histo
 })
 
 test('Python mutation contract: lost submission retries its session, clarification targets its cursor and Stop its run', async () => {
-  const previous = Object.getOwnPropertyDescriptor(globalThis,'sessionStorage')
-  Object.defineProperty(globalThis,'sessionStorage',{value:storage(),configurable:true})
+  const intent = crypto.randomUUID()
   const calls: {path:string;method:string;body:unknown}[] = []
-  try {
     const client = new BackendClient({origin:'https://api.example',owner:'alice',token:async () => 'fixture',fetch:async (url,init) => {
       const {pathname, search} = new URL(String(url))
       calls.push({path:pathname+search,method:init!.method!,body:init?.body && JSON.parse(String(init.body))})
       if (calls.length === 1) throw new TypeError('lost acknowledgement')
       return Response.json({...snapshot,session:pathname.split('/')[6].replaceAll('-','')})
     }})
-    await assert.rejects(client.ask(project,' Example? '))
-    const task = await client.ask(project,'Example?')
+    await assert.rejects(client.ask(project,' Example? ',intent))
+    const task = await client.ask(project,'Example?',intent)
     assert.deepEqual(calls[0],calls[1])
     assert.equal(calls[1].method,'PUT')
     assert.deepEqual(calls[1].body,{question:'Example?'})
     assert.match(calls[1].path,new RegExp(`^/api/v1/projects/${project}/sessions/[a-f0-9-]{36}/run\\?mode=conversation$`))
-    await client.steerConversation(project,task.session,'Threads',2)
+    await client.steerConversation(project,task.session,'Threads',2,crypto.randomUUID())
     const target = `/api/v1/projects/${project}/sessions/${task.session}/run`
     assert.match(calls[2].path,new RegExp(`^${target}/messages/[a-f0-9-]{36}\\?reply_to=2$`))
     assert.deepEqual(calls[2].body,{question:'Threads'})
     await client.stopConversation(project,task.session)
     assert.deepEqual(calls[3],{path:`${target}/stop`,method:'PUT',body:undefined})
-  } finally {
-    if (previous) Object.defineProperty(globalThis,'sessionStorage',previous)
-    else Reflect.deleteProperty(globalThis,'sessionStorage')
-  }
 })

@@ -1,7 +1,7 @@
 import { netlifyDeploymentsSchema, netlifyDeploymentFor } from './netlify'
 import { z } from 'zod'
 import { applyEvents, ongoing, privatePage, privateProject, projectId, runView, type Conversation } from './conversation'
-import { delay, PrivateQueries, operationIdentity } from './private-queries'
+import { delay, PrivateQueries } from './private-queries'
 import { planUpdateSchema, sessionPlanSchema, type PlanUpdate } from './session-plan'
 import { computerSessionModeSchema, computerSessionModes, type ComputerSessionMode } from './session-modes'
 export { computerSessionModes as sessionModes } from './session-modes'
@@ -200,7 +200,10 @@ export class BackendClient {
   close() { this.queries.close(); this.lifetime.abort() }
 
   private scopedRead<T>(schema: z.ZodType<T>, path: string, freshness: number, signal?: AbortSignal) {
-    return this.queries.read(path, freshness, signal, shared => this.json(schema, path, { signal: shared }))
+    return this.queries.read(path, freshness, signal, shared => this.json(schema, path, { signal: shared })).catch((error: unknown) => {
+      if (error instanceof BackendError && [401, 403, 404].includes(error.status)) this.queries.invalidate()
+      throw error
+    })
   }
 
   privateProjects(after: string | null, signal?: AbortSignal) {
@@ -234,51 +237,55 @@ export class BackendClient {
     }
   }
 
-  private async privateMutation<T>(operation: string, target: string, payload: (string | number | null)[] | null,
-    perform: (id: string, signal: AbortSignal) => Promise<T>, signal?: AbortSignal) {
+  private async privateMutation<T>(target: string,
+    perform: (signal: AbortSignal) => Promise<T>, signal?: AbortSignal) {
     if (!this.owner) throw new Error('Sign in to continue.')
     const bound = signal ? AbortSignal.any([signal, this.lifetime.signal]) : this.lifetime.signal
     bound.throwIfAborted()
-    const receipt = payload === null ? undefined :
-      await operationIdentity(sessionStorage, [this.origin, this.owner, 'personal', operation, target], payload)
-    bound.throwIfAborted()
-    const result = await perform(receipt?.id ?? target, bound)
-    bound.throwIfAborted()
-    receipt?.confirmed()
-    this.queries.invalidate(target || '/api/v1/projects')
-    return result
+    try {
+      const result = await perform(bound)
+      bound.throwIfAborted()
+      return result
+    } finally {
+      // Even a lost response can mean the write committed.
+      this.queries.invalidate(target)
+    }
   }
 
-  createPrivateProject(name: string, signal?: AbortSignal) {
+  // The caller owns one UUID per intended operation, including every retry of it.
+  createPrivateProject(name: string, operationId: string, signal?: AbortSignal) {
     const value = name.trim()
-    return this.privateMutation('create', '', [value], (id, signal) =>
-      this.json(privateProject, '/api/v1/projects', {method: 'POST', body: {name: value, operation_id: id}, signal}), signal)
+    return this.privateMutation('/api/v1/projects', signal =>
+      this.json(privateProject, '/api/v1/projects', {method: 'POST', body: {name: value, operation_id: z.uuidv4().parse(operationId)}, signal}), signal)
   }
 
-  ask(project: string, question: string, signal?: AbortSignal) {
+  ask(project: string, question: string, sessionId: string, signal?: AbortSignal) {
     const value = question.trim()
-    return this.privateMutation('ask', `/api/v1/projects/${projectId.parse(project)}`, [value], (id, signal) =>
-      this.json(runView, `${this.runPath(project, id)}?mode=conversation`, {method: 'PUT', body: {question: value}, signal}), signal)
+    return this.privateMutation(`/api/v1/projects/${projectId.parse(project)}`, signal =>
+      this.json(runView, `${this.runPath(project, z.uuidv4().parse(sessionId))}?mode=conversation`, {method: 'PUT', body: {question: value}, signal}), signal)
   }
 
-  steerConversation(project: string, session: string, question: string, replyTo: number | null, signal?: AbortSignal) {
+  steerConversation(project: string, session: string, question: string, replyTo: number | null, messageId: string, signal?: AbortSignal) {
     const target = this.runPath(project, session)
     const value = question.trim()
     const suffix = replyTo === null ? '' : `?reply_to=${z.number().int().positive().parse(replyTo)}`
-    return this.privateMutation('message', target, [value, replyTo], (id, signal) =>
-      this.json(runView, `${target}/messages/${id}${suffix}`, {method: 'PUT', body: {question: value}, signal}), signal)
+    return this.privateMutation(target, signal =>
+      this.json(runView, `${target}/messages/${z.uuidv4().parse(messageId)}${suffix}`, {method: 'PUT', body: {question: value}, signal}), signal)
   }
 
   stopConversation(project: string, session: string, signal?: AbortSignal) {
     const target = this.runPath(project, session)
     // A run cannot be restarted. Its single Stop operation is identified by its own URL.
-    return this.privateMutation('stop', target, null, (run, signal) =>
-      this.json(runView, `${run}/stop`, {method: 'PUT', signal}), signal)
+    return this.privateMutation(target, signal =>
+      this.json(runView, `${target}/stop`, {method: 'PUT', signal}), signal)
   }
 
   private async response(path: string, options: { method?: string; body?: unknown; raw?: { body: Blob; contentType: string }; key?: string; signal?: AbortSignal; after?: string; public?: true } = {}, forceRefresh = false, rateLimited = false): Promise<Response> {
+    const signal = options.public ? options.signal : options.signal
+      ? AbortSignal.any([this.lifetime.signal, options.signal]) : this.lifetime.signal
+    signal?.throwIfAborted()
     const token = options.public ? undefined : await this.token(forceRefresh)
-    options.signal?.throwIfAborted()
+    signal?.throwIfAborted()
     if (!options.public && !token) throw new BackendError(401, 'auth/missing-token', 'Sign in to continue.')
     const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
     if (options.body !== undefined && options.raw !== undefined) throw new Error('A request carries either JSON or a raw body, not both.')
@@ -290,8 +297,9 @@ export class BackendClient {
       method: options.method ?? 'GET', headers, cache: 'no-store', credentials: 'omit', redirect: 'error',
       ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
       ...(options.raw === undefined ? {} : { body: options.raw.body }),
-      ...(options.signal === undefined ? {} : { signal: options.signal }),
+      ...(signal === undefined ? {} : { signal }),
     })
+    signal?.throwIfAborted()
     if (!response.ok) {
       const body: unknown = await response.json().catch(() => null)
       const error = errorSchema.safeParse(body)
@@ -323,6 +331,7 @@ export class BackendClient {
     let body: unknown
     try { body = await response.json() }
     catch { throw new BackendError(502, 'response/invalid-json', 'The server returned invalid JSON.') }
+    if (!options?.public) this.lifetime.signal.throwIfAborted()
     const result = schema.safeParse(body)
     if (!result.success) throw new BackendError(502, 'response/invalid', 'The server returned an unexpected response.')
     return result.data
@@ -421,7 +430,7 @@ export class BackendClient {
   unbindProjectSource(projectId: string) {
     return this.json(projectSourceResponseSchema, `/projects/${id.parse(projectId)}/source`, { method: 'DELETE' })
   }
-  projects(signal?: AbortSignal) { return this.json(z.object({ projects: z.array(projectSchema) }), '/projects?limit=100', { signal }) }
+  projects(signal?: AbortSignal) { return this.scopedRead(z.object({ projects: z.array(projectSchema) }), '/projects?limit=100', 0, signal) }
   project(projectId: string, signal?: AbortSignal) { return this.json(projectSchema, `/projects/${id.parse(projectId)}`, { signal }) }
   files(projectId: string, signal?: AbortSignal, ref?: string) {
     const query = ref === undefined ? '' : `?${new URLSearchParams({ ref: fileRef.parse(ref) })}`
@@ -441,14 +450,17 @@ export class BackendClient {
   }
   renameProject(projectId: string, name: string) {
     const body = z.object({ name: z.string().trim().min(1).max(100).regex(/^[^\u0000-\u001f\u007f]+$/) }).parse({ name })
-    return this.json(projectSchema, `/projects/${id.parse(projectId)}`, { method: 'PATCH', body })
+    return this.afterProjectWrite(this.json(projectSchema, `/projects/${id.parse(projectId)}`, { method: 'PATCH', body }))
   }
   createProject(input: { name: string; description?: string }, key: string) {
     const body = z.object({ name: z.string().trim().min(1).max(100).regex(/^[^\u0000-\u001f\u007f]+$/),
       description: z.string().trim().max(500).regex(/^[^\u0000-\u001f\u007f]+$/).optional() }).strict().parse(input)
-    return this.json(projectSchema, '/projects', { method: 'POST', body, key: keySchema.parse(key) })
+    return this.afterProjectWrite(this.json(projectSchema, '/projects', { method: 'POST', body, key: keySchema.parse(key) }))
   }
-  async deleteProject(projectId: string) { await this.response(`/projects/${id.parse(projectId)}`, { method: 'DELETE' }) }
+  private afterProjectWrite<T>(result: Promise<T>) {
+    return result.finally(() => this.queries.invalidate('/projects?'))
+  }
+  async deleteProject(projectId: string) { await this.afterProjectWrite(this.response(`/projects/${id.parse(projectId)}`, { method: 'DELETE' })) }
   sessions(projectId: string, signal?: AbortSignal) { return this.json(z.object({ sessions: z.array(sessionSchema) }), `/projects/${id.parse(projectId)}/sessions?limit=100`, { signal }) }
   createSession(projectId: string, input: { prompt: string; model: string; mode?: ComputerSessionMode; effort?: 'low' | 'standard' | 'high' | 'xhigh'; attachments?: AttachmentRef[] }, key: string) {
     const body = z.object({ prompt: promptSchema, model: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/),

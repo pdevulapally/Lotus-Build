@@ -4,7 +4,7 @@ import { createRequire } from 'node:module'
 import test, { type TestContext } from 'node:test'
 import ts from 'typescript'
 import type { User } from 'firebase/auth'
-import type { BackendClient, BackendSession, SessionEvent } from '../lib/backend/client'
+import { BackendError, type BackendClient, type BackendSession, type SessionEvent } from '../lib/backend/client'
 import { loadSessionSnapshot } from '../lib/backend/session-snapshot'
 import { followSessionEvents } from '../lib/backend/session-events'
 import { latencyTrace, sessionLatency } from '../lib/backend/latency'
@@ -202,3 +202,44 @@ test('latency measures use monotonic local intervals and separate journal durati
   assert.notStrictEqual(sessionLatency('alice', 's'), sessionLatency('bob', 's'))
   assert.notStrictEqual(sessionLatency('alice', 's'), sessionLatency('alice', 'other'))
 })
+
+for (const status of [403, 404]) {
+  test(`existing chat retains confirmed history through 503 but purges it on ${status}`, async (t) => {
+    let failure: number | null = null
+    let invalidated = 0
+    let stream!: { signal: AbortSignal; onEvent: (event: SessionEvent) => Promise<void> }
+    const saved = { seq: 1, role: 'user', content: 'Private question', createdAt: session.createdAt, attachments: [] }
+    const client = { session: async () => session, project: async () => project,
+      messages: async () => {
+        if (failure) throw new BackendError(failure, 'fixture/error', 'Could not load messages')
+        return { messages: [saved] }
+      },
+      queuedMessages: async () => ({ queuedMessages: [] }), files: async () => ({ files: [], truncated: false }),
+      queries: { invalidate() { invalidated++ } },
+      events: async (_id: string, options: typeof stream) => {
+        stream = options
+        await new Promise<void>(r => options.signal.addEventListener('abort', () => r(), {once:true}))
+      },
+    } as unknown as BackendClient
+    const h = hookHarness(t, client); await settle()
+    assert.deepEqual(h.render().messages, [saved])
+    assert.deepEqual(h.render('s', { uid: 'bob' } as User).messages, [])
+    failure = 503
+    await assert.rejects(h.render().refresh(), { status: 503 })
+    assert.deepEqual(h.render().messages, [saved])
+    assert.equal(h.render().error, null)
+    assert.match(h.render().streamError!, /last confirmed/)
+    failure = null
+    await h.render().refresh()
+    assert.deepEqual(h.render().messages, [saved])
+    assert.equal(h.render().streamError, null)
+    failure = status
+    await assert.rejects(h.render().refresh(), { status })
+    assert.equal(stream.signal.aborted, true)
+    await stream.onEvent({ type:'session.state', data:session })
+    assert.equal(invalidated, 1)
+    assert.equal(h.render().project, null)
+    assert.equal(h.render().session, null)
+    assert.deepEqual(h.render().messages, [])
+  })
+}

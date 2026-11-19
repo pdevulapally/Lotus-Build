@@ -92,10 +92,18 @@ test('losing access ends the stream with the server message', async () => {
   assert.equal(h.counters().opened, 1)
 })
 
-test('a stream the server could not re-authorise asks the user to sign in again', async () => {
-  const h = harness([async (emit) => { await emit(closing('authorization-failed')) }])
+test('a stream revocation clears access before EOF and discards buffered private frames', async () => {
+  const h = harness([async (emit) => {
+    await emit(data(1))
+    await emit(closing('authorization-failed'))
+    assert.deepEqual(h.errors, [STREAM_MESSAGES.unauthorized])
+    await emit(data(2))
+    throw new TypeError('transport failed after revocation')
+  }])
   await h.run
   assert.deepEqual(h.errors, [STREAM_MESSAGES.unauthorized])
+  assert.deepEqual(h.events, [id(1)])
+  assert.equal(h.waits.length, 0)
 })
 
 

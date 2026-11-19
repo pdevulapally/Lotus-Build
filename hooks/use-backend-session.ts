@@ -4,7 +4,8 @@ import type { User } from 'firebase/auth'
 import { currentBackend } from '@/lib/backend/browser'
 import { sessionSchema, type BackendMessage, type BackendProject, type BackendSession, type SessionEvent } from '@/lib/backend/client'
 import type { ComputerTimelineEvent } from '@/components/computer/session-types'
-import { followSessionEvents } from '@/lib/backend/session-events'
+import { deniedSessionRead, followSessionEvents, STREAM_MESSAGES } from '@/lib/backend/session-events'
+import { transientReadFailure } from '@/lib/backend/private-queries'
 import { previewUrl, visiblePreview } from '@/lib/preview'
 import { computerActionLabel, isComputerAction, reduceDesktop, type DesktopState } from '@/lib/backend/desktop'
 import {
@@ -298,6 +299,7 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
   const [streamError, setStreamError] = useState<string | null>(null)
   const [connection, setConnection] = useState<'connecting' | 'connected' | 'reconnecting' | 'offline'>('connecting')
   const scopeRef = useRef('')
+  const confirmedScope = useRef('')
   const [revision, setRevision] = useState(0)
   const refreshRef = useRef<() => Promise<void>>(async () => { throw new Error('Session data is not loaded.') })
   const refresh = useCallback(() => refreshRef.current(), [])
@@ -312,12 +314,14 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
     const scope = `${user?.uid ?? ''}:${id}`
     const sameScope = scopeRef.current === scope
     scopeRef.current = scope
+    function clearPrivateState() {
+      confirmedScope.current = ''
+      setSession(null); setProject(null); setMessages([]); setQueued([]); setEvents([]); setTerminal([]); setText(''); setPreview(null)
+      setDesktop({ status: 'none' }); setLiveLabel(null); setFileCount(null); setFileError(null)
+    }
     if (!sameScope) {
-    setSession(null); setProject(null); setMessages([]); setQueued([]); setEvents([]); setTerminal([]); setText(''); setPreview(null)
-    setDesktop({ status: 'none' })
-    setLiveLabel(null)
-    setError(null); setStreamError(null); setLoading(true)
-    setFileCount(null); setFileError(null)
+      clearPrivateState()
+      setError(null); setStreamError(null); setLoading(true)
     }
     setConnection(navigator.onLine ? 'connecting' : 'offline')
     if (!user) { setError('Sign in to open this session.'); setLoading(false); return }
@@ -336,15 +340,38 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
     let textFrame: number | undefined
     const flushText = () => { textFrame = undefined; setText(streamText) }
     const scheduleText = () => { if (textFrame === undefined) textFrame = requestAnimationFrame(flushText) }
+    const client = currentBackend()
+    const deny = (message: string) => {
+      if (signal.aborted) return
+      controller.abort()
+      client.queries.invalidate()
+      if (textFrame !== undefined) cancelAnimationFrame(textFrame)
+      if (refreshTimer !== undefined) clearTimeout(refreshTimer)
+      applyStateRef.current = () => {}
+      clearPrivateState()
+      setStreamError(null); setError(message); setLoading(false)
+    }
     const reload = async () => {
+      signal.throwIfAborted()
       const version = ++loadVersion
       const stateAtStart = stateVersion
       const textAtStart = textVersion
-      const client = currentBackend()
       const { session: next, project: parent, messages: history, queued: waiting } = await loadSessionSnapshot(client, id, signal, (owned, parent) => {
         if (signal.aborted || version !== loadVersion) return
+        confirmedScope.current = scope
         setSession((current) => stateAtStart === stateVersion ? owned : current ?? { ...owned, status: latestStatus ?? owned.status })
         setProject(parent); setLoading(false)
+      }).catch((reason: unknown) => {
+        if (deniedSessionRead(reason)) deny(STREAM_MESSAGES.unauthorized)
+        else if (!signal.aborted && version === loadVersion) {
+          const message = reason instanceof Error ? reason.message : 'Could not load session.'
+          refreshFailed = true
+          if (confirmedScope.current === scope && transientReadFailure(reason)) {
+            setStreamError(STREAM_MESSAGES.retrying)
+          } else { setError(message) }
+          setLoading(false)
+        }
+        throw reason
       })
       if (signal.aborted || version !== loadVersion) return
       if (stateAtStart === stateVersion) { setSession(next); turnEnded = isTerminalStatus(next.status) }
@@ -382,19 +409,13 @@ export function useBackendSession(id: string, user: User | null, authLoading: bo
     const scheduleRefresh = () => {
       if (refreshTimer !== undefined) clearTimeout(refreshTimer)
       refreshTimer = setTimeout(() => {
-        void reload().catch((reason) => {
-          if (!signal.aborted) { refreshFailed = true; setStreamError(reason instanceof Error ? reason.message : 'Session refresh failed.') }
-        })
+        void reload().catch(() => {}) // reload publishes the failure to this view.
       }, 150)
     }
     void (async () => {
-      await followSessionEvents(currentBackend(), id, {
-          onReconcile: async () => {
-            try { await reload() }
-            catch (reason) {
-              if (!signal.aborted) { const message = reason instanceof Error ? reason.message : 'Could not load session.'; refreshFailed = true; setStreamError(message); if (!sameScope) setError(message); setLoading(false) }
-            }
-          },
+      await followSessionEvents(client, id, {
+          onReconcile: () => reload().catch(() => {}),
+          onDenied: deny,
           onReconnecting: () => { if (!signal.aborted) setConnection(navigator.onLine ? 'reconnecting' : 'offline') },
           onReset: () => { textVersion++; streamText = ''; setText(''); setLiveLabel(null); setEvents([]); setTerminal([]); setDesktop({ status: 'none' }); setPreview(null); scheduleRefresh() },
           onState: (state) => {

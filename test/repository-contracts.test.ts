@@ -6,10 +6,11 @@ import type { Delivery } from '../lib/backend/delivery'
 
 test('branch browsing sends the same encoded saved ref to file listing and content requests', async () => {
   const requests: URL[] = []
+  const signals: AbortSignal[] = []
   const controller = new AbortController()
   const client = new BackendClient({ origin: 'https://api.example.test', token: async () => 'id-token', fetch: async (input, init) => {
     assert.equal(new Headers(init?.headers).get('authorization'), 'Bearer id-token')
-    assert.equal(init?.signal, controller.signal)
+    assert.ok(init?.signal); signals.push(init.signal)
     const url = new URL(String(input)); requests.push(url)
     return Response.json(url.pathname.endsWith('/content')
       ? { path: 'src/a #.tsx', size: 3, binary: false, content: 'abc', truncated: false }
@@ -25,6 +26,8 @@ test('branch browsing sends the same encoded saved ref to file listing and conte
   assert.throws(() => client.files('p1', undefined, 'main&other=1'))
   assert.throws(() => client.file('p1', 'src/App.tsx', undefined, 'bad\nref'))
   assert.equal(requests.length, count)
+  controller.abort('left project')
+  assert.ok(signals.every(signal => signal.reason === controller.signal.reason))
 })
 
 const delivery: Delivery = {

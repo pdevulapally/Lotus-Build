@@ -12,6 +12,11 @@ export function delay(ms: number, signal: AbortSignal) {
   })
 }
 
+export function transientReadFailure(error: unknown) {
+  const status = (error as {status?: number} | null)?.status
+  return error instanceof TypeError || [502, 503, 504].includes(status ?? 0)
+}
+
 export class PrivateQueries {
   private entries = new Map<string, Entry>()
   private closed = false
@@ -57,8 +62,7 @@ export class PrivateQueries {
             return value
           } catch (error) {
             shared.throwIfAborted()
-            const status = (error as {status?: number} | null)?.status
-            if (attempt >= 2 || !(error instanceof TypeError || [502, 503, 504].includes(status ?? 0))) throw error
+            if (attempt >= 2 || !transientReadFailure(error)) throw error
             this.metrics.retries++
             await this.wait(200 * 2 ** attempt + Math.random() * 100, shared)
           }
@@ -90,16 +94,4 @@ export class PrivateQueries {
       }, reject).finally(release)
     })
   }
-}
-
-/** Persist only an opaque ID and digest in tab storage, never the prompt or token. */
-export async function operationIdentity(storage: Pick<Storage, 'getItem'|'setItem'|'removeItem'>,
-  scope: readonly string[], payload: readonly (string | number | null)[]) {
-  const bytes = new TextEncoder().encode(JSON.stringify([scope, payload]))
-  const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)),
-    n => n.toString(16).padStart(2, '0')).join('')
-  const slot = `lotus:pending:${digest}`
-  const id = storage.getItem(slot) ?? crypto.randomUUID()
-  storage.setItem(slot, id)
-  return { id, confirmed() { if (storage.getItem(slot) === id) storage.removeItem(slot) } }
 }

@@ -28,6 +28,10 @@ export const STREAM_MESSAGES = {
   offline: 'You are offline. Showing the last confirmed task state.',
 } as const
 
+export function deniedSessionRead(reason: unknown) {
+  return reason instanceof BackendError && [401, 403, 404].includes(reason.status)
+}
+
 /**
  * Follows a session's event stream, resuming from the last accepted event across reconnects.
  *
@@ -42,6 +46,7 @@ export async function followSessionEvents(client: BackendClient, sessionId: stri
   refreshToken: () => Promise<unknown>
   onEvent: (event: SessionEvent & { id: string }) => void | Promise<void>
   onError: (message: string) => void
+  onDenied?: (message: string) => void
   onConnected?: () => void
   onState?: (state: Record<string, unknown>) => void | Promise<void>
   onReset?: () => void | Promise<void>
@@ -66,10 +71,17 @@ export async function followSessionEvents(client: BackendClient, sessionId: stri
       }
       if (signal.aborted) return
       await client.events(sessionId, { signal, after: cursor, onOpen: options.onConnected, onEvent: async (event) => {
-        if (signal.aborted) return
+        if (signal.aborted || closing === 'authorization-failed') return
         if (event.type === 'session.state') { await options.onState?.(event.data); return }
         if (event.type === 'stream.reset') { await options.onReset?.(); cursor = undefined; return }
-        if (event.type === 'stream.closing') { closing = String(event.data.reason); return }
+        if (event.type === 'stream.closing') {
+          closing = String(event.data.reason)
+          if (closing === 'authorization-failed') {
+            const deny = options.onDenied ?? options.onError
+            deny(STREAM_MESSAGES.unauthorized)
+          }
+          return
+        }
         if (!event.id || (cursor && !newer(event.id, cursor))) return
         await options.onEvent({ ...event, id: event.id })
         if (signal.aborted) return
@@ -77,10 +89,7 @@ export async function followSessionEvents(client: BackendClient, sessionId: stri
         failures = 0
       } })
       if (signal.aborted) return
-      if (closing === 'authorization-failed') {
-        options.onError(STREAM_MESSAGES.unauthorized)
-        return
-      }
+      if (closing === 'authorization-failed') return
       if (closing === 'token-expired') {
         try { await options.refreshToken() }
         catch { options.onError(STREAM_MESSAGES.unauthorized); return }
@@ -88,9 +97,10 @@ export async function followSessionEvents(client: BackendClient, sessionId: stri
         continue
       }
     } catch (reason) {
-      if (signal.aborted) return
-      if (reason instanceof BackendError && [401, 403, 404].includes(reason.status)) {
-        options.onError(reason.message)
+      if (signal.aborted || closing === 'authorization-failed') return
+      if (deniedSessionRead(reason) && reason instanceof Error) {
+        const deny = options.onDenied ?? options.onError
+        deny(reason.message)
         return
       }
     }
