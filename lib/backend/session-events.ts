@@ -23,7 +23,7 @@ const MAX_CONSECUTIVE_FAILURES = 6
 export const STREAM_MESSAGES = {
   interrupted: 'Live connection interrupted. Reconnecting…',
   retrying: 'Still reconnecting. Showing the last confirmed task state; accepted work continues on the server.',
-  unauthorized: 'Session access could not be verified. Sign in again or retry the connection.',
+  unauthorized: 'Session access could not be verified. Check that you’re signed in to the right account.',
   failed: 'Live connection failed.',
   offline: 'You are offline. Showing the last confirmed task state.',
 } as const
