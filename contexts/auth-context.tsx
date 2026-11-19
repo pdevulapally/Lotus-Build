@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { onIdTokenChanged, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword,
   signOut as firebaseSignOut, sendPasswordResetEmail, type User } from 'firebase/auth'
 import { auth, googleProvider, githubProvider } from '@/lib/firebase'
-import { currentBackend } from '@/lib/backend/browser'
+import { currentBackend, syncBackendIdentity } from '@/lib/backend/browser'
 import type { BackendAccount, BackendUsage } from '@/lib/backend/client'
 
 type UserData = {
@@ -40,8 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!identity) throw new Error('Sign in to load your account.')
     try {
       const client = currentBackend()
-      const nextAccount = await client.me()
-      const nextUsage = await client.usage()
+      const [nextAccount, nextUsage] = await Promise.all([client.me(), client.usage()])
       if (auth.currentUser !== identity || request !== accountRequest.current) return
       if (nextAccount.uid !== identity.uid || nextUsage.uid !== identity.uid) throw new Error('The server returned data for a different account.')
       setAccount(nextAccount); setUsage(nextUsage); setAccountError(null)
@@ -57,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let version = 0
     let previousUid: string | null = null
     const unsubscribe = onIdTokenChanged(auth, async (identity) => {
+      syncBackendIdentity()
       const current = ++version
       const identityChanged = (identity?.uid ?? null) !== previousUid
       previousUid = identity?.uid ?? null

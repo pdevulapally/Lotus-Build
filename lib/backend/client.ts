@@ -1,5 +1,7 @@
 import { netlifyDeploymentsSchema, netlifyDeploymentFor } from './netlify'
 import { z } from 'zod'
+import { applyEvents, ongoing, privatePage, privateProject, projectId, runView, type Conversation } from './conversation'
+import { delay, PrivateQueries, operationIdentity } from './private-queries'
 import { planUpdateSchema, sessionPlanSchema, type PlanUpdate } from './session-plan'
 import { computerSessionModeSchema, computerSessionModes, type ComputerSessionMode } from './session-modes'
 export { computerSessionModes as sessionModes } from './session-modes'
@@ -181,14 +183,97 @@ const errorSchema = z.object({ error: z.object({ code: z.string(), message: z.st
 
 /** Uncertain mutations are never retried; only a rejected expired token is refreshed once. */
 export class BackendClient {
+  readonly queries = new PrivateQueries()
+  private readonly lifetime = new AbortController()
+  private readonly owner?: string
   private readonly origin: string
   private readonly token: (forceRefresh?: boolean) => Promise<string>
   private readonly fetcher: typeof fetch
-  constructor(options: { origin: string; token: (forceRefresh?: boolean) => Promise<string>; fetch?: typeof fetch }) {
+  constructor(options: { origin: string; token: (forceRefresh?: boolean) => Promise<string>; fetch?: typeof fetch; owner?: string }) {
+    this.owner = options.owner
     this.origin = backendOrigin(options.origin); this.token = options.token
     const fetcher = options.fetch ?? fetch
     // Native browser fetch must not receive this BackendClient as its receiver.
     this.fetcher = (...args) => fetcher(...args)
+  }
+
+  close() { this.queries.close(); this.lifetime.abort() }
+
+  private scopedRead<T>(schema: z.ZodType<T>, path: string, freshness: number, signal?: AbortSignal) {
+    return this.queries.read(path, freshness, signal, shared => this.json(schema, path, { signal: shared }))
+  }
+
+  privateProjects(after: string | null, signal?: AbortSignal) {
+    const path = '/api/v1/projects' + (after ? `?after=${projectId.parse(after)}` : '')
+    return this.scopedRead(privatePage, path, 5000, signal)
+  }
+
+  latestConversation(project: string, signal?: AbortSignal) {
+    return this.scopedRead(runView.nullable(), `/api/v1/projects/${projectId.parse(project)}/conversation`, 0, signal)
+  }
+
+  private runPath(project: string, session: string) {
+    return `/api/v1/projects/${projectId.parse(project)}/sessions/${keySchema.parse(session)}/run`
+  }
+
+  conversationEvents(project: string, session: string, after: number, signal?: AbortSignal) {
+    return this.scopedRead(runView, `${this.runPath(project, session)}?after=${z.number().int().nonnegative().parse(after)}`, 0, signal)
+  }
+
+  async *followConversation(project: string, signal: AbortSignal, accepted?: Conversation) {
+    let state = accepted ?? await this.latestConversation(project, signal)
+    signal.throwIfAborted()
+    if (state) state = applyEvents(null, state)
+    yield state
+    while (state && (ongoing(state.status) || state.status === 'clarification')) {
+      await delay(state.status === 'clarification' ? 15000 : 2000, signal)
+      const delta = await this.conversationEvents(project, state.session, state.cursor, signal)
+      signal.throwIfAborted()
+      state = applyEvents(state, delta)
+      yield state
+    }
+  }
+
+  private async privateMutation<T>(operation: string, target: string, payload: (string | number | null)[] | null,
+    perform: (id: string, signal: AbortSignal) => Promise<T>, signal?: AbortSignal) {
+    if (!this.owner) throw new Error('Sign in to continue.')
+    const bound = signal ? AbortSignal.any([signal, this.lifetime.signal]) : this.lifetime.signal
+    bound.throwIfAborted()
+    const receipt = payload === null ? undefined :
+      await operationIdentity(sessionStorage, [this.origin, this.owner, 'personal', operation, target], payload)
+    bound.throwIfAborted()
+    const result = await perform(receipt?.id ?? target, bound)
+    bound.throwIfAborted()
+    receipt?.confirmed()
+    this.queries.invalidate(target || '/api/v1/projects')
+    return result
+  }
+
+  createPrivateProject(name: string, signal?: AbortSignal) {
+    const value = name.trim()
+    return this.privateMutation('create', '', [value], (id, signal) =>
+      this.json(privateProject, '/api/v1/projects', {method: 'POST', body: {name: value, operation_id: id}, signal}), signal)
+  }
+
+  ask(project: string, question: string, signal?: AbortSignal) {
+    const value = question.trim()
+    return this.privateMutation('ask', `/api/v1/projects/${projectId.parse(project)}`, [value], (id, signal) =>
+      this.json(runView, `${this.runPath(project, id)}?mode=conversation`, {method: 'PUT', body: {question: value}, signal}), signal)
+  }
+
+  steerConversation(project: string, session: string, question: string, replyTo: number | null, signal?: AbortSignal) {
+    const target = this.runPath(project, session)
+    const value = question.trim()
+    const suffix = replyTo === null ? '' : `?reply_to=${z.number().int().positive().parse(replyTo)}`
+    return this.privateMutation('message', target, [value, replyTo], (id, signal) =>
+      this.json(runView, `${target}/messages/${id}${suffix}`, {method: 'PUT', body: {question: value}, signal}), signal)
+  }
+
+  stopConversation(project: string, session: string, signal?: AbortSignal) {
+    const target = this.runPath(project, session)
+    // A run cannot be restarted. Its single Stop operation is identified by its own URL.
+    return this.privateMutation('stop', target, null, (run, signal) =>
+      this.json(runView, `${run}/stop`, {method: 'PUT', signal}), signal)
   }
 
   private async response(path: string, options: { method?: string; body?: unknown; raw?: { body: Blob; contentType: string }; key?: string; signal?: AbortSignal; after?: string; public?: true } = {}, forceRefresh = false, rateLimited = false): Promise<Response> {
@@ -243,7 +328,7 @@ export class BackendClient {
     return result.data
   }
 
-  me(signal?: AbortSignal) { return this.json(accountSchema, '/me', { signal }) }
+  me(signal?: AbortSignal) { return this.scopedRead(accountSchema, '/me', 0, signal) }
   voice(signal?: AbortSignal) {
     return this.json(z.object({ available: z.boolean(), privacyNotice: z.string(), privacyVersion: z.string().nullable(), maxCallSeconds: z.number().int().positive().nullable() }), '/voice', { signal })
   }
@@ -268,7 +353,7 @@ export class BackendClient {
     const body = z.object({ code: z.string().regex(/^[0-9]{6}$/) }).strict().parse({ code })
     return this.json(emailVerificationResultSchema, '/auth/email-verification/verify', { method: 'POST', body })
   }
-  usage(signal?: AbortSignal) { return this.json(usageSchema, '/me/usage', { signal }) }
+  usage(signal?: AbortSignal) { return this.scopedRead(usageSchema, '/me/usage', 0, signal) }
   sessionUsage(sessionId: string, signal?: AbortSignal) { return this.json(sessionUsageSchema, `/sessions/${id.parse(sessionId)}/usage`, { signal }) }
   plans(signal?: AbortSignal) { return this.json(z.object({ plans: z.array(planSchema) }), '/plans', { signal, public: true }) }
   billingSubscription(signal?: AbortSignal) { return this.json(billingSubscriptionSchema, '/billing/subscription', { signal }) }
