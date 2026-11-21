@@ -26,6 +26,9 @@ test('an allowance the server states as unlimited reads as Unlimited, never infe
 test('counts carry no unit word; other units keep theirs', () => {
   assert.equal(quantityWithUnit('count', 12), '12')
   assert.equal(quantityWithUnit('tokens', 1200), '1,200 tokens')
+  assert.equal(quantityWithUnit('microgbp', 100_000_000), '£100')
+  assert.equal(quantityWithUnit('bytes', 104_857_600), '100 MB')
+  assert.equal(quantityWithUnit('seconds', 300), '5 min')
 })
 
 test('prices drop trailing zero pence and name the interval', () => {
@@ -57,4 +60,13 @@ test('pricing names and orders server-reported AI allowance windows for customer
   assert.equal(planAllowanceLabel(monthly), 'Monthly AI allowance')
   assert.equal(planAllowanceLabel(weekly), 'Weekly AI allowance')
   assert.deepEqual(orderedPlanAllowances([storage, monthly, weekly]).map((row) => row.key), ['week', 'month', 'storage'])
+})
+
+test('money and time limits from the server read in pounds and minutes', () => {
+  assert.equal(formatAllowanceValue('microgbp', 100_000_000), '£100')
+  assert.equal(formatAllowanceValue('microgbp', 2_505_000), '£2.51')
+  assert.deepEqual(describeCountCapabilities([
+    { key: 'voice.call.seconds', label: 'Maximum voice call duration', kind: 'number', value: 300 },
+    { key: 'voice.concurrent', label: 'Concurrent voice calls', kind: 'number', value: 1 },
+  ]).map((row) => row.value), ['5 min', '1'])
 })
