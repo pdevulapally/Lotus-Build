@@ -30,13 +30,17 @@ export function formatAllowanceValue(unit: string, value: number): string {
     case 'bytes': return bytes(value)
     case 'tokens': return `${compactCount(value)} tokens`
     case 'count': return value.toLocaleString('en-GB')
+    // One microgbp is a millionth of a pound; 10,000 make one penny.
+    case 'microgbp': return formatStripeAmount(Math.round(value / 10_000), 'gbp', { trimWhole: true })
     default: return `${value.toLocaleString('en-GB')} ${unit}`
   }
 }
 
-/** A quantity with its unit word, except "count", which reads as a bare number ("12", not "12 count"). */
+/** An exact quantity: counts are bare numbers, tokens stay exact, and time, storage and money use their readable forms. */
 export function quantityWithUnit(unit: string, value: number): string {
-  return unit === 'count' ? value.toLocaleString('en-GB') : `${value.toLocaleString('en-GB')} ${unit}`
+  if (unit === 'count') return value.toLocaleString('en-GB')
+  if (unit === 'seconds' || unit === 'bytes' || unit === 'microgbp') return formatAllowanceValue(unit, value)
+  return `${value.toLocaleString('en-GB')} ${unit}`
 }
 
 /**
@@ -91,9 +95,16 @@ export function featuredPlanKey(plans: readonly BackendPlan[]): string | undefin
 
 type Capability = BackendPlan['capabilities'][number]
 
+function capabilityValue(capability: Capability & { kind: 'number' }): string {
+  if (capability.value === 'unlimited') return 'Unlimited'
+  // Capabilities carry no unit field; the server names time limits with a ".seconds" key, as it does for allowances.
+  if (capability.key.endsWith('.seconds')) return duration(capability.value)
+  return compactCount(capability.value)
+}
+
 /** Numeric plan capabilities (e.g. projects) shown beside the usage allowances. "unlimited" is a value the backend states explicitly, never inferred. */
 export function describeCountCapabilities(capabilities: readonly Capability[]): { key: string; label: string; value: string }[] {
   return capabilities.flatMap((capability) => capability.kind === 'number'
-    ? [{ key: capability.key, label: capability.label, value: capability.value === 'unlimited' ? 'Unlimited' : compactCount(capability.value) }]
+    ? [{ key: capability.key, label: capability.label, value: capabilityValue(capability) }]
     : [])
 }
