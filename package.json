@@ -8,7 +8,7 @@
     "start": "next start",
     "type-check": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "test:contracts": "node --import tsx --test test/*.test.ts test/*.test.tsx"
+    "test:contracts": "node --import tsx --import ./test/setup-env.ts --test test/*.test.ts test/*.test.tsx"
   },
   "dependencies": {
     "@astryxdesign/core": "0.7.1",
@@ -63,7 +63,7 @@
     "lenis": "^1.3.23",
     "lucide-react": "^1.21.0",
     "monaco-editor": "^0.53.0",
-    "next": "^16.4.3",
+    "next": "^16.4.6",
     "next-themes": "^0.4.6",
     "react": "19.2.7",
     "react-day-picker": "10.0.1",

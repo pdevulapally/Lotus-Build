@@ -11,7 +11,7 @@ import Link from "next/link"
 
 
 
-import { useParams, useSearchParams } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 
 
 
@@ -282,6 +282,11 @@ export default function ComputerPage() {
   const raw = backend.session
   const loading = authLoading || backend.loading
   const error = backend.error
+  const router = useRouter()
+  useEffect(() => {
+    if (authLoading || user) return
+    router.replace(`/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`)
+  }, [authLoading, user, router])
   useEffect(() => {
     if (!user || loading || !backend.project || !raw) return
     const trace = sessionLatency(user.uid, id)
@@ -454,7 +459,7 @@ export default function ComputerPage() {
     }
   }
 
-  if (loading) return <LoadingShell theme={computerTheme} />
+  if (loading || !user) return <LoadingShell theme={computerTheme} />
   if (error || !session || !backend.project || !raw) return <ErrorState theme={computerTheme} message={error ?? "Session or project state is unavailable."} />
 
   const sessionPlatform = normalizePlatform(session.platform)
